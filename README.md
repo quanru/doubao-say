@@ -74,7 +74,13 @@ Your keyboard must report Fn as a Linux key; otherwise choose another key.
 - Press the active trigger twice to send Enter without dictation. This can submit messages or execute terminal commands.
 - Configure the hold threshold, double-tap interval, Enter gesture and startup.
 
-The bottom overlay shows an audio-driven blue mirrored waveform and live text.
+The bottom overlay shows an audio-driven waveform and live text.
+Choose Classic bars, Soft waves, Concentric ripples, or Cai Xukun · Basketball
+under Settings → Appearance → Listening waveform. The basketball theme uses an
+original centre-parted cartoon in suspenders, with audio-driven dribbling and
+court ripples. Changes save automatically; use Preview appearance to try them.
+Classic bars remains the default. Reduced updates also stop travelling and
+bouncing motion in the new styles while retaining volume feedback.
 Final text is pasted after recording ends; target fields are not revised live.
 No green volume/progress bar is shown.
 The system tray waveform opens the existing app when clicked: blue when ready,

@@ -15,7 +15,7 @@ gi.require_version("Gtk", "4.0")
 from gi.repository import GLib, Gtk
 from doubao_input.app import DoubaoInputApp
 from doubao_input.i18n import set_language
-from doubao_input.settings import Settings
+from doubao_input.settings import Settings, WAVEFORM_STYLES
 from doubao_input.ui.settings_window import SettingsWindow
 
 
@@ -52,6 +52,11 @@ def main():
                 capture_key=app._begin_key_capture, cancel_capture=app._end_key_capture,
                 apply_key=app._apply_trigger_key)
             window.window.realize()
+            for index, style in enumerate(WAVEFORM_STYLES):
+                window.waveform_style.set_selected(index)
+                assert app.settings.waveform_style == style
+                assert app._overlay.waveform_style == style
+                assert Settings.load().waveform_style == style
             picker = window.trigger_picker
             preset = 29 if app.settings.doubao_key != 29 else 56
             preset_index = [entry[1] for entry in picker.entries].index(preset)
