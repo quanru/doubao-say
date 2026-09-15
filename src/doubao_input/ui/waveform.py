@@ -96,46 +96,33 @@ def draw_ripples(cr, level, phase, x, y, rx, ry, color):
 
 
 def draw_basketball(cr, level, phase, width, height, accent, foreground):
-    # Original tiny cartoon: centre-parted hair, dark shirt, light suspenders.
-    bounce = abs(math.sin(phase)) * level
-    sway = math.sin(phase) * level * 2
-    cx = width / 2 - 13
-    ball_x, ball_y = cx + 26, 25 - 12 * bounce
-    draw_ripples(cr, level, phase, ball_x, 28, width * 0.38, 2.3, accent)
+    """An abstract dribble: a rebounding crest and outward impact waves."""
+    cycle = (phase / math.pi) % 1
+    rebound = math.sin(cycle * math.pi)
     cr.set_line_cap(cairo.LINE_CAP_ROUND)
-    cr.set_line_join(cairo.LINE_JOIN_ROUND)
-
-    def line(points, color, thickness):
-        cr.set_source_rgb(*color)
-        cr.set_line_width(thickness)
-        cr.move_to(*points[0])
-        for point in points[1:]:
-            cr.line_to(*point)
-        cr.stroke()
-
-    skin = (0.98, 0.79, 0.63)
-    dark = (0.16, 0.17, 0.23)
-    # Bent knees and a reaching dribble hand.
-    line([(cx - 3, 19), (cx - 6 - sway, 23), (cx - 3 - sway, 28)], foreground, 2.8)
-    line([(cx + 3, 19), (cx + 7 + sway, 23), (cx + 10 + sway, 28)], foreground, 2.8)
-    line([(cx - 4 + sway, 12), (cx - 10, 16), (cx - 7, 19)], skin, 2)
-    line([(cx + 4 + sway, 12), (cx + 13, 13), (ball_x - 1, ball_y - 5)], skin, 2)
-    line([(cx + sway, 11), (cx, 19)], dark, 8)
-    for offset in (-2.4, 2.4):
-        line([(cx + sway + offset, 11), (cx + offset, 19)], foreground, 1.3)
-    cr.set_source_rgb(*skin)
-    cr.arc(cx + sway, 6, 3.8, 0, math.tau)
-    cr.fill()
-    for direction in (-1, 1):
-        cr.set_source_rgb(*foreground)
-        cr.move_to(cx + sway, 2)
-        cr.curve_to(cx + sway + direction * 6, -0.5,
-                    cx + sway + direction * 6, 5, cx + sway + direction * 3, 7)
-        cr.close_path()
-        cr.fill()
-    # Orange ball with dark seams stays legible at native overlay size.
-    cr.set_source_rgb(1, 0.58, 0.19)
-    cr.arc(ball_x, ball_y, 3.5, 0, math.tau)
-    cr.fill()
-    line([(ball_x - 3, ball_y), (ball_x + 3, ball_y)], dark, 0.65)
-    line([(ball_x, ball_y - 3), (ball_x, ball_y + 3)], dark, 0.65)
+    orange = (1.0, 0.62, 0.30)
+    colors = (accent, foreground, orange)
+    for layer, color in enumerate(colors):
+        points = []
+        for i in range(161):
+            x = 2 * i / 160 - 1
+            taper = math.cos(x * math.pi / 2) ** 1.5
+            # A central wave rises between impacts; paired packets travel out.
+            crest = math.exp(-(x / 0.25) ** 2) * (0.25 + 0.75 * rebound)
+            distance = abs(x) - cycle * 0.95
+            impact = math.exp(-(distance / 0.23) ** 2) * (1 - cycle)
+            carrier = math.cos(x * 15 - phase * 2 + layer * 0.7)
+            amplitude = level * (height / 2 - 3) * taper * (
+                0.58 * crest + 0.42 * impact * carrier)
+            points.append((12 + (x + 1) / 2 * (width - 24), amplitude))
+        # Mirrored ribbons read as a waveform even in the small listening bar.
+        for direction in (-1, 1):
+            cr.move_to(points[0][0], height / 2)
+            for x, amplitude in points:
+                cr.line_to(x, height / 2 + direction * amplitude * (1 - layer * 0.18))
+            cr.set_source_rgba(*color, 0.10 * level)
+            cr.close_path()
+            cr.fill_preserve()
+            cr.set_source_rgba(*color, 0.65 if layer == 2 else 0.45)
+            cr.set_line_width(1.0 if layer == 2 else 1.3)
+            cr.stroke()
