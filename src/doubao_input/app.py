@@ -234,6 +234,7 @@ class DoubaoInputApp(Gtk.Application):
                 save_polish=self._save_polish,
                 test_polish=self._test_polish,
                 apply_microphone=self._apply_microphone,
+                apply_asr_provider=self._apply_asr_provider,
             ),
         )
         self._update_checker = UpdateChecker(GLib.idle_add, self._update_available)
@@ -303,6 +304,10 @@ class DoubaoInputApp(Gtk.Application):
     def _apply_microphone(self, device):
         from dataclasses import replace
         self.apply_settings(replace(self.settings, microphone=device))
+
+    def _apply_asr_provider(self, provider):
+        from dataclasses import replace
+        self.apply_settings(replace(self.settings, asr_provider=provider))
 
     def apply_settings(self, settings):
         settings.validate()

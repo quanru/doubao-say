@@ -9,6 +9,7 @@ from doubao_input.ui.trigger_picker import TriggerPicker
 from doubao_input.ui.polish_settings import PolishSettings
 from doubao_input.ui.style import apply_window_style
 from doubao_input.product import VERSION
+from doubao_input.settings import ASR_PROVIDERS
 
 
 class ControlWindow:
@@ -39,6 +40,8 @@ class ControlWindow:
         self._summary_label = None
         self._account_status = None
         self._login_button = None
+        self._asr_provider = None
+        self._changing_asr_provider = False
         self._trigger_picker = None
         self._microphone = None
         self._microphone_sources = []
@@ -141,6 +144,12 @@ class ControlWindow:
                 "Connect your Doubao account in a secure web window. Complete the sign-in method offered by Doubao, then return here. We never ask you to type a password into this app's settings.\n\nAudio is sent to Doubao only during recording. Sign-in data is stored on this device. This is an unofficial client.",
                 "在网页窗口中连接豆包账号。按照豆包页面提供的方式完成登录，再回到这里；无需在本软件设置中填写密码。\n\n仅录音期间会向豆包发送音频。登录信息保存在本机。这是非官方客户端。"))
         if self._account_status:
+            self._changing_asr_provider = True
+            try:
+                self._asr_provider.set_selected(ASR_PROVIDERS.index(
+                    summary.get("asr_provider", "doubao")))
+            finally:
+                self._changing_asr_provider = False
             if official:
                 self._account_status.set_text(tr(
                     "API key saved · run the connection test in Settings or continue to a voice test.",
@@ -293,6 +302,20 @@ class ControlWindow:
             tr("Your voice, wherever you type.", "让声音变成文字。"),
             tr("Connect your Doubao account in a secure web window. Complete the sign-in method offered by Doubao, then return here. We never ask you to type a password into this app's settings.\n\nAudio is sent to Doubao only during recording. Sign-in data is stored on this device. This is an unofficial client.",
                "在网页窗口中连接豆包账号。按照豆包页面提供的方式完成登录，再回到这里；无需在本软件设置中填写密码。\n\n仅录音期间会向豆包发送音频。登录信息保存在本机。这是非官方客户端。"))
+        provider_row = Gtk.Box(spacing=12)
+        provider_row.add_css_class("settings-row")
+        provider_row.append(Gtk.Label(
+            label=tr("Recognition service", "语音识别服务"),
+            xalign=0, hexpand=True, wrap=True))
+        self._asr_provider = Gtk.DropDown.new_from_strings([
+            tr("Doubao account", "豆包账号"),
+            tr("Volcengine official API", "火山引擎官方 API"),
+        ])
+        self._asr_provider.set_selected(ASR_PROVIDERS.index(
+            self._actions.summary().get("asr_provider", "doubao")))
+        self._asr_provider.connect("notify::selected", self._asr_provider_changed)
+        provider_row.append(self._asr_provider)
+        account.append(provider_row)
         self._account_status = label("")
         account.append(self._account_status)
         self._login_button = button(account, tr("Open Doubao sign-in", "打开豆包登录"), self._on_login, True)
@@ -432,6 +455,22 @@ class ControlWindow:
             return
         self.set_feedback(tr("Microphone saved. Run the three-second check.",
                              "麦克风已保存，请进行三秒检查。"))
+
+    def _asr_provider_changed(self, *_):
+        if self._changing_asr_provider:
+            return
+        selected = self._asr_provider.get_selected()
+        if selected >= len(ASR_PROVIDERS):
+            return
+        try:
+            self._actions.apply_asr_provider(ASR_PROVIDERS[selected])
+        except (ValueError, OSError) as error:
+            self.set_feedback(str(error))
+            self._refresh()
+            return
+        self.set_feedback(tr(
+            "Recognition service switched. Configure its credentials below to continue.",
+            "语音识别服务已切换，请在下方配置对应凭证后继续。"))
 
     def _continue_from_trigger(self):
         picker = self._trigger_picker

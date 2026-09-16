@@ -167,6 +167,13 @@ class AppSetupEdgesTest(TestCase):
         saved = app.apply_settings.call_args.args[0]
         self.assertEqual(saved.microphone, "desk-mic")
 
+    def test_onboarding_provider_selection_uses_normal_settings_pipeline(self):
+        app = SimpleNamespace(settings=Settings(asr_provider="doubao"),
+                              apply_settings=Mock())
+        DoubaoInputApp._apply_asr_provider(app, "volcengine")
+        saved = app.apply_settings.call_args.args[0]
+        self.assertEqual(saved.asr_provider, "volcengine")
+
     def test_summary_contains_only_user_facing_state(self):
         app = SimpleNamespace(settings=Settings(doubao_key=100, microphone="desk-mic"),
                               recent=RecentResult(text="result", status="failed"))

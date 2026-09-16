@@ -73,6 +73,34 @@ class SetupActionsTest(unittest.TestCase):
         control.set_feedback.assert_called_once_with("busy")
         control._refresh.assert_called_once_with()
 
+    def test_recognition_service_selection_applies_immediately(self):
+        control = SimpleNamespace(
+            _changing_asr_provider=False,
+            _asr_provider=Mock(),
+            _actions=Mock(),
+            set_feedback=Mock(),
+            _refresh=Mock(),
+        )
+        control._asr_provider.get_selected.return_value = 1
+        ControlWindow._asr_provider_changed(control)
+        control._actions.apply_asr_provider.assert_called_once_with("volcengine")
+        control.set_feedback.assert_called_once()
+        control._refresh.assert_not_called()
+
+    def test_rejected_recognition_service_selection_restores_saved_value(self):
+        control = SimpleNamespace(
+            _changing_asr_provider=False,
+            _asr_provider=Mock(),
+            _actions=Mock(),
+            set_feedback=Mock(),
+            _refresh=Mock(),
+        )
+        control._asr_provider.get_selected.return_value = 1
+        control._actions.apply_asr_provider.side_effect = ValueError("busy")
+        ControlWindow._asr_provider_changed(control)
+        control.set_feedback.assert_called_once_with("busy")
+        control._refresh.assert_called_once_with()
+
     def test_endpoint_test_has_adjacent_loading_and_success_feedback(self):
         view = SimpleNamespace(
             _testing=False,
