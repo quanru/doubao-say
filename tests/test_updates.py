@@ -45,7 +45,7 @@ class UpdateTest(TestCase):
             self.assertEqual(found[0].version, "1.3.0")
             cache = json.loads(checker.cache_path().read_text())
             self.assertEqual(cache["checked_at"], 1000)
-            self.assertEqual(cache["current_version"], "1.0.0")
+            self.assertEqual(cache["current_version"], "1.1.0")
             self.assertEqual(checker.cache_path().stat().st_mode & 0o777, 0o600)
 
     def test_fresh_cache_avoids_network_and_repeats_notification(self):
@@ -56,7 +56,7 @@ class UpdateTest(TestCase):
             checker.cache_path().parent.mkdir(parents=True)
             checker.cache_path().write_text(json.dumps({
                 "checked_at": 999, "tag_name": "v1.3.0",
-                "current_version": "1.0.0",
+                "current_version": "1.1.0",
                 "draft": False, "prerelease": False}))
             with patch.object(checker, "_fetch") as fetch:
                 checker.check()
@@ -81,7 +81,7 @@ class UpdateTest(TestCase):
             checker._fetch()
             cache = json.loads(checker.cache_path().read_text())
             self.assertEqual(cache["checked_at"], 1000)
-            self.assertEqual(cache["tag_name"], "1.0.0")
+            self.assertEqual(cache["tag_name"], "1.1.0")
 
     def test_offline_check_preserves_previous_update(self):
         found = []

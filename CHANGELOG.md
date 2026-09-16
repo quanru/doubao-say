@@ -1,5 +1,26 @@
 # Changelog
 
+## 1.1.0
+
+- Added native X11/XFCE automatic input with target/focus guards, terminal-aware
+  paste shortcuts and a non-activating overlay. `xdotool` and `xclip` remain
+  optional runtime enhancements; recognition still works without either tool.
+- Preserve the contributor history behind native X11 support. Thanks to
+  [@laukkw](https://github.com/laukkw) for the original implementation and
+  desktop acceptance coverage.
+- Keep local microphone pre-roll out of the network stream until a recording
+  gesture is confirmed, ignore the first startup RMS block, remove DC offset
+  from level detection and finish recognition after a 500 ms quiet period.
+- Preserve complete clipboard MIME payloads during paste and restore them only
+  when the temporary text is still present, avoiding overwriting a clipboard
+  change made while delivery is in progress. CopyQ is not required.
+- Refresh onboarding readiness after microphone, voice and credential checks;
+  retain recent recognition results for copy or guarded retry when delivery
+  cannot be confirmed.
+- Restrict diagnostics to allowlisted stages and timing data, without
+  credentials, transcripts or device identifiers.
+- Expanded regression, native-X11 and release documentation coverage.
+
 ## 1.0.0 — release candidate
 
 - Add an optional direct typing mode using wtype without touching the clipboard; clipboard paste remains the default.

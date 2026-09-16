@@ -1,4 +1,4 @@
-# Complete Python dependency set tested for the 1.0.0 release.
+# Complete Python dependency set tested for the 1.1.0 release.
 websockets==17.1
 sounddevice==0.5.6
 evdev==2.0.0
