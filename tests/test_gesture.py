@@ -13,7 +13,9 @@ class GestureTest(unittest.TestCase):
             return self.serial
         self.g = KeyGesture(*[lambda name=name: self.events.append(name)
                               for name in ("start", "stop", "toggle", "enter")],
-                            schedule, self.pending.pop)
+                            schedule, self.pending.pop,
+                            prime=lambda: self.events.append("prime"),
+                            discard=lambda: self.events.append("discard"))
 
     def fire(self):
         key = next(iter(self.pending))
@@ -25,11 +27,11 @@ class GestureTest(unittest.TestCase):
 
     def test_single_toggle(self):
         self.tap()
-        self.assertEqual(self.events, [])
+        self.assertEqual(self.events, ["prime"])
         self.fire()
         self.tap()
         self.fire()
-        self.assertEqual(self.events, ["toggle", "toggle"])
+        self.assertEqual(self.events, ["prime", "toggle", "prime", "toggle"])
 
     def test_hold(self):
         self.g.press()
@@ -37,13 +39,13 @@ class GestureTest(unittest.TestCase):
         self.fire()
         self.g.release()
         self.g.release()
-        self.assertEqual(self.events, ["start", "stop"])
+        self.assertEqual(self.events, ["prime", "start", "stop"])
         self.assertFalse(self.pending)
 
     def test_double_does_not_toggle(self):
         self.tap()
         self.tap()
-        self.assertEqual(self.events, ["enter"])
+        self.assertEqual(self.events, ["prime", "prime", "discard", "enter"])
         self.assertFalse(self.pending)
 
     def test_tap_then_hold(self):
@@ -51,7 +53,7 @@ class GestureTest(unittest.TestCase):
         self.g.press()
         self.fire()
         self.g.release()
-        self.assertEqual(self.events, ["start", "stop"])
+        self.assertEqual(self.events, ["prime", "prime", "start", "stop"])
 
     def test_stray_release(self):
         self.g.release()
@@ -61,20 +63,20 @@ class GestureTest(unittest.TestCase):
         self.tap()
         self.g.close()
         self.assertFalse(self.pending)
-        self.assertFalse(self.events)
+        self.assertEqual(self.events, ["prime", "discard"])
 
     def test_double_disabled(self):
         self.g.double_enter = False
         self.tap()
         self.tap()
-        self.assertEqual(self.events, ["toggle", "toggle"])
+        self.assertEqual(self.events, ["prime", "toggle", "prime", "toggle"])
 
     def test_cancel_while_key_down_does_not_restart_on_release(self):
         self.g.press()
         self.g.close()
         self.g.release()
         self.assertFalse(self.pending)
-        self.assertFalse(self.events)
+        self.assertEqual(self.events, ["prime", "discard"])
 
 
 if __name__ == "__main__":

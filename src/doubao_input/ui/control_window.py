@@ -213,7 +213,8 @@ class ControlWindow:
         self._cancel_button.set_visible(testing and state != RecordingState.IDLE)
         if self._start_button:
             ready = (summary.get("onboarding_complete") or
-                     (summary.get("microphone_ok") and summary.get("voice_test_ok")))
+                     (summary.get("microphone_ok") and summary.get("voice_test_ok")
+                      and summary.get("key_code")))
             self._start_button.set_sensitive(logged_in and ready and not testing)
         self._sync_navigation()
 

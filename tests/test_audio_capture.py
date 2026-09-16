@@ -112,7 +112,8 @@ class AudioCallbacksTest(unittest.TestCase):
         default, override, audio = Mock(), Mock(), Mock()
         capture = AudioCapture(on_rms=default)
         def emit_first_block():
-            capture._audio_callback(b"\x00\x40" * 4, 4, None, None)
+            samples = (b"\x00\x40\x00\xc0" * 2)
+            capture._audio_callback(samples, 4, None, None)
         with patch.dict("os.environ", {"WAYLAND_DISPLAY": "test"}), \
              patch("doubao_input.doubao.audio_capture.shutil.which", return_value="pw-record"), \
              patch.object(capture, "_start_pipewire", side_effect=emit_first_block):
@@ -122,3 +123,19 @@ class AudioCallbacksTest(unittest.TestCase):
             capture.start(audio)
             default.assert_called_once_with(0.5)
         self.assertEqual(audio.call_count, 2)
+
+    def test_pipewire_is_preferred_on_x11(self):
+        capture = AudioCapture()
+        with patch.dict("os.environ", {"DISPLAY": ":0"}, clear=True), \
+             patch("doubao_input.doubao.audio_capture.shutil.which",
+                   return_value="/usr/bin/pw-record"), \
+             patch.object(capture, "_start_pipewire") as start_pipewire, \
+             patch("doubao_input.doubao.audio_capture._load_sounddevice") as sounddevice:
+            capture.start(Mock())
+        start_pipewire.assert_called_once_with()
+        sounddevice.assert_not_called()
+
+    def test_rms_removes_dc_offset(self):
+        rms = Mock()
+        AudioCapture._dispatch_audio(b"\x00\x40" * 8, Mock(), rms)
+        rms.assert_called_once_with(0.0)

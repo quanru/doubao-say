@@ -11,6 +11,7 @@ Key design decisions:
 from __future__ import annotations
 
 import logging
+import threading
 import time
 
 from gi.repository import GLib
@@ -26,7 +27,8 @@ from doubao_input.i18n import tr
 MIN_PRESS_DURATION = 0.15  # seconds
 # Doubao sends several corrections after release. Commit only once that result
 # stream has stayed quiet briefly, matching the current upstream client.
-FINAL_RESULT_QUIET_PERIOD = 0.25
+FINAL_RESULT_QUIET_PERIOD = 0.5
+MAX_PREROLL_BYTES = 2 * 16000 * 2
 
 logger = logging.getLogger(__name__)
 
@@ -51,6 +53,10 @@ class TranscriptionManager:
         self._press_started_at: float = 0.0
         self._generation = 0
         self._stopped_at = None
+        self._prime_lock = threading.Lock()
+        self._priming = False
+        self._primed_audio = []
+        self._primed_bytes = 0
 
         # Callbacks set by app.py
         self.on_auth_expired = None  # () -> None
@@ -63,6 +69,7 @@ class TranscriptionManager:
         self.on_empty_complete = None  # () -> None; successful finish without text
         self.on_recover = None  # (partial_text) -> None, before a failed session resets
         self.on_cancel_enabled_changed = None  # (enabled: bool) -> None
+        self.on_diagnostic = None  # (allowlisted_stage: str) -> None
 
         self._wire_asr_callbacks()
 
@@ -102,6 +109,61 @@ class TranscriptionManager:
 
     # --- Toggle ---
 
+    def prime_recording(self) -> bool:
+        """Capture locally before a tap/hold gesture is confirmed."""
+        if (self.app_state.login_status != LoginStatus.LOGGED_IN
+                or self.app_state.recording_state != RecordingState.IDLE):
+            return False
+        with self._prime_lock:
+            if self._priming:
+                return True
+            self._priming = True
+            self._primed_audio = []
+            self._primed_bytes = 0
+        try:
+            self.audio_capture.start(on_audio_data=self._capture_audio)
+            self._trace("audio_buffering")
+            return True
+        except Exception as error:
+            logger.error("Audio capture failed: %s", error)
+            self.discard_primed_audio()
+            self.app_state.error_message = tr(
+                "Microphone failed to start; check your input device and permissions",
+                "麦克风启动失败，请检查输入设备和权限")
+            return False
+
+    def _capture_audio(self, data: bytes) -> None:
+        with self._prime_lock:
+            if self._priming:
+                chunk = bytes(data)
+                self._primed_audio.append(chunk)
+                self._primed_bytes += len(chunk)
+                while self._primed_bytes > MAX_PREROLL_BYTES and self._primed_audio:
+                    self._primed_bytes -= len(self._primed_audio.pop(0))
+                return
+        self.asr_client.send_audio(data)
+
+    def _trace(self, stage):
+        if self.on_diagnostic:
+            self.on_diagnostic(stage)
+
+    def _commit_primed_audio(self) -> None:
+        with self._prime_lock:
+            for chunk in self._primed_audio:
+                self.asr_client.send_audio(chunk)
+            self._primed_audio = []
+            self._primed_bytes = 0
+            self._priming = False
+
+    def discard_primed_audio(self) -> None:
+        with self._prime_lock:
+            was_priming = self._priming
+            self._priming = False
+            self._primed_audio = []
+            self._primed_bytes = 0
+        if was_priming and self.app_state.recording_state == RecordingState.IDLE:
+            self.audio_capture.stop()
+
     def handle_toggle(self) -> None:
         """Called on GTK main thread from hotkey manager.
         Kept for compatibility with the original toggle-style API."""
@@ -137,12 +199,17 @@ class TranscriptionManager:
 
     def _start_recording(self) -> None:
         if self.app_state.login_status != LoginStatus.LOGGED_IN:
+            self.discard_primed_audio()
             logger.warning("Not logged in, showing login window")
             if self.on_show_login:
                 self.on_show_login()
             return
 
+        if not self.prime_recording():
+            return
+
         logger.info("Starting recording...")
+        self._trace("gesture_confirmed")
         self._generation += 1
         self._stopped_at = None
         self._wire_asr_callbacks()
@@ -153,15 +220,9 @@ class TranscriptionManager:
         if self.on_overlay_show:
             self.on_overlay_show()
 
-        # Start audio immediately (buffered in ASR client until WS connects)
-        try:
-            self.audio_capture.start(on_audio_data=self.asr_client.send_audio)
-        except Exception as e:
-            logger.error("Audio capture failed: %s", e)
-            self._reset_to_idle()
-            self.app_state.error_message = tr("Microphone failed to start; check your input device and permissions",
-                                              "麦克风启动失败，请检查输入设备和权限")
-            return
+        # Only confirmed gestures move locally buffered PCM into the ASR queue.
+        # New capture callbacks cannot overtake the pre-roll while this lock is held.
+        self._commit_primed_audio()
 
         # Try provider credentials first. Only the web-account provider can
         # recover missing credentials through WebView extraction.
@@ -174,6 +235,7 @@ class TranscriptionManager:
             logger.info("Using saved recognition credentials")
             self.using_cached_params = True
             self.asr_client.connect(cached)
+            self._trace("connection_requested")
         elif self.interactive_auth and self.on_params_needed:
             self.using_cached_params = False
             generation = self._generation
@@ -195,6 +257,7 @@ class TranscriptionManager:
             self._on_asr_error(error)
             return
         self.asr_client.finish_sending()
+        self._trace("audio_drained")
         self.awaiting_final_result = True
 
         # Safety timeout
@@ -210,6 +273,7 @@ class TranscriptionManager:
         self.safety_timer_id = None
         if self.app_state.recording_state == RecordingState.STOPPING:
             logger.warning("Recognition timed out; retaining partial text without submitting")
+            self._trace("timed_out")
             if self.on_recover and self.app_state.transcription_text.strip():
                 self.on_recover(self.app_state.transcription_text)
             self._reset_to_idle()
@@ -222,11 +286,14 @@ class TranscriptionManager:
     # --- ASR callbacks (on GTK main thread via GLib.idle_add) ---
 
     def _on_asr_open(self) -> bool:
+        self._trace("connected")
         if self.app_state.recording_state == RecordingState.STARTING:
             self._set_state(RecordingState.RECORDING)
         return GLib.SOURCE_REMOVE
 
     def _on_asr_result(self, text: str) -> bool:
+        if not self.app_state.transcription_text:
+            self._trace("first_result")
         self.app_state.transcription_text = text
         if self.on_overlay_update:
             self.on_overlay_update(text)
@@ -237,6 +304,7 @@ class TranscriptionManager:
         return GLib.SOURCE_REMOVE
 
     def _on_asr_finish(self) -> bool:
+        self._trace("server_finished")
         self._cancel_final_result_timer()
         self.awaiting_final_result = False
         if self.app_state.recording_state in (
@@ -262,6 +330,7 @@ class TranscriptionManager:
                 self._schedule_final_completion()
                 return GLib.SOURCE_REMOVE
             logger.info("Result stream quiet, completing transcription")
+            self._trace("quiet_finished")
             self.awaiting_final_result = False
             self._complete_transcription()
         return GLib.SOURCE_REMOVE
@@ -275,6 +344,7 @@ class TranscriptionManager:
         if self.app_state.recording_state == RecordingState.IDLE:
             return GLib.SOURCE_REMOVE
         logger.error("ASR request failed")
+        self._trace("failed")
         if self.on_recover and self.app_state.transcription_text.strip():
             self.on_recover(self.app_state.transcription_text)
         # NOTE: genuine auth failures arrive via `on_auth_error` -> `_on_auth_error`,
@@ -301,6 +371,7 @@ class TranscriptionManager:
         if text and self.on_paste:
             self.on_paste(text)
         elif not text and self.on_empty_complete:
+            self._trace("empty_result")
             self.on_empty_complete()
         self._reset_to_idle()
 
@@ -311,6 +382,10 @@ class TranscriptionManager:
             GLib.source_remove(self.safety_timer_id)
             self.safety_timer_id = None
         self.awaiting_final_result = False
+        with self._prime_lock:
+            self._priming = False
+            self._primed_audio = []
+            self._primed_bytes = 0
         self.audio_capture.stop()
         self.asr_client.disconnect()
         self._set_state(RecordingState.IDLE)
@@ -323,8 +398,10 @@ class TranscriptionManager:
 
     def handle_cancel(self) -> None:
         if self.app_state.recording_state == RecordingState.IDLE:
+            self.discard_primed_audio()
             return
         logger.info("Cancelling transcription")
+        self._trace("cancelled")
         self.awaiting_final_result = False
         self.audio_capture.stop()
         self.asr_client.disconnect()
@@ -371,6 +448,7 @@ class TranscriptionManager:
                     "无法保存登录信息，请检查配置目录权限和磁盘空间。")
                 return
             self.asr_client.connect(params)
+            self._trace("connection_requested")
         else:
             self._reset_to_idle()
             self.app_state.error_message = tr("Could not connect; please sign in again", "无法获取连接参数，请重新登录")

@@ -187,10 +187,9 @@ class AudioCapture:
                 a = array.array("h")
                 a.frombytes(data)
                 if a:
-                    s = 0
-                    for v in a:
-                        s += v * v
-                    rms = (s / len(a)) ** 0.5 / 32768.0
+                    mean = sum(a) / len(a)
+                    energy = sum((value - mean) ** 2 for value in a)
+                    rms = (energy / len(a)) ** 0.5 / 32768.0
                 else:
                     rms = 0.0
             except Exception:

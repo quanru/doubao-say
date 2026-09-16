@@ -37,6 +37,11 @@ Open **Doubao Say** from your application launcher:
    the app and overlay; this rehearsal never pastes or sends Enter. When it
    passes, choose **Finish setup** and use the trigger in another app.
 
+The trigger starts a short local audio pre-roll immediately so the first word is
+not lost. Audio is handed to the selected recognition service only after the tap
+or hold gesture is confirmed; a double-tap, Escape or cancelled gesture discards
+the unconfirmed buffer.
+
 ### Optional official Volcengine recognition
 
 Open **Settings → Recognition service**, select **Volcengine official API**, and
@@ -177,8 +182,10 @@ Escape is unchanged. Existing global Escape bindings are not replaced; a warning
 is shown if protection cannot be enabled. Other compositors currently only observe
 Escape and cannot prevent it reaching the foreground.
 Paste and Enter are serialized on a background worker so clipboard waits do not
-block the GTK interface. Cancellation stops remaining input; it cannot undo text
-or clipboard changes already delivered.
+block the GTK interface. Before clipboard paste, the app snapshots one primary
+MIME payload and restores its original bytes only if the clipboard still contains
+the dictation text. A copy made by the user during delivery is never overwritten.
+Cancellation stops remaining input and cannot undo text already delivered.
 Failed recognition can preserve partial text; failed paste preserves the result.
 This slot is memory-only, not a transcript history. Exiting loses it.
 
@@ -198,10 +205,10 @@ Automatic detection of every desktop shortcut conflict is not supported.
 
 ## Privacy and limitations
 
-The default unofficial backend sends microphone audio to Doubao while recording
-and depends on its web protocol. The optional official backend sends it to
-Volcengine under the user's API account and terms. The microphone-only check does
-not upload audio.
+After a recording gesture is confirmed, the default unofficial backend sends the
+locally buffered and live microphone audio to Doubao and depends on its web protocol.
+The optional official backend sends it to Volcengine under the user's API account
+and terms. Cancelled, double-tap and microphone-only checks do not upload audio.
 The hosted sign-in website controls its own language.
 When optional polishing is enabled, recognized text—including provisional text
 sent after a pause—is transmitted to the OpenAI-compatible endpoint configured by
