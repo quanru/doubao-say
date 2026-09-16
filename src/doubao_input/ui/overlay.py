@@ -380,7 +380,9 @@ class Overlay:
     def _arm_ticker(self) -> None:
         if self._ticker_src is None and self._visible:
             self._last_peak_tick = time.monotonic()
-            self._ticker_src = GLib.timeout_add(250 if self.reduced_motion else TICK_MS, self._tick)
+            self._ticker_src = GLib.timeout_add(
+                250 if self.reduced_motion else (33 if self.waveform_style == "basketball" else TICK_MS),
+                self._tick)
 
     def _tick(self) -> bool:
         if not self._visible or self._window is None or self._canvas is None:
