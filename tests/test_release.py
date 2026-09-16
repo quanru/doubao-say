@@ -24,6 +24,20 @@ with patch.dict(sys.modules):
 
 
 class ReleaseTest(unittest.TestCase):
+    def test_bundle_uses_its_own_system_probe_before_python_wheel_installation(self):
+        with tempfile.TemporaryDirectory() as folder:
+            root = Path(folder)
+            package = root / "src/doubao_input"
+            package.mkdir(parents=True)
+            (package / "__init__.py").write_text("")
+            probe = package / "preflight.py"
+            probe.write_text("def check_system(): return {'fixture-dependency': True}\n")
+            installer.check_system(root)
+            self.assertEqual(list(root.rglob("*.pyc")), [], "Read-only bundle checks must not add unlisted files")
+            probe.write_text("def check_system(): return {'missing-fixture-dependency': False}\n")
+            with self.assertRaises(subprocess.CalledProcessError):
+                installer.check_system(root)
+
     def test_manifest_uses_final_product_identity(self):
         manifest = json.loads((ROOT / "manifest.json").read_text())
         self.assertEqual(manifest["id"], "md.lifeos.doubao-say")

@@ -14,8 +14,10 @@ all source files or transitive system-library obligations.
 
 Wheels are distributed intact, including these notices. GTK, WebKit, PipeWire,
 PortAudio, Cairo and system PyGObject are installed by the OS and not bundled.
-Keep their dependency requirements documented. Ruff is development-only, not
-part of end-user archives. Rebuild this inventory when dependency pins change.
+The optional X11 helpers `xdotool` and `xclip` are also not bundled; they are
+probed at runtime and are not required for installation or Wayland. Ruff is
+development-only, not part of end-user archives. Rebuild this inventory when
+dependency pins change.
 
 Before public release: verify exact upstream code revisions and author notices,
 review full license texts and bundled-wheel contents, and record any additional

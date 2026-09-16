@@ -1,4 +1,4 @@
-"""Bottom-centred, Voxtype-style recording overlay for Wayland.
+"""Recording overlay: bottom-anchored on layer-shell, WM-positioned on X11.
 
 The public methods are safe to call from worker threads. GTK work is
 marshalled to the main loop while audio samples remain plain Python state
@@ -70,7 +70,7 @@ STATE_BORDER_KEYS = {
 
 
 class Overlay:
-    """Non-focusable layer-shell overlay with waveform, meter and live text."""
+    """Non-activating recording overlay with waveform, meter and live text."""
 
     def __init__(self, app_state: AppState | None = None) -> None:
         self._main_thread_id = threading.get_ident()
@@ -238,8 +238,14 @@ class Overlay:
         win.set_can_focus(False)
         win.add_css_class("doubao-overlay")
 
-        # Layer-shell must be initialized before the window is realized.
-        if Gtk4LayerShell is not None:
+        # GTK can use X11 even inside a Wayland session. Inspect its display,
+        # independently of the desktop protocol used to identify paste targets.
+        if win.get_display().__gtype__.name == "GdkX11Display":
+            gi.require_version("GdkX11", "4.0")
+            from gi.repository import GdkX11
+            win.connect("realize", lambda window: GdkX11.X11Surface.set_user_time(
+                window.get_surface(), 0))
+        elif Gtk4LayerShell is not None and Gtk4LayerShell.is_supported():
             try:
                 Gtk4LayerShell.init_for_window(win)
                 Gtk4LayerShell.set_namespace(win, "doubao-say-overlay")
@@ -260,7 +266,7 @@ class Overlay:
                 logger.exception("Could not initialize gtk4-layer-shell")
         else:
             logger.warning(
-                "Gtk4LayerShell unavailable; compositor will choose overlay position"
+                "Layer-shell unavailable or unsupported; compositor will choose overlay position"
             )
 
         panel = Gtk.Box(orientation=Gtk.Orientation.VERTICAL, spacing=1)
@@ -350,6 +356,7 @@ class Overlay:
                 background: transparent;
             }}
             .doubao-overlay-panel {{
+                color: {self._theme['bright_foreground']};
                 background-color: rgba(
                     {background[0]}, {background[1]}, {background[2]}, 0.85
                 );

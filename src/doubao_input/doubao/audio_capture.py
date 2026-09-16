@@ -20,6 +20,7 @@ import shutil
 import subprocess
 from typing import Any
 
+from doubao_input.desktop import is_x11
 from doubao_input.doubao.config import AUDIO_BLOCKSIZE, AUDIO_CHANNELS, AUDIO_SAMPLE_RATE
 
 logger = logging.getLogger(__name__)
@@ -59,9 +60,9 @@ class AudioCapture:
         self._on_audio_data = on_audio_data
         self._on_rms = on_rms if on_rms is not None else self._default_on_rms
 
-        # Native PipeWire capture avoids PortAudio's blocking stop/drain on
-        # suspended Wayland audio graphs. Keep sounddevice for other desktops.
-        if os.environ.get("WAYLAND_DISPLAY") and shutil.which("pw-record"):
+        # The picker returns PipeWire node names on X11 and Wayland. Use the
+        # matching backend; retain sounddevice when native capture is unavailable.
+        if (os.environ.get("WAYLAND_DISPLAY") or is_x11()) and shutil.which("pw-record"):
             self._start_pipewire()
             return
 

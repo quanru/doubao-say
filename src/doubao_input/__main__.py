@@ -7,10 +7,13 @@ import os
 from pathlib import Path
 import sys
 
+from doubao_input.desktop import is_x11
+
 
 def _preload_layer_shell() -> None:
     """Re-exec once with gtk4-layer-shell preloaded before GTK/Wayland."""
-    if os.environ.get("DOUBAO_LAYER_SHELL_PRELOADED") == "1":
+    if (is_x11() or os.environ.get("GDK_BACKEND") == "x11"
+            or os.environ.get("DOUBAO_LAYER_SHELL_PRELOADED") == "1"):
         return
     try:
         import ctypes.util

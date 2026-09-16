@@ -63,8 +63,11 @@ if ! command -v pacman >/dev/null 2>&1; then
   exit 1
 fi
 
-packages=(python python-gobject python-cairo gtk4 gtk4-layer-shell webkitgtk-6.0
-          pipewire wl-clipboard portaudio)
+packages=(python python-gobject python-cairo gtk4 webkitgtk-6.0 pipewire portaudio)
+# Match desktop.is_x11(); Python itself may not be installed at this stage.
+if [[ -z ${DISPLAY:-} || -n ${WAYLAND_DISPLAY:-} || ${XDG_SESSION_TYPE:-} == wayland || -n ${HYPRLAND_INSTANCE_SIGNATURE:-} ]]; then
+  packages+=(gtk4-layer-shell wl-clipboard)
+fi
 if ! $BUNDLE; then
   packages+=(python-sounddevice python-websockets python-evdev)
 fi

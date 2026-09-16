@@ -10,6 +10,7 @@ from doubao_input.inject.injector import Injector
 
 class DirectInputTest(TestCase):
     def setUp(self):
+        self.enterContext(patch.dict('os.environ', {'WAYLAND_DISPLAY': 'test'}))
         self.process = Mock(returncode=0)
         self.process.poll.return_value = 0
         self.spawn = self.enterContext(patch(

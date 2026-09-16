@@ -2,7 +2,7 @@
 
 [简体中文](README.zh-CN.md)
 
-A standalone GTK4 voice-input application for Linux/Wayland. It uses Doubao
+A standalone GTK4 voice-input application for Linux (Hyprland/Wayland and native X11). It uses Doubao
 web-account recognition by default and can optionally use the official Volcengine
 Seed ASR 2.0 API. English by default. Settings offers **System / English /
 简体中文** and saves each choice automatically. System follows the session's language preferences,
@@ -86,11 +86,30 @@ endpoint errors also safely fall back to it.
 The API key is stored separately with owner-only permissions and never appears in
 diagnostics. Use **Test endpoint** before enabling.
 
+### Desktop support
+
+| Desktop session | Automatic clipboard paste | Direct typing |
+| --- | --- | --- |
+| Hyprland / Wayland | `wl-copy`; known, unchanged window required | Optional `wtype` |
+| Native X11 | Optional `xclip` and `xdotool`; known, unchanged window/PID required | Unavailable; choose Clipboard paste |
+| Other Wayland compositors | Retain the result for manual copying when focus cannot be verified | No supported automatic path |
+
+Native X11 uses Ctrl+V, or Ctrl+Shift+V for recognized terminal classes. Its
+floating overlay does not request activation; the window manager chooses its
+position. Hyprland keeps its bottom-anchored layer-shell overlay. PipeWire
+microphone selection works through `pw-record` on both desktops.
+XWayland is not treated as a native X11 session. The X11 helpers are probed at
+runtime; without either one, recognition still works and the result is retained
+for manual copying.
+
 ### Text input method
 
 Settings → Input → **Text input method** defaults to **Clipboard paste**,
-including for existing installations. Choose **Direct typing** to keep the
-clipboard unchanged. Install `wtype` separately; this mode requires a compatible
+including for existing installations. Clipboard paste replaces the current
+clipboard contents; clipboard managers may save the recognized text in history.
+CopyQ is not required, and no clipboard restoration or history suppression is
+performed. Choose **Direct typing** on Hyprland to keep the clipboard unchanged.
+Install `wtype` separately; this mode requires a compatible
 Wayland virtual-keyboard implementation and has been tested on Hyprland.
 
 Direct typing sends characters gradually (about 8 seconds for 1,760 characters
@@ -163,10 +182,12 @@ or clipboard changes already delivered.
 Failed recognition can preserve partial text; failed paste preserves the result.
 This slot is memory-only, not a transcript history. Exiting loses it.
 
-Safe automatic paste currently requires a known, unchanged Hyprland window.
-Other compositors or an unknown target retain the result for manual copying.
-Focus is checked before paste and Enter, but Wayland cannot make that check and
-input delivery atomic. A sent paste shortcut is not proof that an app received it.
+Automatic paste requires a known, unchanged Hyprland or native X11 window.
+On X11, missing window metadata, a closed window or the app's own window prevents
+paste. Unsupported desktops or unknown targets retain the result for manual copying.
+Focus is checked before paste and Enter, but focus checks and input delivery are
+not atomic. Moving the caret inside the same window is not detected. A sent paste
+shortcut is not proof that an app received it.
 
 Settings includes hardware key capture with timeout/cancel, PipeWire microphone
 selection, lower-frequency waveform updates, account controls, and an allowlisted
@@ -250,7 +271,9 @@ when available and otherwise uses `sudo pacman -S --needed` on Arch.
 
 Keep this checkout in place: its desktop launcher points to it. Enable standalone
 startup in Settings only if the Omarchy plugin is disabled. For other distributions,
-resolve equivalent system packages first; automatic paste currently targets Hyprland.
+resolve equivalent system packages first; automatic paste targets Hyprland and native X11.
+Run installation checks from the desktop session you intend to use so the correct
+clipboard and GTK backend dependencies are selected.
 
 **App or plugin release archive:**
 
@@ -302,6 +325,19 @@ PYTHONPATH=src .venv/bin/python -m unittest discover -s tests -v
 python3 packaging/build-release.py
 ```
 
+Native X11's opt-in desktop test creates a disposable Xephyr/XFWM session and
+checks Unicode/multiline paste, terminal shortcuts, cancellation, focus changes
+and overlay focus. It uses a separate clipboard without CopyQ; optional PyQt6 and
+Electron fixtures extend toolkit coverage. Avoid typing during the test:
+
+```sh
+timeout --kill-after=5s 50s env PYTHONPATH=src python3 tests/manual_x11.py --run
+```
+
+This requires Xephyr, xfwm4, xfce4-terminal, xdotool, xclip and `/dev/uinput` access.
+Real microphone dictation, other window managers and Hyprland acceptance remain
+separate checks.
+
 Archives are local artifacts, not published releases. Validate both installation
 and real desktop workflows before distributing them. No GitHub upload is performed
 by any build or installation script.
@@ -318,7 +354,7 @@ The first release version is **1.0.0**. A `v1.0.0` tag must match every embedded
 version before CI can publish. Tag releases rebuild both offline app and Omarchy
 plugin archives for Python 3.11–3.14 and attach SHA-256 checksums. A manually started
 release workflow builds artifacts for inspection but does not publish them. Real
-login, microphone, global-key and Wayland behavior still require the manual checklist.
+login, microphone, global-key and desktop behavior still require the manual checklist.
 
 ## Credits and licensing
 

@@ -8,6 +8,26 @@ from doubao_input.doubao.audio_capture import AudioCapture
 
 
 class AudioCallbacksTest(unittest.TestCase):
+    def test_x11_uses_pipewire_picker_node_and_keeps_portaudio_fallback(self):
+        for available in (True, False):
+            with self.subTest(pw_record=available):
+                capture, callback = AudioCapture(), Mock()
+                capture.device = "alsa_input.test-source"
+                with patch.dict(os.environ, {"DISPLAY": ":99", "XDG_SESSION_TYPE": "x11"}, clear=True), \
+                     patch("doubao_input.doubao.audio_capture.shutil.which", return_value="pw-record" if available else None), \
+                     patch("doubao_input.doubao.audio_capture.subprocess.Popen") as spawn, \
+                     patch("doubao_input.doubao.audio_capture.threading.Thread"), \
+                     patch("doubao_input.doubao.audio_capture._load_sounddevice") as sounddevice:
+                    capture.start(callback)
+                    if available:
+                        args = spawn.call_args.args[0]
+                        self.assertEqual(args[args.index("--target") + 1], capture.device)
+                        sounddevice.assert_not_called()
+                    else:
+                        spawn.assert_not_called()
+                        self.assertEqual(sounddevice.return_value.RawInputStream.call_args.kwargs["device"], capture.device)
+                    capture.stop()
+
     def test_finish_drains_real_pipe_and_joins_reader(self):
         # A synthetic producer, not pw-record: no microphone or network access.
         producer = subprocess.Popen(

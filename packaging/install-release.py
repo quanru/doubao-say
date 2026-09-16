@@ -45,17 +45,16 @@ def verify_bundle(root):
     return manifest
 
 
-def check_system():
-    probe = """import gi, cairo
-gi.require_version('Gtk','4.0')
-gi.require_version('WebKit','6.0')
-gi.require_version('Gtk4LayerShell','1.0')
-from gi.repository import Gtk, WebKit, Gtk4LayerShell
+def check_system(root):
+    probe = """import sys
+sys.path.insert(0, sys.argv[1])
+from doubao_input.preflight import check_system
+missing = [name for name, passed in check_system().items() if not passed]
+if missing:
+    raise SystemExit('Missing system dependencies: ' + ', '.join(missing) + '. See INSTALL.md')
 """
-    subprocess.run([sys.executable, "-c", probe], check=True)
-    for command in ("wl-copy", "pw-record"):
-        if not shutil.which(command):
-            raise ValueError(f"Missing system dependency: {command}. See INSTALL.md")
+    # The verified bundle must remain byte-for-byte unchanged after --check.
+    subprocess.run([sys.executable, "-B", "-c", probe, str(Path(root) / "src")], check=True)
 
 
 def quote(value):
@@ -121,7 +120,7 @@ def main():
         print("Uninstalled. Credentials, settings and shared runtime were preserved.")
         return
 
-    check_system()
+    check_system(root)
     if args.check:
         print(f"Bundle verified: {bundle['version']} {kind}; system dependencies OK")
         return

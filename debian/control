@@ -17,13 +17,15 @@ Depends:
  gir1.2-webkit-6.0,
  libgtk-4-1,
  libwebkitgtk-6.0-4,
- wl-clipboard,
+ wl-clipboard
 Recommends:
  python3-pip,
- python3-venv,
+ python3-venv
 Suggests:
  python3-numpy,
-Description: Doubao Say voice input for Linux/Wayland
+ xclip,
+ xdotool
+Description: Doubao Say voice input for Linux desktops
  Tap or hold a configurable trigger, speak, and paste recognised text
  into the focused input field. Backed by Doubao's streaming ASR.
  .

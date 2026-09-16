@@ -10,12 +10,13 @@ import time
 from typing import Optional
 
 from doubao_input.doubao.host_tools import command_candidates
-from doubao_input.inject.target import focused_target
+from doubao_input.desktop import is_x11
+from doubao_input.inject.target import focused_target, x11_window
 from doubao_input.inject.direct import type_text
 
 logger = logging.getLogger(__name__)
 
-# Pause after wl-copy so the clipboard manager has settled.
+# Pause after copying so the clipboard manager has settled.
 # Also pause after the right-Alt physical release to avoid mixing it
 # with our injected Left Ctrl.
 PASTE_DELAY = 0.08  # seconds
@@ -35,8 +36,11 @@ TERMINAL_CLASSES = {
 
 
 def active_window_needs_shift() -> bool:
-    """Use the Hyprland app ID, never window titles, to select terminal paste."""
+    """Use the app class, never window titles, to select terminal paste."""
     from doubao_input.doubao.config import INJECT_USE_SHIFT
+    if is_x11():
+        window = x11_window()
+        return window[1] in TERMINAL_CLASSES if window else INJECT_USE_SHIFT
     if not os.environ.get("HYPRLAND_INSTANCE_SIGNATURE"):
         return INJECT_USE_SHIFT
     try:
@@ -65,6 +69,9 @@ class Injector:
     def inject(self, text: str, use_shift: bool | None = None, *, expected_target=None, cancelled=lambda: False, method="clipboard") -> bool:
         """Deliver using the selected method; direct input never falls back to paste."""
         if method == "direct":
+            if is_x11():
+                logger.warning("Direct input requires Wayland; text retained")
+                return False
             with self._lock:
                 return type_text(text, expected_target, cancelled)
         if method != "clipboard":
@@ -149,15 +156,15 @@ class Injector:
 
     def _copy_to_clipboard(self, text: str) -> bool:
         data = text.encode("utf-8")
-        # wl-copy first
-        for cmd in command_candidates("wl-copy"):
+        # Native X11 has no Wayland selection; preserve wl-copy priority elsewhere.
+        for cmd in ([] if is_x11() else command_candidates("wl-copy")):
             try:
                 subprocess.run(cmd, input=data, check=True, timeout=3)
                 logger.info("clipboard: wl-copy ok")
                 return True
             except Exception as e:
                 logger.debug("wl-copy failed: %s", e)
-        # xclip fallback (XWayland only)
+        # Native X11, or the existing XWayland fallback.
         for cmd in command_candidates("xclip"):
             try:
                 subprocess.run(
