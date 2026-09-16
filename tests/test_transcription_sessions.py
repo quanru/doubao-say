@@ -142,6 +142,31 @@ class TranscriptionSessionTest(TestCase):
         self.assertEqual(manager.app_state.recording_state, RecordingState.IDLE)
         self.assertTrue(manager.app_state.error_message)
 
+    def test_audio_disconnect_resets_recording_and_releases_settings(self):
+        manager = self.manager()
+        manager.app_state.recording_state = RecordingState.RECORDING
+        manager._priming = False
+        manager._audio_generation = 7
+        manager.on_recover = Mock()
+        manager.app_state.transcription_text = "partial words"
+
+        manager._deliver_audio_error(7, RuntimeError("device removed"))
+
+        manager.on_recover.assert_called_once_with("partial words")
+        manager.audio_capture.stop.assert_called_once()
+        self.assertEqual(manager.app_state.recording_state, RecordingState.IDLE)
+        self.assertIn("Microphone disconnected", manager.app_state.error_message)
+
+    def test_stale_audio_disconnect_cannot_reset_next_recording(self):
+        manager = self.manager()
+        manager._audio_generation = 8
+        manager.app_state.recording_state = RecordingState.RECORDING
+
+        manager._deliver_audio_error(7, RuntimeError("old device"))
+
+        self.assertEqual(manager.app_state.recording_state, RecordingState.RECORDING)
+        manager.audio_capture.stop.assert_not_called()
+
     def test_failure_preserves_partial_before_state_reset(self):
         manager = self.manager()
         manager.app_state.recording_state = RecordingState.RECORDING
