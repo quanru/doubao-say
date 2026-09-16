@@ -39,6 +39,7 @@ class VolcengineProtocolTest(unittest.TestCase):
             "bits": 16, "channel": 1,
         })
         self.assertEqual(payload["request"]["model_name"], "bigmodel")
+        self.assertIs(payload["request"]["enable_nonstream"], True)
 
     def test_audio_last_packet_uses_negative_sequence(self):
         packet = audio_request(4, b"pcm", last=True)

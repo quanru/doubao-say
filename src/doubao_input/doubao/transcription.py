@@ -261,12 +261,18 @@ class TranscriptionManager:
         self.awaiting_final_result = True
 
         # Safety timeout
+        finalization_timeout = getattr(self.asr_client, "finalization_timeout", None)
+        if (not isinstance(finalization_timeout, (int, float))
+                or isinstance(finalization_timeout, bool)
+                or finalization_timeout <= 0):
+            finalization_timeout = STOP_SAFETY_TIMEOUT
         self.safety_timer_id = self._later(
-            int(STOP_SAFETY_TIMEOUT * 1000), self._safety_timeout
+            int(finalization_timeout * 1000), self._safety_timeout
         )
         # A result may already be complete before the key is released. Without
         # this timer, silence after release needlessly takes the full safety timeout.
-        if self.app_state.transcription_text.strip():
+        if (self.app_state.transcription_text.strip()
+                and getattr(self.asr_client, "requires_server_finish", False) is not True):
             self._schedule_final_completion()
 
     def _safety_timeout(self) -> bool:
@@ -299,7 +305,8 @@ class TranscriptionManager:
             self.on_overlay_update(text)
         if self.app_state.recording_state == RecordingState.STARTING:
             self._set_state(RecordingState.RECORDING)
-        if self.awaiting_final_result:
+        if (self.awaiting_final_result
+                and getattr(self.asr_client, "requires_server_finish", False) is not True):
             self._schedule_final_completion()
         return GLib.SOURCE_REMOVE
 

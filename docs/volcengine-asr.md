@@ -24,7 +24,18 @@ These instructions apply to the **new Doubao Speech console**. Do not enter the 
 5. Activate the service and accept any billing agreement shown by the console. The console displays remaining trial or purchased audio-processing time; limits and prices depend on the account.
 6. Open **API Key** in the same project and create or copy a key. Treat it as a long-lived secret.
 
-Volcengine describes bidirectional streaming as returning text while speech is still being received. The mode used by Doubao Say primarily supports Chinese and English; don't assume other languages or the broader non-bidirectional dialect coverage is available.
+Volcengine describes bidirectional streaming as returning text while speech is
+still being received. Doubao Say uses its **optimized bidirectional mode with
+second-pass recognition**: the first pass keeps the overlay live, then a more
+accurate result replaces it before the application pastes the final text. The
+Chinese model detects supported dialects automatically; there is no dialect
+selector.
+
+Volcengine currently documents dialect-text output for Cantonese, Sichuan,
+Shaanxi, Ji-Lu, Lan-Yin, and Jiang-Huai; Mandarin-text output for Shanghainese,
+Minnan, Shanxi, and Hakka; and support for accented Mandarin such as Northeast
+and Beijing speech. Coverage and output behavior remain controlled by the
+service and may change.
 
 Official references:
 
@@ -42,10 +53,11 @@ Official references:
 Doubao Say supplies these values internally; users don't need to configure them:
 
 ```text
-WebSocket:    wss://openspeech.bytedance.com/api/v3/sauc/bigmodel
+WebSocket:    wss://openspeech.bytedance.com/api/v3/sauc/bigmodel_async
 Resource ID: volc.seedasr.sauc.duration
 Auth header: X-Api-Key
 Audio:       16 kHz / 16-bit / mono PCM
+Second pass: enable_nonstream=true
 ```
 
 The key is stored at `~/.config/doubao-say/volcengine_api_key` with owner-only permissions. Switching back to Doubao web sign-in keeps the key; **Clear API key** removes it.
@@ -54,7 +66,8 @@ The key is stored at `~/.config/doubao-say/volcengine_api_key` with owner-only p
 
 - **HTTP 401:** verify that the key comes from the new console, its project matches the activated service, and Streaming Speech Recognition 2.0 is active. Newly created access may take a short time to propagate.
 - **Key test passes but no transcript appears:** verify the selected microphone with the local three-second microphone test, then run the real voice test.
-- **Text appears only after release:** use a current build whose endpoint ends in `bigmodel`, not `bigmodel_nostream`.
+- **Text appears only after release:** use a current build whose endpoint ends in `bigmodel_async`, not `bigmodel_nostream`.
+- **The first-pass dialect text is inaccurate:** keep recording normally and wait for the second-pass correction after a pause or release.
 - **Unexpected charges or quota errors:** inspect Usage statistics and the billing center in the Volcengine console. Doubao Say never purchases quota or adds funds for you.
 
 Never publish an API key, configuration directory, VM disk, or full logs containing private transcripts. A timestamp, HTTP status, and Volcengine Log ID are normally sufficient for support.

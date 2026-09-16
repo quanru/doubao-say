@@ -46,6 +46,7 @@ def full_request(sequence: int = 1) -> bytes:
         "request": {
             "model_name": "bigmodel", "enable_itn": True,
             "enable_punc": True, "enable_ddc": False,
+            "enable_nonstream": True,
             "show_utterances": False,
         },
     }

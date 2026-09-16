@@ -17,7 +17,7 @@ from doubao_input.doubao.volcengine_protocol import (
 
 
 logger = logging.getLogger(__name__)
-VOLCENGINE_ASR_URL = "wss://openspeech.bytedance.com/api/v3/sauc/bigmodel"
+VOLCENGINE_ASR_URL = "wss://openspeech.bytedance.com/api/v3/sauc/bigmodel_async"
 MAX_PENDING_BYTES = 1024 * 1024
 
 
@@ -38,6 +38,12 @@ class _Session:
 
 class VolcengineASRClient:
     """Thread-safe client with the same lifecycle contract as the web client."""
+
+    # The optimized endpoint sends a more accurate second-pass result after the
+    # final audio packet. Do not let the generic quiet-period heuristic commit
+    # the live first-pass text before the server marks the stream complete.
+    requires_server_finish = True
+    finalization_timeout = 5.0
 
     def __init__(self, connect_factory=None) -> None:
         self._lock = threading.RLock()

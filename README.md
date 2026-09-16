@@ -47,9 +47,11 @@ the unconfirmed buffer.
 Open **Settings → Recognition service**, select **Volcengine official API**, and
 enter the API key issued by the Volcengine Speech Recognition console. Changes
 save automatically. Use **Test API key** before the voice test. This backend uses
-the Seed ASR 2.0 bidirectional streaming endpoint and the hourly resource
-`volc.seedasr.sauc.duration`; PCM audio is uploaded while you speak, incremental
-text is returned live, and the final result arrives after recording stops.
+the Seed ASR 2.0 optimized bidirectional endpoint with second-pass recognition
+and the hourly resource `volc.seedasr.sauc.duration`; PCM audio is uploaded while
+you speak, first-pass text is returned live, and the more accurate second-pass
+result replaces it before the final text is pasted. The Chinese model detects
+supported dialects automatically, so there is no dialect selector.
 Volcengine bills usage to your account.
 
 The API key is stored in `~/.config/doubao-say/volcengine_api_key` (or the
@@ -60,8 +62,8 @@ console; an HTTP 401 from **Test API key** normally means that account-side acce
 is not ready yet.
 
 See [Doubao and the official Volcengine speech API](docs/volcengine-asr.md) for
-backend differences, new-console activation, bidirectional streaming limitations,
-and troubleshooting.
+backend differences, new-console activation, supported dialect behavior, and
+troubleshooting.
 
 ### Optional voice polishing
 

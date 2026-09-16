@@ -72,11 +72,13 @@ class VolcengineASRClientTest(unittest.TestCase):
         self.addCleanup(client.disconnect)
         return client
 
-    def test_uses_bidirectional_streaming_endpoint(self):
+    def test_uses_optimized_bidirectional_second_pass_endpoint(self):
         self.assertEqual(
             VOLCENGINE_ASR_URL,
-            "wss://openspeech.bytedance.com/api/v3/sauc/bigmodel",
+            "wss://openspeech.bytedance.com/api/v3/sauc/bigmodel_async",
         )
+        self.assertTrue(VolcengineASRClient.requires_server_finish)
+        self.assertEqual(VolcengineASRClient.finalization_timeout, 5.0)
 
     def stop(self, client, session):
         client.disconnect()
@@ -124,6 +126,25 @@ class VolcengineASRClientTest(unittest.TestCase):
         self.assertTrue(socket.final_sent.wait(2))
         session.thread.join(2)
         self.assertFalse(session.thread.is_alive())
+
+    def test_second_pass_replaces_live_text_before_finish(self):
+        socket = FakeSocket(stream_partial=True)
+        client = self.client(socket)
+        opened, finished = threading.Event(), threading.Event()
+        results = []
+        client.on_open = opened.set
+        client.on_result = results.append
+        client.on_finish = finished.set
+        client.prepare()
+        client.connect(self.credentials)
+        session = client._session
+        self.assertTrue(opened.wait(2))
+        client.send_audio(b"pcm")
+        self.assertTrue(socket.partial_sent.wait(2))
+        client.finish_sending()
+        self.assertTrue(finished.wait(2))
+        session.thread.join(2)
+        self.assertEqual(results, ["live result", "official result"])
 
     def test_finish_without_audio_still_sends_last_packet(self):
         socket = FakeSocket()

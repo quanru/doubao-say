@@ -167,6 +167,40 @@ class TranscriptionSessionTest(TestCase):
         self.assertEqual([c.args[0] for c in manager._later.call_args_list], [1000, 500])
         self.assertTrue(manager.awaiting_final_result)
 
+    def test_second_pass_backend_waits_for_server_finish(self):
+        manager = self.manager()
+        manager.asr_client.requires_server_finish = True
+        manager.asr_client.finalization_timeout = 5.0
+        manager.app_state.recording_state = RecordingState.RECORDING
+        manager.app_state.transcription_text = "first pass"
+        manager._later = Mock(return_value=11)
+        manager._schedule_final_completion = Mock()
+
+        manager._stop_recording()
+        manager._on_asr_result("dialect-corrected second pass")
+
+        manager._later.assert_called_once_with(5000, manager._safety_timeout)
+        manager._schedule_final_completion.assert_not_called()
+        self.assertEqual(
+            manager.app_state.transcription_text,
+            "dialect-corrected second pass",
+        )
+
+    def test_second_pass_backend_pastes_only_server_final_text(self):
+        manager = self.manager()
+        manager.asr_client.requires_server_finish = True
+        manager.app_state.recording_state = RecordingState.STOPPING
+        manager.awaiting_final_result = True
+        manager.app_state.transcription_text = "first pass"
+        manager.on_paste = Mock()
+
+        manager._on_asr_result("corrected final text")
+        manager.on_paste.assert_not_called()
+        manager._on_asr_finish()
+
+        manager.on_paste.assert_called_once_with("corrected final text")
+        self.assertEqual(manager.app_state.recording_state, RecordingState.IDLE)
+
     def test_empty_release_keeps_safety_wait(self):
         manager = self.manager()
         manager._later = Mock(return_value=11)
