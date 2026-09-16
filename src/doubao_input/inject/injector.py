@@ -1,13 +1,13 @@
 """Clipboard paste via uinput, or optional direct Unicode input via wtype."""
 from __future__ import annotations
 
-import logging
 import json
+import logging
 import os
 import subprocess
 import threading
 import time
-from typing import Optional
+from dataclasses import dataclass
 
 from doubao_input.doubao.host_tools import command_candidates
 from doubao_input.desktop import is_x11
@@ -20,6 +20,15 @@ logger = logging.getLogger(__name__)
 # Also pause after the right-Alt physical release to avoid mixing it
 # with our injected Left Ctrl.
 PASTE_DELAY = 0.08  # seconds
+CLIPBOARD_RESTORE_DELAY = 0.25
+MAX_CLIPBOARD_SNAPSHOT_BYTES = 20 * 1024 * 1024
+
+
+@dataclass(frozen=True)
+class ClipboardSnapshot:
+    backend: str
+    mime_type: str
+    data: bytes
 
 # Linux keycodes (from linux/input-event-codes.h)
 KEY_LEFTCTRL = 29
@@ -85,17 +94,22 @@ class Injector:
         with self._lock:
             if cancelled():
                 return False
+            snapshot = self._snapshot_clipboard()
             ok_copy = self._copy_to_clipboard(text)
             if not ok_copy:
                 logger.error("clipboard copy failed; cannot inject")
                 return False
-            time.sleep(PASTE_DELAY)
-            if cancelled():
-                return False
-            if expected_target and focused_target() != expected_target:
-                return False
-            ok_paste = self._simulate_paste(use_shift=use_shift, cancelled=cancelled)
-            return ok_paste
+            try:
+                time.sleep(PASTE_DELAY)
+                if cancelled():
+                    return False
+                if expected_target and focused_target() != expected_target:
+                    return False
+                return self._simulate_paste(use_shift=use_shift, cancelled=cancelled)
+            finally:
+                if snapshot:
+                    time.sleep(CLIPBOARD_RESTORE_DELAY)
+                    self._restore_clipboard_if_unchanged(snapshot, text)
 
     def inject_via_uinput_only(self, use_shift: bool = False) -> bool:
         """Just synthesize Ctrl+V (use when caller already filled clipboard)."""
@@ -175,6 +189,75 @@ class Injector:
                 return True
             except Exception as e:
                 logger.debug("xclip failed: %s", e)
+        return False
+
+    @staticmethod
+    def _read(command, *, timeout=1):
+        try:
+            result = subprocess.run(command, capture_output=True, check=True,
+                                    timeout=timeout)
+            if len(result.stdout) <= MAX_CLIPBOARD_SNAPSHOT_BYTES:
+                return result.stdout
+        except (OSError, subprocess.SubprocessError):
+            pass
+        return None
+
+    def _snapshot_clipboard(self):
+        """Capture one lossless primary MIME payload for best-effort restoration."""
+        for command in command_candidates("wl-paste"):
+            formats = self._read(command + ["--list-types"])
+            if formats is None:
+                continue
+            mime_type = self._preferred_mime(formats.decode("utf-8", "replace").splitlines())
+            if not mime_type:
+                return None
+            data = self._read(command + ["--no-newline", "--type", mime_type])
+            return ClipboardSnapshot("wayland", mime_type, data) if data is not None else None
+        for command in command_candidates("xclip"):
+            formats = self._read(command + ["-selection", "clipboard", "-t", "TARGETS", "-o"])
+            if formats is None:
+                continue
+            mime_type = self._preferred_mime(formats.decode("utf-8", "replace").splitlines())
+            if not mime_type:
+                return None
+            data = self._read(command + ["-selection", "clipboard", "-t", mime_type, "-o"])
+            return ClipboardSnapshot("x11", mime_type, data) if data is not None else None
+        return None
+
+    @staticmethod
+    def _preferred_mime(formats):
+        available = {item.strip() for item in formats if item.strip()}
+        priorities = (
+            "image/png", "image/jpeg", "image/webp", "text/uri-list", "text/html",
+            "text/plain;charset=utf-8", "text/plain", "UTF8_STRING", "STRING",
+        )
+        return next((item for item in priorities if item in available), None)
+
+    def _current_clipboard_text(self, backend):
+        tool = "wl-paste" if backend == "wayland" else "xclip"
+        suffix = (["--no-newline"] if backend == "wayland"
+                  else ["-selection", "clipboard", "-o"])
+        for command in command_candidates(tool):
+            data = self._read(command + suffix)
+            if data is not None:
+                return data.decode("utf-8", "replace")
+        return None
+
+    def _restore_clipboard_if_unchanged(self, snapshot, written_text):
+        """Never overwrite a clipboard value copied by the user after dictation."""
+        if self._current_clipboard_text(snapshot.backend) != written_text:
+            return False
+        tool = "wl-copy" if snapshot.backend == "wayland" else "xclip"
+        for command in command_candidates(tool):
+            args = (command + ["--type", snapshot.mime_type] if snapshot.backend == "wayland"
+                    else command + ["-selection", "clipboard", "-t", snapshot.mime_type])
+            try:
+                subprocess.run(args, input=snapshot.data, check=True, timeout=3)
+                logger.info("clipboard: original %s payload restored", snapshot.mime_type)
+                return True
+            except (OSError, subprocess.SubprocessError):
+                continue
+        logger.warning("Could not restore the original clipboard payload")
         return False
 
     def _get_uinput(self):

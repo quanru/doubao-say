@@ -196,7 +196,9 @@ class AppSetupEdgesTest(TestCase):
         app.app_state.login_status = LoginStatus.LOGGED_IN
         control.reset_mock()
         DoubaoInputApp._complete_setup(app)
-        control.set_feedback.assert_called_once()
+        message = control.set_feedback.call_args.args[0]
+        self.assertIn("microphone", message)
+        self.assertIn("voice", message)
         app._setup_session.microphone_ok = app._setup_session.voice_ok = True
         DoubaoInputApp._complete_setup(app)
         app.apply_settings.assert_called_once()

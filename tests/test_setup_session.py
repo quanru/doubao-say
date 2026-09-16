@@ -11,12 +11,14 @@ class SetupSessionTest(TestCase):
             self.timers.append((ms, callback))
             return len(self.timers)
         self.audio, self.overlay, self.feedback, self.preview, self.cancel_voice = [Mock() for _ in range(5)]
+        self.changed = Mock()
         self.session = SetupSession(self.audio, self.overlay, self.feedback,
-            self.preview, self.cancel_voice, schedule, Mock())
+            self.preview, self.cancel_voice, schedule, Mock(), self.changed)
 
     def test_old_mic_hide_cannot_hide_next_check(self):
         self.session.check_microphone()
         first_finish, first_hide = [item[1] for item in self.timers]
+        self.audio.start.call_args.kwargs["on_rms"](0.1)
         self.audio.start.call_args.kwargs["on_rms"](0.1)
         first_finish()
         self.assertTrue(self.session.microphone_ok)
@@ -64,6 +66,28 @@ class SetupSessionTest(TestCase):
         self.assertTrue(self.session.voice_ok)
         self.preview.assert_called_with("hello")
         self.assertFalse(self.session.complete_voice("dictation"))
+        self.assertEqual(self.changed.call_count, 2)
+
+    def test_microphone_result_refreshes_setup_readiness(self):
+        self.session.check_microphone()
+        finish = self.timers[0][1]
+        self.audio.start.call_args.kwargs["on_rms"](0.1)
+        self.audio.start.call_args.kwargs["on_rms"](0.1)
+        self.changed.reset_mock()
+
+        finish()
+
+        self.assertTrue(self.session.microphone_ok)
+        self.changed.assert_called_once_with()
+
+    def test_startup_transient_does_not_pass_microphone_check(self):
+        self.session.check_microphone()
+        finish = self.timers[0][1]
+        self.audio.start.call_args.kwargs["on_rms"](0.8)
+
+        finish()
+
+        self.assertFalse(self.session.microphone_ok)
 
     def test_empty_voice_and_cancel_are_not_passes(self):
         self.session.begin_voice()

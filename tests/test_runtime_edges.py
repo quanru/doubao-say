@@ -10,7 +10,8 @@ from unittest.mock import Mock, patch
 from doubao_input import __main__ as entrypoint
 from doubao_input.doubao import devices, host_tools
 from doubao_input.inject import injector as injector_module
-from doubao_input.inject.injector import Injector, KEY_LEFTCTRL, KEY_LEFTSHIFT, KEY_V
+from doubao_input.inject.injector import (ClipboardSnapshot, Injector, KEY_LEFTCTRL,
+                                         KEY_LEFTSHIFT, KEY_V)
 from doubao_input.inject.target import focused_target
 from doubao_input.trigger.evdev_ptt import EV_KEY, EvdevPtt
 
@@ -111,8 +112,33 @@ class HostIntegrationTest(TestCase):
                     patch("subprocess.check_output", return_value=payload):
                 self.assertIsNone(focused_target())
 
-
 class InjectorEdgesTest(TestCase):
+    def test_clipboard_restore_is_compare_and_swap(self):
+        instance = Injector()
+        snapshot = ClipboardSnapshot("wayland", "image/png", b"original-image")
+        with patch.object(instance, "_current_clipboard_text", return_value="dictation"), \
+                patch("doubao_input.inject.injector.command_candidates",
+                      return_value=[["wl-copy"]]), \
+                patch("subprocess.run") as run:
+            self.assertTrue(instance._restore_clipboard_if_unchanged(snapshot, "dictation"))
+        self.assertEqual(run.call_args.kwargs["input"], b"original-image")
+        self.assertEqual(run.call_args.args[0], ["wl-copy", "--type", "image/png"])
+
+        with patch.object(instance, "_current_clipboard_text", return_value="user copy"), \
+                patch("subprocess.run") as run:
+            self.assertFalse(instance._restore_clipboard_if_unchanged(snapshot, "dictation"))
+        run.assert_not_called()
+
+    def test_snapshot_preserves_image_bytes_without_transcoding(self):
+        instance = Injector()
+        outputs = iter([b"text/plain\nimage/png\n", b"\x89PNG raw bytes"])
+        with patch("doubao_input.inject.injector.command_candidates",
+                   side_effect=lambda tool: [[tool]] if tool in ("wl-paste", "wl-copy") else []), \
+                patch.object(instance, "_read", side_effect=lambda *args, **kwargs: next(outputs)):
+            snapshot = instance._snapshot_clipboard()
+        self.assertEqual(snapshot, ClipboardSnapshot(
+            "wayland", "image/png", b"\x89PNG raw bytes"))
+
     def test_terminal_detection_and_fallbacks(self):
         with patch.dict("os.environ", {}, clear=True), \
                 patch.object(injector_module, "INJECT_USE_SHIFT", False, create=True):

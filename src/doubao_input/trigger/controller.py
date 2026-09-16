@@ -10,10 +10,12 @@ from doubao_input.settings import (CAPTURABLE_KEY_CODES, MODIFIER_KEY_CODES,
 
 class TriggerController:
     def __init__(self, reader_factory, schedule, cancel, *, start, stop, toggle, enter,
-                 cancel_input, debug_edge, error, escape_edge=lambda pressed: None):
+                 cancel_input, debug_edge, error, escape_edge=lambda pressed: None,
+                 prime=lambda: None, discard=lambda: None):
         self._factory = reader_factory
         self._schedule, self._cancel = schedule, cancel
         self._actions = start, stop, toggle, enter
+        self._prime, self._discard = prime, discard
         self._escape_edge = escape_edge
         self._cancel_input, self._debug_edge, self._error = cancel_input, debug_edge, error
         self._timers = TimerScope(schedule, cancel)
@@ -69,7 +71,9 @@ class TriggerController:
         self._down_keys.clear()
         self._listener_capture, self._available = self.capturing, started
         self._gesture = KeyGesture(*self._actions, self._schedule, self._cancel,
-            hold_ms=settings.hold_ms, double_ms=settings.double_ms, double_enter=settings.double_enter)
+            hold_ms=settings.hold_ms, double_ms=settings.double_ms,
+            double_enter=settings.double_enter, prime=self._prime,
+            discard=self._discard)
         if old:
             old.stop()
         return started

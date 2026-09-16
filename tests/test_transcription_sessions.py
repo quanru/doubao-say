@@ -18,6 +18,29 @@ class TranscriptionSessionTest(TestCase):
         client.connect.assert_called_once_with(credentials)
         self.assertIsNone(manager.on_params_needed)
 
+    def test_prime_buffers_locally_until_gesture_is_confirmed(self):
+        manager = self.manager()
+        manager.app_state.login_status = LoginStatus.LOGGED_IN
+        self.assertTrue(manager.prime_recording())
+        capture = manager.audio_capture.start.call_args.kwargs["on_audio_data"]
+        capture(b"first")
+        manager.asr_client.send_audio.assert_not_called()
+
+        manager._start_recording()
+
+        manager.asr_client.send_audio.assert_called_once_with(b"first")
+
+    def test_discarded_prime_never_reaches_asr(self):
+        manager = self.manager()
+        manager.app_state.login_status = LoginStatus.LOGGED_IN
+        manager.prime_recording()
+        manager.audio_capture.start.call_args.kwargs["on_audio_data"](b"private")
+
+        manager.discard_primed_audio()
+
+        manager.asr_client.send_audio.assert_not_called()
+        manager.audio_capture.stop.assert_called_once_with()
+
     def test_official_auth_failure_keeps_key_and_requests_settings(self):
         client, store = Mock(), Mock()
         manager = TranscriptionManager(AppState(), asr_client=client,
@@ -141,7 +164,7 @@ class TranscriptionSessionTest(TestCase):
         manager.app_state.transcription_text = "already recognized"
         manager._later = Mock(side_effect=[11, 12])
         manager._stop_recording()
-        self.assertEqual([c.args[0] for c in manager._later.call_args_list], [1000, 250])
+        self.assertEqual([c.args[0] for c in manager._later.call_args_list], [1000, 500])
         self.assertTrue(manager.awaiting_final_result)
 
     def test_empty_release_keeps_safety_wait(self):

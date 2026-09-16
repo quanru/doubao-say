@@ -4,7 +4,7 @@ import tomllib
 from types import SimpleNamespace
 from unittest import TestCase
 from unittest.mock import Mock, patch
-from doubao_input.diagnostics import report
+from doubao_input.diagnostics import DiagnosticTrace, report
 from doubao_input.settings import Settings
 from doubao_input.inject.target import focused_target
 from doubao_input.app import DoubaoInputApp
@@ -43,13 +43,23 @@ class ProductTest(TestCase):
             "Preview ready · finish recording to paste")
 
     def test_diagnostics_do_not_include_device_or_custom_secrets(self):
+        times = iter((10.0, 10.125))
+        trace = DiagnosticTrace(clock=lambda: next(times))
+        trace.add("first_result")
         data = report(Settings(microphone="private-device-identifier",
-                               asr_provider="volcengine"))
+                               asr_provider="volcengine"), trace=trace)
         self.assertNotIn("private-device-identifier", data)
         self.assertNotIn("cookies", data)
         self.assertNotIn("transcript", data)
         self.assertEqual(json.loads(data)["product_version"], "1.0.0")
         self.assertEqual(json.loads(data)["recognition_provider"], "volcengine")
+        self.assertEqual(json.loads(data)["recent_stages"], [
+            {"stage": "first_result", "after_ms": 125}])
+
+    def test_diagnostics_reject_free_form_stage_data(self):
+        trace = DiagnosticTrace()
+        with self.assertRaises(ValueError):
+            trace.add("transcript: private words")
 
     def test_new_preference_validation(self):
         Settings(microphone="alsa_input.usb", reduced_motion=True, onboarding_complete=True).validate()

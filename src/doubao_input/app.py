@@ -47,6 +47,7 @@ from doubao_input.polish import ApiKeyStore, PolishManager
 from doubao_input.updates import UpdateChecker
 from doubao_input.polish_preview import PolishPreview
 from doubao_input.trigger.escape_guard import EscapeGuard
+from doubao_input.diagnostics import DiagnosticTrace, report as diagnostic_report
 
 logger = logging.getLogger(__name__)
 
@@ -99,6 +100,7 @@ class DoubaoInputApp(Gtk.Application):
         self._preview_polish = PolishPreview(GLib.timeout_add, GLib.source_remove)
         self._rms_speaking = False
         self._asr_probe = None
+        self._diagnostics = DiagnosticTrace()
         self.app_state.connect("transcription-text-changed", self._prepolish_text_changed)
         try:
             self.settings = Settings.load()
@@ -211,6 +213,7 @@ class DoubaoInputApp(Gtk.Application):
         tm.on_cancel_enabled_changed = lambda enabled: None
         tm.on_auth_expired = self._on_auth_expired
         tm.on_params_needed = self._provide_params
+        tm.on_diagnostic = self._diagnostics.add
         self._tm = tm
 
         # ---- Control window ----
@@ -247,7 +250,7 @@ class DoubaoInputApp(Gtk.Application):
 
         self._setup_session = SetupSession(self._audio_capture, self._overlay,
             self._control.set_feedback, self._control.set_preview, tm.handle_cancel,
-            GLib.timeout_add, GLib.source_remove)
+            GLib.timeout_add, GLib.source_remove, self._control.refresh)
         self._escape_guard = EscapeGuard(lambda message: self._control.set_feedback(
             tr("Could not protect Escape: ", "无法拦截 Esc：") + message))
         self._escape_timer = GLib.timeout_add(50, self._sync_escape)
@@ -255,6 +258,7 @@ class DoubaoInputApp(Gtk.Application):
             escape_edge=self._escape_guard.edge,
             start=self._voice_start, stop=self._voice_stop, toggle=self._voice_toggle,
             enter=self._voice_enter, cancel_input=self._cancel_input,
+            prime=self._voice_prime, discard=self._tm.discard_primed_audio,
             debug_edge=self._debug_edge, error=lambda message: logger.warning("PTT error: %s", message))
 
         # ---- Initial state: cached params? ----
@@ -386,6 +390,12 @@ class DoubaoInputApp(Gtk.Application):
             self._target = None if self._preview_testing else focused_target()
             self._reset_prepolish()
             self._tm.handle_toggle()
+
+    def _voice_prime(self):
+        if (not self._mic_test_running and not self._triggers.capturing
+                and not self._recovery_timer and not self._paste_pending
+                and getattr(self, "_polish_mode", None) != "final"):
+            self._tm.prime_recording()
 
     def _voice_stop(self):
         if getattr(self, "_polish_mode", None) == "final" and self._polisher.busy:
@@ -549,6 +559,10 @@ class DoubaoInputApp(Gtk.Application):
                                           "已停止润色并使用原文。"))
 
     def _delivery_changed(self, status):
+        diagnostics = getattr(self, "_diagnostics", None)
+        if diagnostics:
+            diagnostics.add("delivery_pending" if status == "pending"
+                            else "delivery_finished")
         self.recent.status = status
         messages = {
             "pending": tr("Sending text…", "正在输入…"),
@@ -765,9 +779,18 @@ class DoubaoInputApp(Gtk.Application):
         if self.app_state.login_status != LoginStatus.LOGGED_IN:
             self._control.set_feedback(tr("Configure recognition credentials first, or return later.", "请先配置语音识别凭证，或稍后继续设置。"))
             return
-        if not self._setup_session.microphone_ok or not self._setup_session.voice_ok or not self.settings.doubao_key:
-            self._control.set_feedback(tr("Complete the microphone and voice tests, and enable a trigger key first. You can return later.",
-                                          "请先通过麦克风和语音测试，并启用触发键，也可以稍后继续。"))
+        missing = []
+        if not self._setup_session.microphone_ok:
+            missing.append(tr("microphone check", "麦克风检查"))
+        if not self._setup_session.voice_ok:
+            missing.append(tr("voice test", "语音测试"))
+        if not self.settings.doubao_key:
+            missing.append(tr("enabled trigger key", "已启用的触发键"))
+        if missing:
+            self._control.set_feedback(
+                tr("Complete these steps first: ", "请先完成以下步骤：")
+                + tr(", ", "、").join(missing)
+                + tr(". You can return later.", "。也可以稍后继续。"))
             return
         from dataclasses import replace
         self.apply_settings(replace(self.settings, onboarding_complete=True))
@@ -834,7 +857,10 @@ class DoubaoInputApp(Gtk.Application):
             sign_out=self._sign_out, restart=self._restart, login=self._show_login,
             preview=self._preview_overlay, apply_key=self._apply_trigger_key,
             asr_has_key=self._official_has_key, save_asr=self._save_official_key,
-            clear_asr=self._clear_official_key, test_asr=self._test_official_asr)
+            clear_asr=self._clear_official_key, test_asr=self._test_official_asr,
+            diagnostic_report=lambda: diagnostic_report(
+                self.settings, recording=self.app_state.is_recording,
+                trace=self._diagnostics))
         self._settings_window.show()
 
     def _preview_overlay(self):

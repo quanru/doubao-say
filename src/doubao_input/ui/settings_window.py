@@ -17,7 +17,8 @@ class SettingsWindow:
                  restart=lambda: None, login=lambda: None, preview=lambda: None,
                  apply_key=None, asr_has_key=lambda: False,
                  save_asr=lambda key: None, clear_asr=lambda: None,
-                 test_asr=lambda key, completed: None):
+                 test_asr=lambda key, completed: None,
+                 diagnostic_report=None):
         self.window = Gtk.Window(title=tr("Doubao Say Settings", "豆包说设置"), transient_for=parent, modal=True)
         self.window.set_default_size(540, 580)
         apply_window_style(self.window)
@@ -31,6 +32,7 @@ class SettingsWindow:
         self._test_asr = test_asr
         self._asr_save_source = 0
         self._asr_testing = False
+        self._diagnostic_report = diagnostic_report or (lambda: report(self._settings))
         self.window.connect("close-request", self._close)
         root = Gtk.Box(orientation=Gtk.Orientation.VERTICAL, spacing=12)
         box = Gtk.Box(orientation=Gtk.Orientation.VERTICAL, spacing=14)
@@ -209,12 +211,12 @@ class SettingsWindow:
         diagnostic_scroll = Gtk.ScrolledWindow(min_content_height=110, max_content_height=180)
         diagnostic_scroll.set_child(diagnostics)
         def refresh_diagnostics():
-            diagnostics.get_buffer().set_text(report(self._settings))
+            diagnostics.get_buffer().set_text(self._diagnostic_report())
         button(tr("Preview diagnostic report", "预览诊断报告"), refresh_diagnostics)
         box.append(diagnostic_scroll)
         def copy_diagnostics():
             refresh_diagnostics()
-            Gdk.Display.get_default().get_clipboard().set(report(self._settings))
+            Gdk.Display.get_default().get_clipboard().set(self._diagnostic_report())
             status.set_text(tr("Diagnostics copied. No transcripts, cookies or account IDs included.", "诊断已复制，不含转写文字、Cookie 或账号标识。"))
         button(tr("Copy diagnostics", "复制诊断"), copy_diagnostics)
         box.append(Gtk.Label(xalign=0, wrap=True, selectable=True, label=
