@@ -24,9 +24,11 @@ def response(message=None, *, sequence=1, last=False, code=0):
 
 
 class FakeSocket:
-    def __init__(self, *, acknowledgement=None):
+    def __init__(self, *, acknowledgement=None, stream_partial=False):
         self.acknowledgement = acknowledgement or response()
+        self.stream_partial = stream_partial
         self.entered = threading.Event()
+        self.partial_sent = threading.Event()
         self.final_sent = threading.Event()
         self.sent = []
         self.closed = False
@@ -42,7 +44,12 @@ class FakeSocket:
 
     async def send(self, packet):
         self.sent.append(packet)
-        if len(packet) >= 2 and packet[1] == 0x23:
+        if (self.stream_partial and len(packet) >= 2
+                and packet[1] == 0x21):
+            await self.queue.put(response(
+                {"result": {"text": "live result"}}, sequence=2))
+            self.partial_sent.set()
+        elif len(packet) >= 2 and packet[1] == 0x23:
             await self.queue.put(response(
                 {"result": {"text": "official result"}}, sequence=-2, last=True))
             self.final_sent.set()
@@ -96,6 +103,27 @@ class VolcengineASRClientTest(unittest.TestCase):
         result.assert_called_once_with("official result")
         self.assertEqual(socket.sent[0][1], 0x11)
         self.assertEqual(socket.sent[1][1], 0x23)
+
+    def test_delivers_incremental_text_before_recording_finishes(self):
+        socket = FakeSocket(stream_partial=True)
+        client = self.client(socket)
+        opened = threading.Event()
+        partial = threading.Event()
+        results = []
+        client.on_open = opened.set
+        client.on_result = lambda text: (results.append(text), partial.set())
+        client.prepare()
+        client.connect(self.credentials)
+        session = client._session
+        self.assertTrue(opened.wait(2))
+        client.send_audio(b"pcm")
+        self.assertTrue(socket.partial_sent.wait(2))
+        self.assertTrue(partial.wait(2))
+        self.assertEqual(results, ["live result"])
+        client.finish_sending()
+        self.assertTrue(socket.final_sent.wait(2))
+        session.thread.join(2)
+        self.assertFalse(session.thread.is_alive())
 
     def test_finish_without_audio_still_sends_last_packet(self):
         socket = FakeSocket()
