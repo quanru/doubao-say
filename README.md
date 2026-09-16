@@ -77,8 +77,9 @@ Your keyboard must report Fn as a Linux key; otherwise choose another key.
 The bottom overlay shows an audio-driven waveform and live text.
 Choose Classic bars, Soft waves, Concentric ripples, or Cai Xukun · Basketball
 under Settings → Appearance → Listening waveform. The basketball theme uses an
-abstract mirrored sound waves: a rebounding central crest and outward impact
-ripples follow the audio level, with warm orange accents. Changes save automatically; use Preview appearance to try them.
+fine wave strands that subtly form a dribbling figure and an orange ball.
+The arm, knees and ball move together, with impact ripples and audio-driven
+amplitude. No solid character or ball outlines are drawn. Changes save automatically; use Preview appearance to try them.
 Classic bars remains the default. Reduced updates also stop travelling and
 bouncing motion in the new styles while retaining volume feedback.
 Final text is pasted after recording ends; target fields are not revised live.

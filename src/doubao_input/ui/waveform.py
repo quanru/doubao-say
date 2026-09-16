@@ -96,33 +96,72 @@ def draw_ripples(cr, level, phase, x, y, rx, ry, color):
 
 
 def draw_basketball(cr, level, phase, width, height, accent, foreground):
-    """An abstract dribble: a rebounding crest and outward impact waves."""
-    cycle = (phase / math.pi) % 1
-    rebound = math.sin(cycle * math.pi)
-    cr.set_line_cap(cairo.LINE_CAP_ROUND)
-    orange = (1.0, 0.62, 0.30)
-    colors = (accent, foreground, orange)
-    for layer, color in enumerate(colors):
-        points = []
-        for i in range(161):
-            x = 2 * i / 160 - 1
-            taper = math.cos(x * math.pi / 2) ** 1.5
-            # A central wave rises between impacts; paired packets travel out.
-            crest = math.exp(-(x / 0.25) ** 2) * (0.25 + 0.75 * rebound)
-            distance = abs(x) - cycle * 0.95
-            impact = math.exp(-(distance / 0.23) ** 2) * (1 - cycle)
-            carrier = math.cos(x * 15 - phase * 2 + layer * 0.7)
-            amplitude = level * (height / 2 - 3) * taper * (
-                0.58 * crest + 0.42 * impact * carrier)
-            points.append((12 + (x + 1) / 2 * (width - 24), amplitude))
-        # Mirrored ribbons read as a waveform even in the small listening bar.
-        for direction in (-1, 1):
-            cr.move_to(points[0][0], height / 2)
-            for x, amplitude in points:
-                cr.line_to(x, height / 2 + direction * amplitude * (1 - layer * 0.18))
-            cr.set_source_rgba(*color, 0.10 * level)
-            cr.close_path()
-            cr.fill_preserve()
-            cr.set_source_rgba(*color, 0.65 if layer == 2 else 0.45)
-            cr.set_line_width(1.0 if layer == 2 else 1.3)
-            cr.stroke()
+    """Wave strands briefly resolve into a dribbling figure and a separate ball."""
+    cr.save()
+    cr.translate(width / 2, height / 2)
+    cr.scale(1, height / 31 * (0.10 + 0.90 * level))
+    bounce = (1 - math.cos(phase * 2)) / 2
+    lean = math.sin(phase * 2) * 1.5
+    shoulder = (-10 + lean, -5 + bounce)
+    hip = (-13, 3 + bounce)
+    ball = (17 + math.sin(phase) * 2, 10 - bounce * 13)
+
+    # The surrounding threads continue through the figure, so it belongs to
+    # the waveform. Silhouettes are only clipping masks, never filled shapes.
+    _wave_threads(cr, phase, level, width, accent, 0.07)
+    cr.save()
+    cr.new_path()
+    cr.arc(shoulder[0] + 1, -10 + bounce, 3.2, 0, math.tau)
+    _wave_limb(cr, shoulder, hip, 3.3)
+    _wave_limb(cr, shoulder, (-21, -1 + bounce), 1.5)
+    _wave_limb(cr, (-21, -1 + bounce), (-17, 3 + bounce), 1.3)
+    _wave_limb(cr, shoulder, (1, -3 + bounce), 1.5)
+    _wave_limb(cr, (1, -3 + bounce), (ball[0] - 2, ball[1] - 5), 1.2)
+    _wave_limb(cr, hip, (-22 - lean, 8), 1.9)
+    _wave_limb(cr, (-22 - lean, 8), (-19 - lean, 13), 1.6)
+    _wave_limb(cr, hip, (-4 + lean, 7), 1.9)
+    _wave_limb(cr, (-4 + lean, 7), (2 + lean, 13), 1.6)
+    cr.clip()
+    _wave_threads(cr, phase, level, width, foreground, 0.78)
+    cr.restore()
+
+    cr.save()
+    cr.new_path()
+    cr.arc(*ball, 4.1, 0, math.tau)
+    cr.clip()
+    _wave_threads(cr, phase, level, width, (1.0, 0.64, 0.34), 0.85)
+    cr.restore()
+    cr.restore()
+    if level > 0.001:
+        draw_ripples(cr, level * (1 - bounce), phase * 2,
+                     width / 2 + ball[0], height - 2,
+                     width * 0.31, 1.5, accent)
+
+
+def _wave_limb(cr, start, end, radius):
+    """Append a capsule to a clipping path without painting a solid limb."""
+    angle = math.atan2(end[1] - start[1], end[0] - start[0])
+    cr.new_sub_path()
+    cr.arc(*start, radius, angle + math.pi / 2, angle + 3 * math.pi / 2)
+    cr.arc(*end, radius, angle - math.pi / 2, angle + math.pi / 2)
+    cr.close_path()
+
+
+def _wave_threads(cr, phase, level, width, color, opacity):
+    cr.set_line_width(0.65)
+    gradient = cairo.LinearGradient(-width / 2, 0, width / 2, 0)
+    alpha = opacity * (0.25 + 0.75 * level)
+    for position, strength in ((0, 0), (0.3, 0.12), (0.43, 1), (0.57, 1), (0.7, 0.12), (1, 0)):
+        gradient.add_color_stop_rgba(position, *color, alpha * strength)
+    cr.set_source(gradient)
+    for row in range(19):
+        baseline = -15 + row * 1.65
+        cr.new_path()
+        for i in range(185):
+            x = (i / 184 - 0.5) * (width - 24)
+            y = baseline + 0.65 * math.sin(x * 0.28 - phase * 2 + row * 0.65)
+            if i == 0:
+                cr.move_to(x, y)
+            else:
+                cr.line_to(x, y)
+        cr.stroke()
