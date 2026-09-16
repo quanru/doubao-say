@@ -101,6 +101,30 @@ class SetupActionsTest(unittest.TestCase):
         control.set_feedback.assert_called_once_with("busy")
         control._refresh.assert_called_once_with()
 
+    def test_onboarding_official_key_test_saves_first_and_shows_result(self):
+        control = SimpleNamespace(
+            _asr_testing=False,
+            _asr_key_save_source=0,
+            _asr_key=Mock(),
+            _asr_status=Mock(),
+            _asr_test_button=Mock(),
+            _actions=Mock(),
+        )
+        control._asr_key.get_text.return_value = "test-key"
+        control._save_asr_key_now = lambda: ControlWindow._save_asr_key_now(control)
+        control._asr_tested = lambda result, error: ControlWindow._asr_tested(
+            control, result, error)
+
+        ControlWindow._test_asr_clicked(control)
+
+        control._actions.save_asr.assert_called_once_with("test-key")
+        self.assertTrue(control._asr_testing)
+        completed = control._actions.test_asr.call_args.args[1]
+        completed("API key accepted", "")
+        self.assertFalse(control._asr_testing)
+        self.assertEqual(
+            control._asr_status.set_text.call_args.args[0], "API key accepted")
+
     def test_endpoint_test_has_adjacent_loading_and_success_feedback(self):
         view = SimpleNamespace(
             _testing=False,

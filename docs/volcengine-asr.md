@@ -34,8 +34,8 @@ Official references:
 ## Configure Doubao Say
 
 1. On the initial **Sign in** page, switch **Recognition service** to **Volcengine official API**. You can also switch it later under **Settings → Recognition service**; both controls save immediately and stay in sync.
-2. Select **Open recognition settings**.
-3. Paste the API key. It saves automatically.
+2. Paste the key into the API Key field that appears on the sign-in page. It saves automatically. The new console does not require an App ID or Access Key.
+3. To replace the key later, you can also use **Settings → Recognition service**.
 4. Select **Test API key**. A successful test verifies authentication and entitlement without uploading a recording.
 5. Run the real voice test. Incremental text should appear in the overlay before recording finishes.
 

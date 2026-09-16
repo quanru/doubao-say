@@ -235,6 +235,9 @@ class DoubaoInputApp(Gtk.Application):
                 test_polish=self._test_polish,
                 apply_microphone=self._apply_microphone,
                 apply_asr_provider=self._apply_asr_provider,
+                asr_has_key=self._official_has_key,
+                save_asr=self._save_official_key,
+                test_asr=self._test_official_asr,
             ),
         )
         self._update_checker = UpdateChecker(GLib.idle_add, self._update_available)

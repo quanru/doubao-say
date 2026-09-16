@@ -17,7 +17,9 @@ from doubao_input.settings import Settings
 
 def main():
     Gtk.init()
+    summary = {"asr_provider": "volcengine"}
     actions = SetupActions(lambda: None, lambda: None, lambda: None, lambda: False,
+                           summary=lambda: summary,
                            polish_settings=lambda: Settings(polish_enabled=True))
     for language in ("en", "zh_CN"):
         set_language(language)
