@@ -33,8 +33,8 @@ System 读取桌面会话的语言偏好，中文区域使用简体中文，其�
 
 打开**设置 → 语音识别服务**，选择**火山引擎官方 API**，填写火山引擎语音识别控制台
 签发的 API Key。修改会自动保存，建议先点击**测试 API Key**，再进行试说。该后端使用
-Seed ASR 2.0 单向流式接口和小时版资源 `volc.seedasr.sauc.duration`：说话时上传 PCM
-音频，录音结束后返回最终结果；用量由火山引擎向你的账号计费。
+Seed ASR 2.0 双向流式接口和小时版资源 `volc.seedasr.sauc.duration`：说话时上传 PCM
+音频并实时返回增量识别文字，录音结束后返回最终结果；用量由火山引擎向你的账号计费。
 
 API Key 保存在 `~/.config/doubao-say/volcengine_api_key`（或对应的
 `XDG_CONFIG_HOME` 路径），权限仅限当前用户读取；不会进入设置文件、诊断信息、日志、

@@ -8,7 +8,9 @@ import threading
 import unittest
 from unittest.mock import Mock
 
-from doubao_input.doubao.volcengine_asr_client import VolcengineASRClient
+from doubao_input.doubao.volcengine_asr_client import (
+    VOLCENGINE_ASR_URL, VolcengineASRClient,
+)
 from doubao_input.doubao.volcengine_credentials import VolcengineCredentials
 
 
@@ -62,6 +64,12 @@ class VolcengineASRClientTest(unittest.TestCase):
         client = VolcengineASRClient(lambda *args, **kwargs: socket)
         self.addCleanup(client.disconnect)
         return client
+
+    def test_uses_bidirectional_streaming_endpoint(self):
+        self.assertEqual(
+            VOLCENGINE_ASR_URL,
+            "wss://openspeech.bytedance.com/api/v3/sauc/bigmodel",
+        )
 
     def stop(self, client, session):
         client.disconnect()

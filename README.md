@@ -42,9 +42,10 @@ Open **Doubao Say** from your application launcher:
 Open **Settings → Recognition service**, select **Volcengine official API**, and
 enter the API key issued by the Volcengine Speech Recognition console. Changes
 save automatically. Use **Test API key** before the voice test. This backend uses
-the Seed ASR 2.0 single-direction streaming endpoint and the hourly resource
-`volc.seedasr.sauc.duration`; PCM audio is uploaded while you speak and the final
-result is returned after recording stops. Volcengine bills usage to your account.
+the Seed ASR 2.0 bidirectional streaming endpoint and the hourly resource
+`volc.seedasr.sauc.duration`; PCM audio is uploaded while you speak, incremental
+text is returned live, and the final result arrives after recording stops.
+Volcengine bills usage to your account.
 
 The API key is stored in `~/.config/doubao-say/volcengine_api_key` (or the
 equivalent `XDG_CONFIG_HOME` path) with owner-only permissions. It is never added

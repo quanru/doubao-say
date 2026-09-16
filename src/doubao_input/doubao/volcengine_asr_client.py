@@ -17,7 +17,7 @@ from doubao_input.doubao.volcengine_protocol import (
 
 
 logger = logging.getLogger(__name__)
-VOLCENGINE_ASR_URL = "wss://openspeech.bytedance.com/api/v3/sauc/bigmodel_nostream"
+VOLCENGINE_ASR_URL = "wss://openspeech.bytedance.com/api/v3/sauc/bigmodel"
 MAX_PENDING_BYTES = 1024 * 1024
 
 
