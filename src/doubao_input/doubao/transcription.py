@@ -57,6 +57,7 @@ class TranscriptionManager:
         self._priming = False
         self._primed_audio = []
         self._primed_bytes = 0
+        self._audio_generation = 0
 
         # Callbacks set by app.py
         self.on_auth_expired = None  # () -> None
@@ -117,11 +118,18 @@ class TranscriptionManager:
         with self._prime_lock:
             if self._priming:
                 return True
+            self._audio_generation += 1
+            audio_generation = self._audio_generation
             self._priming = True
             self._primed_audio = []
             self._primed_bytes = 0
         try:
-            self.audio_capture.start(on_audio_data=self._capture_audio)
+            self.audio_capture.start(
+                on_audio_data=self._capture_audio,
+                on_error=lambda error: GLib.idle_add(
+                    self._deliver_audio_error, audio_generation, error
+                ),
+            )
             self._trace("audio_buffering")
             return True
         except Exception as error:
@@ -131,6 +139,23 @@ class TranscriptionManager:
                 "Microphone failed to start; check your input device and permissions",
                 "麦克风启动失败，请检查输入设备和权限")
             return False
+
+    def _deliver_audio_error(self, generation, error):
+        if generation != self._audio_generation:
+            return GLib.SOURCE_REMOVE
+        if (not self._priming
+                and self.app_state.recording_state == RecordingState.IDLE):
+            return GLib.SOURCE_REMOVE
+        logger.error("Microphone stream failed: %s", error)
+        self._trace("audio_failed")
+        if self.on_recover and self.app_state.transcription_text.strip():
+            self.on_recover(self.app_state.transcription_text)
+        self._reset_to_idle()
+        self.app_state.error_message = tr(
+            "Microphone disconnected. Recording stopped; reconnect it and try again.",
+            "麦克风已断开，录音已停止；请重新连接后再试。",
+        )
+        return GLib.SOURCE_REMOVE
 
     def _capture_audio(self, data: bytes) -> None:
         with self._prime_lock:
@@ -158,6 +183,7 @@ class TranscriptionManager:
     def discard_primed_audio(self) -> None:
         with self._prime_lock:
             was_priming = self._priming
+            self._audio_generation += 1
             self._priming = False
             self._primed_audio = []
             self._primed_bytes = 0
@@ -377,6 +403,7 @@ class TranscriptionManager:
 
     def _reset_to_idle(self) -> bool:
         self._generation += 1
+        self._audio_generation += 1
         self._cancel_final_result_timer()
         if self.safety_timer_id is not None:
             GLib.source_remove(self.safety_timer_id)

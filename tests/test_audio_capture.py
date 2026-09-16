@@ -66,10 +66,11 @@ class AudioCallbacksTest(unittest.TestCase):
             capture.finish()
         self.assertIsNone(capture._process)
 
-    def run_pipewire(self, chunks, *, cancel=False):
+    def run_pipewire(self, chunks, *, cancel=False, on_error=None):
         capture = AudioCapture()
         audio = Mock()
         capture._on_audio_data = audio
+        capture._on_error = on_error
         process = Mock()
         with patch("doubao_input.doubao.audio_capture.subprocess.Popen", return_value=process), \
              patch("doubao_input.doubao.audio_capture.threading.Thread") as thread, \
@@ -82,8 +83,10 @@ class AudioCallbacksTest(unittest.TestCase):
         return audio
 
     def test_short_tail_is_delivered_at_eof(self):
-        audio = self.run_pipewire([b"\x01\x00" * 2000, b""])
+        error = Mock()
+        audio = self.run_pipewire([b"\x01\x00" * 2000, b""], on_error=error)
         audio.assert_called_once_with(b"\x01\x00" * 2000)
+        error.assert_called_once()
 
     def test_full_block_and_aligned_tail_are_delivered(self):
         audio = self.run_pipewire([b"\x00" * 8192, b"\x01" * 5, b""])
@@ -91,7 +94,23 @@ class AudioCallbacksTest(unittest.TestCase):
                          [b"\x00" * 8192, b"\x01" * 4])
 
     def test_abort_does_not_deliver_audio(self):
-        self.run_pipewire([], cancel=True).assert_not_called()
+        error = Mock()
+        self.run_pipewire([], cancel=True, on_error=error).assert_not_called()
+        error.assert_not_called()
+
+    def test_expected_shutdown_eof_does_not_report_failure(self):
+        capture = AudioCapture()
+        error = capture._on_error = Mock()
+        capture._shutdown_requested.set()
+        process = Mock()
+        with patch("doubao_input.doubao.audio_capture.subprocess.Popen", return_value=process), \
+             patch("doubao_input.doubao.audio_capture.threading.Thread") as thread, \
+             patch("doubao_input.doubao.audio_capture.select.select", return_value=([process.stdout], [], [])), \
+             patch("doubao_input.doubao.audio_capture.os.read", return_value=b""):
+            capture._start_pipewire()
+            capture._shutdown_requested.set()
+            thread.call_args.kwargs["target"]()
+        error.assert_not_called()
 
     def test_finish_drains_before_clearing_callbacks(self):
         capture = AudioCapture()

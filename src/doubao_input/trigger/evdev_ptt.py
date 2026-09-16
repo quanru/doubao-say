@@ -169,18 +169,43 @@ class EvdevPtt:
                     try:
                         data = os.read(fd, _EVENT_SIZE * 16)
                     except OSError:
-                        self._notify_error("Keyboard disconnected; recording stopped")
-                        self._close_fds()
-                        break
+                        self._drop_fd(fd, GLib.idle_add)
+                        continue
                     if not data:
-                        self._notify_error("Keyboard disconnected; recording stopped")
-                        self._close_fds()
-                        break
+                        self._drop_fd(fd, GLib.idle_add)
+                        continue
                     buf = data
                     self._dispatch(buf, GLib.idle_add, fd)
         except Exception as e:  # pragma: no cover
             logger.exception("EvdevPtt crashed: %s", e)
             self._notify_error(f"evdev 监听崩溃: {e}")
+
+    def _drop_fd(self, fd, idle_add) -> None:
+        """Remove one hot-unplugged device without disrupting other keyboards."""
+        try:
+            index = self._fds.index(fd)
+        except ValueError:
+            return
+        path = self._paths[index]
+        self._fds.pop(index)
+        self._paths.pop(index)
+        try:
+            os.close(fd)
+        except OSError:
+            pass
+
+        for code, sources in list(self._pressed_sources.items()):
+            if fd not in sources:
+                continue
+            sources.discard(fd)
+            if sources:
+                continue
+            self._pressed_sources.pop(code, None)
+            if self._on_key:
+                idle_add(self._on_key, code, False)
+            else:
+                idle_add(self._on_release)
+        logger.info("Input device disconnected; continuing without %s", path)
 
     def _dispatch(self, data: bytes, idle_add, source=0) -> None:
         i = 0

@@ -33,11 +33,13 @@ class AudioCapture:
         self._stream: Any | None = None
         self._on_audio_data = None  # callback: (bytes) -> None
         self._on_rms = None        # callback: (float in [0,1]) -> None
+        self._on_error = None      # callback: (Exception) -> None
         self._default_on_rms = on_rms
         self._process = None
         self.device = ""
         self._reader = None
         self._stop_event = threading.Event()
+        self._shutdown_requested = threading.Event()
         self._reader_failed = threading.Event()
 
     @property
@@ -46,7 +48,7 @@ class AudioCapture:
             return self._process.poll() is None
         return self._stream is not None and self._stream.active
 
-    def start(self, on_audio_data, *, on_rms=None) -> None:
+    def start(self, on_audio_data, *, on_rms=None, on_error=None) -> None:
         """Start capture with callbacks installed before the audio thread starts.
 
         A per-recording RMS callback overrides the constructor default. Both
@@ -59,6 +61,7 @@ class AudioCapture:
 
         self._on_audio_data = on_audio_data
         self._on_rms = on_rms if on_rms is not None else self._default_on_rms
+        self._on_error = on_error
 
         # The picker returns PipeWire node names on X11 and Wayland. Use the
         # matching backend; retain sounddevice when native capture is unavailable.
@@ -92,6 +95,7 @@ class AudioCapture:
         """Abort capture by default; normal completion must use finish()."""
         if self._process is not None:
             process, self._process = self._process, None
+            self._shutdown_requested.set()
             if not drain:
                 self._stop_event.set()
             if process.poll() is None:
@@ -108,7 +112,7 @@ class AudioCapture:
             if process.stdout:
                 process.stdout.close()
             self._reader = None
-            self._on_audio_data = self._on_rms = None
+            self._on_audio_data = self._on_rms = self._on_error = None
             logger.info("PipeWire audio capture stopped")
             if drain and (incomplete or self._reader_failed.is_set()):
                 raise RuntimeError("Audio reader did not finish draining")
@@ -119,12 +123,12 @@ class AudioCapture:
                 self._stream.abort()
             self._stream.close()
             self._stream = None
-            self._on_audio_data = None
-            self._on_rms = None
+            self._on_audio_data = self._on_rms = self._on_error = None
             logger.info("Audio capture stopped")
 
     def _start_pipewire(self):
         self._stop_event = threading.Event()
+        self._shutdown_requested = threading.Event()
         self._reader_failed = threading.Event()
         process = subprocess.Popen(
             ["pw-record", *(["--target", self.device] if self.device else []), "--raw", "--rate", str(AUDIO_SAMPLE_RATE), "--channels",
@@ -133,8 +137,26 @@ class AudioCapture:
         )
         self._process = process
         stop_event = self._stop_event
+        shutdown_requested = self._shutdown_requested
         failed = self._reader_failed
-        on_audio, on_rms = self._on_audio_data, self._on_rms
+        on_audio, on_rms, on_error = (
+            self._on_audio_data, self._on_rms, self._on_error
+        )
+        failure_reported = False
+
+        def report_failure(error):
+            nonlocal failure_reported
+            if failure_reported or shutdown_requested.is_set():
+                return
+            failure_reported = True
+            failed.set()
+            logger.error("PipeWire audio stream ended unexpectedly: %s", error)
+            if on_error:
+                try:
+                    on_error(error)
+                except Exception:
+                    logger.exception("Audio failure callback failed")
+
         def emit(data):
             # A late reader must never pick up callbacks from a newer capture.
             if not stop_event.is_set():
@@ -148,16 +170,15 @@ class AudioCapture:
                         continue
                     data = os.read(process.stdout.fileno(), AUDIO_BLOCKSIZE * 2)
                     if not data:
+                        report_failure(RuntimeError("PipeWire audio stream ended"))
                         break
                     pending += data
                     block_bytes = AUDIO_BLOCKSIZE * 2
                     while len(pending) >= block_bytes:
                         data, pending = pending[:block_bytes], pending[block_bytes:]
                         emit(data)
-            except (OSError, ValueError):
-                if not stop_event.is_set():
-                    failed.set()
-                    logger.exception("PipeWire audio reader failed")
+            except (OSError, ValueError) as error:
+                report_failure(error)
             finally:
                 # int16 samples must remain aligned, including a short final block.
                 tail = pending[:len(pending) // 2 * 2]
