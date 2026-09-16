@@ -16,7 +16,7 @@ ROOT = Path(__file__).resolve().parents[1]
 
 def source_files(root):
     files = [root / name for name in ("start.sh", "install.sh", "manifest.json", "omarchy/Service.qml", "LICENSE", "NOTICE",
-                                    "packaging/DEPENDENCIES.md")]
+                                    "packaging/DEPENDENCIES.md", "packaging/70-doubao-say-au05.rules")]
     files += [p for p in (root / "src/doubao_input").rglob("*")
               if p.is_file() and p.suffix in (".py", ".js", ".png", ".svg") and "__pycache__" not in p.parts]
     return sorted(files)

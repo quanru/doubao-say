@@ -140,6 +140,12 @@ class SettingsWindow:
         self.enter = row(tr("Press the active trigger twice: send Enter",
                             "连续按两次当前触发键：发送回车"),
                          Gtk.Switch(active=settings.double_enter))
+        self.vibekey = row(tr("Enable Vibekey receiver buttons",
+                              "启用 Vibekey 接收器按键"),
+                           Gtk.Switch(active=settings.vibekey_enabled))
+        box.append(Gtk.Label(xalign=0, wrap=True, label=tr(
+            "Off by default. When enabled, Doubao Say detects Vibekey and maps its three buttons to record, Enter and cancel.",
+            "默认关闭。启用后，豆包说会自动探测 Vibekey，并将三个按键映射为录音、回车确认和取消。")))
         self.hold = Gtk.SpinButton.new_with_range(200, 1500, 50)
         self.hold.set_value(settings.hold_ms)
         self.double = Gtk.SpinButton.new_with_range(150, 600, 25)
@@ -236,6 +242,7 @@ class SettingsWindow:
         self.autostart.connect("notify::active", self._changed)
         self.input_method.connect("notify::selected", self._changed)
         self.enter.connect("notify::active", self._changed)
+        self.vibekey.connect("notify::active", self._changed)
         self.hold.connect("value-changed", self._changed)
         self.double.connect("value-changed", self._changed)
         self.microphone.connect("notify::selected", self._changed)
@@ -253,6 +260,7 @@ class SettingsWindow:
             hold_ms=self.hold.get_value_as_int(),
             double_ms=self.double.get_value_as_int(),
             double_enter=self.enter.get_active(),
+            vibekey_enabled=self.vibekey.get_active(),
             input_method=INPUT_METHODS[self.input_method.get_selected()],
             autostart=self.autostart.get_active(),
             microphone=self.sources[self.microphone.get_selected()][0],
@@ -267,6 +275,7 @@ class SettingsWindow:
             self._sync_provider_details()
             self.autostart.set_active(self._settings.autostart)
             self.enter.set_active(self._settings.double_enter)
+            self.vibekey.set_active(self._settings.vibekey_enabled)
             self.input_method.set_selected(INPUT_METHODS.index(self._settings.input_method))
             self.hold.set_value(self._settings.hold_ms)
             self.double.set_value(self._settings.double_ms)

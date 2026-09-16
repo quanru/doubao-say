@@ -169,6 +169,7 @@ class Settings:
     hold_ms: int = 350
     double_ms: int = 300
     double_enter: bool = True
+    vibekey_enabled: bool = False
     input_method: str = "clipboard"
     autostart: bool = False
     microphone: str = ""
@@ -227,7 +228,8 @@ class Settings:
             raise ValueError(tr("Hold threshold must be 200–1500 ms", "长按阈值必须在 200–1500 毫秒之间"))
         if not (type(self.double_ms) is int and 150 <= self.double_ms <= 600):
             raise ValueError(tr("Double-tap interval must be 150–600 ms", "双击间隔必须在 150–600 毫秒之间"))
-        if type(self.double_enter) is not bool or type(self.autostart) is not bool:
+        if (type(self.double_enter) is not bool or type(self.autostart) is not bool
+                or type(self.vibekey_enabled) is not bool):
             raise ValueError(tr("Switch settings must be boolean", "开关设置必须为布尔值"))
 
     @classmethod

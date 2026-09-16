@@ -47,6 +47,19 @@ run `sudo usermod -aG input "$USER"` and log out/in. Never run the application a
 Review this broad keyboard access before enabling it. Other Linux distributions
 may need their own udev rules and corresponding system packages.
 
+The optional Vibekey receiver also needs access to its vendor HID interface. Its
+support is off by default and can be enabled in Settings. If you use that receiver,
+install the bundled narrowly scoped rule, reload udev, then unplug and reconnect it:
+
+```sh
+sudo install -Dm644 packaging/70-doubao-say-au05.rules /etc/udev/rules.d/70-doubao-say-au05.rules
+sudo udevadm control --reload-rules
+```
+
+The rule matches only USB VID/PID `fff1:00dd`. When Vibekey support is enabled,
+Doubao Say discovers the receiver at runtime; the receiver and this rule are not
+required for ordinary keyboards.
+
 ## Git / marketplace installation (manual setup required)
 
 This route installs the same app from source, not the offline archive below.

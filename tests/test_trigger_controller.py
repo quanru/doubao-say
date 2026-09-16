@@ -21,14 +21,18 @@ class TriggerControllerTest(TestCase):
             self.readers.append(value)
             return value
         self.start, self.stop, self.toggle, self.enter, self.cancel = [Mock() for _ in range(5)]
+        self.error = Mock()
         self.control = TriggerController(reader, schedule, Mock(), start=self.start, stop=self.stop,
             toggle=self.toggle, enter=self.enter, cancel_input=self.cancel,
-            debug_edge=Mock(return_value=False), error=Mock())
+            debug_edge=Mock(return_value=False), error=self.error)
         self.settings = Settings(doubao_key=100)
         self.control.configure(self.settings)
 
     def edge(self, code, pressed):
         self.readers[-1].callbacks["on_key"](code, pressed)
+
+    def aux(self, action, pressed=True):
+        self.readers[-1].callbacks["on_aux"](action, pressed)
 
     def test_capture_only_returns_after_release_and_restores_listener(self):
         result = Mock()
@@ -154,6 +158,14 @@ class TriggerControllerTest(TestCase):
         self.assertEqual(len(self.readers), 1)
         original.stop.assert_not_called()
 
+    def test_vibekey_is_disabled_by_default_and_toggle_restarts_listener(self):
+        original = self.readers[-1]
+        self.assertFalse(original.callbacks["vibekey_enabled"])
+        self.control.configure(replace(self.settings, vibekey_enabled=True), strict=True)
+        self.assertEqual(len(self.readers), 2)
+        self.assertTrue(self.readers[-1].callbacks["vibekey_enabled"])
+        original.stop.assert_called_once()
+
     def test_failed_capture_does_not_leave_dictation_paused(self):
         self.available = False
         with self.assertRaises(ValueError):
@@ -191,3 +203,48 @@ class TriggerControllerTest(TestCase):
         self.stop.assert_called_once()
         self.edge(1, True)
         self.cancel.assert_called_once()
+
+    def test_dedicated_record_button_uses_same_gesture(self):
+        self.aux("record", True)
+        self.timers[-1][1]()
+        self.start.assert_called_once()
+        self.aux("record", False)
+        self.stop.assert_called_once()
+
+    def test_recording_stops_only_after_keyboard_and_vibekey_both_release(self):
+        self.edge(100, True)
+        self.timers[-1][1]()
+        self.aux("record", True)
+        self.aux("record", False)
+        self.stop.assert_not_called()
+        self.edge(100, False)
+        self.stop.assert_called_once()
+
+    def test_vibekey_warning_does_not_cancel_keyboard_recording(self):
+        self.edge(100, True)
+        self.timers[-1][1]()
+        self.readers[-1].callbacks["on_aux_error"]("Vibekey unavailable")
+        self.error.assert_called_once_with("Vibekey unavailable")
+        self.stop.assert_not_called()
+        self.edge(100, False)
+        self.stop.assert_called_once()
+
+    def test_dedicated_enter_and_cancel_buttons_are_direct(self):
+        self.aux("enter")
+        self.enter.assert_called_once()
+        self.aux("enter", False)
+        self.enter.assert_called_once()
+        self.aux("cancel")
+        self.cancel.assert_called_once()
+
+    def test_dedicated_buttons_do_not_interfere_with_key_capture(self):
+        result = Mock()
+        self.control.begin_capture(result)
+        self.aux("record", True)
+        self.aux("record", False)
+        self.aux("enter")
+        self.aux("cancel")
+        result.assert_not_called()
+        self.start.assert_not_called()
+        self.enter.assert_not_called()
+        self.cancel.assert_not_called()
