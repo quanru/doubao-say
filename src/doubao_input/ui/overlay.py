@@ -17,6 +17,7 @@ from pathlib import Path
 from typing import TYPE_CHECKING
 from doubao_input.i18n import tr
 from doubao_input.ui.voice_motion import VoiceMotion
+from doubao_input.ui.waveform import draw_waveform
 from doubao_input.product import VERSION
 
 import cairo
@@ -46,11 +47,6 @@ CORNER_PX = 12
 
 CANVAS_WIDTH = 368
 CANVAS_HEIGHT = 31
-WAVE_HEIGHT = 24
-WAVE_SAMPLES = 48
-WAVE_BAR_WIDTH = 4
-WAVE_BAR_GAP = 3
-
 TICK_MS = 16
 PEAK_DECAY_DB_PER_SECOND = 6.0
 RMS_FLOOR_DB = -48.0
@@ -79,6 +75,7 @@ class Overlay:
     def __init__(self, app_state: AppState | None = None) -> None:
         self._main_thread_id = threading.get_ident()
         self.reduced_motion = False
+        self.waveform_style = "bars"
         self._app_state = app_state
         self._window: Gtk.Window | None = None
         self._label: Gtk.Label | None = None
@@ -383,7 +380,9 @@ class Overlay:
     def _arm_ticker(self) -> None:
         if self._ticker_src is None and self._visible:
             self._last_peak_tick = time.monotonic()
-            self._ticker_src = GLib.timeout_add(250 if self.reduced_motion else TICK_MS, self._tick)
+            self._ticker_src = GLib.timeout_add(
+                250 if self.reduced_motion else (33 if self.waveform_style == "basketball" else TICK_MS),
+                self._tick)
 
     def _tick(self) -> bool:
         if not self._visible or self._window is None or self._canvas is None:
@@ -414,8 +413,6 @@ class Overlay:
         if self._canvas is None:
             return
         try:
-            samples = self._motion.bars(WAVE_SAMPLES)
-
             surface = cairo.ImageSurface(
                 cairo.FORMAT_ARGB32, CANVAS_WIDTH, CANVAS_HEIGHT
             )
@@ -426,31 +423,9 @@ class Overlay:
 
             accent = _hex_to_unit_rgb(self._theme["accent"])
             foreground = _hex_to_unit_rgb(self._theme["bright_foreground"])
-            gradient = cairo.LinearGradient(0, 0, 0, WAVE_HEIGHT)
-            gradient.add_color_stop_rgba(0, *accent, 0.55)
-            gradient.add_color_stop_rgba(0.5, *foreground, 0.95)
-            gradient.add_color_stop_rgba(1, *accent, 0.55)
-            wave_width = WAVE_SAMPLES * (WAVE_BAR_WIDTH + WAVE_BAR_GAP)
-            start_x = (CANVAS_WIDTH - wave_width + WAVE_BAR_GAP) / 2
-            centre_y = WAVE_HEIGHT / 2
-            for index, sample in enumerate(samples):
-                amplitude = 0.85 + sample * (WAVE_HEIGHT / 2 - 2)
-                x = start_x + index * (WAVE_BAR_WIDTH + WAVE_BAR_GAP)
-                # A restrained halo follows actual energy, never idle breathing.
-                cr.set_source_rgba(*accent, self._motion.level * 0.18)
-                _rounded_rect(cr, x - 1.5, centre_y - amplitude - 1.5,
-                              WAVE_BAR_WIDTH + 3, amplitude * 2 + 3, 3)
-                cr.fill()
-                cr.set_source(gradient)
-                _rounded_rect(
-                    cr,
-                    x,
-                    centre_y - amplitude,
-                    WAVE_BAR_WIDTH,
-                    amplitude * 2,
-                    WAVE_BAR_WIDTH / 2,
-                )
-                cr.fill()
+            draw_waveform(cr, self.waveform_style, self._motion,
+                          CANVAS_WIDTH, CANVAS_HEIGHT, accent, foreground,
+                          reduced_motion=self.reduced_motion)
 
             texture = _image_surface_to_texture(surface)
             self._canvas.set_paintable(texture)
@@ -519,17 +494,3 @@ def _image_surface_to_texture(surface: cairo.ImageSurface) -> Gdk.Texture:
         GLib.Bytes.new(bytes(data)),
         stride,
     )
-
-
-def _rounded_rect(
-    cr, x: float, y: float, width: float, height: float, radius: float
-) -> None:
-    if width <= 0 or height <= 0:
-        return
-    radius = min(radius, width / 2, height / 2)
-    cr.new_sub_path()
-    cr.arc(x + width - radius, y + radius, radius, -math.pi / 2, 0)
-    cr.arc(x + width - radius, y + height - radius, radius, 0, math.pi / 2)
-    cr.arc(x + radius, y + height - radius, radius, math.pi / 2, math.pi)
-    cr.arc(x + radius, y + radius, radius, math.pi, 3 * math.pi / 2)
-    cr.close_path()

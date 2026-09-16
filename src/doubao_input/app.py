@@ -197,6 +197,7 @@ class DoubaoInputApp(Gtk.Application):
         self._audio_capture = AudioCapture(on_rms=self._on_audio_rms)
         self._audio_capture.device = self.settings.microphone
         self._overlay.reduced_motion = self.settings.reduced_motion
+        self._overlay.waveform_style = self.settings.waveform_style
         tm.audio_capture = self._audio_capture
 
         tm.on_show_login = self._connect_recognition
@@ -316,6 +317,7 @@ class DoubaoInputApp(Gtk.Application):
             self._triggers.configure(value, strict=strict)
             self._audio_capture.device = value.microphone
             self._overlay.reduced_motion = value.reduced_motion
+            self._overlay.waveform_style = value.waveform_style
 
         apply_preferences(previous, settings,
             lambda value: apply_runtime(value, True),

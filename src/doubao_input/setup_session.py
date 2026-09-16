@@ -1,6 +1,7 @@
 """Own onboarding microphone/voice tests and temporary appearance previews."""
 from enum import Enum, auto
 import threading
+import math
 
 from doubao_input.i18n import tr
 from doubao_input.timers import TimerScope
@@ -47,7 +48,12 @@ class SetupSession:
         self.mode = SetupMode.APPEARANCE
         self.overlay.show(tr("Appearance preview · microphone off", "外观预览 · 麦克风未开启"))
         self.overlay.set_text(tr("Your words appear here", "识别文字显示在这里"))
-        self._timers.later(2000, self.dismiss)
+        # Synthetic levels demonstrate motion without opening the microphone.
+        self.overlay.push_rms(0.02)
+        for frame in range(1, 30):
+            level = 0.003 + 0.06 * math.sin(frame * math.pi / 15) ** 2
+            self._timers.later(frame * 100, lambda rms=level: self.overlay.push_rms(rms))
+        self._timers.later(3000, self.dismiss)
 
     def begin_voice(self):
         self.dismiss()

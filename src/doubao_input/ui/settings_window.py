@@ -6,6 +6,7 @@ from doubao_input.i18n import LANGUAGES, tr
 from doubao_input.doubao.devices import microphones
 from doubao_input.diagnostics import report
 from doubao_input.product import VERSION
+from doubao_input.settings import WAVEFORM_STYLES
 from doubao_input.ui.style import apply_window_style
 from doubao_input.settings import ASR_PROVIDERS
 
@@ -157,6 +158,13 @@ class SettingsWindow:
             "更改会自动保存；可在引导页检查麦克风。")))
 
         section(tr("Appearance", "外观"))
+        self.waveform_style = Gtk.DropDown.new_from_strings([
+            tr("Classic bars", "经典声柱"), tr("Soft waves", "柔和声浪"),
+            tr("Concentric ripples", "同心涟漪"),
+            tr("Basketball rhythm", "篮球律动"),
+        ])
+        self.waveform_style.set_selected(WAVEFORM_STYLES.index(settings.waveform_style))
+        row(tr("Listening waveform", "聆听波纹样式"), self.waveform_style)
         self.motion = row(tr("Reduce waveform updates", "减少波形更新"),
                           Gtk.Switch(active=settings.reduced_motion))
         button(tr("Preview appearance", "预览外观"), preview)
@@ -217,6 +225,7 @@ class SettingsWindow:
         self.hold.connect("value-changed", self._changed)
         self.double.connect("value-changed", self._changed)
         self.microphone.connect("notify::selected", self._changed)
+        self.waveform_style.connect("notify::selected", self._changed)
         self.motion.connect("notify::active", self._changed)
         self.window.connect("unmap", self._flush_asr_key)
         self._sync_provider_details()
@@ -232,7 +241,8 @@ class SettingsWindow:
             double_enter=self.enter.get_active(),
             autostart=self.autostart.get_active(),
             microphone=self.sources[self.microphone.get_selected()][0],
-            reduced_motion=self.motion.get_active())
+            reduced_motion=self.motion.get_active(),
+            waveform_style=WAVEFORM_STYLES[self.waveform_style.get_selected()])
 
     def _restore_controls(self):
         self._updating = True
@@ -247,6 +257,7 @@ class SettingsWindow:
             self.microphone.set_selected(
                 [key for key, _ in self.sources].index(self._settings.microphone))
             self.motion.set_active(self._settings.reduced_motion)
+            self.waveform_style.set_selected(WAVEFORM_STYLES.index(self._settings.waveform_style))
         finally:
             self._updating = False
 

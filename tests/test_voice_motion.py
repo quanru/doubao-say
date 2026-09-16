@@ -29,3 +29,40 @@ class MotionTest(unittest.TestCase):
         for rms in (0, 0.02, 1, float('nan')):
             values = self.run_level(rms).bars(48)
             self.assertTrue(all(0 <= x <= 1 for x in values))
+
+
+class CadenceTest(unittest.TestCase):
+    def speech(self, syllables_per_second, gain=0.03):
+        motion = VoiceMotion()
+        for frame in range(600):
+            t = frame / 60
+            rms = gain if (t * syllables_per_second) % 1 < 0.4 else gain * 0.02
+            motion.advance(rms, 0, 1 / 60)
+        return motion
+
+    def test_faster_speech_dribbles_faster(self):
+        slow = self.speech(2).cadence.speed
+        fast = self.speech(5).cadence.speed
+        self.assertGreater(fast, slow * 1.5)
+
+    def test_gain_does_not_control_dribble_speed(self):
+        quiet = self.speech(4, 0.01).cadence.speed
+        loud = self.speech(4, 0.1).cadence.speed
+        self.assertAlmostEqual(quiet, loud, delta=0.1)
+
+    def test_pause_freezes_pose_and_stale_samples_stop_motion(self):
+        for stale in (False, True):
+            motion = self.speech(4)
+            for _ in range(120):
+                motion.advance(0.1 if stale else 0, 5 if stale else 0, 1 / 60)
+            phase = motion.cadence.phase
+            for _ in range(60):
+                motion.advance(0.1 if stale else 0, 5 if stale else 0, 1 / 60)
+            self.assertEqual(motion.cadence.phase, phase)
+
+    def test_constant_volume_does_not_accelerate(self):
+        for gain in (0.01, 0.1):
+            motion = VoiceMotion()
+            for _ in range(600):
+                motion.advance(gain, 0, 1 / 60)
+            self.assertAlmostEqual(motion.cadence.speed, 1.2)

@@ -73,3 +73,16 @@ class SetupSessionTest(TestCase):
         self.session.cancel_voice()
         self.cancel_voice.assert_called_once()
         self.assertFalse(self.session.voice_active)
+
+    def test_appearance_uses_synthetic_audio_and_cancels_stale_frames(self):
+        self.session.show_appearance()
+        self.audio.start.assert_not_called()
+        self.overlay.push_rms.assert_called_with(0.02)
+        frames = [callback for _, callback in self.timers[:-1]]
+        frames[0]()
+        self.assertGreater(self.overlay.push_rms.call_count, 1)
+        self.session.dismiss()
+        self.overlay.push_rms.reset_mock()
+        for callback in frames[1:]:
+            callback()
+        self.overlay.push_rms.assert_not_called()

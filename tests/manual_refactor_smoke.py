@@ -15,8 +15,8 @@ gi.require_version("Gtk", "4.0")
 from gi.repository import GLib, Gtk
 from doubao_input.app import DoubaoInputApp
 from doubao_input.i18n import set_language
-from doubao_input.settings import Settings
 from doubao_input.doubao.volcengine_credentials import VolcengineCredentialsStore
+from doubao_input.settings import Settings, WAVEFORM_STYLES
 from doubao_input.ui.settings_window import SettingsWindow
 
 
@@ -65,6 +65,11 @@ def main():
                 assert VolcengineCredentialsStore.load().api_key == "synthetic-official-key"
                 assert window.asr_details.get_visible()
                 assert not window.login_button.get_visible()
+            for index, style in enumerate(WAVEFORM_STYLES):
+                window.waveform_style.set_selected(index)
+                assert app.settings.waveform_style == style
+                assert app._overlay.waveform_style == style
+                assert Settings.load().waveform_style == style
             picker = window.trigger_picker
             preset = 29 if app.settings.doubao_key != 29 else 56
             preset_index = [entry[1] for entry in picker.entries].index(preset)
