@@ -54,6 +54,10 @@ the key. Service activation and project access are managed in the Volcengine
 console; an HTTP 401 from **Test API key** normally means that account-side access
 is not ready yet.
 
+See [Doubao and the official Volcengine speech API](docs/volcengine-asr.md) for
+backend differences, new-console activation, bidirectional streaming limitations,
+and troubleshooting.
+
 ### Optional voice polishing
 
 Turn on the **Voice polishing · Experimental** switch on the Trigger key page to configure an

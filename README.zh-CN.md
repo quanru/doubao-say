@@ -41,6 +41,9 @@ API Key 保存在 `~/.config/doubao-say/volcengine_api_key`（或对应的
 安装包或测试报告。清除凭证会删除该 Key。服务开通和项目权限需在火山引擎控制台管理；
 若“测试 API Key”返回 HTTP 401，通常表示账号侧访问权限尚未就绪。
 
+两种识别方式的区别、新版控制台开通步骤、双向流式限制与排障方法见
+[豆包与火山引擎官方语音识别](docs/volcengine-asr.zh-CN.md)。
+
 ### 可选语音润色
 
 在“快捷键”页面打开**语音润色 · 实验特性**开关，可配置 OpenAI 兼容的 Base URL、API Key、模型和
