@@ -32,7 +32,7 @@ from doubao_input.doubao.volcengine_credentials import (
     VolcengineCredentials, VolcengineCredentialsStore,
 )
 from doubao_input.inject.injector import Injector
-from doubao_input.trigger.evdev_ptt import EvdevPtt
+from doubao_input.trigger.reader import TriggerReader
 from doubao_input.trigger.controller import TriggerController
 from doubao_input.setup_session import SetupSession
 from doubao_input.inject.worker import InputWorker
@@ -254,7 +254,7 @@ class DoubaoInputApp(Gtk.Application):
         self._escape_guard = EscapeGuard(lambda message: self._control.set_feedback(
             tr("Could not protect Escape: ", "无法拦截 Esc：") + message))
         self._escape_timer = GLib.timeout_add(50, self._sync_escape)
-        self._triggers = TriggerController(EvdevPtt, GLib.timeout_add, GLib.source_remove,
+        self._triggers = TriggerController(TriggerReader, GLib.timeout_add, GLib.source_remove,
             escape_edge=self._escape_guard.edge,
             start=self._voice_start, stop=self._voice_stop, toggle=self._voice_toggle,
             enter=self._voice_enter, cancel_input=self._cancel_input,

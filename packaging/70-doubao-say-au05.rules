@@ -1,0 +1,2 @@
+# Allow Doubao Say to use the Vibekey vendor HID interface as a normal user.
+SUBSYSTEM=="hidraw", ATTRS{idVendor}=="fff1", ATTRS{idProduct}=="00dd", MODE="0660", GROUP="input", TAG+="uaccess"

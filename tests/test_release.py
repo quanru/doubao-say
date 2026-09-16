@@ -50,7 +50,8 @@ class ReleaseTest(unittest.TestCase):
             subprocess.run(["git", "init", "-q", str(root)], check=True)
             (root / ".gitignore").write_text("private.py\ndist/\n")
             for name in ("start.sh", "install.sh", "omarchy/Service.qml", "LICENSE", "NOTICE",
-                         "packaging/DEPENDENCIES.md", "packaging/install-release.py",
+                         "packaging/DEPENDENCIES.md", "packaging/70-doubao-say-au05.rules",
+                         "packaging/install-release.py",
                          "packaging/INSTALL.md", "packaging/runtime-requirements.txt",
                          "src/doubao_input/public.py", "src/doubao_input/private.py"):
                 path = root / name

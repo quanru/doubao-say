@@ -62,8 +62,10 @@ class ProductTest(TestCase):
             trace.add("transcript: private words")
 
     def test_new_preference_validation(self):
-        Settings(microphone="alsa_input.usb", reduced_motion=True, onboarding_complete=True).validate()
-        for values in ({"microphone": "bad\nargument"}, {"reduced_motion": 1}, {"onboarding_complete": "yes"}):
+        Settings(microphone="alsa_input.usb", reduced_motion=True, onboarding_complete=True,
+                 vibekey_enabled=True).validate()
+        for values in ({"microphone": "bad\nargument"}, {"reduced_motion": 1},
+                       {"onboarding_complete": "yes"}, {"vibekey_enabled": 1}):
             with self.assertRaises(ValueError):
                 Settings(**values).validate()
 

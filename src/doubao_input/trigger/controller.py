@@ -42,7 +42,8 @@ class TriggerController:
         key, modifiers = canonical_shortcut(settings.doubao_key,
                                             settings.doubao_modifiers)
         settings = replace(settings, doubao_key=key, doubao_modifiers=modifiers)
-        fields = ("doubao_key", "doubao_modifiers", "hold_ms", "double_ms", "double_enter")
+        fields = ("doubao_key", "doubao_modifiers", "hold_ms", "double_ms", "double_enter",
+                  "vibekey_enabled")
         if (self._reader and self._listener_capture == self.capturing and self._settings
                 and all(getattr(settings, field) == getattr(self._settings, field) for field in fields)):
             self._settings = replace(settings)
@@ -54,8 +55,10 @@ class TriggerController:
             if settings.doubao_key else set())
         candidate = self._factory(on_press=lambda: None, on_release=lambda: None,
             on_key=lambda code, pressed: self._edge(code, pressed) if generation == self._generation else None,
+            on_aux=lambda action, pressed: self._aux_edge(action, pressed)
+            if generation == self._generation else None,
             on_error=lambda message: self._device_error(message) if generation == self._generation else None,
-            key_codes=keys)
+            key_codes=keys, vibekey_enabled=settings.vibekey_enabled)
         try:
             started = candidate.start()
             if strict and not started:
@@ -162,6 +165,23 @@ class TriggerController:
         if held:
             self._actions[1]()
         self._error(message)
+
+    def _aux_edge(self, action, pressed):
+        """Handle dedicated Vibekey buttons without changing the selected shortcut."""
+        if self.capturing or not self._gesture:
+            return
+        if action == "record":
+            code = self._settings.doubao_key if self._settings else 0
+            if self._debug_edge(code, pressed):
+                return
+            if pressed:
+                self._gesture.press()
+            else:
+                self._gesture.release()
+        elif action == "enter" and pressed:
+            self._actions[3]()
+        elif action == "cancel" and pressed:
+            self._cancel_input()
 
     def cancel_gesture(self):
         if self._gesture:
