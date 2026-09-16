@@ -83,6 +83,7 @@ class SetupActionsTest(unittest.TestCase):
             test_status=Mock(),
         )
         view._set_testing = lambda active: PolishSettings._set_testing(view, active)
+        view._set_test_result = lambda success: PolishSettings._set_test_result(view, success)
         view._tested = lambda result, error: PolishSettings._tested(view, result, error)
         PolishSettings._test_clicked(view)
         self.assertTrue(view._testing)
@@ -92,13 +93,15 @@ class SetupActionsTest(unittest.TestCase):
         completed("cleaned test", "")
         self.assertFalse(view._testing)
         view.test_button.set_sensitive.assert_called_with(True)
+        self.assertIn("✓", view.test_button.set_label.call_args.args[0])
         self.assertIn("cleaned test", view.test_status.set_text.call_args.args[0])
 
     def test_endpoint_error_is_labeled_next_to_button(self):
         view = SimpleNamespace(_testing=True, test_button=Mock(), test_status=Mock())
-        view._set_testing = lambda active: PolishSettings._set_testing(view, active)
+        view._set_test_result = lambda success: PolishSettings._set_test_result(view, success)
         PolishSettings._tested(view, None, "network unavailable")
         self.assertFalse(view._testing)
+        self.assertIn("failed", view.test_button.set_label.call_args.args[0].lower())
         message = view.test_status.set_text.call_args.args[0]
         self.assertIn("network unavailable", message)
         view.test_status.set_visible.assert_called_once_with(True)
@@ -108,10 +111,13 @@ class SetupActionsTest(unittest.TestCase):
             _testing=False,
             _save_now=Mock(return_value=False),
             status=Mock(),
+            test_button=Mock(),
             test_status=Mock(),
         )
+        view._set_test_result = lambda success: PolishSettings._set_test_result(view, success)
         view.status.get_text.return_value = "Enter an API key first."
         PolishSettings._test_clicked(view)
+        self.assertIn("failed", view.test_button.set_label.call_args.args[0].lower())
         view.test_status.set_text.assert_called_once_with("Enter an API key first.")
         view.test_status.set_visible.assert_called_once_with(True)
 
