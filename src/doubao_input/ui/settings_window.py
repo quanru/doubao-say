@@ -116,7 +116,7 @@ class SettingsWindow:
         self.waveform_style = Gtk.DropDown.new_from_strings([
             tr("Classic bars", "经典声柱"), tr("Soft waves", "柔和声浪"),
             tr("Concentric ripples", "同心涟漪"),
-            tr("Cai Xukun · Basketball", "蔡徐坤 · 打篮球"),
+            tr("Basketball rhythm", "篮球律动"),
         ])
         self.waveform_style.set_selected(WAVEFORM_STYLES.index(settings.waveform_style))
         row(tr("Listening waveform", "聆听波纹样式"), self.waveform_style)

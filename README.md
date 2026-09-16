@@ -75,10 +75,11 @@ Your keyboard must report Fn as a Linux key; otherwise choose another key.
 - Configure the hold threshold, double-tap interval, Enter gesture and startup.
 
 The bottom overlay shows an audio-driven waveform and live text.
-Choose Classic bars, Soft waves, Concentric ripples, or Cai Xukun · Basketball
+Choose Classic bars, Soft waves, Concentric ripples, or Basketball rhythm
 under Settings → Appearance → Listening waveform. The basketball theme uses an
 fine wave strands that subtly form a dribbling figure and an orange ball.
-The figure stays at a fixed size while the hand follows the bouncing ball.
+The figure stays at a fixed size with planted feet, a rhythmic rightward
+shoulder pop, and a hand that follows the bouncing ball.
 Dribbling speed follows an estimate of speech cadence from audio energy onsets,
 not volume or recognized words per minute. Pauses freeze the pose; volume only
 affects brightness. No solid character or ball outlines are drawn. Changes save automatically; use Preview appearance to try them.

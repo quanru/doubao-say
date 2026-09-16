@@ -102,8 +102,11 @@ def draw_basketball(cr, level, phase, width, height, accent, foreground):
     cr.translate(width / 2, height / 2)
     cr.scale(1, height / 31)
     bounce = (1 - math.cos(phase * 2)) / 2
-    shoulder = (-10, -5)
-    hip = (-13, 3)
+    # A short rightward shoulder pop near the top of each dribble, then release.
+    # Feet stay planted; the torso shears sideways instead of bobbing vertically.
+    shoulder_pop = bounce ** 4
+    shoulder = (-10 + 6 * shoulder_pop, -5)
+    hip = (-13 + shoulder_pop, 3)
     ball = (17, 10 - bounce * 13)
 
     # The surrounding threads continue through the figure, so it belongs to
@@ -112,12 +115,12 @@ def draw_basketball(cr, level, phase, width, height, accent, foreground):
     _paint_wave_threads(cr, threads, level, width, accent, 0.07)
     cr.save()
     cr.new_path()
-    cr.arc(shoulder[0] + 1, -10, 3.2, 0, math.tau)
+    cr.arc(-9 + 3 * shoulder_pop, -10, 3.2, 0, math.tau)
     _wave_limb(cr, shoulder, hip, 3.3)
-    _wave_limb(cr, shoulder, (-21, -1), 1.5)
-    _wave_limb(cr, (-21, -1), (-17, 3), 1.3)
-    _wave_limb(cr, shoulder, (1, -3), 1.5)
-    _wave_limb(cr, (1, -3), (ball[0] - 2, ball[1] - 5), 1.2)
+    _wave_limb(cr, shoulder, (-21 + 3 * shoulder_pop, -1), 1.5)
+    _wave_limb(cr, (-21 + 3 * shoulder_pop, -1), (-17 + shoulder_pop, 3), 1.3)
+    _wave_limb(cr, shoulder, (1 + 2 * shoulder_pop, -3), 1.5)
+    _wave_limb(cr, (1 + 2 * shoulder_pop, -3), (ball[0] - 2, ball[1] - 5), 1.2)
     _wave_limb(cr, hip, (-22, 8), 1.9)
     _wave_limb(cr, (-22, 8), (-19, 13), 1.6)
     _wave_limb(cr, hip, (-4, 7), 1.9)
