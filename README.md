@@ -99,7 +99,9 @@ Choose Classic bars, Soft waves, Concentric ripples, or Basketball rhythm
 under Settings → Appearance → Listening waveform. The basketball theme uses an
 fine wave strands that subtly form a dribbling figure and an orange ball.
 The figure stays at a fixed size with planted feet, a rhythmic rightward
-shoulder pop, and a hand that follows the bouncing ball.
+shoulder pop, and a hand that leads the bouncing ball. The phrase alternates
+anticipation, a fast downward push, a squashed impact, a shoulder snap with
+delayed head turn, a short hold and recovery.
 Dribbling speed follows an estimate of speech cadence from audio energy onsets,
 not volume or recognized words per minute. Pauses freeze the pose; volume only
 affects brightness. No solid character or ball outlines are drawn. Changes save automatically; use Preview appearance to try them.

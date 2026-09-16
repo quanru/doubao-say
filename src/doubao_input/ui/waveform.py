@@ -3,6 +3,8 @@ import math
 
 import cairo
 
+from doubao_input.ui.basketball_motion import basketball_pose
+
 
 def draw_waveform(cr, style, motion, width, height, accent, foreground, *, reduced_motion=False):
     cr.save()
@@ -101,43 +103,60 @@ def draw_basketball(cr, level, phase, width, height, accent, foreground):
     cr.save()
     cr.translate(width / 2, height / 2)
     cr.scale(1, height / 31)
-    bounce = (1 - math.cos(phase * 2)) / 2
-    # A short rightward shoulder pop near the top of each dribble, then release.
-    # Feet stay planted; the torso shears sideways instead of bobbing vertically.
-    shoulder_pop = bounce ** 4
-    shoulder = (-10 + 6 * shoulder_pop, -5)
-    hip = (-13 + shoulder_pop, 3)
-    ball = (17, 10 - bounce * 13)
+    pose = basketball_pose(phase)
+    neck = (-11 + 3 * pose.twist, -5 + 1.7 * pose.crouch)
+    back = (-16 + 2 * pose.twist, -4 + 2 * pose.crouch)
+    shoulder = (-6 + 7 * pose.twist, -5 + 2 * pose.crouch - pose.twist)
+    hip = (-13 - 1.5 * pose.twist, 3 + 1.6 * pose.crouch)
+    elbow = (6 + 2 * pose.twist, -2 + pose.crouch)
+    hand = (16, pose.hand_y)
+    ball = (18, pose.ball_y)
 
-    # The surrounding threads continue through the figure, so it belongs to
-    # the waveform. Silhouettes are only clipping masks, never filled shapes.
+    # One shared wave texture, with brighter shoulder/arm strands conveying
+    # the turn. All silhouette paths are masks, never solid character fills.
     threads = _wave_thread_pattern(cr, phase, width)
-    _paint_wave_threads(cr, threads, level, width, accent, 0.07)
+    _paint_wave_threads(cr, threads, level, width, accent, 0.05)
     cr.save()
     cr.new_path()
-    cr.arc(-9 + 3 * shoulder_pop, -10, 3.2, 0, math.tau)
-    _wave_limb(cr, shoulder, hip, 3.3)
-    _wave_limb(cr, shoulder, (-21 + 3 * shoulder_pop, -1), 1.5)
-    _wave_limb(cr, (-21 + 3 * shoulder_pop, -1), (-17 + shoulder_pop, 3), 1.3)
-    _wave_limb(cr, shoulder, (1 + 2 * shoulder_pop, -3), 1.5)
-    _wave_limb(cr, (1 + 2 * shoulder_pop, -3), (ball[0] - 2, ball[1] - 5), 1.2)
-    _wave_limb(cr, hip, (-22, 8), 1.9)
-    _wave_limb(cr, (-22, 8), (-19, 13), 1.6)
-    _wave_limb(cr, hip, (-4, 7), 1.9)
-    _wave_limb(cr, (-4, 7), (2, 13), 1.6)
+    cr.arc(-10 + 2 * pose.head_turn, -10 + 1.5 * pose.crouch, 3.2, 0, math.tau)
+    _wave_limb(cr, neck, hip, 3.3)
+    _wave_limb(cr, back, shoulder, 2.0)
+    _wave_limb(cr, back, (-22 + pose.twist, 1 + pose.crouch), 1.5)
+    _wave_limb(cr, (-22 + pose.twist, 1 + pose.crouch), (-14, 2), 1.3)
+    _wave_limb(cr, shoulder, elbow, 1.5)
+    _wave_limb(cr, elbow, hand, 1.2)
+    _wave_limb(cr, hip, (-23 - pose.crouch, 8), 1.9)
+    _wave_limb(cr, (-23 - pose.crouch, 8), (-20, 13), 1.6)
+    _wave_limb(cr, hip, (-4 + pose.crouch, 8), 1.9)
+    _wave_limb(cr, (-4 + pose.crouch, 8), (3, 13), 1.6)
     cr.clip()
-    _paint_wave_threads(cr, threads, level, width, foreground, 0.78)
+    _paint_wave_threads(cr, threads, level, width, foreground, 0.62)
     cr.restore()
 
     cr.save()
     cr.new_path()
-    cr.arc(*ball, 4.1, 0, math.tau)
+    _wave_limb(cr, back, shoulder, 2.0)
+    _wave_limb(cr, shoulder, elbow, 1.5)
+    _wave_limb(cr, elbow, hand, 1.2)
+    cr.clip()
+    _paint_wave_threads(cr, threads, level, width, foreground, 0.50)
+    cr.restore()
+
+    cr.save()
+    cr.new_path()
+    # Preserve the wave texture's coordinates while squashing only the mask.
+    cr.save()
+    cr.translate(*ball)
+    cr.scale(1 + 0.25 * pose.squash, 1 - 0.40 * pose.squash)
+    cr.arc(0, 0, 4.1, 0, math.tau)
+    cr.restore()
     cr.clip()
     _paint_wave_threads(cr, threads, level, width, (1.0, 0.64, 0.34), 0.85)
     cr.restore()
     cr.restore()
-    if level > 0.001:
-        draw_ripples(cr, level * (1 - bounce), phase * 2,
+    impact_age = ((phase / math.pi) % 1 - 0.34) % 1
+    if level > 0.001 and impact_age < 0.3:
+        draw_ripples(cr, level * (1 - impact_age / 0.3), impact_age * math.tau,
                      width / 2 + ball[0], height - 2,
                      width * 0.31, 1.5, accent)
 
