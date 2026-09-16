@@ -16,7 +16,8 @@ def draw_waveform(cr, style, motion, width, height, accent, foreground, *, reduc
         draw_ripples(cr, motion.level, phase, width / 2, height / 2,
                      width * 0.44, height * 0.43, accent)
     elif style == "basketball":
-        draw_basketball(cr, motion.level, phase, width, height, accent, foreground)
+        draw_basketball(cr, motion.level, 0.0 if reduced_motion else motion.cadence.phase,
+                        width, height, accent, foreground)
     else:
         draw_bars(cr, motion, width, accent, foreground)
     cr.restore()
@@ -97,17 +98,13 @@ def draw_ripples(cr, level, phase, x, y, rx, ry, color):
 
 def draw_basketball(cr, level, phase, width, height, accent, foreground):
     """Wave strands briefly resolve into a dribbling figure and a separate ball."""
-    if level < 0.001:
-        draw_waves(cr, 0, 0, width, height, accent)
-        return
     cr.save()
     cr.translate(width / 2, height / 2)
-    cr.scale(1, height / 31 * (0.10 + 0.90 * level))
+    cr.scale(1, height / 31)
     bounce = (1 - math.cos(phase * 2)) / 2
-    lean = math.sin(phase * 2) * 1.5
-    shoulder = (-10 + lean, -5 + bounce)
-    hip = (-13, 3 + bounce)
-    ball = (17 + math.sin(phase) * 2, 10 - bounce * 13)
+    shoulder = (-10, -5)
+    hip = (-13, 3)
+    ball = (17, 10 - bounce * 13)
 
     # The surrounding threads continue through the figure, so it belongs to
     # the waveform. Silhouettes are only clipping masks, never filled shapes.
@@ -115,16 +112,16 @@ def draw_basketball(cr, level, phase, width, height, accent, foreground):
     _paint_wave_threads(cr, threads, level, width, accent, 0.07)
     cr.save()
     cr.new_path()
-    cr.arc(shoulder[0] + 1, -10 + bounce, 3.2, 0, math.tau)
+    cr.arc(shoulder[0] + 1, -10, 3.2, 0, math.tau)
     _wave_limb(cr, shoulder, hip, 3.3)
-    _wave_limb(cr, shoulder, (-21, -1 + bounce), 1.5)
-    _wave_limb(cr, (-21, -1 + bounce), (-17, 3 + bounce), 1.3)
-    _wave_limb(cr, shoulder, (1, -3 + bounce), 1.5)
-    _wave_limb(cr, (1, -3 + bounce), (ball[0] - 2, ball[1] - 5), 1.2)
-    _wave_limb(cr, hip, (-22 - lean, 8), 1.9)
-    _wave_limb(cr, (-22 - lean, 8), (-19 - lean, 13), 1.6)
-    _wave_limb(cr, hip, (-4 + lean, 7), 1.9)
-    _wave_limb(cr, (-4 + lean, 7), (2 + lean, 13), 1.6)
+    _wave_limb(cr, shoulder, (-21, -1), 1.5)
+    _wave_limb(cr, (-21, -1), (-17, 3), 1.3)
+    _wave_limb(cr, shoulder, (1, -3), 1.5)
+    _wave_limb(cr, (1, -3), (ball[0] - 2, ball[1] - 5), 1.2)
+    _wave_limb(cr, hip, (-22, 8), 1.9)
+    _wave_limb(cr, (-22, 8), (-19, 13), 1.6)
+    _wave_limb(cr, hip, (-4, 7), 1.9)
+    _wave_limb(cr, (-4, 7), (2, 13), 1.6)
     cr.clip()
     _paint_wave_threads(cr, threads, level, width, foreground, 0.78)
     cr.restore()

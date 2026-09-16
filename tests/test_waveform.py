@@ -14,6 +14,7 @@ class WaveformTest(unittest.TestCase):
     def frame(self, style, level, phase=1.2, reduced=False):
         motion = VoiceMotion()
         motion.level, motion.phase = level, phase
+        motion.cadence.phase = phase if level else 0
         surface = cairo.ImageSurface(cairo.FORMAT_ARGB32, 368, 31)
         draw_waveform(cairo.Context(surface), style, motion, 368, 31,
                       (0.48, 0.64, 0.97), (0.75, 0.79, 0.96), reduced_motion=reduced)

@@ -78,8 +78,10 @@ The bottom overlay shows an audio-driven waveform and live text.
 Choose Classic bars, Soft waves, Concentric ripples, or Cai Xukun · Basketball
 under Settings → Appearance → Listening waveform. The basketball theme uses an
 fine wave strands that subtly form a dribbling figure and an orange ball.
-The arm, knees and ball move together, with impact ripples and audio-driven
-amplitude. No solid character or ball outlines are drawn. Changes save automatically; use Preview appearance to try them.
+The figure stays at a fixed size while the hand follows the bouncing ball.
+Dribbling speed follows an estimate of speech cadence from audio energy onsets,
+not volume or recognized words per minute. Pauses freeze the pose; volume only
+affects brightness. No solid character or ball outlines are drawn. Changes save automatically; use Preview appearance to try them.
 Classic bars remains the default. Reduced updates also stop travelling and
 bouncing motion in the new styles while retaining volume feedback.
 Final text is pasted after recording ends; target fields are not revised live.
