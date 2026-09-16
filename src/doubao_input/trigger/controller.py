@@ -26,6 +26,7 @@ class TriggerController:
         self._listener_capture = False
         self._available = False
         self._down_keys = set()
+        self._gesture_sources = set()
         self._capture_order = []
 
     @property
@@ -56,6 +57,8 @@ class TriggerController:
         candidate = self._factory(on_press=lambda: None, on_release=lambda: None,
             on_key=lambda code, pressed: self._edge(code, pressed) if generation == self._generation else None,
             on_aux=lambda action, pressed: self._aux_edge(action, pressed)
+            if generation == self._generation else None,
+            on_aux_error=lambda message: self._error(message)
             if generation == self._generation else None,
             on_error=lambda message: self._device_error(message) if generation == self._generation else None,
             key_codes=keys, vibekey_enabled=settings.vibekey_enabled)
@@ -153,10 +156,10 @@ class TriggerController:
                     and all(any(actual in self._down_keys
                                 for actual in equivalent_key_codes(item))
                             for item in self._settings.doubao_modifiers)):
-                self._gesture.press()
+                self._gesture_edge(("keyboard", code), True)
         else:
-            if key_codes_match(code, self._settings.doubao_key) and self._gesture.down:
-                self._gesture.release()
+            if key_codes_match(code, self._settings.doubao_key):
+                self._gesture_edge(("keyboard", code), False)
             self._down_keys.discard(code)
 
     def _device_error(self, message):
@@ -174,19 +177,33 @@ class TriggerController:
             code = self._settings.doubao_key if self._settings else 0
             if self._debug_edge(code, pressed):
                 return
-            if pressed:
-                self._gesture.press()
-            else:
-                self._gesture.release()
+            self._gesture_edge(("vibekey", "record"), pressed)
         elif action == "enter" and pressed:
             self._actions[3]()
         elif action == "cancel" and pressed:
             self._cancel_input()
 
+    def _gesture_edge(self, source, pressed):
+        """Keep the shared gesture held until every active source releases."""
+        if pressed:
+            if source in self._gesture_sources:
+                return
+            first = not self._gesture_sources
+            self._gesture_sources.add(source)
+            if first:
+                self._gesture.press()
+        else:
+            if source not in self._gesture_sources:
+                return
+            self._gesture_sources.discard(source)
+            if not self._gesture_sources and self._gesture.down:
+                self._gesture.release()
+
     def cancel_gesture(self):
         if self._gesture:
             self._gesture.close()
         self._down_keys.clear()
+        self._gesture_sources.clear()
 
     def close(self):
         self._timers.clear()

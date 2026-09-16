@@ -5,11 +5,12 @@ from doubao_input.trigger.evdev_ptt import EvdevPtt
 
 class TriggerReader:
     def __init__(self, on_press, on_release, on_error=None, on_key=None,
-                 key_codes=None, on_aux=None, vibekey_enabled=False):
+                 key_codes=None, on_aux=None, on_aux_error=None,
+                 vibekey_enabled=False):
         self._keyboard = EvdevPtt(on_press, on_release, on_error=on_error,
                                   on_key=on_key, key_codes=key_codes)
         self._vibekey = (Au05Listener(on_aux or (lambda action, pressed: None),
-                                     on_error=on_error)
+                                     on_error=on_aux_error)
                          if vibekey_enabled else None)
 
     def start(self):

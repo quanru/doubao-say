@@ -20,10 +20,14 @@ class TriggerReaderTest(TestCase):
     def test_vibekey_enabled_starts_and_stops_listener(self, keyboard, vibekey):
         keyboard.return_value.start.return_value = True
         vibekey.return_value.start.return_value = True
-        action = Mock()
-        reader = TriggerReader(Mock(), Mock(), on_aux=action, vibekey_enabled=True)
+        action, keyboard_error, vibekey_error = Mock(), Mock(), Mock()
+        reader = TriggerReader(Mock(), Mock(), on_error=keyboard_error,
+                               on_aux=action, on_aux_error=vibekey_error,
+                               vibekey_enabled=True)
         self.assertTrue(reader.start())
         vibekey.assert_called_once()
         self.assertIs(vibekey.call_args.args[0], action)
+        self.assertIs(vibekey.call_args.kwargs["on_error"], vibekey_error)
+        self.assertIs(keyboard.call_args.kwargs["on_error"], keyboard_error)
         reader.stop()
         vibekey.return_value.stop.assert_called_once()

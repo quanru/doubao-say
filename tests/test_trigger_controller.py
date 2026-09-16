@@ -21,9 +21,10 @@ class TriggerControllerTest(TestCase):
             self.readers.append(value)
             return value
         self.start, self.stop, self.toggle, self.enter, self.cancel = [Mock() for _ in range(5)]
+        self.error = Mock()
         self.control = TriggerController(reader, schedule, Mock(), start=self.start, stop=self.stop,
             toggle=self.toggle, enter=self.enter, cancel_input=self.cancel,
-            debug_edge=Mock(return_value=False), error=Mock())
+            debug_edge=Mock(return_value=False), error=self.error)
         self.settings = Settings(doubao_key=100)
         self.control.configure(self.settings)
 
@@ -208,6 +209,24 @@ class TriggerControllerTest(TestCase):
         self.timers[-1][1]()
         self.start.assert_called_once()
         self.aux("record", False)
+        self.stop.assert_called_once()
+
+    def test_recording_stops_only_after_keyboard_and_vibekey_both_release(self):
+        self.edge(100, True)
+        self.timers[-1][1]()
+        self.aux("record", True)
+        self.aux("record", False)
+        self.stop.assert_not_called()
+        self.edge(100, False)
+        self.stop.assert_called_once()
+
+    def test_vibekey_warning_does_not_cancel_keyboard_recording(self):
+        self.edge(100, True)
+        self.timers[-1][1]()
+        self.readers[-1].callbacks["on_aux_error"]("Vibekey unavailable")
+        self.error.assert_called_once_with("Vibekey unavailable")
+        self.stop.assert_not_called()
+        self.edge(100, False)
         self.stop.assert_called_once()
 
     def test_dedicated_enter_and_cancel_buttons_are_direct(self):
