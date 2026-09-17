@@ -57,9 +57,9 @@ permissions:
   packages: read
 
 concurrency:
-  # Keep Ubuntu and Omarchy serialized for the same ref without allowing an
-  # unrelated PR to replace a pending main-branch publication.
-  group: midscene-model-e2e-${{ github.ref }}
+  # Keep only one pending run for this workflow and ref. Ubuntu, Omarchy, main,
+  # and unrelated PRs must not replace one another in GitHub's concurrency queue.
+  group: midscene-model-e2e-${{ github.workflow }}-${{ github.ref }}
   cancel-in-progress: false
 
 jobs:
