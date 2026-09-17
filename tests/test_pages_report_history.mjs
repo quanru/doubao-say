@@ -43,7 +43,8 @@ const shellFixtureHtml = `<!doctype html><html><body>${shellPrompts
 async function fixtureDirectory(root) {
   const reportDirectory = path.join(root, 'artifact', 'report');
   await mkdir(reportDirectory, { recursive: true });
-  await writeFile(path.join(reportDirectory, 'midscene.html'), fixtureHtml);
+  await writeFile(path.join(reportDirectory, 'test-run-ubuntu.html'), fixtureHtml);
+  await writeFile(path.join(reportDirectory, 'agent-detail.html'), '<html>intermediate Agent report</html>');
   return path.dirname(reportDirectory);
 }
 
@@ -106,11 +107,11 @@ test('simulates a first deployment when Pages returns 404', async (context) => {
   );
 });
 
-test('builds a visual showcase from onboarding and shell reports', async (context) => {
+test('publishes the shell test-run report directly with a CI entrance image', async (context) => {
   const root = await mkdtemp(path.join(os.tmpdir(), 'pages-omarchy-'));
   const reportDirectory = await fixtureDirectory(root);
   await writeFile(
-    path.join(reportDirectory, 'report', 'shell.html'),
+    path.join(reportDirectory, 'report', 'test-run-shell.html'),
     shellFixtureHtml,
   );
   const siteDirectory = path.join(root, 'site');
@@ -123,21 +124,19 @@ test('builds a visual showcase from onboarding and shell reports', async (contex
     options(reportDirectory, siteDirectory, server.url),
   );
 
-  assert.equal(manifest.reports[0].testCount, 3);
-  assert.equal(manifest.reports[0].files.length, 5);
-  const showcase = await readFile(
+  assert.equal(manifest.reports[0].testCount, 2);
+  assert.equal(manifest.reports[0].files.length, 4);
+  const publishedReport = await readFile(
     path.join(siteDirectory, 'reports', '200', 'index.html'),
     'utf8',
   );
-  assert.match(showcase, /3 \/ 3/);
-  assert.match(showcase, /<iframe src="shell-report.html"/);
-  assert.match(showcase, /menu.jpg/);
+  assert.equal(publishedReport, shellFixtureHtml);
   assert.equal(
     await readFile(
-      path.join(siteDirectory, 'reports', '200', 'shell-report.html'),
+      path.join(siteDirectory, 'reports', '200', 'onboarding-report.html'),
       'utf8',
     ),
-    shellFixtureHtml,
+    fixtureHtml,
   );
   assert.equal(
     (await readFile(path.join(siteDirectory, 'reports', '200', 'bar.jpg')))

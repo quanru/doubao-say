@@ -13,6 +13,7 @@ readonly SSH_PORT=2222
 readonly PLUGIN_DIR="/home/omarchy/.config/omarchy/plugins/md.lifeos.doubao-say"
 readonly SHIM_DIR="$(mktemp -d)"
 readonly PLUGIN_ARCHIVE="$(mktemp /tmp/doubao-say-omarchy-plugin-XXXXXX.tar)"
+export NODE_OPTIONS="${NODE_OPTIONS:-} --require=$ROOT_DIR/tests/midscene/node_modules/@computer-use/libnut/dist/import_libnut.js"
 
 VM_PID=""
 
@@ -182,8 +183,8 @@ ATTEMPT_LOG=""
 for _test_attempt in 1 2 3; do
   start_guest_fixture
   ATTEMPT_LOG="/tmp/omarchy-midscene-attempt-${_test_attempt}.log"
-  if OMARCHY_E2E=true npm --prefix tests/midscene test -- \
-      e2e/omarchy-onboarding.test.ts 2>&1 | tee "$ATTEMPT_LOG"; then
+  if npm --prefix tests/midscene test -- \
+      --project omarchy-onboarding 2>&1 | tee "$ATTEMPT_LOG"; then
     MIDSCENE_PASSED=true
     break
   fi
@@ -227,8 +228,8 @@ done
 MENU_PASSED=false
 for _test_attempt in 1 2 3; do
   ATTEMPT_LOG="/tmp/omarchy-menu-midscene-attempt-${_test_attempt}.log"
-  if OMARCHY_E2E=true OMARCHY_SSH_KEY="$SSH_KEY" npm --prefix tests/midscene test -- \
-      e2e/omarchy-system-menu.test.ts 2>&1 | tee "$ATTEMPT_LOG"; then
+  if OMARCHY_SSH_KEY="$SSH_KEY" npm --prefix tests/midscene test -- \
+      --project omarchy-shell 2>&1 | tee "$ATTEMPT_LOG"; then
     MENU_PASSED=true
     break
   fi

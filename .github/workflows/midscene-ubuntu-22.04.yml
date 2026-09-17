@@ -12,7 +12,8 @@ on:
       - "tests/midscene/package.json"
       - "tests/midscene/package-lock.json"
       - "tests/midscene/gtk_fixture.py"
-      - "tests/midscene/e2e/**"
+      - "tests/midscene/cases/**"
+      - "tests/midscene/midscene.config.ts"
       - "src/**"
   pull_request:
     branches: [main]
@@ -24,7 +25,8 @@ on:
       - "tests/midscene/package.json"
       - "tests/midscene/package-lock.json"
       - "tests/midscene/gtk_fixture.py"
-      - "tests/midscene/e2e/**"
+      - "tests/midscene/cases/**"
+      - "tests/midscene/midscene.config.ts"
       - "src/**"
   workflow_dispatch:
 
@@ -109,16 +111,26 @@ jobs:
         # sharp's platform packages are pinned explicitly. Skipping lifecycle
         # scripts avoids an npm ordering bug that tries to build sharp before
         # those prebuilt packages are linked.
-        run: npm ci --include=optional --ignore-scripts
+        run: |
+          for attempt in 1 2 3; do
+            if npm ci --include=optional --ignore-scripts; then
+              exit 0
+            fi
+            echo "npm install attempt $attempt failed; retrying." >&2
+            sleep 10
+          done
+          exit 1
 
       - name: Run Ubuntu 22.04 Midscene E2E
         working-directory: tests/midscene
+        env:
+          NODE_OPTIONS: --dns-result-order=ipv4first --no-network-family-autoselection --require=./node_modules/@computer-use/libnut/dist/import_libnut.js
         run: |
           set -o pipefail
           midscene_passed=false
           for test_attempt in 1 2 3; do
             attempt_log="/tmp/ubuntu-midscene-attempt-${test_attempt}.log"
-            if npm test 2>&1 | tee "$attempt_log"; then
+            if npm test -- --project ubuntu 2>&1 | tee "$attempt_log"; then
               midscene_passed=true
               break
             fi

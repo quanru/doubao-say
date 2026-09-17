@@ -202,64 +202,6 @@ function formatDuration(durationMs) {
   return `${(durationMs / 1000).toFixed(2)} s`;
 }
 
-function buildOmarchyShowcase(checks, workflowUrl) {
-  const rows = checks
-    .map(
-      (check) => `
-    <div class="check"><span class="check-mark">✓</span><span>${escapeHtml(check.label)}</span><strong>PASS</strong></div>`,
-    )
-    .join('');
-  return `<!doctype html>
-<html lang="en">
-<head>
-  <meta charset="utf-8"><meta name="viewport" content="width=device-width, initial-scale=1">
-  <title>Omarchy × Midscene — Visual acceptance</title>
-  <style>
-    :root { font-family: Inter, ui-sans-serif, system-ui, sans-serif; color: #eef2ff; background: #080b16; }
-    * { box-sizing: border-box; } body { margin: 0; } a { color: inherit; }
-    main { max-width: 1360px; padding: 44px 28px 100px; margin: auto; }
-    .eyebrow { color: #a6a9ff; letter-spacing: .18em; font-size: 12px; font-weight: 800; text-transform: uppercase; }
-    h1 { font-size: clamp(42px, 6vw, 84px); letter-spacing: -.065em; line-height: 1.02; margin: 18px 0; }
-    h1 em { color: #a7f3d0; font-style: normal; } .lead { color: #a9b3c9; font-size: 20px; max-width: 760px; line-height: 1.6; }
-    .hero { display: grid; grid-template-columns: 1fr auto; align-items: end; gap: 40px; margin-bottom: 34px; }
-    .score { padding: 24px 32px; background: #152b29; border: 1px solid #3b8a72; border-radius: 20px; min-width: 210px; }
-    .score b { display: block; font-size: 58px; letter-spacing: -.06em; color: #a7f3d0; line-height: 1; }
-    .score span { color: #c5ded3; font-size: 13px; text-transform: uppercase; letter-spacing: .08em; }
-    .pipeline { display: flex; flex-wrap: wrap; gap: 8px; margin: 34px 0; }
-    .pipeline span { padding: 10px 14px; border-radius: 999px; background: #151b2c; border: 1px solid #343c54; color: #c8d0e2; font-size: 13px; }
-    .grid { display: grid; grid-template-columns: minmax(0, 1.7fr) minmax(290px, 1fr); gap: 18px; }
-    .panel { overflow: hidden; border: 1px solid #303953; background: #111727; border-radius: 20px; }
-    .panel img { width: 100%; display: block; object-fit: contain; background: #080b16; }
-    .panel .caption { padding: 18px 20px; color: #b8c4d9; } .caption b { color: white; display: block; margin-bottom: 4px; }
-    .checks { margin-top: 18px; padding: 20px 24px; } .check { display: flex; gap: 14px; align-items: center; padding: 14px 0; border-bottom: 1px solid #293248; }
-    .check:last-child { border: 0; }.check-mark { color: #a7f3d0; font-size: 22px; }.check strong { margin-left: auto; color: #a7f3d0; font-size: 12px; letter-spacing: .12em; }
-    h2 { margin: 70px 0 16px; font-size: 30px; letter-spacing: -.035em; } .muted { color: #a9b3c9; line-height: 1.6; }
-    .button { display: inline-block; text-decoration: none; background: #b4a7ff; color: #0b0c18; border-radius: 10px; padding: 12px 18px; font-weight: 800; margin: 12px 12px 16px 0; }
-    .button.secondary { background: #25304a; color: #e5e9ff; }
-    iframe { width: 100%; height: 820px; border: 1px solid #3f4960; border-radius: 16px; background: white; }
-    @media (max-width: 800px) { .hero, .grid { grid-template-columns: 1fr; } main { padding: 26px 16px 70px; } }
-  </style>
-</head>
-<body><main>
-  <div class="eyebrow">Real desktop · Visual acceptance · Omarchy 4.0.3</div>
-  <div class="hero"><div><h1>Omarchy <em>×</em> Midscene</h1>
-    <p class="lead">Midscene judged the pixels of a real Hyprland desktop: readable menu text, clean focus styling, and a correctly placed vertical bar.</p></div>
-    <div class="score"><b>3 / 3</b><span>visual assertions passed</span></div></div>
-  <div class="pipeline"><span>Official Omarchy ISO</span><span>→ KVM guest</span><span>→ Hyprland / Wayland</span><span>→ VNC bridge</span><span>→ Midscene VLM</span><span>→ HTML replay</span></div>
-  <div class="grid">
-    <div class="panel"><img src="menu.jpg" alt="Real Omarchy system menu with Shutdown visible and one focused row"><div class="caption"><b>System menu · real VM screenshot</b>Shutdown is legible; one menu row has a visible focus highlight.</div></div>
-    <div><div class="panel"><img src="bar.jpg" alt="Omarchy bar docked vertically on the left edge"><div class="caption"><b>Bar position · real VM screenshot</b>The bar is vertical and docked to the left edge.</div></div>
-      <div class="panel checks">${rows}</div></div>
-  </div>
-  <h2>Watch the actual Midscene replay</h2>
-  <p class="muted">The embedded report below includes each screenshot, the assertion prompt, the model result, and the execution timeline. The onboarding run is available separately.</p>
-  <a class="button" href="shell-report.html" target="_blank" rel="noopener">Open full shell report ↗</a>
-  <a class="button secondary" href="onboarding-report.html" target="_blank" rel="noopener">Open onboarding report ↗</a>
-  <a class="button secondary" href="${escapeHtml(workflowUrl)}">View CI run ↗</a>
-  <iframe src="shell-report.html" title="Interactive Midscene shell report" loading="lazy"></iframe>
-</main></body></html>`;
-}
-
 function buildIndex(reports) {
   const rows = reports
     .map(
@@ -351,34 +293,23 @@ export async function buildPagesReport(options) {
       'Two reports were found but the Omarchy shell report is missing',
     );
   }
-  const checks =
-    shellReport && htmlFiles.length === 2
-      ? extractShellEvidence(shellReport.html)
-      : null;
+  const checks = shellReport ? extractShellEvidence(shellReport.html) : null;
   if (checks?.some((check) => !check.passed)) {
-    throw new Error(
-      'Cannot publish a passing showcase with failed visual assertions',
-    );
+    throw new Error('Cannot publish failed Omarchy visual assertions');
   }
   const usage = collectModelUsage(
     htmlReports.map((report) => report.html).join('\n'),
   );
   const reportPrefix = `reports/${runId}`;
-  const files = checks
-    ? [
-        'index.html',
-        'shell-report.html',
-        'onboarding-report.html',
-        'menu.jpg',
-        'bar.jpg',
-      ].map((name) => `${reportPrefix}/${name}`)
+  const files = htmlFiles.length === 2
+    ? ['index.html', 'onboarding-report.html', 'menu.jpg', 'bar.jpg'].map((name) => `${reportPrefix}/${name}`)
     : [`${reportPrefix}/index.html`];
   const current = {
     runId,
     generatedAt,
     label,
     successRate: 100,
-    testCount: checks ? 3 : 1,
+    testCount: htmlFiles.length === 2 ? 2 : 1,
     ...usage,
     workflowUrl,
     reportPath: `reports/${runId}/index.html`,
@@ -396,30 +327,12 @@ export async function buildPagesReport(options) {
 
   const currentDirectory = path.join(siteDirectory, reportPrefix);
   await mkdir(currentDirectory, { recursive: true });
-  if (checks) {
-    const onboardingReport = htmlReports.find(
-      (report) => report !== shellReport,
-    );
-    await copyFile(
-      shellReport.file,
-      path.join(currentDirectory, 'shell-report.html'),
-    );
-    await copyFile(
-      onboardingReport.file,
-      path.join(currentDirectory, 'onboarding-report.html'),
-    );
-    await writeFile(
-      path.join(currentDirectory, 'menu.jpg'),
-      checks[1].screenshot.bytes,
-    );
-    await writeFile(
-      path.join(currentDirectory, 'bar.jpg'),
-      checks[2].screenshot.bytes,
-    );
-    await writeFile(
-      path.join(currentDirectory, 'index.html'),
-      buildOmarchyShowcase(checks, workflowUrl),
-    );
+  if (shellReport) {
+    const onboardingReport = htmlReports.find((report) => report !== shellReport);
+    await copyFile(shellReport.file, path.join(currentDirectory, 'index.html'));
+    await copyFile(onboardingReport.file, path.join(currentDirectory, 'onboarding-report.html'));
+    await writeFile(path.join(currentDirectory, 'menu.jpg'), checks[1].screenshot.bytes);
+    await writeFile(path.join(currentDirectory, 'bar.jpg'), checks[2].screenshot.bytes);
   } else {
     await copyFile(htmlFiles[0], path.join(currentDirectory, 'index.html'));
   }
