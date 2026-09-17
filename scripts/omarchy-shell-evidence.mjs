@@ -74,6 +74,33 @@ export function reportDumps(html) {
   ].map((match) => JSON.parse(normalizeJsonControlCharacters(match[1])));
 }
 
+export function testRunDump(html) {
+  const match = html.match(
+    /<script\s+type=["']midscene_test_run_dump["'][^>]*>\s*(\{[\s\S]*?)<\/script>/,
+  );
+  return match
+    ? JSON.parse(normalizeJsonControlCharacters(match[1]))
+    : null;
+}
+
+export async function findLatestTestReport(directory) {
+  const reports = await Promise.all(
+    (await findHtmlFiles(directory)).map(async (file) => {
+      const html = await readFile(file, 'utf8');
+      const run = testRunDump(html);
+      return {
+        file,
+        html,
+        run,
+        startedAt: Date.parse(run?.startedAt ?? '') || 0,
+      };
+    }),
+  );
+  const latest = reports.sort((left, right) => left.startedAt - right.startedAt).at(-1);
+  if (!latest) throw new Error('No Midscene Test HTML report found');
+  return latest;
+}
+
 export function extractShellEvidence(html, { allowIncomplete = false } = {}) {
   const images = new Map();
   for (const match of html.matchAll(
