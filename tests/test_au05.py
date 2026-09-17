@@ -78,3 +78,15 @@ class Au05ProtocolTest(TestCase):
         with patch("doubao_input.trigger.au05.os.close"):
             listener._disconnect()
         self.assertEqual(events, [("record", False)])
+
+    def test_maps_dial_detents_as_pulses_without_held_state(self):
+        events = []
+        listener = Au05Listener(lambda action, pressed: events.append((action, pressed)),
+                                idle_add=lambda callback, *args: callback(*args))
+        for code, action, physical in ((0x72, "scroll_down", 4),
+                                       (0x73, "scroll_up", 5)):
+            with self.subTest(action=action):
+                report = _encode_message(bytes((0x8B, 0x10, code, 1, physical)))
+                listener._handle_report(report)
+        self.assertEqual(events, [("scroll_down", True), ("scroll_up", True)])
+        self.assertEqual(listener._pressed, set())

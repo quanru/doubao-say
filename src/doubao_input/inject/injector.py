@@ -34,6 +34,8 @@ class ClipboardSnapshot:
 KEY_LEFTCTRL = 29
 KEY_V = 47
 KEY_LEFTSHIFT = 42
+EV_REL = 2
+REL_WHEEL = 8
 
 TERMINAL_CLASSES = {
     "foot", "footclient", "kitty", "alacritty", "wezterm",
@@ -158,6 +160,27 @@ class Injector:
                         logger.warning("Could not release virtual Enter key")
                         self._discard_uinput(ui)
 
+    def scroll(self, steps: int) -> bool:
+        """Send vertical wheel detents; positive is up and negative is down."""
+        if not steps:
+            return True
+        with self._lock:
+            try:
+                created = self._ui is None
+                ui = self._get_uinput()
+                if created:
+                    # Give the compositor time to discover a newly registered
+                    # virtual device before its first wheel event.
+                    time.sleep(0.08)
+                ui.write(EV_REL, REL_WHEEL, steps)
+                ui.syn()
+                return True
+            except OSError:
+                logger.exception("Could not inject mouse wheel event")
+                if self._ui is not None:
+                    self._discard_uinput(self._ui)
+                return False
+
     # ---- internals ----
 
     def _discard_uinput(self, ui):
@@ -274,6 +297,7 @@ class Injector:
         self._ui = evdev.UInput(
             events={
                 evdev.ecodes.EV_KEY: [KEY_LEFTCTRL, KEY_LEFTSHIFT, KEY_V, 28],
+                EV_REL: [REL_WHEEL],
             },
             name="doubao-say-virtual-kbd",
         )

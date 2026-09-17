@@ -11,7 +11,7 @@ from doubao_input import __main__ as entrypoint
 from doubao_input.doubao import devices, host_tools
 from doubao_input.inject import injector as injector_module
 from doubao_input.inject.injector import (ClipboardSnapshot, Injector, KEY_LEFTCTRL,
-                                         KEY_LEFTSHIFT, KEY_V)
+                                         KEY_LEFTSHIFT, KEY_V, EV_REL, REL_WHEEL)
 from doubao_input.inject.target import focused_target
 from doubao_input.trigger.evdev_ptt import EV_KEY, EvdevPtt
 
@@ -221,6 +221,20 @@ class InjectorEdgesTest(TestCase):
                 patch("doubao_input.inject.injector.time.sleep"):
             self.assertTrue(instance.send_enter())
         self.assertIsNone(instance._ui)
+
+    def test_scroll_writes_vertical_relative_event(self):
+        instance, device = Injector(), Mock()
+        def get_uinput():
+            instance._ui = device
+            return device
+        with patch.object(instance, "_get_uinput", side_effect=get_uinput), \
+                patch("doubao_input.inject.injector.time.sleep") as sleep:
+            self.assertTrue(instance.scroll(-1))
+            self.assertTrue(instance.scroll(1))
+        self.assertEqual([call.args for call in device.write.call_args_list],
+                         [(EV_REL, REL_WHEEL, -1), (EV_REL, REL_WHEEL, 1)])
+        self.assertEqual(device.syn.call_count, 2)
+        sleep.assert_called_once_with(0.08)
 
 
 class EvdevLifecycleTest(TestCase):

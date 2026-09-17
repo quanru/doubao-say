@@ -31,6 +31,7 @@ _AUTH_XOR = (
     0x09153583, 0x16141925, 0xBF8A7CED, 0x54557049,
 )
 _BUTTON_CODES = {0x6F: "record", 0x70: "enter", 0x71: "cancel"}
+_DIAL_CODES = {0x72: "scroll_down", 0x73: "scroll_up"}
 
 
 def _tea_encode(block: bytes) -> bytes:
@@ -235,7 +236,13 @@ class Au05Listener:
         action = status = None
         # Vibekey transmitter buttons observed on firmware 4.4.0.
         if len(decoded) >= 5 and decoded[0] & 0x1F == 0x0B and decoded[1] == 0x10:
-            action, status = _BUTTON_CODES.get(decoded[2]), decoded[3]
+            code, status = decoded[2], decoded[3]
+            action = _BUTTON_CODES.get(code)
+            if code in _DIAL_CODES and status == 1:
+                # Each detent is a complete event.  Unlike the three buttons,
+                # the dial does not send a matching release report.
+                self._schedule(self._on_action, _DIAL_CODES[code], True)
+                return
         # Normalized event shape used by other firmware revisions.
         elif len(decoded) >= 5 and decoded[1] == 0x12:
             action = {0: "record", 1: "enter", 2: "cancel"}.get(decoded[4])

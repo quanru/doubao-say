@@ -21,10 +21,11 @@ class TriggerControllerTest(TestCase):
             self.readers.append(value)
             return value
         self.start, self.stop, self.toggle, self.enter, self.cancel = [Mock() for _ in range(5)]
+        self.scroll = Mock()
         self.error = Mock()
         self.control = TriggerController(reader, schedule, Mock(), start=self.start, stop=self.stop,
             toggle=self.toggle, enter=self.enter, cancel_input=self.cancel,
-            debug_edge=Mock(return_value=False), error=self.error)
+            debug_edge=Mock(return_value=False), error=self.error, scroll=self.scroll)
         self.settings = Settings(doubao_key=100)
         self.control.configure(self.settings)
 
@@ -236,6 +237,11 @@ class TriggerControllerTest(TestCase):
         self.enter.assert_called_once()
         self.aux("cancel")
         self.cancel.assert_called_once()
+
+    def test_dedicated_dial_maps_to_vertical_mouse_wheel(self):
+        self.aux("scroll_down")
+        self.aux("scroll_up")
+        self.assertEqual([call.args for call in self.scroll.call_args_list], [(-1,), (1,)])
 
     def test_dedicated_buttons_do_not_interfere_with_key_capture(self):
         result = Mock()
