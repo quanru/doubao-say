@@ -36,7 +36,9 @@ permissions:
   contents: read
 
 concurrency:
-  group: midscene-model-e2e
+  # Keep only one pending run for this workflow and ref. Ubuntu, Omarchy, main,
+  # and unrelated PRs must not replace one another in GitHub's concurrency queue.
+  group: midscene-model-e2e-${{ github.workflow }}-${{ github.ref }}
   cancel-in-progress: false
 
 jobs:
@@ -106,7 +108,8 @@ jobs:
             libasound2 libatk-bridge2.0-0 libdrm2 libgbm1 libgtk-3-0 \
             libnotify4 libnss3 libpng16-16 libsecret-1-0 libx11-6 \
             libxinerama1 libxkbcommon-x11-0 libxss1 libxtst6 \
-            python3-cairo python3-gi x11-xserver-utils xdg-utils xvfb
+            python3-cairo python3-gi python3-tomli \
+            x11-xserver-utils xdg-utils xvfb
 
       - name: Install pinned Midscene dependencies
         working-directory: tests/e2e
@@ -154,7 +157,34 @@ jobs:
 
       - name: Verify polishing overlay with Midscene
         working-directory: tests/e2e
-        run: timeout --signal=TERM --kill-after=10s 10m npm test -- --project ubuntu-polishing
+        env:
+          NODE_OPTIONS: --dns-result-order=ipv4first --no-network-family-autoselection --require=./node_modules/@computer-use/libnut/dist/import_libnut.js
+        run: |
+          set -o pipefail
+          polishing_passed=false
+          for test_attempt in 1 2 3 4; do
+            attempt_log="/tmp/ubuntu-polishing-midscene-attempt-${test_attempt}.log"
+            if timeout --signal=TERM --kill-after=10s 10m \
+                npm test -- --project ubuntu-polishing 2>&1 | tee "$attempt_log"; then
+              polishing_passed=true
+              break
+            fi
+
+            if ! grep -Eq 'Connection error|ETIMEDOUT|ECONNRESET|EAI_AGAIN|UND_ERR_CONNECT_TIMEOUT|failed to call AI model service' "$attempt_log"; then
+              echo "Ubuntu polishing Midscene failed for a non-network reason; not retrying." >&2
+              exit 1
+            fi
+            if [[ $test_attempt -lt 4 ]]; then
+              retry_delay=$((15 * test_attempt))
+              echo "Transient model connection failure on polishing attempt ${test_attempt}; retrying in ${retry_delay} seconds." >&2
+              sleep "$retry_delay"
+            fi
+          done
+
+          if [[ $polishing_passed != true ]]; then
+            echo "Ubuntu polishing Midscene exhausted four model-connection attempts." >&2
+            exit 1
+          fi
 
       - name: Upload Midscene report
         if: always()

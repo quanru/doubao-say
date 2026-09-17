@@ -1,7 +1,16 @@
 """Native polishing overlay fixture; no microphone, network, or input injection."""
 import signal
+import sys
 
 import gi
+
+# Ubuntu 22.04 supplies PyGObject for its system Python 3.10. The application
+# requires Python 3.11+, but this isolated fixture must use the system Python to
+# share GTK bindings, so provide the standard-library module through tomli.
+if sys.version_info < (3, 11):
+    import tomli
+
+    sys.modules["tomllib"] = tomli
 
 gi.require_version("Gtk", "4.0")
 from gi.repository import GLib, Gtk
@@ -15,7 +24,7 @@ def main():
     set_language("en")
     overlay = Overlay()
     window = Gtk.Window(title="Polishing overlay test controls")
-    window.set_default_size(480, 320)
+    window.set_default_size(520, 520)
     box = Gtk.Box(orientation=Gtk.Orientation.VERTICAL, spacing=12)
     for side in ("start", "end", "top", "bottom"):
         getattr(box, "set_margin_" + side)(24)
@@ -39,6 +48,7 @@ def main():
     ]
     for title, callback in actions:
         button = Gtk.Button(label=title)
+        button.set_size_request(-1, 44)
         button.connect("clicked", lambda _button, action=callback: action())
         box.append(button)
     loop = GLib.MainLoop()
