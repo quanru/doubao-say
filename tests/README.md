@@ -1,9 +1,13 @@
 # Tests
 
-The top-level `test_*.py` files cover automated Python behavior and package
-contracts. The `manual_*.py` files are opt-in desktop checks documented in
-`CONTRIBUTING.md`.
+- [`unit/`](unit/) contains fast Python behavior and component tests.
+- [`contracts/`](contracts/) verifies packaging, releases, version alignment,
+  Marketplace rules, and the Pages report builder.
+- [`e2e/`](e2e/) exercises complete desktop flows on Ubuntu and Omarchy with
+  Midscene and publishes HTML reports from GitHub Actions.
+- [`manual/`](manual/) contains opt-in checks that require a real desktop,
+  devices, credentials, or human observation.
 
-Desktop flows that exercise the whole application through a visible Linux or
-Omarchy session live in [`e2e/`](e2e/). Those flows use Midscene as the test
-runner and publish their HTML reports from GitHub Actions.
+`make test-unit` and `make test-contracts` run the two local automated layers.
+`make test` runs both. See `CONTRIBUTING.md` before running anything under
+`manual/`.

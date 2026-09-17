@@ -1,13 +1,19 @@
 PYTHON ?= .venv/bin/python
 
-.PHONY: check test coverage lint compile shell whitespace release marketplace-check
+.PHONY: check test test-unit test-contracts coverage lint compile shell whitespace release marketplace-check
 check: lint test compile shell whitespace
 
-test:
-	PYTHONPATH=src $(PYTHON) -m unittest discover -s tests -v
+test: test-unit test-contracts
+
+test-unit:
+	PYTHONPATH=src:. $(PYTHON) -m unittest discover -s tests/unit -t . -v
+
+test-contracts:
+	PYTHONPATH=src:. $(PYTHON) -m unittest discover -s tests/contracts -t . -v
+	node --test tests/contracts/test_pages_report_history.mjs
 
 coverage:
-	PYTHONPATH=src $(PYTHON) -m coverage run -m unittest discover -s tests
+	PYTHONPATH=src:. $(PYTHON) -m coverage run -m unittest discover -s tests -t .
 	$(PYTHON) -m coverage report
 	$(PYTHON) -m coverage xml
 

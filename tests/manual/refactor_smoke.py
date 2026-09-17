@@ -8,7 +8,7 @@ from contextlib import ExitStack
 from pathlib import Path
 import tempfile
 from unittest.mock import Mock, patch
-from manual_safety import drain_events, hard_deadline
+from safety import drain_events, hard_deadline
 
 import gi
 gi.require_version("Gtk", "4.0")

@@ -7,7 +7,7 @@ from unittest.mock import patch
 
 from doubao_input.preflight import check_runtime
 
-ROOT = Path(__file__).resolve().parents[1]
+ROOT = Path(__file__).resolve().parents[2]
 spec = importlib.util.spec_from_file_location("source_snapshot", ROOT / "packaging/source_snapshot.py")
 snapshot = importlib.util.module_from_spec(spec)
 spec.loader.exec_module(snapshot)

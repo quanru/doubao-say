@@ -3,7 +3,7 @@ import unittest
 from pathlib import Path
 
 
-ROOT = Path(__file__).resolve().parents[1]
+ROOT = Path(__file__).resolve().parents[2]
 SPEC = importlib.util.spec_from_file_location("version_check", ROOT / "packaging/version_check.py")
 VERSION_CHECK = importlib.util.module_from_spec(SPEC)
 SPEC.loader.exec_module(VERSION_CHECK)

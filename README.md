@@ -330,7 +330,7 @@ See [CONTRIBUTING.md](CONTRIBUTING.md) for `make check`,
 this candidate and have not passed the new installer acceptance.
 
 ```sh
-PYTHONPATH=src .venv/bin/python -m unittest discover -s tests -v
+make test
 .venv/bin/python -m compileall -q src/doubao_input packaging
 .venv/bin/python -m pip wheel -w dist/wheelhouse -r packaging/runtime-requirements.txt
 python3 packaging/build-release.py
@@ -342,7 +342,7 @@ and overlay focus. It uses a separate clipboard without CopyQ; optional PyQt6 an
 Electron fixtures extend toolkit coverage. Avoid typing during the test:
 
 ```sh
-timeout --kill-after=5s 50s env PYTHONPATH=src python3 tests/manual_x11.py --run
+timeout --kill-after=5s 50s env PYTHONPATH=src python3 tests/manual/x11.py --run
 ```
 
 This requires Xephyr, xfwm4, xfce4-terminal, xdotool, xclip and `/dev/uinput` access.

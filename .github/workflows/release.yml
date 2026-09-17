@@ -116,7 +116,7 @@ jobs:
         run: |
           app_archive=(doubao-say-*-app-linux-*.tar.gz)
           test "${#app_archive[@]}" -eq 1
-          /usr/bin/python3 ../tests/manual_clean_install.py "${app_archive[0]}"
+          /usr/bin/python3 ../tests/manual/clean_install.py "${app_archive[0]}"
 
   publish:
     name: Publish GitHub release

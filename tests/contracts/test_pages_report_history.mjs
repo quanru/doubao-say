@@ -5,7 +5,7 @@ import os from 'node:os';
 import path from 'node:path';
 import test from 'node:test';
 
-import { buildPagesReport } from '../scripts/build-pages-report.mjs';
+import { buildPagesReport } from '../../scripts/build-pages-report.mjs';
 
 function runnerScript({ project, status = 'success', startedAt }) {
   return `<script type="midscene_test_run_dump">${JSON.stringify({

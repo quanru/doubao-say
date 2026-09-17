@@ -1,6 +1,6 @@
 """Opt-in GTK layout regression; no recording, login, input or settings writes.
 
-PYTHONPATH=src .venv/bin/python tests/manual_control_layout.py
+PYTHONPATH=src .venv/bin/python tests/manual/control_layout.py
 """
 import gi
 

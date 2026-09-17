@@ -14,7 +14,7 @@ import gi
 gi.require_version('Gtk', '4.0')
 from gi.repository import Gtk, GLib
 
-from manual_safety import hard_deadline
+from safety import hard_deadline
 from doubao_input.inject.injector import Injector
 from doubao_input.inject.target import focused_target
 

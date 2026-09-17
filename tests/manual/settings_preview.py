@@ -1,6 +1,6 @@
 """Opt-in GTK UI smoke test and screenshots; never runs in headless unit CI.
 
-Run: PYTHONPATH=src .venv/bin/python tests/manual_settings_preview.py
+Run: PYTHONPATH=src .venv/bin/python tests/manual/settings_preview.py
 Saves are validated in memory; user settings and autostart are not modified.
 """
 import json
@@ -13,7 +13,7 @@ from doubao_input.i18n import set_language
 from doubao_input.settings import Settings
 from doubao_input.ui.settings_window import SettingsWindow
 
-OUT = Path(__file__).resolve().parents[1] / "artifacts/acceptance/settings"
+OUT = Path(__file__).resolve().parents[2] / "artifacts/acceptance/settings"
 
 
 class Preview(Gtk.Application):

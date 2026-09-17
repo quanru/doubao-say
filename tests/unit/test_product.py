@@ -25,7 +25,7 @@ def polishing_app(**values):
 
 class ProductTest(TestCase):
     def test_runtime_package_and_plugin_versions_match(self):
-        root = Path(__file__).resolve().parents[1]
+        root = Path(__file__).resolve().parents[2]
         package_version = tomllib.loads((root / "pyproject.toml").read_text())["project"]["version"]
         plugin_version = json.loads((root / "manifest.json").read_text())["version"]
         self.assertEqual((VERSION, package_version, plugin_version), (VERSION,) * 3)

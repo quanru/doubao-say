@@ -9,7 +9,7 @@ gi.require_version("Gdk", "4.0")
 from gi.repository import Gdk, GLib, Gtk
 
 from doubao_input.trigger.escape_guard import EscapeGuard
-from manual_safety import hard_deadline
+from safety import hard_deadline
 
 
 def main():

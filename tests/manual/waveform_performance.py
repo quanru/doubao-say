@@ -2,7 +2,7 @@
 
 Run with LD_PRELOAD=libgtk4-layer-shell.so GTK_A11Y=none PYTHONPATH=src
 timeout -k 5s 15s dbus-run-session --
-python tests/manual_waveform_performance.py. Requires a desktop display.
+python tests/manual/waveform_performance.py. Requires a desktop display.
 """
 import math
 import time
@@ -12,7 +12,7 @@ import gi
 gi.require_version('Gtk', '4.0')
 from gi.repository import GLib, Gtk
 from doubao_input.ui.overlay import Overlay
-from manual_safety import hard_deadline
+from safety import hard_deadline
 
 
 def main():

@@ -1,9 +1,9 @@
 """P6 探针:用 P5 保存的凭证连 WSS,实时录音 5 秒,看是否返回 result.Text
-用法:.venv/bin/python tests/probe/P6_asr.py
+用法:.venv/bin/python tests/manual/probes/asr.py
 通过标准:打印至少一条非空 text。
 """
 import sys, os, time, threading
-sys.path.insert(0, os.path.join(os.path.dirname(__file__), "..", "..", "src"))
+sys.path.insert(0, os.path.join(os.path.dirname(__file__), "..", "..", "..", "src"))
 from doubao_input.doubao.params_store import ParamsStore
 from doubao_input.doubao.asr_client import ASRClient
 from doubao_input.doubao.audio_capture import AudioCapture

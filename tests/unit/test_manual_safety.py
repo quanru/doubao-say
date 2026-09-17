@@ -5,7 +5,7 @@ import unittest
 from pathlib import Path
 from unittest.mock import Mock
 
-from manual_safety import drain_events
+from tests.manual.safety import drain_events
 
 
 class ManualSafetyTest(unittest.TestCase):
@@ -24,7 +24,7 @@ class ManualSafetyTest(unittest.TestCase):
 
     def test_hard_timeout_kills_a_busy_loop(self):
         result = subprocess.run([sys.executable, "-c",
-            "from manual_safety import hard_deadline\n"
+            "from tests.manual.safety import hard_deadline\n"
             "with hard_deadline(0.1):\n while True: pass\n"],
-            cwd=Path(__file__).parent, timeout=3)
+            cwd=Path(__file__).resolve().parents[2], timeout=3)
         self.assertEqual(result.returncode, -signal.SIGALRM)

@@ -10,7 +10,7 @@ from unittest.mock import patch
 from doubao_input import __main__ as entrypoint, preflight
 from doubao_input.desktop import is_x11
 
-ROOT = Path(__file__).resolve().parents[1]
+ROOT = Path(__file__).resolve().parents[2]
 SESSIONS = (
     ({"DISPLAY": ":99", "XDG_SESSION_TYPE": "x11"}, True),
     ({"DISPLAY": ":99"}, True),

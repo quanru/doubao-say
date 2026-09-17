@@ -1,6 +1,6 @@
 """Opt-in X11 delivery acceptance in a disposable Xephyr/XFWM desktop.
 
-Run: timeout --kill-after=5s 50s env PYTHONPATH=src python tests/manual_x11.py --run
+Run: timeout --kill-after=5s 50s env PYTHONPATH=src python tests/manual/x11.py --run
 Requires Xephyr, xfwm4, xdotool, xclip, xfce4-terminal and uinput access.
 PyQt6 and Electron add optional toolkit checks. Avoid typing/changing focus.
 The host clipboard, settings and running app are untouched; no audio/network.
@@ -19,7 +19,7 @@ import time
 import tty
 import uuid
 
-from manual_safety import hard_deadline
+from safety import hard_deadline
 
 
 def stop(process):
