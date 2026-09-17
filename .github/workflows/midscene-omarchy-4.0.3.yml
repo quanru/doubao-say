@@ -57,7 +57,9 @@ permissions:
   packages: read
 
 concurrency:
-  group: midscene-model-e2e
+  # Keep Ubuntu and Omarchy serialized for the same ref without allowing an
+  # unrelated PR to replace a pending main-branch publication.
+  group: midscene-model-e2e-${{ github.ref }}
   cancel-in-progress: false
 
 jobs:
@@ -74,6 +76,9 @@ jobs:
       MIDSCENE_MODEL_REASONING_ENABLED: ${{ secrets.MIDSCENE_MODEL_REASONING_ENABLED }}
       MIDSCENE_COMPUTER_HEADLESS_LINUX: "true"
       MIDSCENE_REPLANNING_CYCLE_LIMIT: "40"
+      # GitHub runners intermittently time out while Node races IPv4 and IPv6
+      # addresses. The configured model endpoint is reachable over IPv4.
+      NODE_OPTIONS: "--dns-result-order=ipv4first --no-network-family-autoselection"
     outputs:
       report-artifact-id: ${{ steps.report.outputs.artifact-id }}
     steps:
