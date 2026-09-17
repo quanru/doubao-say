@@ -24,7 +24,7 @@ def main():
     set_language("en")
     overlay = Overlay()
     window = Gtk.Window(title="Polishing overlay test controls")
-    window.set_default_size(480, 320)
+    window.set_default_size(520, 520)
     box = Gtk.Box(orientation=Gtk.Orientation.VERTICAL, spacing=12)
     for side in ("start", "end", "top", "bottom"):
         getattr(box, "set_margin_" + side)(24)
@@ -48,6 +48,7 @@ def main():
     ]
     for title, callback in actions:
         button = Gtk.Button(label=title)
+        button.set_size_request(-1, 44)
         button.connect("clicked", lambda _button, action=callback: action())
         box.append(button)
     loop = GLib.MainLoop()
