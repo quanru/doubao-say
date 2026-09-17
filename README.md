@@ -331,6 +331,11 @@ full lifecycle and recovery instructions.
 
 ## Development and local packaging
 
+Development and AI-agent work follow [AGENTS.md](AGENTS.md) and
+[CONTRIBUTING.md](CONTRIBUTING.md). Bug fixes require reproducible verification
+and before/after screenshots for each UI verification round, with test or log
+evidence for behavior that screenshots cannot prove. Report any unverified scope.
+
 See [CONTRIBUTING.md](CONTRIBUTING.md) for `make check`,
 [security reporting](SECURITY.md), and
 [changes](CHANGELOG.md). The legacy Debian scripts are not the release path for
