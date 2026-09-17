@@ -1,6 +1,6 @@
 import type { ComputerAgent } from '@midscene/computer';
 
-export const runOnboardingFlow = async (agent: ComputerAgent) => {
+export const signIn = async (agent: ComputerAgent) => {
   await agent.aiAct(
     'Verify the visible Doubao Say window starts on the Sign in step, says the user is not signed in, and shows an Open Doubao sign-in button. Do not click anything.',
   );
@@ -17,6 +17,10 @@ export const runOnboardingFlow = async (agent: ComputerAgent) => {
   await agent.aiAct(
     'Verify the synthetic sign-in window closed and the visible Doubao Say window automatically advanced to the Microphone step with a Next button in the fixed top navigation.',
   );
+};
+
+export const runOnboardingFlow = async (agent: ComputerAgent) => {
+  await signIn(agent);
   await agent.aiAct(
     'Click Next in the Doubao Say fixed top navigation exactly once, then stop immediately. ' +
       'Do not click Next a second time and do not wait for or verify the page transition.',

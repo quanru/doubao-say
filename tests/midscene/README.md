@@ -61,3 +61,34 @@ uploaded as a private workflow artifact for every run.
 The AI stage needs a multimodal model credential. Its `MIDSCENE_MODEL_*`
 configuration is stored only as GitHub Actions Secrets; tests contain only
 synthetic data.
+
+## Additional Ubuntu regression cases
+
+The direct GTK suite also runs five independent cases:
+
+- Cancel synthetic sign-in, verify signed-out navigation stays disabled, then retry.
+- Return to the account step after sign-in, retaining the session and resetting scroll.
+- Select a disabled trigger, verify continuation is blocked, then select F8 and
+  verify it survives a round trip through the voice step.
+- Disable and re-enable voice polishing, checking field visibility and retained model.
+- Test `synthetic-failing-model`, check the visible error and retry button, then
+  correct it to `synthetic-model` and verify successful recovery.
+
+Each direct GTK case starts a fresh fixture process with its own temporary config
+directory. Cleanup waits for the fixture to exit before starting the next case.
+The fixture keeps shortcut and polishing changes in memory and simulates endpoint
+failure solely from the model name; no endpoint receives a network request.
+The Omarchy VM suite continues to run the shared successful onboarding flow.
+
+With the system dependencies from the Ubuntu workflow and `MIDSCENE_MODEL_*`
+variables configured, run the direct suite from `tests/midscene`:
+
+```sh
+npm ci --include=optional --ignore-scripts
+MIDSCENE_COMPUTER_HEADLESS_LINUX=true npm test -- e2e/onboarding.test.ts
+```
+
+Use `--testNamePattern 'endpoint failure'` to run only the endpoint recovery case.
+Tests use `aiAct` for all UI interactions and visible-state checks. They exercise
+the production GTK widgets with synthetic callbacks, not live ASR, audio recording,
+credential persistence, or system-wide shortcut delivery.
