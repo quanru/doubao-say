@@ -7,10 +7,24 @@ import test from 'node:test';
 
 import { buildPagesReport } from '../scripts/build-pages-report.mjs';
 
+function runnerScript({ project, status = 'success', startedAt }) {
+  return `<script type="midscene_test_run_dump">${JSON.stringify({
+    startedAt,
+    status,
+    summary: {
+      total: 1,
+      passed: status === 'success' ? 1 : 0,
+      failed: status === 'success' ? 0 : 1,
+    },
+    projects: [{ name: project }],
+  })}</script>`;
+}
+
 const fixtureHtml = `<!doctype html><html><body>report
 <script type="midscene_web_dump">{"usage":{"_midscene_call_id":"call-1","time_cost":2500,"total_tokens":120}}</script>
 <script type="midscene_web_dump">{"message":"raw
 control character","usage":{"_midscene_call_id":"call-2","time_cost":3500,"total_tokens":180}}</script>
+${runnerScript({ project: 'ubuntu-onboarding', startedAt: '2026-09-15T12:00:00Z' })}
 </body></html>`;
 
 const shellPrompts = [
@@ -38,7 +52,7 @@ const shellFixtureHtml = `<!doctype html><html><body>${shellPrompts
     })}</script>
 <script type="midscene-image" data-id="image-${index}">data:image/jpeg;base64,/9j/2Q==</script>`,
   )
-  .join('')}</body></html>`;
+  .join('')}${runnerScript({ project: 'omarchy-shell', startedAt: '2026-09-15T12:05:00Z' })}</body></html>`;
 
 async function fixtureDirectory(root) {
   const reportDirectory = path.join(root, 'artifact', 'report');
@@ -154,7 +168,12 @@ test('publishes a failed shell report with its result in history', async (contex
   const reportDirectory = await fixtureDirectory(root);
   await writeFile(
     path.join(reportDirectory, 'report', 'test-run-shell.html'),
-    shellFixtureHtml.replace('"output":true', '"output":false'),
+    shellFixtureHtml
+      .replace('"output":true', '"output":false')
+      .replace(
+        '"status":"success","summary":{"total":1,"passed":1,"failed":0}',
+        '"status":"failed","summary":{"total":1,"passed":0,"failed":1}',
+      ),
   );
   await writeFile(path.join(reportDirectory, 'report-preview.png'), 'failed');
   const siteDirectory = path.join(root, 'site');
@@ -167,13 +186,49 @@ test('publishes a failed shell report with its result in history', async (contex
     options(reportDirectory, siteDirectory, server.url),
   );
 
-  assert.equal(manifest.reports[0].successRate, 67);
+  assert.equal(manifest.reports[0].successRate, 50);
   assert.equal(
     await readFile(
       path.join(siteDirectory, 'reports', '200', 'report-preview.png'),
       'utf8',
     ),
     'failed',
+  );
+});
+
+test('keeps only the latest failed retry for an Omarchy project', async (context) => {
+  const root = await mkdtemp(path.join(os.tmpdir(), 'pages-retries-'));
+  const reportDirectory = path.join(root, 'artifact');
+  const reportPath = path.join(reportDirectory, 'report');
+  await mkdir(reportPath, { recursive: true });
+  const firstFailure = `<!doctype html><html><body>first failure${runnerScript({ project: 'omarchy-onboarding', status: 'failed', startedAt: '2026-09-15T13:00:00Z' })}</body></html>`;
+  const finalFailure = `<!doctype html><html><body>final failure${runnerScript({ project: 'omarchy-onboarding', status: 'failed', startedAt: '2026-09-15T14:00:00Z' })}</body></html>`;
+  await writeFile(path.join(reportPath, 'test-run-retry-1.html'), firstFailure);
+  await writeFile(path.join(reportPath, 'test-run-retry-2.html'), finalFailure);
+  await writeFile(path.join(reportDirectory, 'report-preview.png'), 'failed');
+  const siteDirectory = path.join(root, 'site');
+  const server = await startServer((_request, response) =>
+    response.writeHead(404).end(),
+  );
+  context.after(server.close);
+
+  const manifest = await buildPagesReport({
+    ...options(reportDirectory, siteDirectory, server.url),
+    label: 'Omarchy 4.0.3',
+  });
+
+  assert.equal(manifest.reports[0].successRate, 0);
+  assert.equal(manifest.reports[0].testCount, 1);
+  assert.deepEqual(manifest.reports[0].files, [
+    'reports/200/index.html',
+    'reports/200/report-preview.png',
+  ]);
+  assert.equal(
+    await readFile(
+      path.join(siteDirectory, 'reports', '200', 'index.html'),
+      'utf8',
+    ),
+    finalFailure,
   );
 });
 

@@ -13,6 +13,7 @@ import {
   extractShellEvidence,
   findHtmlFiles,
   reportDumps,
+  testRunDump,
 } from './omarchy-shell-evidence.mjs';
 
 const MANIFEST_VERSION = 1;
@@ -273,46 +274,69 @@ export async function buildPagesReport(options) {
     throw new Error('Site output directory must be empty');
   }
 
-  const htmlFiles = await findHtmlFiles(reportDirectory);
-  if (htmlFiles.length < 1 || htmlFiles.length > 2) {
-    throw new Error(
-      `Expected one or two report HTML files, found ${htmlFiles.length}`,
-    );
-  }
-  const htmlReports = await Promise.all(
-    htmlFiles.map(async (file) => ({
+  const reportCandidates = await Promise.all(
+    (await findHtmlFiles(reportDirectory)).map(async (file) => ({
       file,
       html: await readFile(file, 'utf8'),
     })),
   );
+  const latestByProject = new Map();
+  for (const report of reportCandidates) {
+    report.run = testRunDump(report.html);
+    report.startedAt = Date.parse(report.run?.startedAt ?? '') || 0;
+    const projectKey =
+      report.run?.projects?.map((project) => project.name).join(',') ||
+      path.basename(report.file);
+    const previous = latestByProject.get(projectKey);
+    if (!previous || report.startedAt >= previous.startedAt) {
+      latestByProject.set(projectKey, report);
+    }
+  }
+  const htmlReports = [...latestByProject.values()].sort(
+    (left, right) => left.startedAt - right.startedAt,
+  );
+  if (htmlReports.length < 1 || htmlReports.length > 2) {
+    throw new Error(
+      `Expected reports for one or two projects, found ${htmlReports.length}`,
+    );
+  }
   const shellReport = htmlReports.find((report) =>
     report.html.includes('The Omarchy system menu is open'),
   );
-  if (htmlFiles.length === 2 && !shellReport) {
-    throw new Error(
-      'Two reports were found but the Omarchy shell report is missing',
-    );
-  }
   const checks = shellReport
     ? extractShellEvidence(shellReport.html, { allowIncomplete: true })
     : null;
   const usage = collectModelUsage(
     htmlReports.map((report) => report.html).join('\n'),
   );
+  const result = htmlReports.reduce(
+    (total, report) => ({
+      passed: total.passed + (report.run?.summary?.passed ?? 0),
+      tests: total.tests + (report.run?.summary?.total ?? 0),
+    }),
+    { passed: 0, tests: 0 },
+  );
+  const isOmarchy = label.startsWith('Omarchy');
   const reportPrefix = `reports/${runId}`;
-  const files = htmlFiles.length === 2
+  const files = shellReport && htmlReports.length === 2
     ? ['index.html', 'onboarding-report.html', 'report-preview.png'].map((name) => `${reportPrefix}/${name}`)
-    : [`${reportPrefix}/index.html`];
+    : [
+        `${reportPrefix}/index.html`,
+        ...(isOmarchy ? [`${reportPrefix}/report-preview.png`] : []),
+      ];
   const current = {
     runId,
     generatedAt,
     label,
-    successRate: checks
-      ? Math.round(
-          (checks.filter((check) => check.passed).length / checks.length) * 100,
-        )
-      : 100,
-    testCount: htmlFiles.length === 2 ? 2 : 1,
+    successRate: result.tests
+      ? Math.round((result.passed / result.tests) * 100)
+      : checks
+        ? Math.round(
+            (checks.filter((check) => check.passed).length / checks.length) *
+              100,
+          )
+        : 0,
+    testCount: result.tests || htmlReports.length,
     ...usage,
     workflowUrl,
     reportPath: `reports/${runId}/index.html`,
@@ -330,13 +354,19 @@ export async function buildPagesReport(options) {
 
   const currentDirectory = path.join(siteDirectory, reportPrefix);
   await mkdir(currentDirectory, { recursive: true });
-  if (shellReport) {
+  if (shellReport && htmlReports.length === 2) {
     const onboardingReport = htmlReports.find((report) => report !== shellReport);
     await copyFile(shellReport.file, path.join(currentDirectory, 'index.html'));
     await copyFile(onboardingReport.file, path.join(currentDirectory, 'onboarding-report.html'));
     await copyFile(path.join(reportDirectory, 'report-preview.png'), path.join(currentDirectory, 'report-preview.png'));
   } else {
-    await copyFile(htmlFiles[0], path.join(currentDirectory, 'index.html'));
+    await copyFile(htmlReports.at(-1).file, path.join(currentDirectory, 'index.html'));
+    if (isOmarchy) {
+      await copyFile(
+        path.join(reportDirectory, 'report-preview.png'),
+        path.join(currentDirectory, 'report-preview.png'),
+      );
+    }
   }
 
   const reports = [current, ...history];

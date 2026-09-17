@@ -103,10 +103,27 @@ jobs:
           REPORT_PREVIEW_URL: ${{ steps.pages.outputs.base_url }}/reports/${{ github.run_id }}/report-preview.png
         run: |
           if [[ "${{ inputs.report-label }}" == Omarchy* ]]; then
-            cat >> "$GITHUB_STEP_SUMMARY" <<EOF
-          ## Omarchy × Midscene · 3/3 visual checks passed
+            SUCCESS_RATE=$(jq -r '.reports[0].successRate' "$RUNNER_TEMP/pages-site/reports/manifest.json")
+            if [[ "$SUCCESS_RATE" == "100" ]]; then
+              TITLE="Omarchy × Midscene · passed"
+              RESULT_LINE="**3/3 shell visual checks and all published scenarios passed.**"
+            else
+              TITLE="Omarchy × Midscene · failure captured"
+              RESULT_LINE="**The latest report finished with ${SUCCESS_RATE}% of its cases passing.**"
+            fi
 
-          [Omarchy shell report: system menu and bar]($REPORT_URL) · [Onboarding report: install flow]($ONBOARDING_URL) · [Report history]($HISTORY_URL)
+            if [[ -f "$RUNNER_TEMP/pages-site/reports/$GITHUB_RUN_ID/onboarding-report.html" ]]; then
+              REPORT_LINKS="[Omarchy shell report: system menu and bar]($REPORT_URL) · [Onboarding report: install flow]($ONBOARDING_URL) · [Report history]($HISTORY_URL)"
+            else
+              REPORT_LINKS="[Open the failed Midscene Test report]($REPORT_URL) · [Report history]($HISTORY_URL)"
+            fi
+
+            cat >> "$GITHUB_STEP_SUMMARY" <<EOF
+          ## $TITLE
+
+          $RESULT_LINE
+
+          $REPORT_LINKS
 
           [![Final Midscene report node with its pass or error status]($REPORT_PREVIEW_URL)]($REPORT_URL)
 

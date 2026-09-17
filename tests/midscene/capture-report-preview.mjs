@@ -5,8 +5,7 @@ import { pathToFileURL } from 'node:url';
 import puppeteer from 'puppeteer-core';
 
 import {
-  findShellReport,
-  normalizeJsonControlCharacters,
+  findLatestTestReport,
 } from '../../scripts/omarchy-shell-evidence.mjs';
 
 const reportDirectory = path.resolve(
@@ -36,14 +35,9 @@ if (!executablePath) {
   throw new Error('Chrome executable was not found');
 }
 
-const shellReport = await findShellReport(reportDirectory);
-const runnerDumpMatch = shellReport.html.match(
-  /<script\s+type=["']midscene_test_run_dump["'][^>]*>\s*(\{[\s\S]*?)<\/script>/,
-);
-if (!runnerDumpMatch) throw new Error('Midscene Test runner dump was not found');
-const runnerDump = JSON.parse(
-  normalizeJsonControlCharacters(runnerDumpMatch[1]),
-);
+const report = await findLatestTestReport(reportDirectory);
+const runnerDump = report.run;
+if (!runnerDump) throw new Error('Midscene Test runner dump was not found');
 const executedSteps = (runnerDump.projects ?? []).flatMap((project) =>
   (project.documents ?? []).flatMap((document) =>
     (document.cases ?? []).flatMap((testCase) =>
@@ -54,12 +48,12 @@ const executedSteps = (runnerDump.projects ?? []).flatMap((project) =>
   ),
 );
 const finalStep = executedSteps.at(-1);
-if (!finalStep) throw new Error('Midscene Test report has no executed steps');
-
-const previewUrl = new URL(pathToFileURL(shellReport.file));
-const previewHash = new URLSearchParams({ 'runner-step': finalStep.id });
-if (finalStep.agentDetails?.length) previewHash.set('runner-trace', 'page');
-previewUrl.hash = previewHash.toString();
+const previewUrl = new URL(pathToFileURL(report.file));
+if (finalStep) {
+  const previewHash = new URLSearchParams({ 'runner-step': finalStep.id });
+  if (finalStep.agentDetails?.length) previewHash.set('runner-trace', 'page');
+  previewUrl.hash = previewHash.toString();
+}
 await mkdir(path.dirname(outputFile), { recursive: true });
 
 const browser = await puppeteer.launch({
@@ -74,10 +68,10 @@ try {
   await page.goto(previewUrl.href, {
     waitUntil: 'networkidle0',
   });
-  if (finalStep.agentDetails?.length) {
+  if (finalStep?.agentDetails?.length) {
     await page.waitForFunction(() => document.body.innerText.includes('AI TRACE'));
     await page.evaluate(() => window.scrollTo(0, 0));
-  } else {
+  } else if (finalStep) {
     await page.waitForSelector('[aria-label="Execution steps"]');
   }
   await page.waitForFunction(() =>
@@ -85,7 +79,7 @@ try {
   );
   await page.screenshot({ path: outputFile, type: 'png' });
   console.log(
-    `Captured final Midscene report node (${finalStep.status}): ${outputFile}`,
+    `Captured final Midscene report node (${finalStep?.status ?? runnerDump.status}): ${outputFile}`,
   );
 } finally {
   await browser.close();
