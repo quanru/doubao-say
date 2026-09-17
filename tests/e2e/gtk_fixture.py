@@ -9,7 +9,7 @@ from gi.repository import GLib, Gtk
 
 from doubao_input.doubao.app_state import AppState, LoginStatus
 from doubao_input.i18n import set_language
-from doubao_input.settings import Settings
+from doubao_input.settings import Settings, trigger_shortcut_display
 from doubao_input.ui.control_window import ControlWindow
 from doubao_input.ui.setup_actions import SetupActions
 
@@ -90,12 +90,23 @@ def main():
         holder["login"] = login
         login.present()
 
-    def test_endpoint(_settings, _key, done):
+    def test_endpoint(endpoint_settings, _key, done):
         def finish():
-            done("Synthetic endpoint response", None)
+            if endpoint_settings.polish_model == "synthetic-failing-model":
+                done(None, "Synthetic endpoint unavailable")
+            else:
+                done("Synthetic endpoint response", None)
             return GLib.SOURCE_REMOVE
 
         GLib.timeout_add(350, finish)
+
+    def apply_key(key, modifiers=()):
+        summary.update(key_code=key, key_modifiers=modifiers,
+                       key=trigger_shortcut_display(key, modifiers))
+
+    def save_polish(updated_settings, _key):
+        nonlocal settings
+        settings = updated_settings
 
     def complete_setup():
         control = holder["control"]
@@ -111,10 +122,10 @@ def main():
         is_preview_testing=lambda: False,
         summary=lambda: summary,
         complete_setup=complete_setup,
-        apply_key=lambda _key, _modifiers=(): None,
+        apply_key=apply_key,
         polish_settings=lambda: settings,
         polish_has_key=lambda: True,
-        save_polish=lambda _settings, _key: None,
+        save_polish=save_polish,
         test_polish=test_endpoint,
         apply_microphone=lambda _microphone: None,
     )

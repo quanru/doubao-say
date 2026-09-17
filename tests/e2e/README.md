@@ -94,3 +94,21 @@ The SSH and `hyprctl` calls in this PoC set up the scene and wait for the menu;
 the three user-visible conclusions come from Midscene's image assertions. The
 guest runs Hyprland/Wayland; Midscene operates an X11 VNC viewer on the host.
 This demonstrates visual testing of a Wayland desktop through a VM bridge.
+
+## Ubuntu regression cases
+
+`cases/onboarding-regressions.yaml` adds five cases: cancelling and retrying
+sign-in, returning to the signed-in account page, blocking a disabled trigger
+and retaining F8, toggling polishing, and correcting a failed endpoint model.
+The Ubuntu project runs these alongside the successful onboarding case.
+
+Each case receives a fresh computer agent, GTK fixture, and temporary config
+directory. Fixture cleanup completes before the next case starts. Shortcut and
+polishing changes stay in memory; `synthetic-failing-model` produces a synthetic
+endpoint error, while `synthetic-model` succeeds without network traffic.
+These cases exercise production GTK widgets with synthetic callbacks, not live
+ASR, recording, credential persistence, or global shortcut delivery.
+
+Run `npm test -- --project ubuntu` with the system dependencies and model
+configuration from the Ubuntu workflow. The Omarchy projects retain their shared
+onboarding and shell cases.

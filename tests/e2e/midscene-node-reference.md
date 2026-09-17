@@ -31,7 +31,7 @@ Projects created by `midscene-test create` select `cases/**/*.{yaml,yml}` by def
 
 **Config file:** `midscene.config.ts`
 
-**Case files:** `cases/onboarding.yaml` (Execution Project: ubuntu)
+**Case files:** `cases/onboarding.yaml`, `cases/onboarding-regressions.yaml` (Execution Project: ubuntu)
 
 **Case files:** `cases/onboarding.yaml` (Execution Project: omarchy-onboarding)
 

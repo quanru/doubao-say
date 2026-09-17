@@ -1,21 +1,31 @@
 import { execFileSync, spawn, type ChildProcess } from 'node:child_process';
 import { resolve } from 'node:path';
+import { mkdtemp, rm } from 'node:fs/promises';
+import { tmpdir } from 'node:os';
 import { ComputerAgent, agentForComputer } from '@midscene/computer';
 import { defineNode, z } from '@midscene/test';
 import { defineProjectSetup, defineTestProject } from '@midscene/test/config';
 import { createMidsceneNodes } from '@midscene/test/midscene';
 
 interface DesktopContext {
-  agent: ComputerAgent;
+  agent?: ComputerAgent;
+  createAgent: () => Promise<ComputerAgent>;
+  resetFixture?: () => Promise<void>;
   barConfigBackup?: string;
   barConfigExisted?: boolean;
 }
 
 const sleep = (ms: number) => new Promise((done) => setTimeout(done, ms));
-const stop = (child?: ChildProcess) => {
-  if (child?.pid) {
-    try { process.kill(-child.pid, 'SIGTERM'); } catch { /* already exited */ }
-  }
+const stop = async (child?: ChildProcess) => {
+  if (!child?.pid || child.exitCode !== null || child.signalCode !== null) return;
+  await new Promise<void>((done) => {
+    const timer = setTimeout(() => {
+      try { process.kill(-child.pid!, 'SIGKILL'); } catch { /* already exited */ }
+    }, 3000);
+    child.once('exit', () => { clearTimeout(timer); done(); });
+    try { process.kill(-child.pid!, 'SIGTERM'); }
+    catch { clearTimeout(timer); done(); }
+  });
 };
 
 function guest(command: string): string {
@@ -50,6 +60,7 @@ async function waitForFixture(child: ChildProcess): Promise<void> {
     };
     child.stdout?.on('data', capture);
     child.stderr?.on('data', capture);
+    child.once('error', (error) => { clearTimeout(timer); fail(error); });
     child.once('exit', (code) => {
       clearTimeout(timer);
       fail(new Error(`GTK fixture exited (${code}):\n${output}`));
@@ -62,16 +73,24 @@ const setup = defineProjectSetup<DesktopContext>({
   async setup({ project, onTeardown }) {
     const omarchy = project.name.startsWith('omarchy-');
     const shell = project.name === 'omarchy-shell';
-    const agent = await agentForComputer({
-      xvfbResolution: omarchy ? '1280x800x24' : '1280x960x24',
-      // libnut and the VNC viewer may still hold X11 connections while the
-      // Agent finalizes its report. Stop Xvfb only after this process exits.
-      keepXvfbAliveUntilProcessExit: true,
-      aiContexts: shell
-        ? { aiAssert: 'Inspect the real Omarchy desktop through VNC. Judge only visible pixels; do not infer success from commands or configuration.' }
-        : { aiAct: `Test the English Doubao Say GTK onboarding window${omarchy ? ' inside a real Omarchy VM shown through VNC' : ''}. Interact only with Doubao Say and use visible labels.` },
-    });
-    onTeardown(() => agent.destroy());
+    let desktopReady = false;
+    const createAgent = async () => {
+      const agent = await agentForComputer({
+        // Later case agents share the Xvfb display hosting Fluxbox and libnut.
+        headless: desktopReady ? false : undefined,
+        xvfbResolution: omarchy ? '1280x800x24' : '1280x960x24',
+        // libnut and the VNC viewer may still hold X11 connections while the
+        // Agent finalizes its report. Stop Xvfb only after this process exits.
+        keepXvfbAliveUntilProcessExit: true,
+        aiContexts: shell
+          ? { aiAssert: 'Inspect the real Omarchy desktop through VNC. Judge only visible pixels; do not infer success from commands or configuration.' }
+          : { aiAct: `Test the English Doubao Say GTK onboarding window${omarchy ? ' inside a real Omarchy VM shown through VNC' : ''}. Interact only with Doubao Say and use visible labels.` },
+      });
+      desktopReady = true;
+      return agent;
+    };
+    const context: DesktopContext = { agent: await createAgent(), createAgent };
+    onTeardown(() => context.agent?.destroy());
     const fluxbox = spawn('fluxbox', [], { detached: true, stdio: 'ignore', env: process.env });
     onTeardown(() => stop(fluxbox));
     await sleep(1000);
@@ -83,18 +102,31 @@ const setup = defineProjectSetup<DesktopContext>({
       await sleep(4000);
     } else {
       const root = resolve(import.meta.dirname, '../..');
-      const fixture = spawn('/usr/bin/python3', ['tests/e2e/gtk_fixture.py'], {
-        cwd: root, detached: true, stdio: ['ignore', 'pipe', 'pipe'],
-        env: {
-          ...process.env, GDK_BACKEND: 'x11', GSK_RENDERER: 'cairo', GTK_A11Y: 'none',
-          PYTHONPATH: resolve(root, 'src'), XDG_CONFIG_HOME: resolve(root, '.midscene-config'),
-        },
-      });
-      onTeardown(() => stop(fixture));
-      await waitForFixture(fixture);
-      await sleep(1000);
+      let fixture: ChildProcess | undefined;
+      let configDirectory: string | undefined;
+      const cleanup = async () => {
+        await stop(fixture);
+        fixture = undefined;
+        if (configDirectory) {
+          await rm(configDirectory, { recursive: true, force: true });
+          configDirectory = undefined;
+        }
+      };
+      onTeardown(cleanup);
+      context.resetFixture = async () => {
+        await cleanup();
+        configDirectory = await mkdtemp(resolve(tmpdir(), 'doubao-midscene-'));
+        fixture = spawn('/usr/bin/python3', ['tests/e2e/gtk_fixture.py'], {
+          cwd: root, detached: true, stdio: ['ignore', 'pipe', 'pipe'],
+          env: {
+            ...process.env, GDK_BACKEND: 'x11', GSK_RENDERER: 'cairo', GTK_A11Y: 'none',
+            PYTHONPATH: resolve(root, 'src'), XDG_CONFIG_HOME: configDirectory,
+          },
+        });
+        await waitForFixture(fixture);
+        await sleep(1000);
+      };
     }
-    const context: DesktopContext = { agent };
     if (shell) {
       onTeardown(() => {
         try {
@@ -145,7 +177,7 @@ const moveBarLeft = defineNode<typeof empty, void, DesktopContext>({
 export default defineTestProject<DesktopContext>({
   test: { maxConcurrency: 1, testTimeout: 8 * 60_000 },
   projects: [
-    { name: 'ubuntu', setup, files: { include: ['cases/onboarding.yaml'] } },
+    { name: 'ubuntu', setup, files: { include: ['cases/onboarding.yaml', 'cases/onboarding-regressions.yaml'] } },
     { name: 'omarchy-onboarding', setup, files: { include: ['cases/onboarding.yaml'] } },
     { name: 'omarchy-shell', setup, files: { include: ['cases/omarchy-shell.yaml'] } },
   ],
@@ -153,17 +185,23 @@ export default defineTestProject<DesktopContext>({
     ...createMidsceneNodes<DesktopContext>({
       agentClass: ComputerAgent,
       agentProvider: (() => {
-        const active = new Map<string, ComputerAgent>();
+        const active = new Map<string, { agent: ComputerAgent; context: DesktopContext }>();
         return {
-          getAgent(runId: string, { context }: { context: DesktopContext }) {
-            active.set(runId, context.agent);
+          async getAgent(runId: string, { context }: { context: DesktopContext }) {
+            const existing = active.get(runId);
+            if (existing) return existing.agent;
+            context.agent ??= await context.createAgent();
+            await context.resetFixture?.();
+            active.set(runId, { agent: context.agent, context });
             return context.agent;
           },
           async releaseAgent(runId: string) {
-            const agent = active.get(runId);
-            if (!agent) throw new Error(`No Agent for Midscene case ${runId}`);
+            const entry = active.get(runId);
+            if (!entry) throw new Error(`No Agent for Midscene case ${runId}`);
             active.delete(runId);
+            const { agent, context } = entry;
             await agent.destroy();
+            context.agent = undefined;
             if (!agent.reportFile) throw new Error(`No Agent report for Midscene case ${runId}`);
             return { reportPath: agent.reportFile };
           },
