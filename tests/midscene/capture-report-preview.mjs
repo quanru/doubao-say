@@ -38,22 +38,11 @@ if (!executablePath) {
 const report = await findLatestTestReport(reportDirectory);
 const runnerDump = report.run;
 if (!runnerDump) throw new Error('Midscene Test runner dump was not found');
-const executedSteps = (runnerDump.projects ?? []).flatMap((project) =>
-  (project.documents ?? []).flatMap((document) =>
-    (document.cases ?? []).flatMap((testCase) =>
-      (testCase.attempts ?? []).flatMap((attempt) =>
-        (attempt.steps ?? []).filter((step) => step.startedAt),
-      ),
-    ),
-  ),
-);
-const finalStep = executedSteps.at(-1);
 const previewUrl = new URL(pathToFileURL(report.file));
-if (finalStep) {
-  const previewHash = new URLSearchParams({ 'runner-step': finalStep.id });
-  if (finalStep.agentDetails?.length) previewHash.set('runner-trace', 'page');
-  previewUrl.hash = previewHash.toString();
-}
+previewUrl.hash = new URLSearchParams({
+  'runner-step': 'last',
+  'runner-trace': 'page',
+}).toString();
 await mkdir(path.dirname(outputFile), { recursive: true });
 
 const browser = await puppeteer.launch({
@@ -68,18 +57,14 @@ try {
   await page.goto(previewUrl.href, {
     waitUntil: 'networkidle0',
   });
-  if (finalStep?.agentDetails?.length) {
-    await page.waitForFunction(() => document.body.innerText.includes('AI TRACE'));
-    await page.evaluate(() => window.scrollTo(0, 0));
-  } else if (finalStep) {
-    await page.waitForSelector('[aria-label="Execution steps"]');
-  }
+  await page.waitForFunction(() => document.body.innerText.includes('AI TRACE'));
+  await page.evaluate(() => window.scrollTo(0, 0));
   await page.waitForFunction(() =>
     /Passed|Failed|Error/.test(document.body.innerText),
   );
   await page.screenshot({ path: outputFile, type: 'png' });
   console.log(
-    `Captured final Midscene report node (${finalStep?.status ?? runnerDump.status}): ${outputFile}`,
+    `Captured final Midscene report node (${runnerDump.status}): ${outputFile}`,
   );
 } finally {
   await browser.close();
