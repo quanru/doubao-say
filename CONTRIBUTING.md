@@ -5,6 +5,24 @@ optional official Volcengine Seed ASR backend. Do not add further recognition
 engines, embed credentials or depend on personal Hyprland configuration.
 There is no published repository/release for this revision yet.
 
+## Agent workflow and bug evidence
+
+Read [AGENTS.md](AGENTS.md) before making changes. For every bug verification
+round, reproduce the problem before editing, retain before/after screenshots,
+and repeat the same scenario after the fix. Use real application captures for
+UI changes; supplement screenshots with assertions or sanitized logs for focus,
+paste, audio, and background behavior. Record missing evidence or unavailable
+runtime checks explicitly; previews do not establish end-to-end acceptance.
+For bugs without a UI, record why screenshots do not apply and retain failing
+and passing test or log evidence instead.
+
+Store each round under `artifacts/verification/<task>/<round>/`, including a
+`verification.md` with the source revision, local changes, environment, steps,
+commands, exit codes, results, and evidence paths. Inspect the captures and link
+before/after images in the handoff. These local artifacts are ignored by Git;
+include a durable verification summary and sanitized attachments when sharing
+an issue or PR. See AGENTS.md for the complete workflow.
+
 ## Development
 
 Use Python 3.11+ with system GTK4/PyGObject/Cairo. Release CI builds separate
@@ -25,6 +43,11 @@ Doubao, send keyboard events or alter desktop configuration. Files under
 layout is documented in `tests/README.md`. Stop recording before any lifecycle
 test. Stop the normal app/plugin before fresh-login/onboarding tests; they share
 the production application ID to prevent duplicate overlays.
+
+Midscene desktop E2E is a separate suite and is not included in `make check`.
+See [the test guide](tests/README.md#midscene-desktop-e2e) for prerequisites,
+commands, synthetic-fixture limitations, and HTML replay evidence. Extend the
+relevant scenario when fixing a covered user-visible flow.
 
 ## Change boundaries
 

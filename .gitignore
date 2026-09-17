@@ -99,3 +99,8 @@ settings.json
 *.bak
 *.orig
 *.rej
+
+# Local promotional drafts and desktop automation output
+/.tmp/
+/midscene_run/
+/tests/midscene/node_modules/

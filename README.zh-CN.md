@@ -257,6 +257,10 @@ cd "${XDG_CONFIG_HOME:-$HOME/.config}/omarchy/plugins/md.lifeos.doubao-say"
 
 ## 开发与本地打包
 
+开发与 AI Agent 协作遵循 [AGENTS.md](AGENTS.md) 和
+[贡献指南](CONTRIBUTING.md)。Bug 修复需可复现验证，每轮界面验证保存修复前后截图；
+截图无法证明的行为需补充测试或日志证据，并明确尚未验证的范围。
+
 贡献流程和统一检查命令 `make check` 见[贡献指南](CONTRIBUTING.md)，
 另见[安全报告流程](SECURITY.md)和[变更记录](CHANGELOG.md)。
 旧 Debian 打包脚本不属于本次候选版的发布路径，尚未完成新版安装验收。
