@@ -14,6 +14,7 @@ on:
       - "tests/midscene/package.json"
       - "tests/midscene/package-lock.json"
       - "tests/midscene/gtk_fixture.py"
+      - "tests/midscene/capture-report-preview.mjs"
       - "tests/midscene/cases/**"
       - "tests/midscene/midscene.config.ts"
       - "tests/midscene/run-omarchy-midscene.sh"
@@ -37,6 +38,7 @@ on:
       - "tests/midscene/package.json"
       - "tests/midscene/package-lock.json"
       - "tests/midscene/gtk_fixture.py"
+      - "tests/midscene/capture-report-preview.mjs"
       - "tests/midscene/cases/**"
       - "tests/midscene/midscene.config.ts"
       - "tests/midscene/run-omarchy-midscene.sh"
@@ -72,6 +74,8 @@ jobs:
       MIDSCENE_MODEL_REASONING_ENABLED: ${{ secrets.MIDSCENE_MODEL_REASONING_ENABLED }}
       MIDSCENE_COMPUTER_HEADLESS_LINUX: "true"
       MIDSCENE_REPLANNING_CYCLE_LIMIT: "40"
+    outputs:
+      report-artifact-id: ${{ steps.report.outputs.artifact-id }}
     steps:
       - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
         with:
@@ -133,6 +137,10 @@ jobs:
       - name: Run real Omarchy Midscene E2E
         run: tests/midscene/run-omarchy-midscene.sh
 
+      - name: Capture the final report node for the CI summary
+        if: always()
+        run: node tests/midscene/capture-report-preview.mjs
+
       - name: Upload installer evidence
         if: always()
         uses: actions/upload-artifact@043fb46d1a93c77aae656e7c1c64a875d1fc6a0a # v7.0.1
@@ -160,7 +168,8 @@ jobs:
     name: GitHub Pages report
     needs: omarchy-vm
     if: >-
-      needs.omarchy-vm.result == 'success' &&
+      always() &&
+      needs.omarchy-vm.outputs.report-artifact-id != '' &&
       github.event_name != 'pull_request' &&
       github.ref_name == vars.PAGES_REPORT_BRANCH
     permissions:

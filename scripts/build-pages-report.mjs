@@ -293,22 +293,25 @@ export async function buildPagesReport(options) {
       'Two reports were found but the Omarchy shell report is missing',
     );
   }
-  const checks = shellReport ? extractShellEvidence(shellReport.html) : null;
-  if (checks?.some((check) => !check.passed)) {
-    throw new Error('Cannot publish failed Omarchy visual assertions');
-  }
+  const checks = shellReport
+    ? extractShellEvidence(shellReport.html, { allowIncomplete: true })
+    : null;
   const usage = collectModelUsage(
     htmlReports.map((report) => report.html).join('\n'),
   );
   const reportPrefix = `reports/${runId}`;
   const files = htmlFiles.length === 2
-    ? ['index.html', 'onboarding-report.html', 'menu.jpg', 'bar.jpg'].map((name) => `${reportPrefix}/${name}`)
+    ? ['index.html', 'onboarding-report.html', 'report-preview.png'].map((name) => `${reportPrefix}/${name}`)
     : [`${reportPrefix}/index.html`];
   const current = {
     runId,
     generatedAt,
     label,
-    successRate: 100,
+    successRate: checks
+      ? Math.round(
+          (checks.filter((check) => check.passed).length / checks.length) * 100,
+        )
+      : 100,
     testCount: htmlFiles.length === 2 ? 2 : 1,
     ...usage,
     workflowUrl,
@@ -331,8 +334,7 @@ export async function buildPagesReport(options) {
     const onboardingReport = htmlReports.find((report) => report !== shellReport);
     await copyFile(shellReport.file, path.join(currentDirectory, 'index.html'));
     await copyFile(onboardingReport.file, path.join(currentDirectory, 'onboarding-report.html'));
-    await writeFile(path.join(currentDirectory, 'menu.jpg'), checks[1].screenshot.bytes);
-    await writeFile(path.join(currentDirectory, 'bar.jpg'), checks[2].screenshot.bytes);
+    await copyFile(path.join(reportDirectory, 'report-preview.png'), path.join(currentDirectory, 'report-preview.png'));
   } else {
     await copyFile(htmlFiles[0], path.join(currentDirectory, 'index.html'));
   }

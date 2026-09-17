@@ -114,6 +114,7 @@ test('publishes the shell test-run report directly with a CI entrance image', as
     path.join(reportDirectory, 'report', 'test-run-shell.html'),
     shellFixtureHtml,
   );
+  await writeFile(path.join(reportDirectory, 'report-preview.png'), 'preview');
   const siteDirectory = path.join(root, 'site');
   const server = await startServer((_request, response) =>
     response.writeHead(404).end(),
@@ -125,7 +126,8 @@ test('publishes the shell test-run report directly with a CI entrance image', as
   );
 
   assert.equal(manifest.reports[0].testCount, 2);
-  assert.equal(manifest.reports[0].files.length, 4);
+  assert.equal(manifest.reports[0].successRate, 100);
+  assert.equal(manifest.reports[0].files.length, 3);
   const publishedReport = await readFile(
     path.join(siteDirectory, 'reports', '200', 'index.html'),
     'utf8',
@@ -139,9 +141,39 @@ test('publishes the shell test-run report directly with a CI entrance image', as
     fixtureHtml,
   );
   assert.equal(
-    (await readFile(path.join(siteDirectory, 'reports', '200', 'bar.jpg')))
-      .length,
-    4,
+    await readFile(
+      path.join(siteDirectory, 'reports', '200', 'report-preview.png'),
+      'utf8',
+    ),
+    'preview',
+  );
+});
+
+test('publishes a failed shell report with its result in history', async (context) => {
+  const root = await mkdtemp(path.join(os.tmpdir(), 'pages-failed-'));
+  const reportDirectory = await fixtureDirectory(root);
+  await writeFile(
+    path.join(reportDirectory, 'report', 'test-run-shell.html'),
+    shellFixtureHtml.replace('"output":true', '"output":false'),
+  );
+  await writeFile(path.join(reportDirectory, 'report-preview.png'), 'failed');
+  const siteDirectory = path.join(root, 'site');
+  const server = await startServer((_request, response) =>
+    response.writeHead(404).end(),
+  );
+  context.after(server.close);
+
+  const manifest = await buildPagesReport(
+    options(reportDirectory, siteDirectory, server.url),
+  );
+
+  assert.equal(manifest.reports[0].successRate, 67);
+  assert.equal(
+    await readFile(
+      path.join(siteDirectory, 'reports', '200', 'report-preview.png'),
+      'utf8',
+    ),
+    'failed',
   );
 });
 

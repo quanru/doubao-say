@@ -74,7 +74,7 @@ export function reportDumps(html) {
   ].map((match) => JSON.parse(normalizeJsonControlCharacters(match[1])));
 }
 
-export function extractShellEvidence(html) {
+export function extractShellEvidence(html, { allowIncomplete = false } = {}) {
   const images = new Map();
   for (const match of html.matchAll(
     /<script\s+type=["']midscene-image["']\s+data-id=["']([^"']+)["'][^>]*>\s*data:image\/(png|jpeg);base64,([A-Za-z0-9+/=]+)\s*<\/script>/g,
@@ -100,12 +100,18 @@ export function extractShellEvidence(html) {
     const entry = [...finished.entries()].find(([demand]) =>
       demand.startsWith(check.marker),
     );
-    if (!entry)
+    if (!entry) {
+      if (allowIncomplete)
+        return { ...check, passed: false, screenshot: null, missing: true };
       throw new Error(`Missing finished Omarchy assertion: ${check.label}`);
+    }
     const task = entry[1];
     const screenshot = images.get(task.uiContext?.screenshot?.id);
-    if (!screenshot)
+    if (!screenshot) {
+      if (allowIncomplete)
+        return { ...check, passed: false, screenshot: null, missing: true };
       throw new Error(`Missing Omarchy screenshot: ${check.label}`);
+    }
     return { ...check, passed: task.output === true, screenshot };
   });
 }
