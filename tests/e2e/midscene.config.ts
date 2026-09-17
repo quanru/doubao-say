@@ -73,6 +73,7 @@ const setup = defineProjectSetup<DesktopContext>({
   async setup({ project, onTeardown }) {
     const omarchy = project.name.startsWith('omarchy-');
     const shell = project.name === 'omarchy-shell';
+    const polishing = project.name === 'ubuntu-polishing';
     let desktopReady = false;
     const createAgent = async () => {
       const agent = await agentForComputer({
@@ -84,6 +85,7 @@ const setup = defineProjectSetup<DesktopContext>({
         keepXvfbAliveUntilProcessExit: true,
         aiContexts: shell
           ? { aiAssert: 'Inspect the real Omarchy desktop through VNC. Judge only visible pixels; do not infer success from commands or configuration.' }
+          : polishing ? { aiAct: 'Test the native polishing overlay using the separate Polishing overlay test controls window. Use visible button labels.' }
           : { aiAct: `Test the English Doubao Say GTK onboarding window${omarchy ? ' inside a real Omarchy VM shown through VNC' : ''}. Interact only with Doubao Say and use visible labels.` },
       });
       desktopReady = true;
@@ -116,7 +118,7 @@ const setup = defineProjectSetup<DesktopContext>({
       context.resetFixture = async () => {
         await cleanup();
         configDirectory = await mkdtemp(resolve(tmpdir(), 'doubao-midscene-'));
-        fixture = spawn('/usr/bin/python3', ['tests/e2e/gtk_fixture.py'], {
+        fixture = spawn('/usr/bin/python3', [polishing ? 'tests/e2e/polish_fixture.py' : 'tests/e2e/gtk_fixture.py'], {
           cwd: root, detached: true, stdio: ['ignore', 'pipe', 'pipe'],
           env: {
             ...process.env, GDK_BACKEND: 'x11', GSK_RENDERER: 'cairo', GTK_A11Y: 'none',
@@ -177,6 +179,7 @@ const moveBarLeft = defineNode<typeof empty, void, DesktopContext>({
 export default defineTestProject<DesktopContext>({
   test: { maxConcurrency: 1, testTimeout: 8 * 60_000 },
   projects: [
+    { name: 'ubuntu-polishing', setup, files: { include: ['cases/polishing.yaml'] } },
     { name: 'ubuntu', setup, files: { include: ['cases/onboarding.yaml', 'cases/onboarding-regressions.yaml'] } },
     { name: 'omarchy-onboarding', setup, files: { include: ['cases/onboarding.yaml'] } },
     { name: 'omarchy-shell', setup, files: { include: ['cases/omarchy-shell.yaml'] } },

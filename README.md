@@ -65,6 +65,10 @@ and troubleshooting.
 
 ### Optional voice polishing
 
+During polishing, a separate status row and softly pulsing stars sit above the
+transcript. A shortcut hint appears after three seconds; reduced motion keeps
+the stars static.
+
 Turn on the **Voice polishing · Experimental** switch on the Trigger key page to configure an
 OpenAI-compatible Base URL, API key, model and separate Chinese/English prompts.
 Doubao Say selects a prompt from each transcript's dominant language. The bundled prompts remove

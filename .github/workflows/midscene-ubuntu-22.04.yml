@@ -12,6 +12,7 @@ on:
       - "tests/e2e/package.json"
       - "tests/e2e/package-lock.json"
       - "tests/e2e/gtk_fixture.py"
+      - "tests/e2e/polish_fixture.py"
       - "tests/e2e/cases/**"
       - "tests/e2e/midscene.config.ts"
       - "src/**"
@@ -25,6 +26,7 @@ on:
       - "tests/e2e/package.json"
       - "tests/e2e/package-lock.json"
       - "tests/e2e/gtk_fixture.py"
+      - "tests/e2e/polish_fixture.py"
       - "tests/e2e/cases/**"
       - "tests/e2e/midscene.config.ts"
       - "src/**"
@@ -149,6 +151,10 @@ jobs:
             echo "Ubuntu Midscene exhausted three model-connection attempts." >&2
             exit 1
           fi
+
+      - name: Verify polishing overlay with Midscene
+        working-directory: tests/e2e
+        run: timeout --signal=TERM --kill-after=10s 10m npm test -- --project ubuntu-polishing
 
       - name: Upload Midscene report
         if: always()

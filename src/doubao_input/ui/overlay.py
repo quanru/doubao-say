@@ -80,6 +80,11 @@ class Overlay:
         self._window: Gtk.Window | None = None
         self._label: Gtk.Label | None = None
         self._status_label: Gtk.Label | None = None
+        self._status_row = None
+        self._sparkles = []
+        self._hint_label = None
+        self._waveform = None
+        self._polishing_since = None
         self._canvas: Gtk.Picture | None = None
         self._panel: Gtk.Box | None = None
         self._css_provider: Gtk.CssProvider | None = None
@@ -113,6 +118,34 @@ class Overlay:
 
     def show(self, status: str | None = None) -> None:
         self._run_on_main(self._show, status or tr("Listening…", "聆听中…"))
+
+    def show_polishing(self, text: str) -> None:
+        """Keep polishing activity separate from the transcript."""
+        self._run_on_main(self._show_polishing, text)
+
+    def _show_polishing(self, text: str) -> None:
+        self._show(tr("Polishing…", "润色中"))
+        self._polishing_since = time.monotonic()
+        self._waveform.set_visible(False)
+        self._status_label.set_xalign(0.0)
+        self._status_row.add_css_class("polishing-status")
+        self._status_row.set_tooltip_text(
+            tr("Press shortcut again to use original", "再次按快捷键使用原文"))
+        for star in self._sparkles:
+            star.set_opacity(1.0)
+            star.set_visible(True)
+        self._set_text(text)
+
+    def _clear_polishing(self) -> None:
+        self._polishing_since = None
+        if self._status_row is not None:
+            self._status_label.set_xalign(0.5)
+            self._status_row.remove_css_class("polishing-status")
+            self._status_row.set_tooltip_text(None)
+            self._hint_label.set_visible(False)
+            self._waveform.set_visible(True)
+            for star in self._sparkles:
+                star.set_visible(False)
 
     def hide(self) -> None:
         self._run_on_main(self._hide)
@@ -166,6 +199,7 @@ class Overlay:
 
     def _show(self, status: str) -> None:
         self._ensure_window()
+        self._clear_polishing()
         self._text = ""
         self._status_text = status
         self._status_priority = True
@@ -176,6 +210,7 @@ class Overlay:
         self._arm_ticker()
 
     def _hide(self) -> None:
+        self._clear_polishing()
         self._motion = VoiceMotion()
         if self._update_button:
             self._update_button.popdown()
@@ -201,6 +236,7 @@ class Overlay:
                 self._arm_ticker()
 
     def _set_status(self, status: str) -> None:
+        self._clear_polishing()
         self._status_text = status
         self._status_priority = True
         if self._window is not None:
@@ -213,7 +249,7 @@ class Overlay:
         self._state = value
         if self._css_provider is not None:
             self._load_css()
-        if not self._text:
+        if not self._text and self._polishing_since is None:
             state_status = {
                 "starting": tr("Starting voice recognition…", "正在启动语音识别…"),
                 "recording": tr("Listening…", "正在聆听…"),
@@ -281,6 +317,7 @@ class Overlay:
         canvas.set_can_shrink(False)
         canvas.set_halign(Gtk.Align.CENTER)
         waveform = Gtk.Overlay()
+        self._waveform = waveform
         waveform.set_child(canvas)
         self._update_button = Gtk.MenuButton(label="", visible=False)
         self._update_button.set_direction(Gtk.ArrowType.NONE)
@@ -318,7 +355,15 @@ class Overlay:
 
         self._status_label = Gtk.Label()
         self._status_label.add_css_class("doubao-overlay-label")
-        panel.append(self._status_label)
+        self._status_row = Gtk.Box(orientation=Gtk.Orientation.HORIZONTAL, spacing=8)
+        self._status_row.set_halign(Gtk.Align.FILL)
+        self._status_label.set_hexpand(True)
+        self._status_row.append(self._status_label)
+        for glyph in ("✦", "✧", "✦"):
+            star = Gtk.Label(label=glyph, visible=False)
+            self._sparkles.append(star)
+            self._status_row.append(star)
+        panel.append(self._status_row)
 
         label = Gtk.Label()
         label.set_xalign(0.5)
@@ -329,6 +374,11 @@ class Overlay:
         label.set_hexpand(True)
         label.add_css_class("doubao-overlay-label")
         panel.append(label)
+        self._hint_label = Gtk.Label(
+            label=tr("Press shortcut again to use original", "再次按快捷键使用原文"),
+            visible=False)
+        self._hint_label.add_css_class("doubao-polish-hint")
+        panel.append(self._hint_label)
 
         self._window = win
         self._panel = panel
@@ -342,6 +392,9 @@ class Overlay:
         win.get_style_context().add_provider(
             self._css_provider, Gtk.STYLE_PROVIDER_PRIORITY_APPLICATION
         )
+        for widget in (self._status_row, self._status_label, self._hint_label, label):
+            widget.get_style_context().add_provider(
+                self._css_provider, Gtk.STYLE_PROVIDER_PRIORITY_APPLICATION)
         win.set_child(panel)
         self._render_canvas()
 
@@ -363,6 +416,16 @@ class Overlay:
                 border: 1px solid {border};
                 border-radius: {CORNER_PX}px;
                 padding: 5px 15px 4px 15px;
+            }}
+            .polishing-status {{
+                color: {self._theme['accent']};
+                padding: 6px 0 10px 0;
+                margin-bottom: 8px;
+            }}
+            .doubao-polish-hint {{
+                font-size: 10px;
+                margin-top: 6px;
+                opacity: 0.7;
             }}
             .doubao-overlay-label {{
                 color: {self._theme['bright_foreground']};
@@ -399,6 +462,14 @@ class Overlay:
         now = time.monotonic()
         elapsed = max(0.0, now - self._last_peak_tick)
         self._last_peak_tick = now
+        if self._polishing_since is not None:
+            age = now - self._polishing_since
+            for index, star in enumerate(self._sparkles):
+                opacity = 1.0 if self.reduced_motion else (
+                    0.35 + 0.65 * (0.5 + 0.5 * math.sin(age * math.tau / 2.4 - index * 1.2)))
+                star.set_opacity(opacity)
+            self._hint_label.set_visible(age >= 3.0)
+            return GLib.SOURCE_CONTINUE
         with self._audio_lock:
             since_sample = max(0.0, now - self._latest_rms_at)
             current_db = max(
