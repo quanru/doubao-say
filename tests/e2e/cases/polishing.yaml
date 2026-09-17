@@ -12,6 +12,6 @@ cases:
       - aiAct: Click Start reduced motion once in the test controls window.
       - aiAssert: The overlay shows English Polishing status, three clearly visible stars, and the separate transcript Please send the notes tomorrow.
       - aiAct: Click Finish polishing once in the test controls window.
-      - aiAssert: The overlay status reads Polished - Sending text and the three polishing stars have disappeared.
+      - aiAssert: Within the dark transcript overlay, the status reads Polished - Sending text and its top-right status row no longer contains the three small polishing star icons. Ignore the desktop wallpaper and any system logo outside the dark overlay.
       - aiAct: Click Hide overlay once in the test controls window.
       - aiAssert: The dark transcript overlay is gone. The Polishing overlay test controls window remains visible.
