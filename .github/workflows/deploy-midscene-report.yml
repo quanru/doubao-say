@@ -104,13 +104,13 @@ jobs:
         run: |
           if [[ "${{ inputs.report-label }}" == Omarchy* ]]; then
             cat >> "$GITHUB_STEP_SUMMARY" <<EOF
-          ## Omarchy × Midscene · visual report
+          ## Omarchy × Midscene · 3/3 visual checks passed
 
-          [**Open the Midscene Test HTML report →**]($REPORT_URL) · [Onboarding report]($ONBOARDING_URL) · [Report history]($HISTORY_URL)
+          [Omarchy shell report: system menu and bar]($REPORT_URL) · [Onboarding report: install flow]($ONBOARDING_URL) · [Report history]($HISTORY_URL)
 
           [![Real Omarchy system menu tested by Midscene]($MENU_IMAGE_URL)]($REPORT_URL)
 
-          Click the real Omarchy desktop image to inspect the complete test run, AI assertions, screenshots, and Agent replay.
+          Click the desktop image to inspect the Omarchy shell test, AI assertions, screenshots, and Agent replay.
           EOF
           else
             echo "- [Open this run's report]($REPORT_URL)" >> "$GITHUB_STEP_SUMMARY"
