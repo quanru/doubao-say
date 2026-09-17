@@ -30,8 +30,10 @@ _AUTH_XOR = (
     0x47201988, 0x98211053, 0xF0D4ECA9, 0x82991136,
     0x09153583, 0x16141925, 0xBF8A7CED, 0x54557049,
 )
-_BUTTON_CODES = {0x6F: "record", 0x70: "enter", 0x71: "cancel"}
-_DIAL_CODES = {0x72: "scroll_down", 0x73: "scroll_up"}
+_BUTTON_CODES = {
+    0x6E: "dial_press", 0x6F: "record", 0x70: "enter", 0x71: "cancel",
+}
+_DIAL_CODES = {0x72: "dial_clockwise", 0x73: "dial_counterclockwise"}
 
 
 def _tea_encode(block: bytes) -> bytes:

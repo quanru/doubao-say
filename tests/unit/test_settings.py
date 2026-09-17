@@ -45,8 +45,16 @@ class SettingsTest(unittest.TestCase):
                     Settings(input_method=invalid).validate()
 
     def test_defaults(self):
-        Settings().validate()
-        self.assertEqual(Settings().asr_provider, "doubao")
+        settings = Settings()
+        settings.validate()
+        self.assertEqual(settings.asr_provider, "doubao")
+        self.assertEqual(
+            (settings.vibekey_record_key, settings.vibekey_enter_key,
+             settings.vibekey_cancel_key, settings.vibekey_clockwise_key,
+             settings.vibekey_counterclockwise_key,
+             settings.vibekey_press_key,
+             settings.vibekey_press_modifiers),
+            (None, None, None, 108, 103, 14, (125,)))
 
     def test_recognition_provider_validation_and_roundtrip(self):
         with tempfile.TemporaryDirectory() as root, patch.dict(
@@ -73,6 +81,29 @@ class SettingsTest(unittest.TestCase):
             expected.save()
             self.assertEqual(Settings.load(), expected)
 
+    def test_vibekey_shortcuts_roundtrip_and_canonicalize(self):
+        with tempfile.TemporaryDirectory() as root, patch.dict(
+                "os.environ", {"XDG_CONFIG_HOME": root}):
+            expected = Settings(
+                vibekey_record_key=57,
+                vibekey_record_modifiers=(29,),
+                vibekey_enter_key=66,
+                vibekey_cancel_key=0,
+                vibekey_clockwise_key=106,
+                vibekey_clockwise_modifiers=(29,),
+                vibekey_counterclockwise_key=0,
+                vibekey_press_key=57,
+                vibekey_press_modifiers=(125, 42))
+            expected.save()
+            self.assertEqual(Settings.load(), expected)
+
+            path = Path(root) / "doubao-say/settings.json"
+            values = json.loads(path.read_text())
+            values["vibekey_press_modifiers"] = [126, 54]
+            path.write_text(json.dumps(values))
+            loaded = Settings.load()
+            self.assertEqual(loaded.vibekey_press_modifiers, (125, 42))
+
     def test_shortcut_display_separates_physical_keys(self):
         self.assertEqual(trigger_shortcut_display(57, (29, 56)),
                          "⌃  +  ⌥  +  Space")
@@ -94,7 +125,13 @@ class SettingsTest(unittest.TestCase):
     def test_bad_values(self):
         for values in ({"hold_ms": 0}, {"double_ms": 900},
                        {"doubao_key": 1}, {"doubao_key": 249},
-                       {"doubao_key": 999}, {"double_enter": "false"}):
+                       {"doubao_key": 999}, {"double_enter": "false"},
+                       {"vibekey_clockwise_key": 999},
+                       {"vibekey_record_key": 999},
+                       {"vibekey_record_modifiers": (29,)},
+                       {"vibekey_press_modifiers": (14,)},
+                       {"vibekey_press_key": 125,
+                        "vibekey_press_modifiers": (126,)}):
             with self.subTest(values=values), self.assertRaises(ValueError):
                 Settings(**values).validate()
 

@@ -117,9 +117,13 @@ class ReleaseTest(unittest.TestCase):
         entry = installer.desktop(Path('/tmp/a b/"special"/start.sh'))
         self.assertIn('Exec="/tmp/a b/\\"special\\"/start.sh"', entry)
 
-    def test_product_has_only_one_trigger(self):
+    def test_product_has_one_dictation_trigger_and_six_vibekey_actions(self):
         from doubao_input.settings import Settings
-        self.assertEqual([name for name in Settings.__dataclass_fields__ if name.endswith("_key")], ["doubao_key"])
+        self.assertEqual(
+            [name for name in Settings.__dataclass_fields__ if name.endswith("_key")],
+            ["doubao_key", "vibekey_record_key", "vibekey_enter_key",
+             "vibekey_cancel_key", "vibekey_clockwise_key",
+             "vibekey_counterclockwise_key", "vibekey_press_key"])
 
     def test_unified_installer_has_valid_shell_syntax_and_help(self):
         self.assertEqual(
