@@ -14,9 +14,9 @@ Suggested category: **Productivity**. Tags: **ai, hyprland**.
    Git refs plus source. Redacted reports remain in ignored `artifacts/marketplace/`.
 2. Build the pinned offline wheel set and run `make release`. Keep installers,
    checksums and dependency notices together. Checksums are not signatures.
-3. Run `tests/manual_clean_install.py` against the app archive. This tests a fresh
+3. Run `tests/manual/clean_install.py` against the app archive. This tests a fresh
    XDG directory/runtime on the host, **not** a fresh OS or desktop.
-   Run `.venv/bin/python tests/manual_source_install.py` for an isolated source
+   Run `.venv/bin/python tests/manual/source_install.py` for an isolated source
    snapshot, runtime check and launcher registration (also host-library based).
 4. On a separate clean Omarchy session, follow both documented installation routes
    separately. For Git installation, run `./install.sh` before enabling.

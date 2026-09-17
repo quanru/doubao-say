@@ -24,8 +24,8 @@ jobs:
       - name: Statically check and test Pages history builder
         run: |
           node --check scripts/build-pages-report.mjs
-          node --check tests/test_pages_report_history.mjs
-          node --test tests/test_pages_report_history.mjs
+          node --check tests/contracts/test_pages_report_history.mjs
+          node --test tests/contracts/test_pages_report_history.mjs
 
   core-compatibility:
     name: Core / Python ${{ matrix.python }}
@@ -47,13 +47,13 @@ jobs:
         run: python -m pip install -r packaging/runtime-requirements.txt
       - name: Test platform-independent behavior
         env:
-          PYTHONPATH: src:tests
+          PYTHONPATH: src:.
         run: |
           python -m unittest -v \
-            tests.test_delivery tests.test_gesture tests.test_input_worker \
-            tests.test_manual_safety tests.test_plugin_launch tests.test_polish \
-            tests.test_polish_preview tests.test_reasoning tests.test_settings \
-            tests.test_updates tests.test_version_check tests.test_voice_motion
+            tests.unit.test_delivery tests.unit.test_gesture tests.unit.test_input_worker \
+            tests.unit.test_manual_safety tests.unit.test_plugin_launch tests.unit.test_polish \
+            tests.unit.test_polish_preview tests.unit.test_reasoning tests.unit.test_settings \
+            tests.unit.test_updates tests.contracts.test_version_check tests.unit.test_voice_motion
           python -m compileall -q src/doubao_input packaging
 
   full-suite:
@@ -97,7 +97,7 @@ jobs:
           python-version: "3.11"
       - name: Validate version and package tests
         env:
-          PYTHONPATH: src:packaging
+          PYTHONPATH: src:.
         run: |
           python packaging/version_check.py
-          python -m unittest -v tests.test_release tests.test_marketplace tests.test_version_check
+          python -m unittest -v tests.contracts.test_release tests.contracts.test_marketplace tests.contracts.test_version_check

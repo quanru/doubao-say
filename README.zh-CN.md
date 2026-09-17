@@ -256,7 +256,7 @@ cd "${XDG_CONFIG_HOME:-$HOME/.config}/omarchy/plugins/md.lifeos.doubao-say"
 旧 Debian 打包脚本不属于本次候选版的发布路径，尚未完成新版安装验收。
 
 ```sh
-PYTHONPATH=src .venv/bin/python -m unittest discover -s tests -v
+make test
 .venv/bin/python -m compileall -q src/doubao_input packaging
 .venv/bin/python -m pip wheel -w dist/wheelhouse -r packaging/runtime-requirements.txt
 python3 packaging/build-release.py
@@ -267,7 +267,7 @@ python3 packaging/build-release.py
 还会检查这两种界面。运行期间请勿打字：
 
 ```sh
-timeout --kill-after=5s 50s env PYTHONPATH=src python3 tests/manual_x11.py --run
+timeout --kill-after=5s 50s env PYTHONPATH=src python3 tests/manual/x11.py --run
 ```
 
 需要 Xephyr、xfwm4、xfce4-terminal、xdotool、xclip 和 `/dev/uinput` 权限。

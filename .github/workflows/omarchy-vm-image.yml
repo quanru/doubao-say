@@ -5,11 +5,11 @@ on:
   push:
     branches: [ci/midscene-e2e]
     paths:
-      - "tests/midscene/.rebuild-omarchy-vm"
-      - "tests/midscene/install-omarchy-vm.sh"
-      - "tests/midscene/prepare-omarchy-host.sh"
-      - "tests/midscene/publish-omarchy-vm.sh"
-      - "tests/midscene/omarchy-vm.env"
+      - "tests/e2e/.rebuild-omarchy-vm"
+      - "tests/e2e/install-omarchy-vm.sh"
+      - "tests/e2e/prepare-omarchy-host.sh"
+      - "tests/e2e/publish-omarchy-vm.sh"
+      - "tests/e2e/omarchy-vm.env"
 
 permissions:
   contents: read
@@ -32,7 +32,7 @@ jobs:
       - uses: oras-project/setup-oras@1d808f7d7f6995cc68b7bf507bfe5c5446e1dc9d # v2.0.1
 
       - name: Install Omarchy from the verified official ISO
-        run: tests/midscene/install-omarchy-vm.sh
+        run: tests/e2e/install-omarchy-vm.sh
 
       - name: Sign in to GitHub Container Registry
         run: echo "$GHCR_TOKEN" | oras login ghcr.io --username "$GITHUB_ACTOR" --password-stdin
@@ -40,7 +40,7 @@ jobs:
           GHCR_TOKEN: ${{ github.token }}
 
       - name: Publish versioned Omarchy base VM
-        run: tests/midscene/publish-omarchy-vm.sh
+        run: tests/e2e/publish-omarchy-vm.sh
 
       - name: Upload installer evidence
         if: always()
