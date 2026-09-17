@@ -11,6 +11,7 @@ cases:
       - aiAssert: The current Doubao Say step is Trigger key.
       - aiAct: Stay on Trigger key. Scroll inside the light-gray central content panel until the Voice polishing heading and its controls are visible.
       - aiAct: On Trigger key, click Test endpoint in the visible Voice polishing section and wait for the endpoint result.
+      - aiAct: If needed, scroll down slightly inside the central content panel until Synthetic endpoint response is visible below Endpoint works. Keep both results on screen.
       - aiAssert: A visible message says the endpoint works and includes Synthetic endpoint response.
       - aiAct: Click Next in the fixed top navigation exactly once. Do not click Next a second time.
       - aiAssert: The current Doubao Say step is Voice test.
