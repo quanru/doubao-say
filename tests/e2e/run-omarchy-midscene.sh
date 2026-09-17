@@ -5,7 +5,7 @@ readonly ROOT_DIR="$PWD"
 readonly WORK_DIR="$ROOT_DIR/.midscene-omarchy"
 readonly HARNESS_DIR="$WORK_DIR/omarchy-iso"
 # shellcheck source=omarchy-vm.env
-source "$ROOT_DIR/tests/midscene/omarchy-vm.env"
+source "$ROOT_DIR/tests/e2e/omarchy-vm.env"
 readonly ISO_PATH="$WORK_DIR/omarchy-${OMARCHY_ISO_VERSION}.iso"
 readonly BASE_DIR="$HARNESS_DIR/test-runs/omarchy-${OMARCHY_ISO_VERSION}"
 readonly SSH_KEY="$BASE_DIR/id_ed25519"
@@ -13,7 +13,7 @@ readonly SSH_PORT=2222
 readonly PLUGIN_DIR="/home/omarchy/.config/omarchy/plugins/md.lifeos.doubao-say"
 readonly SHIM_DIR="$(mktemp -d)"
 readonly PLUGIN_ARCHIVE="$(mktemp /tmp/doubao-say-omarchy-plugin-XXXXXX.tar)"
-export NODE_OPTIONS="${NODE_OPTIONS:-} --require=$ROOT_DIR/tests/midscene/node_modules/@computer-use/libnut/dist/import_libnut.js"
+export NODE_OPTIONS="${NODE_OPTIONS:-} --require=$ROOT_DIR/tests/e2e/node_modules/@computer-use/libnut/dist/import_libnut.js"
 
 VM_PID=""
 
@@ -112,7 +112,7 @@ ssh_guest true
 echo "Creating the Omarchy plugin test payload."
 tar -C "$ROOT_DIR" --exclude='__pycache__' -cf "$PLUGIN_ARCHIVE" \
   LICENSE README.md manifest.json install.sh setup-omarchy.sh start.sh \
-  omarchy src tests/midscene/gtk_fixture.py
+  omarchy src tests/e2e/gtk_fixture.py
 
 for _copy_attempt in 1 2 3 4 5; do
   if scp -i "$SSH_KEY" -P "$SSH_PORT" \
@@ -161,7 +161,7 @@ start_guest_fixture() {
     export PYTHONPATH='$PLUGIN_DIR/src'; \
     export XDG_CONFIG_HOME=/tmp/doubao-midscene-config; \
     export PYTHONDONTWRITEBYTECODE=1; \
-    nohup setsid python3 '$PLUGIN_DIR/tests/midscene/gtk_fixture.py' \
+    nohup setsid python3 '$PLUGIN_DIR/tests/e2e/gtk_fixture.py' \
       >/tmp/doubao-midscene-fixture.log 2>&1 </dev/null & \
     echo \$! >/tmp/doubao-midscene-fixture.pid"
 
@@ -183,7 +183,7 @@ ATTEMPT_LOG=""
 for _test_attempt in 1 2 3; do
   start_guest_fixture
   ATTEMPT_LOG="/tmp/omarchy-midscene-attempt-${_test_attempt}.log"
-  if npm --prefix tests/midscene test -- \
+  if npm --prefix tests/e2e test -- \
       --project omarchy-onboarding 2>&1 | tee "$ATTEMPT_LOG"; then
     MIDSCENE_PASSED=true
     break
@@ -228,7 +228,7 @@ done
 MENU_PASSED=false
 for _test_attempt in 1 2 3; do
   ATTEMPT_LOG="/tmp/omarchy-menu-midscene-attempt-${_test_attempt}.log"
-  if OMARCHY_SSH_KEY="$SSH_KEY" npm --prefix tests/midscene test -- \
+  if OMARCHY_SSH_KEY="$SSH_KEY" npm --prefix tests/e2e test -- \
       --project omarchy-shell 2>&1 | tee "$ATTEMPT_LOG"; then
     MENU_PASSED=true
     break

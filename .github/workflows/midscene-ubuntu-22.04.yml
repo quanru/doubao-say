@@ -9,11 +9,11 @@ on:
       - ".github/workflows/deploy-midscene-report.yml"
       - "scripts/build-pages-report.mjs"
       - "tests/test_pages_report_history.mjs"
-      - "tests/midscene/package.json"
-      - "tests/midscene/package-lock.json"
-      - "tests/midscene/gtk_fixture.py"
-      - "tests/midscene/cases/**"
-      - "tests/midscene/midscene.config.ts"
+      - "tests/e2e/package.json"
+      - "tests/e2e/package-lock.json"
+      - "tests/e2e/gtk_fixture.py"
+      - "tests/e2e/cases/**"
+      - "tests/e2e/midscene.config.ts"
       - "src/**"
   pull_request:
     branches: [main]
@@ -22,11 +22,11 @@ on:
       - ".github/workflows/deploy-midscene-report.yml"
       - "scripts/build-pages-report.mjs"
       - "tests/test_pages_report_history.mjs"
-      - "tests/midscene/package.json"
-      - "tests/midscene/package-lock.json"
-      - "tests/midscene/gtk_fixture.py"
-      - "tests/midscene/cases/**"
-      - "tests/midscene/midscene.config.ts"
+      - "tests/e2e/package.json"
+      - "tests/e2e/package-lock.json"
+      - "tests/e2e/gtk_fixture.py"
+      - "tests/e2e/cases/**"
+      - "tests/e2e/midscene.config.ts"
       - "src/**"
   workflow_dispatch:
 
@@ -63,7 +63,7 @@ jobs:
         with:
           node-version: "22"
           cache: npm
-          cache-dependency-path: tests/midscene/package-lock.json
+          cache-dependency-path: tests/e2e/package-lock.json
 
       - name: Require Midscene model configuration
         run: |
@@ -107,7 +107,7 @@ jobs:
             python3-cairo python3-gi x11-xserver-utils xdg-utils xvfb
 
       - name: Install pinned Midscene dependencies
-        working-directory: tests/midscene
+        working-directory: tests/e2e
         # sharp's platform packages are pinned explicitly. Skipping lifecycle
         # scripts avoids an npm ordering bug that tries to build sharp before
         # those prebuilt packages are linked.
@@ -122,7 +122,7 @@ jobs:
           exit 1
 
       - name: Run Ubuntu 22.04 Midscene E2E
-        working-directory: tests/midscene
+        working-directory: tests/e2e
         env:
           NODE_OPTIONS: --dns-result-order=ipv4first --no-network-family-autoselection --require=./node_modules/@computer-use/libnut/dist/import_libnut.js
         run: |
@@ -155,7 +155,7 @@ jobs:
         uses: actions/upload-artifact@043fb46d1a93c77aae656e7c1c64a875d1fc6a0a # v7.0.1
         with:
           name: midscene-ubuntu-22.04-e2e-report
-          path: tests/midscene/midscene_run/
+          path: tests/e2e/midscene_run/
           if-no-files-found: warn
           retention-days: 7
 

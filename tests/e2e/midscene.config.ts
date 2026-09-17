@@ -83,7 +83,7 @@ const setup = defineProjectSetup<DesktopContext>({
       await sleep(4000);
     } else {
       const root = resolve(import.meta.dirname, '../..');
-      const fixture = spawn('/usr/bin/python3', ['tests/midscene/gtk_fixture.py'], {
+      const fixture = spawn('/usr/bin/python3', ['tests/e2e/gtk_fixture.py'], {
         cwd: root, detached: true, stdio: ['ignore', 'pipe', 'pipe'],
         env: {
           ...process.env, GDK_BACKEND: 'x11', GSK_RENDERER: 'cairo', GTK_A11Y: 'none',

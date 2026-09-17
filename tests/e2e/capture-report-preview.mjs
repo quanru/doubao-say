@@ -9,7 +9,7 @@ import {
 } from '../../scripts/omarchy-shell-evidence.mjs';
 
 const reportDirectory = path.resolve(
-  process.argv[2] || 'tests/midscene/midscene_run',
+  process.argv[2] || 'tests/e2e/midscene_run',
 );
 const outputFile = path.resolve(
   process.argv[3] || path.join(reportDirectory, 'report-preview.png'),

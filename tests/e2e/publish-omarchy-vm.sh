@@ -5,7 +5,7 @@ readonly ROOT_DIR="$PWD"
 readonly WORK_DIR="$ROOT_DIR/.midscene-omarchy"
 
 # shellcheck source=omarchy-vm.env
-source "$ROOT_DIR/tests/midscene/omarchy-vm.env"
+source "$ROOT_DIR/tests/e2e/omarchy-vm.env"
 
 readonly BASE_DIR="$WORK_DIR/omarchy-iso/test-runs/omarchy-${OMARCHY_ISO_VERSION}"
 readonly BUNDLE_DIR="$WORK_DIR/registry"

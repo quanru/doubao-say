@@ -5,11 +5,11 @@ set -euo pipefail
 # dressed up with a few Omarchy files. The official ISO acceptance harness
 # drives the installer through QEMU screenshots, OCR and virtual keystrokes.
 readonly WORK_DIR="$PWD/.midscene-omarchy"
-source "$PWD/tests/midscene/omarchy-vm.env"
+source "$PWD/tests/e2e/omarchy-vm.env"
 readonly ISO_PATH="$WORK_DIR/omarchy-${OMARCHY_ISO_VERSION}.iso"
 readonly HARNESS_DIR="$WORK_DIR/omarchy-iso"
 
-tests/midscene/prepare-omarchy-host.sh
+tests/e2e/prepare-omarchy-host.sh
 df -h "$WORK_DIR"
 
 curl --fail --location --retry 5 --retry-all-errors \

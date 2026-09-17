@@ -6,7 +6,7 @@ readonly WORK_DIR="$ROOT_DIR/.midscene-omarchy"
 readonly HARNESS_DIR="$WORK_DIR/omarchy-iso"
 
 # shellcheck source=omarchy-vm.env
-source "$ROOT_DIR/tests/midscene/omarchy-vm.env"
+source "$ROOT_DIR/tests/e2e/omarchy-vm.env"
 
 if [[ ! -c /dev/kvm ]]; then
   echo "::error::This GitHub runner does not expose /dev/kvm; a real Omarchy VM cannot be started."
