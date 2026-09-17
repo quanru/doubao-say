@@ -123,6 +123,8 @@ jobs:
 
       - name: Run Ubuntu 22.04 Midscene E2E
         working-directory: tests/midscene
+        env:
+          NODE_OPTIONS: --dns-result-order=ipv4first --no-network-family-autoselection --require=./node_modules/@computer-use/libnut/dist/import_libnut.js
         run: |
           set -o pipefail
           midscene_passed=false

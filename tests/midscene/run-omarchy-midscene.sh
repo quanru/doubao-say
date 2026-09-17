@@ -13,6 +13,7 @@ readonly SSH_PORT=2222
 readonly PLUGIN_DIR="/home/omarchy/.config/omarchy/plugins/md.lifeos.doubao-say"
 readonly SHIM_DIR="$(mktemp -d)"
 readonly PLUGIN_ARCHIVE="$(mktemp /tmp/doubao-say-omarchy-plugin-XXXXXX.tar)"
+export NODE_OPTIONS="${NODE_OPTIONS:-} --require=$ROOT_DIR/tests/midscene/node_modules/@computer-use/libnut/dist/import_libnut.js"
 
 VM_PID=""
 
