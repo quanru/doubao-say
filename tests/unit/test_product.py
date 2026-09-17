@@ -129,7 +129,7 @@ class ProductTest(TestCase):
             "raw transcript", app.settings, "key", app._polish_finished,
             progress=app._polish_progress)
 
-    def test_polishing_overlay_starts_with_labeled_original_text(self):
+    def test_polishing_overlay_keeps_status_separate_from_original_text(self):
         app = polishing_app(_setup_session=Mock(), settings=Settings(polish_enabled=True),
             recent=RecentResult(), _control=Mock(), _overlay=Mock(), _target="target",
             _enter_after_paste=False, _polish_context=None, _polisher=Mock(),
@@ -140,8 +140,8 @@ class ProductTest(TestCase):
         app._setup_session.complete_voice.return_value = False
         app._polisher.busy = False
         DoubaoInputApp._do_paste(app, "raw transcript")
-        app._overlay.show.assert_called_once_with("Polishing…")
-        app._overlay.set_text.assert_called_once_with("Polishing · raw transcript")
+        app._overlay.show_polishing.assert_called_once_with("raw transcript")
+        app._overlay.set_text.assert_not_called()
 
     def test_trigger_cancels_polishing_and_uses_original(self):
         app = polishing_app(_polish_context=("raw", "target", False),

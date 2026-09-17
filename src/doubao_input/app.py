@@ -480,7 +480,7 @@ class DoubaoInputApp(Gtk.Application):
                 self.recent.keep(text, "polishing")
                 self._control.set_result(text, tr("Polishing… press the trigger to use the original",
                                                   "正在润色…再次按快捷键可直接使用原文"))
-                self._overlay.show(tr("Polishing…", "正在润色…"))
+                self._overlay.show_polishing(text)
                 self._polish_context = (text, self._target, send_enter)
                 if getattr(self, "_polish_mode", None) == "pre" and self._preview_polish.inflight == text and self._polisher.busy:
                     self._polish_mode = "final"
@@ -492,7 +492,6 @@ class DoubaoInputApp(Gtk.Application):
                 self._polisher.cancel()
                 self._polish_mode = "final"
                 logger.info("Starting final polish request")
-                self._overlay.set_text(tr("Polishing · ", "润色中 · ") + text)
                 self._polisher.start(text, self.settings, api_key, self._polish_finished,
                                      progress=self._polish_progress)
                 return
