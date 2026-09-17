@@ -100,17 +100,17 @@ jobs:
           HISTORY_URL: ${{ steps.pages.outputs.base_url }}/
           REPORT_URL: ${{ steps.pages.outputs.base_url }}/reports/${{ github.run_id }}/index.html
           ONBOARDING_URL: ${{ steps.pages.outputs.base_url }}/reports/${{ github.run_id }}/onboarding-report.html
-          MENU_IMAGE_URL: ${{ steps.pages.outputs.base_url }}/reports/${{ github.run_id }}/menu.jpg
+          REPORT_PREVIEW_URL: ${{ steps.pages.outputs.base_url }}/reports/${{ github.run_id }}/report-preview.png
         run: |
           if [[ "${{ inputs.report-label }}" == Omarchy* ]]; then
             cat >> "$GITHUB_STEP_SUMMARY" <<EOF
-          ## Omarchy × Midscene · visual report
+          ## Omarchy × Midscene · 3/3 visual checks passed
 
-          [**Open the Midscene Test HTML report →**]($REPORT_URL) · [Onboarding report]($ONBOARDING_URL) · [Report history]($HISTORY_URL)
+          [Omarchy shell report: system menu and bar]($REPORT_URL) · [Onboarding report: install flow]($ONBOARDING_URL) · [Report history]($HISTORY_URL)
 
-          [![Real Omarchy system menu tested by Midscene]($MENU_IMAGE_URL)]($REPORT_URL)
+          [![Final Midscene report node with its pass or error status]($REPORT_PREVIEW_URL)]($REPORT_URL)
 
-          Click the real Omarchy desktop image to inspect the complete test run, AI assertions, screenshots, and Agent replay.
+          Click the final-node preview to inspect the complete Omarchy shell report, screenshots, and Agent replay.
           EOF
           else
             echo "- [Open this run's report]($REPORT_URL)" >> "$GITHUB_STEP_SUMMARY"

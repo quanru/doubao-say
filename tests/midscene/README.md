@@ -55,8 +55,8 @@ Omarchy menu and bar; `cases/omarchy-shell.yaml` keeps the three pixel-level
 assertions explicit. Run `npm run nodes` in this directory to regenerate the
 Node reference, or `npm test -- --project ubuntu` on a prepared Linux desktop.
 Each invocation writes a unified Midscene Test HTML report under
-`midscene_run/report/`; CI publishes those reports and the Omarchy screenshot
-report, with its real desktop screenshot as the CI entrance image.
+`midscene_run/report/`; CI publishes those reports and renders the final shell
+report node as its entrance image, including the node's pass or error status.
 
 The Ubuntu stage maps the real GTK onboarding window inside the
 headless Midscene desktop. Its synthetic fixture starts signed out, opens an
