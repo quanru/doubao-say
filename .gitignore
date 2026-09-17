@@ -94,8 +94,8 @@ settings.json
 /backups/
 /.midscene-omarchy/
 /.midscene-config/
-/tests/midscene/midscene_run/
-/tests/midscene/node_modules/
+/tests/e2e/midscene_run/
+/tests/e2e/node_modules/
 *.bak
 *.orig
 *.rej

@@ -1,8 +1,20 @@
 #!/usr/bin/env node
 
-import { copyFile, mkdir, readFile, readdir, writeFile } from 'node:fs/promises';
+import {
+  copyFile,
+  mkdir,
+  readFile,
+  readdir,
+  writeFile,
+} from 'node:fs/promises';
 import path from 'node:path';
 import process from 'node:process';
+import {
+  extractShellEvidence,
+  findHtmlFiles,
+  reportDumps,
+  testRunDump,
+} from './omarchy-shell-evidence.mjs';
 
 const MANIFEST_VERSION = 1;
 
@@ -53,27 +65,8 @@ function normalizeBaseUrl(value) {
   return url;
 }
 
-async function findHtmlFiles(directory) {
-  const results = [];
-  async function visit(current) {
-    for (const entry of await readdir(current, { withFileTypes: true })) {
-      const item = path.join(current, entry.name);
-      if (entry.isDirectory()) {
-        await visit(item);
-      } else if (entry.isFile() && entry.name.endsWith('.html')) {
-        results.push(item);
-      }
-    }
-  }
-  await visit(directory);
-  return results;
-}
-
 function collectModelUsage(reportHtml) {
   const calls = new Map();
-  const dumps = reportHtml.matchAll(
-    /<script\s+type=["']midscene_web_dump["'][^>]*>\s*(\{[\s\S]*?)<\/script>/g,
-  );
 
   function visit(value) {
     if (Array.isArray(value)) {
@@ -89,48 +82,16 @@ function collectModelUsage(reportHtml) {
       if (typeof callId === 'string' && !calls.has(callId)) {
         calls.set(callId, {
           durationMs: Number.isFinite(usage.time_cost) ? usage.time_cost : null,
-          tokens: Number.isFinite(usage.total_tokens) ? usage.total_tokens : null,
+          tokens: Number.isFinite(usage.total_tokens)
+            ? usage.total_tokens
+            : null,
         });
       }
     }
     Object.values(value).forEach(visit);
   }
 
-  function normalizeJsonControlCharacters(source) {
-    let normalized = '';
-    let insideString = false;
-    let escaped = false;
-    for (const character of source) {
-      if (!insideString) {
-        normalized += character;
-        if (character === '"') insideString = true;
-        continue;
-      }
-      if (escaped) {
-        normalized += character;
-        escaped = false;
-      } else if (character === '\\') {
-        normalized += character;
-        escaped = true;
-      } else if (character === '"') {
-        normalized += character;
-        insideString = false;
-      } else if (character.charCodeAt(0) <= 0x1f) {
-        normalized += `\\u${character.charCodeAt(0).toString(16).padStart(4, '0')}`;
-      } else {
-        normalized += character;
-      }
-    }
-    return normalized;
-  }
-
-  for (const match of dumps) {
-    try {
-      visit(JSON.parse(normalizeJsonControlCharacters(match[1])));
-    } catch (error) {
-      throw new Error(`Cannot parse embedded Midscene report data: ${error.message}`);
-    }
-  }
+  for (const dump of reportDumps(reportHtml)) visit(dump);
 
   const durations = [...calls.values()]
     .map((call) => call.durationMs)
@@ -141,7 +102,10 @@ function collectModelUsage(reportHtml) {
   return {
     modelCallCount: calls.size,
     averageDurationMs: durations.length
-      ? Math.round(durations.reduce((sum, duration) => sum + duration, 0) / durations.length)
+      ? Math.round(
+          durations.reduce((sum, duration) => sum + duration, 0) /
+            durations.length,
+        )
       : null,
     tokenUsage: tokens.length
       ? tokens.reduce((sum, tokenCount) => sum + tokenCount, 0)
@@ -162,9 +126,19 @@ function validateHistoryManifest(manifest) {
       typeof report.runId !== 'string' ||
       !/^\d+$/.test(report.runId) ||
       report.reportPath !== `reports/${report.runId}/index.html` ||
-      typeof report.workflowUrl !== 'string'
+      typeof report.workflowUrl !== 'string' ||
+      (report.files !== undefined &&
+        (!Array.isArray(report.files) ||
+          report.files.some(
+            (file) =>
+              typeof file !== 'string' ||
+              !/^reports\/\d+\/[a-z0-9.-]+$/.test(file) ||
+              !file.startsWith(`reports/${report.runId}/`),
+          )))
     ) {
-      throw new Error('Existing Pages manifest contains an invalid report entry');
+      throw new Error(
+        'Existing Pages manifest contains an invalid report entry',
+      );
     }
   }
   return manifest;
@@ -177,7 +151,9 @@ async function fetchHistory(baseUrl) {
     return [];
   }
   if (!response.ok) {
-    throw new Error(`Cannot download existing manifest: HTTP ${response.status}`);
+    throw new Error(
+      `Cannot download existing manifest: HTTP ${response.status}`,
+    );
   }
   let manifest;
   try {
@@ -189,23 +165,28 @@ async function fetchHistory(baseUrl) {
 }
 
 async function restoreReport(baseUrl, siteDirectory, report) {
-  const response = await fetch(new URL(report.reportPath, baseUrl), {
-    redirect: 'follow',
-  });
-  if (!response.ok) {
-    throw new Error(
-      `Cannot restore report for run ${report.runId}: HTTP ${response.status}`,
-    );
+  for (const file of report.files ?? [report.reportPath]) {
+    const response = await fetch(new URL(file, baseUrl), {
+      redirect: 'follow',
+    });
+    if (!response.ok) {
+      throw new Error(
+        `Cannot restore report for run ${report.runId}: HTTP ${response.status}`,
+      );
+    }
+    const contentType = response.headers.get('content-type') ?? '';
+    if (
+      file.endsWith('.html') &&
+      !contentType.toLowerCase().includes('text/html')
+    ) {
+      throw new Error(
+        `Cannot restore report for run ${report.runId}: expected text/html, got ${contentType || 'no Content-Type'}`,
+      );
+    }
+    const destination = path.join(siteDirectory, file);
+    await mkdir(path.dirname(destination), { recursive: true });
+    await writeFile(destination, Buffer.from(await response.arrayBuffer()));
   }
-  const contentType = response.headers.get('content-type') ?? '';
-  if (!contentType.toLowerCase().includes('text/html')) {
-    throw new Error(
-      `Cannot restore report for run ${report.runId}: expected text/html, got ${contentType || 'no Content-Type'}`,
-    );
-  }
-  const destination = path.join(siteDirectory, report.reportPath);
-  await mkdir(path.dirname(destination), { recursive: true });
-  await writeFile(destination, Buffer.from(await response.arrayBuffer()));
 }
 
 function escapeHtml(value) {
@@ -293,21 +274,73 @@ export async function buildPagesReport(options) {
     throw new Error('Site output directory must be empty');
   }
 
-  const htmlFiles = await findHtmlFiles(reportDirectory);
-  if (htmlFiles.length !== 1) {
-    throw new Error(`Expected exactly one report HTML file, found ${htmlFiles.length}`);
+  const reportCandidates = await Promise.all(
+    (await findHtmlFiles(reportDirectory)).map(async (file) => ({
+      file,
+      html: await readFile(file, 'utf8'),
+    })),
+  );
+  const latestByProject = new Map();
+  for (const report of reportCandidates) {
+    report.run = testRunDump(report.html);
+    report.startedAt = Date.parse(report.run?.startedAt ?? '') || 0;
+    const projectKey =
+      report.run?.projects?.map((project) => project.name).join(',') ||
+      path.basename(report.file);
+    const previous = latestByProject.get(projectKey);
+    if (!previous || report.startedAt >= previous.startedAt) {
+      latestByProject.set(projectKey, report);
+    }
   }
-  const reportHtml = await readFile(htmlFiles[0], 'utf8');
-  const usage = collectModelUsage(reportHtml);
+  const htmlReports = [...latestByProject.values()].sort(
+    (left, right) => left.startedAt - right.startedAt,
+  );
+  if (htmlReports.length < 1 || htmlReports.length > 2) {
+    throw new Error(
+      `Expected reports for one or two projects, found ${htmlReports.length}`,
+    );
+  }
+  const shellReport = htmlReports.find((report) =>
+    report.html.includes('The Omarchy system menu is open'),
+  );
+  const checks = shellReport
+    ? extractShellEvidence(shellReport.html, { allowIncomplete: true })
+    : null;
+  const usage = collectModelUsage(
+    htmlReports.map((report) => report.html).join('\n'),
+  );
+  const result = htmlReports.reduce(
+    (total, report) => ({
+      passed: total.passed + (report.run?.summary?.passed ?? 0),
+      tests: total.tests + (report.run?.summary?.total ?? 0),
+    }),
+    { passed: 0, tests: 0 },
+  );
+  const isOmarchy = label.startsWith('Omarchy');
+  const reportPrefix = `reports/${runId}`;
+  const files = shellReport && htmlReports.length === 2
+    ? ['index.html', 'onboarding-report.html', 'report-preview.png'].map((name) => `${reportPrefix}/${name}`)
+    : [
+        `${reportPrefix}/index.html`,
+        ...(isOmarchy ? [`${reportPrefix}/report-preview.png`] : []),
+      ];
   const current = {
     runId,
     generatedAt,
     label,
-    successRate: 100,
-    testCount: 1,
+    successRate: result.tests
+      ? Math.round((result.passed / result.tests) * 100)
+      : checks
+        ? Math.round(
+            (checks.filter((check) => check.passed).length / checks.length) *
+              100,
+          )
+        : 0,
+    testCount: result.tests || htmlReports.length,
     ...usage,
     workflowUrl,
     reportPath: `reports/${runId}/index.html`,
+    files,
   };
 
   const history = (await fetchHistory(baseUrl))
@@ -319,9 +352,22 @@ export async function buildPagesReport(options) {
     await restoreReport(baseUrl, siteDirectory, report);
   }
 
-  const currentDestination = path.join(siteDirectory, current.reportPath);
-  await mkdir(path.dirname(currentDestination), { recursive: true });
-  await copyFile(htmlFiles[0], currentDestination);
+  const currentDirectory = path.join(siteDirectory, reportPrefix);
+  await mkdir(currentDirectory, { recursive: true });
+  if (shellReport && htmlReports.length === 2) {
+    const onboardingReport = htmlReports.find((report) => report !== shellReport);
+    await copyFile(shellReport.file, path.join(currentDirectory, 'index.html'));
+    await copyFile(onboardingReport.file, path.join(currentDirectory, 'onboarding-report.html'));
+    await copyFile(path.join(reportDirectory, 'report-preview.png'), path.join(currentDirectory, 'report-preview.png'));
+  } else {
+    await copyFile(htmlReports.at(-1).file, path.join(currentDirectory, 'index.html'));
+    if (isOmarchy) {
+      await copyFile(
+        path.join(reportDirectory, 'report-preview.png'),
+        path.join(currentDirectory, 'report-preview.png'),
+      );
+    }
+  }
 
   const reports = [current, ...history];
   const manifest = {

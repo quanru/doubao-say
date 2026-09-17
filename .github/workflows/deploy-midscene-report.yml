@@ -11,6 +11,11 @@ on:
         description: Distribution label shown in report history
         required: true
         type: string
+      run-result:
+        description: Result of the job that produced the report artifact
+        required: false
+        default: success
+        type: string
 
 jobs:
   deploy:
@@ -99,6 +104,43 @@ jobs:
         env:
           HISTORY_URL: ${{ steps.pages.outputs.base_url }}/
           REPORT_URL: ${{ steps.pages.outputs.base_url }}/reports/${{ github.run_id }}/index.html
+          ONBOARDING_URL: ${{ steps.pages.outputs.base_url }}/reports/${{ github.run_id }}/onboarding-report.html
+          REPORT_PREVIEW_URL: ${{ steps.pages.outputs.base_url }}/reports/${{ github.run_id }}/report-preview.png
+          PRODUCER_RESULT: ${{ inputs.run-result }}
         run: |
-          echo "- [Open this run's report]($REPORT_URL)" >> "$GITHUB_STEP_SUMMARY"
-          echo "- [Browse report history]($HISTORY_URL)" >> "$GITHUB_STEP_SUMMARY"
+          if [[ "${{ inputs.report-label }}" == Omarchy* ]]; then
+            SUCCESS_RATE=$(jq -r '.reports[0].successRate' "$RUNNER_TEMP/pages-site/reports/manifest.json")
+            HAS_SHELL_REPORT=false
+            if [[ -f "$RUNNER_TEMP/pages-site/reports/$GITHUB_RUN_ID/onboarding-report.html" ]]; then
+              HAS_SHELL_REPORT=true
+            fi
+
+            if [[ "$PRODUCER_RESULT" == "success" && "$SUCCESS_RATE" == "100" && "$HAS_SHELL_REPORT" == "true" ]]; then
+              TITLE="Omarchy × Midscene · passed"
+              RESULT_LINE="**3/3 shell visual checks and all published scenarios passed.**"
+            else
+              TITLE="Omarchy × Midscene · failure captured"
+              RESULT_LINE="**The producing job finished as ${PRODUCER_RESULT}; the latest completed cases are ${SUCCESS_RATE}% passing.**"
+            fi
+
+            if [[ "$HAS_SHELL_REPORT" == "true" ]]; then
+              REPORT_LINKS="[Omarchy shell report: system menu and bar]($REPORT_URL) · [Onboarding report: install flow]($ONBOARDING_URL) · [Report history]($HISTORY_URL)"
+            else
+              REPORT_LINKS="[Open the failed Midscene Test report]($REPORT_URL) · [Report history]($HISTORY_URL)"
+            fi
+
+            cat >> "$GITHUB_STEP_SUMMARY" <<EOF
+          ## $TITLE
+
+          $RESULT_LINE
+
+          $REPORT_LINKS
+
+          [![Final Midscene report node with its pass or error status]($REPORT_PREVIEW_URL)]($REPORT_URL)
+
+          Click the final-node preview to inspect the complete Omarchy shell report, screenshots, and Agent replay.
+          EOF
+          else
+            echo "- [Open this run's report]($REPORT_URL)" >> "$GITHUB_STEP_SUMMARY"
+            echo "- [Browse report history]($HISTORY_URL)" >> "$GITHUB_STEP_SUMMARY"
+          fi

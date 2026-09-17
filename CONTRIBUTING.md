@@ -20,10 +20,11 @@ make check
 ```
 
 Tests use temporary fake credentials. Unit tests must not record audio, access
-Doubao, send keyboard events or alter desktop configuration. Files named
-`manual_*.py` are opt-in live tests, never normal CI. Stop recording before any
-lifecycle test. Stop the normal app/plugin before fresh-login/onboarding tests;
-they share the production application ID to prevent duplicate overlays.
+Doubao, send keyboard events or alter desktop configuration. Files under
+`tests/manual/` are opt-in live checks, never normal CI. The complete test
+layout is documented in `tests/README.md`. Stop recording before any lifecycle
+test. Stop the normal app/plugin before fresh-login/onboarding tests; they share
+the production application ID to prevent duplicate overlays.
 
 ## Change boundaries
 
@@ -66,11 +67,11 @@ Always run opt-in desktop tests with a process-level timeout, for example:
 
 ```sh
 GTK_A11Y=none PYTHONPATH=src timeout --signal=TERM --kill-after=5s 35s \
-  dbus-run-session -- .venv/bin/python tests/manual_refactor_smoke.py
+  dbus-run-session -- .venv/bin/python tests/manual/refactor_smoke.py
 ```
 
 The smoke test also bounds event draining and has a 30-second kernel alarm.
 Do not drain GTK with an unbounded `while context.pending()` loop: recurring
-sources may keep the queue ready forever. Use `tests/manual_safety.py` and register
+sources may keep the queue ready forever. Use `tests/manual/safety.py` and register
 cleanup before assertions. Confirm the test process has exited after every run;
 a passing message alone is insufficient. A hard timeout is a failed test.

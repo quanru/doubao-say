@@ -8,14 +8,18 @@ on:
       - ".github/workflows/midscene-omarchy-4.0.3.yml"
       - ".github/workflows/deploy-midscene-report.yml"
       - "scripts/build-pages-report.mjs"
-      - "tests/test_pages_report_history.mjs"
-      - "tests/midscene/package.json"
-      - "tests/midscene/package-lock.json"
-      - "tests/midscene/gtk_fixture.py"
-      - "tests/midscene/e2e/**"
-      - "tests/midscene/run-omarchy-midscene.sh"
-      - "tests/midscene/restore-omarchy-vm.sh"
-      - "tests/midscene/omarchy-vm.env"
+      - "scripts/verify-omarchy-evidence.mjs"
+      - "scripts/omarchy-shell-evidence.mjs"
+      - "tests/contracts/test_pages_report_history.mjs"
+      - "tests/e2e/package.json"
+      - "tests/e2e/package-lock.json"
+      - "tests/e2e/gtk_fixture.py"
+      - "tests/e2e/capture-report-preview.mjs"
+      - "tests/e2e/cases/**"
+      - "tests/e2e/midscene.config.ts"
+      - "tests/e2e/run-omarchy-midscene.sh"
+      - "tests/e2e/restore-omarchy-vm.sh"
+      - "tests/e2e/omarchy-vm.env"
       - "src/**"
       - "manifest.json"
       - "install.sh"
@@ -28,14 +32,18 @@ on:
       - ".github/workflows/midscene-omarchy-4.0.3.yml"
       - ".github/workflows/deploy-midscene-report.yml"
       - "scripts/build-pages-report.mjs"
-      - "tests/test_pages_report_history.mjs"
-      - "tests/midscene/package.json"
-      - "tests/midscene/package-lock.json"
-      - "tests/midscene/gtk_fixture.py"
-      - "tests/midscene/e2e/**"
-      - "tests/midscene/run-omarchy-midscene.sh"
-      - "tests/midscene/restore-omarchy-vm.sh"
-      - "tests/midscene/omarchy-vm.env"
+      - "scripts/verify-omarchy-evidence.mjs"
+      - "scripts/omarchy-shell-evidence.mjs"
+      - "tests/contracts/test_pages_report_history.mjs"
+      - "tests/e2e/package.json"
+      - "tests/e2e/package-lock.json"
+      - "tests/e2e/gtk_fixture.py"
+      - "tests/e2e/capture-report-preview.mjs"
+      - "tests/e2e/cases/**"
+      - "tests/e2e/midscene.config.ts"
+      - "tests/e2e/run-omarchy-midscene.sh"
+      - "tests/e2e/restore-omarchy-vm.sh"
+      - "tests/e2e/omarchy-vm.env"
       - "src/**"
       - "manifest.json"
       - "install.sh"
@@ -54,7 +62,7 @@ concurrency:
 
 jobs:
   omarchy-vm:
-    name: Midscene onboarding
+    name: Midscene onboarding and shell visuals
     if: github.event_name != 'pull_request' || github.event.pull_request.head.repo.full_name == github.repository
     runs-on: ubuntu-latest
     timeout-minutes: 70
@@ -66,6 +74,8 @@ jobs:
       MIDSCENE_MODEL_REASONING_ENABLED: ${{ secrets.MIDSCENE_MODEL_REASONING_ENABLED }}
       MIDSCENE_COMPUTER_HEADLESS_LINUX: "true"
       MIDSCENE_REPLANNING_CYCLE_LIMIT: "40"
+    outputs:
+      report-artifact-id: ${{ steps.report.outputs.artifact-id }}
     steps:
       - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
         with:
@@ -103,22 +113,33 @@ jobs:
           GHCR_TOKEN: ${{ github.token }}
 
       - name: Restore prebuilt Omarchy VM
-        run: tests/midscene/restore-omarchy-vm.sh
+        run: tests/e2e/restore-omarchy-vm.sh
 
       - uses: actions/setup-node@249970729cb0ef3589644e2896645e5dc5ba9c38 # v6.5.0
         with:
           node-version: "22"
           cache: npm
-          cache-dependency-path: tests/midscene/package-lock.json
+          cache-dependency-path: tests/e2e/package-lock.json
 
       - name: Install Midscene and VNC bridge
         run: |
           sudo apt-get install -y --no-install-recommends \
             fluxbox tigervnc-viewer x11-xserver-utils xvfb
-          npm --prefix tests/midscene ci --include=optional --ignore-scripts
+          for attempt in 1 2 3; do
+            if npm --prefix tests/e2e ci --include=optional --ignore-scripts; then
+              exit 0
+            fi
+            echo "npm install attempt $attempt failed; retrying." >&2
+            sleep 10
+          done
+          exit 1
 
       - name: Run real Omarchy Midscene E2E
-        run: tests/midscene/run-omarchy-midscene.sh
+        run: tests/e2e/run-omarchy-midscene.sh
+
+      - name: Capture the final report node for the CI summary
+        if: always()
+        run: node tests/e2e/capture-report-preview.mjs
 
       - name: Upload installer evidence
         if: always()
@@ -130,19 +151,25 @@ jobs:
           retention-days: 3
 
       - name: Upload Omarchy Midscene report
+        id: report
         if: always()
         uses: actions/upload-artifact@043fb46d1a93c77aae656e7c1c64a875d1fc6a0a # v7.0.1
         with:
           name: omarchy-midscene-e2e-report
-          path: tests/midscene/midscene_run/
+          path: tests/e2e/midscene_run/
           if-no-files-found: warn
           retention-days: 7
+
+      - name: Verify visual evidence before publishing
+        if: success()
+        run: node scripts/verify-omarchy-evidence.mjs tests/e2e/midscene_run
 
   pages-report:
     name: GitHub Pages report
     needs: omarchy-vm
     if: >-
-      needs.omarchy-vm.result == 'success' &&
+      always() &&
+      needs.omarchy-vm.outputs.report-artifact-id != '' &&
       github.event_name != 'pull_request' &&
       github.ref_name == vars.PAGES_REPORT_BRANCH
     permissions:
@@ -154,3 +181,4 @@ jobs:
     with:
       artifact-name: omarchy-midscene-e2e-report
       report-label: Omarchy 4.0.3
+      run-result: ${{ needs.omarchy-vm.result }}
