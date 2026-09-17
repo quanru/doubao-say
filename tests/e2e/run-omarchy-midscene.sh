@@ -14,7 +14,6 @@ readonly PLUGIN_DIR="/home/omarchy/.config/omarchy/plugins/md.lifeos.doubao-say"
 readonly SHIM_DIR="$(mktemp -d)"
 readonly PLUGIN_ARCHIVE="$(mktemp /tmp/doubao-say-omarchy-plugin-XXXXXX.tar)"
 readonly MODEL_TEST_ATTEMPTS=4
-readonly MODEL_NETWORK_FAILURE_PATTERN='Connection error|ETIMEDOUT|ECONNRESET|EAI_AGAIN|UND_ERR_CONNECT_TIMEOUT|failed to call AI model service'
 export NODE_OPTIONS="${NODE_OPTIONS:-} --require=$ROOT_DIR/tests/e2e/node_modules/@computer-use/libnut/dist/import_libnut.js"
 
 VM_PID=""
@@ -191,19 +190,19 @@ for ((_test_attempt = 1; _test_attempt <= MODEL_TEST_ATTEMPTS; _test_attempt++))
     break
   fi
 
-  if ! grep -Eq "$MODEL_NETWORK_FAILURE_PATTERN" "$ATTEMPT_LOG"; then
-    echo "Omarchy Midscene failed for a non-network reason; not retrying." >&2
+  if ! tests/e2e/is-transient-midscene-failure.sh "$ATTEMPT_LOG"; then
+    echo "Omarchy Midscene failed for a non-transient reason; not retrying." >&2
     exit 1
   fi
   if ((_test_attempt < MODEL_TEST_ATTEMPTS)); then
     retry_delay=$((15 * _test_attempt))
-    echo "Transient model connection failure on attempt $_test_attempt; retrying in $retry_delay seconds." >&2
+    echo "Transient model or connection failure on attempt $_test_attempt; retrying in $retry_delay seconds." >&2
     sleep "$retry_delay"
   fi
 done
 
 if [[ $MIDSCENE_PASSED != true ]]; then
-  echo "Omarchy Midscene exhausted $MODEL_TEST_ATTEMPTS model-connection attempts." >&2
+  echo "Omarchy Midscene exhausted $MODEL_TEST_ATTEMPTS transient-failure attempts." >&2
   exit 1
 fi
 
@@ -237,18 +236,18 @@ for ((_test_attempt = 1; _test_attempt <= MODEL_TEST_ATTEMPTS; _test_attempt++))
     break
   fi
 
-  if ! grep -Eq "$MODEL_NETWORK_FAILURE_PATTERN" "$ATTEMPT_LOG"; then
-    echo "Omarchy menu visual test failed for a non-network reason; not retrying." >&2
+  if ! tests/e2e/is-transient-midscene-failure.sh "$ATTEMPT_LOG"; then
+    echo "Omarchy menu visual test failed for a non-transient reason; not retrying." >&2
     exit 1
   fi
   if ((_test_attempt < MODEL_TEST_ATTEMPTS)); then
     retry_delay=$((15 * _test_attempt))
-    echo "Transient model connection failure on menu attempt $_test_attempt; retrying in $retry_delay seconds." >&2
+    echo "Transient model or connection failure on menu attempt $_test_attempt; retrying in $retry_delay seconds." >&2
     sleep "$retry_delay"
   fi
 done
 
 if [[ $MENU_PASSED != true ]]; then
-  echo "Omarchy menu visual test exhausted $MODEL_TEST_ATTEMPTS model-connection attempts." >&2
+  echo "Omarchy menu visual test exhausted $MODEL_TEST_ATTEMPTS transient-failure attempts." >&2
   exit 1
 fi

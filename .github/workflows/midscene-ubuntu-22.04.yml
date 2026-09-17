@@ -12,6 +12,7 @@ on:
       - "tests/e2e/package.json"
       - "tests/e2e/package-lock.json"
       - "tests/e2e/gtk_fixture.py"
+      - "tests/e2e/is-transient-midscene-failure.sh"
       - "tests/e2e/polish_fixture.py"
       - "tests/e2e/cases/**"
       - "tests/e2e/midscene.config.ts"
@@ -26,6 +27,7 @@ on:
       - "tests/e2e/package.json"
       - "tests/e2e/package-lock.json"
       - "tests/e2e/gtk_fixture.py"
+      - "tests/e2e/is-transient-midscene-failure.sh"
       - "tests/e2e/polish_fixture.py"
       - "tests/e2e/cases/**"
       - "tests/e2e/midscene.config.ts"
@@ -140,18 +142,18 @@ jobs:
               break
             fi
 
-            if ! grep -Eq 'Connection error|ETIMEDOUT|failed to call AI model service' "$attempt_log"; then
-              echo "Ubuntu Midscene failed for a non-network reason; not retrying." >&2
+            if ! ./is-transient-midscene-failure.sh "$attempt_log"; then
+              echo "Ubuntu Midscene failed for a non-transient reason; not retrying." >&2
               exit 1
             fi
             if [[ $test_attempt -lt 3 ]]; then
-              echo "Transient model connection failure on attempt ${test_attempt}; retrying in 10 seconds." >&2
+              echo "Transient model or connection failure on attempt ${test_attempt}; retrying in 10 seconds." >&2
               sleep 10
             fi
           done
 
           if [[ $midscene_passed != true ]]; then
-            echo "Ubuntu Midscene exhausted three model-connection attempts." >&2
+            echo "Ubuntu Midscene exhausted three transient-failure attempts." >&2
             exit 1
           fi
 
@@ -170,19 +172,19 @@ jobs:
               break
             fi
 
-            if ! grep -Eq 'Connection error|ETIMEDOUT|ECONNRESET|EAI_AGAIN|UND_ERR_CONNECT_TIMEOUT|failed to call AI model service' "$attempt_log"; then
-              echo "Ubuntu polishing Midscene failed for a non-network reason; not retrying." >&2
+            if ! ./is-transient-midscene-failure.sh "$attempt_log"; then
+              echo "Ubuntu polishing Midscene failed for a non-transient reason; not retrying." >&2
               exit 1
             fi
             if [[ $test_attempt -lt 4 ]]; then
               retry_delay=$((15 * test_attempt))
-              echo "Transient model connection failure on polishing attempt ${test_attempt}; retrying in ${retry_delay} seconds." >&2
+              echo "Transient model or connection failure on polishing attempt ${test_attempt}; retrying in ${retry_delay} seconds." >&2
               sleep "$retry_delay"
             fi
           done
 
           if [[ $polishing_passed != true ]]; then
-            echo "Ubuntu polishing Midscene exhausted four model-connection attempts." >&2
+            echo "Ubuntu polishing Midscene exhausted four transient-failure attempts." >&2
             exit 1
           fi
 
