@@ -99,17 +99,18 @@ jobs:
         env:
           HISTORY_URL: ${{ steps.pages.outputs.base_url }}/
           REPORT_URL: ${{ steps.pages.outputs.base_url }}/reports/${{ github.run_id }}/index.html
+          ONBOARDING_URL: ${{ steps.pages.outputs.base_url }}/reports/${{ github.run_id }}/onboarding-report.html
           MENU_IMAGE_URL: ${{ steps.pages.outputs.base_url }}/reports/${{ github.run_id }}/menu.jpg
         run: |
           if [[ "${{ inputs.report-label }}" == Omarchy* ]]; then
             cat >> "$GITHUB_STEP_SUMMARY" <<EOF
           ## Omarchy × Midscene · visual report
 
-          [**Open the interactive HTML showcase →**]($REPORT_URL) · [Report history]($HISTORY_URL)
+          [**Open the Midscene Test HTML report →**]($REPORT_URL) · [Onboarding report]($ONBOARDING_URL) · [Report history]($HISTORY_URL)
 
           [![Real Omarchy system menu tested by Midscene]($MENU_IMAGE_URL)]($REPORT_URL)
 
-          The showcase embeds the complete Midscene replay and includes the menu and vertical bar screenshots.
+          Click the real Omarchy desktop image to inspect the complete test run, AI assertions, screenshots, and Agent replay.
           EOF
           else
             echo "- [Open this run's report]($REPORT_URL)" >> "$GITHUB_STEP_SUMMARY"

@@ -111,7 +111,15 @@ jobs:
         # sharp's platform packages are pinned explicitly. Skipping lifecycle
         # scripts avoids an npm ordering bug that tries to build sharp before
         # those prebuilt packages are linked.
-        run: npm ci --include=optional --ignore-scripts
+        run: |
+          for attempt in 1 2 3; do
+            if npm ci --include=optional --ignore-scripts; then
+              exit 0
+            fi
+            echo "npm install attempt $attempt failed; retrying." >&2
+            sleep 10
+          done
+          exit 1
 
       - name: Run Ubuntu 22.04 Midscene E2E
         working-directory: tests/midscene

@@ -56,7 +56,7 @@ assertions explicit. Run `npm run nodes` in this directory to regenerate the
 Node reference, or `npm test -- --project ubuntu` on a prepared Linux desktop.
 Each invocation writes a unified Midscene Test HTML report under
 `midscene_run/report/`; CI publishes those reports and the Omarchy screenshot
-showcase.
+report, with its real desktop screenshot as the CI entrance image.
 
 The Ubuntu stage maps the real GTK onboarding window inside the
 headless Midscene desktop. Its synthetic fixture starts signed out, opens an
@@ -81,8 +81,8 @@ asserts that the rendered bar is vertical and docked to the left edge, and
 restores the original bar configuration. The HTML replay is included in the
 `omarchy-midscene-e2e-report` artifact. The Actions run summary shows the
 three visual verdicts directly. Successful runs on `main` publish a Pages
-showcase with the actual screenshots and an embedded interactive shell replay;
-the full onboarding replay remains available from the same page.
+entrance image that links directly to the Midscene Test shell report;
+the onboarding report is published alongside it.
 
 | Omarchy acceptance test today | Midscene visual check |
 | --- | --- |

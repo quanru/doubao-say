@@ -121,7 +121,14 @@ jobs:
         run: |
           sudo apt-get install -y --no-install-recommends \
             fluxbox tigervnc-viewer x11-xserver-utils xvfb
-          npm --prefix tests/midscene ci --include=optional --ignore-scripts
+          for attempt in 1 2 3; do
+            if npm --prefix tests/midscene ci --include=optional --ignore-scripts; then
+              exit 0
+            fi
+            echo "npm install attempt $attempt failed; retrying." >&2
+            sleep 10
+          done
+          exit 1
 
       - name: Run real Omarchy Midscene E2E
         run: tests/midscene/run-omarchy-midscene.sh
