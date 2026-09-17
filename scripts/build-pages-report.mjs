@@ -309,7 +309,7 @@ export async function buildPagesReport(options) {
     generatedAt,
     label,
     successRate: 100,
-    testCount: htmlFiles.length === 2 ? 3 : 1,
+    testCount: htmlFiles.length === 2 ? 2 : 1,
     ...usage,
     workflowUrl,
     reportPath: `reports/${runId}/index.html`,

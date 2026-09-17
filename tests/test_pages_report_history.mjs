@@ -124,7 +124,7 @@ test('publishes the shell test-run report directly with a CI entrance image', as
     options(reportDirectory, siteDirectory, server.url),
   );
 
-  assert.equal(manifest.reports[0].testCount, 3);
+  assert.equal(manifest.reports[0].testCount, 2);
   assert.equal(manifest.reports[0].files.length, 4);
   const publishedReport = await readFile(
     path.join(siteDirectory, 'reports', '200', 'index.html'),

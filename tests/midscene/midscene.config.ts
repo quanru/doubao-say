@@ -147,7 +147,26 @@ export default defineTestProject<DesktopContext>({
     { name: 'omarchy-shell', setup, files: { include: ['cases/omarchy-shell.yaml'] } },
   ],
   nodes: [
-    ...createMidsceneNodes<DesktopContext>({ agentClass: ComputerAgent, getAgent: ({ context }) => context.agent }),
+    ...createMidsceneNodes<DesktopContext>({
+      agentClass: ComputerAgent,
+      agentProvider: (() => {
+        const active = new Map<string, ComputerAgent>();
+        return {
+          getAgent(runId: string, { context }: { context: DesktopContext }) {
+            active.set(runId, context.agent);
+            return context.agent;
+          },
+          async releaseAgent(runId: string) {
+            const agent = active.get(runId);
+            if (!agent) throw new Error(`No Agent for Midscene case ${runId}`);
+            active.delete(runId);
+            await agent.destroy();
+            if (!agent.reportFile) throw new Error(`No Agent report for Midscene case ${runId}`);
+            return { reportPath: agent.reportFile };
+          },
+        };
+      })(),
+    }),
     openSystemMenu, closeSystemMenu, moveBarLeft,
   ],
 });
