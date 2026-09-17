@@ -108,7 +108,8 @@ jobs:
             libasound2 libatk-bridge2.0-0 libdrm2 libgbm1 libgtk-3-0 \
             libnotify4 libnss3 libpng16-16 libsecret-1-0 libx11-6 \
             libxinerama1 libxkbcommon-x11-0 libxss1 libxtst6 \
-            python3-cairo python3-gi x11-xserver-utils xdg-utils xvfb
+            python3-cairo python3-gi python3-tomli \
+            x11-xserver-utils xdg-utils xvfb
 
       - name: Install pinned Midscene dependencies
         working-directory: tests/e2e

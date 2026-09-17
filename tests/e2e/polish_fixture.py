@@ -1,7 +1,16 @@
 """Native polishing overlay fixture; no microphone, network, or input injection."""
 import signal
+import sys
 
 import gi
+
+# Ubuntu 22.04 supplies PyGObject for its system Python 3.10. The application
+# requires Python 3.11+, but this isolated fixture must use the system Python to
+# share GTK bindings, so provide the standard-library module through tomli.
+if sys.version_info < (3, 11):
+    import tomli
+
+    sys.modules["tomllib"] = tomli
 
 gi.require_version("Gtk", "4.0")
 from gi.repository import GLib, Gtk
