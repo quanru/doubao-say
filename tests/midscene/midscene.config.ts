@@ -64,6 +64,9 @@ const setup = defineProjectSetup<DesktopContext>({
     const shell = project.name === 'omarchy-shell';
     const agent = await agentForComputer({
       xvfbResolution: omarchy ? '1280x800x24' : '1280x960x24',
+      // libnut and the VNC viewer may still hold X11 connections while the
+      // Agent finalizes its report. Stop Xvfb only after this process exits.
+      keepXvfbAliveUntilProcessExit: true,
       aiContexts: shell
         ? { aiAssert: 'Inspect the real Omarchy desktop through VNC. Judge only visible pixels; do not infer success from commands or configuration.' }
         : { aiAct: `Test the English Doubao Say GTK onboarding window${omarchy ? ' inside a real Omarchy VM shown through VNC' : ''}. Interact only with Doubao Say and use visible labels.` },
@@ -79,7 +82,7 @@ const setup = defineProjectSetup<DesktopContext>({
       onTeardown(() => stop(viewer));
       await sleep(4000);
     } else {
-      const root = resolve(import.meta.dirname, '../../..');
+      const root = resolve(import.meta.dirname, '../..');
       const fixture = spawn('/usr/bin/python3', ['tests/midscene/gtk_fixture.py'], {
         cwd: root, detached: true, stdio: ['ignore', 'pipe', 'pipe'],
         env: {
