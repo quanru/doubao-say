@@ -2,7 +2,7 @@
 
 GitHub Actions exposes two distribution-named suites: `Ubuntu 22.04` and
 `Omarchy 4.0.3`. Both run for trusted pull requests and relevant pushes to
-`main`, and both execute the same shared onboarding acceptance flow.
+`main`. The Omarchy suite also checks the real desktop shell visually.
 
 The image-builder CI proves that a GitHub-hosted runner can install the exact
 official Omarchy ISO in a headless QEMU/KVM VM. It reuses Omarchy's own ISO
@@ -61,3 +61,26 @@ uploaded as a private workflow artifact for every run.
 The AI stage needs a multimodal model credential. Its `MIDSCENE_MODEL_*`
 configuration is stored only as GitHub Actions Secrets; tests contain only
 synthetic data.
+
+## Omarchy shell visual PoC
+
+After onboarding, the Omarchy job opens the real system menu through Omarchy's
+shell IPC and uses Midscene's VNC view to assert that **Shutdown** is readable
+and one menu row has a clean focus highlight. It then sets the bar to the left,
+asserts that the rendered bar is vertical and docked to the left edge, and
+restores the original bar configuration. The HTML replay is included in the
+`omarchy-midscene-e2e-report` artifact. The Actions run summary shows the
+three visual verdicts directly. Successful runs on `main` publish a Pages
+showcase with the actual screenshots and an embedded interactive shell replay;
+the full onboarding replay remains available from the same page.
+
+| Omarchy acceptance test today | Midscene visual check |
+| --- | --- |
+| `screen_contains "Shutdown"`: enlarge a `grim` image, run Tesseract, and grep for text | `agent.aiAssert` checks that Shutdown is legible in the rendered system menu |
+| `hyprctl -j layers` and `bar_is_vertical`: compare layer dimensions | `agent.aiAssert` checks the visible bar's shape and left-edge placement |
+| Standalone `grim` PNGs | Step-by-step HTML replay with assertions and screenshots |
+
+The SSH and `hyprctl` calls in this PoC set up the scene and wait for the menu;
+the three user-visible conclusions come from Midscene's image assertions. The
+guest runs Hyprland/Wayland; Midscene operates an X11 VNC viewer on the host.
+This demonstrates visual testing of a Wayland desktop through a VM bridge.

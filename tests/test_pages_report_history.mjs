@@ -1,5 +1,5 @@
 import assert from 'node:assert/strict';
-import { mkdtemp, mkdir, readFile, writeFile } from 'node:fs/promises';
+import { mkdir, mkdtemp, readFile, writeFile } from 'node:fs/promises';
 import http from 'node:http';
 import os from 'node:os';
 import path from 'node:path';
@@ -12,6 +12,33 @@ const fixtureHtml = `<!doctype html><html><body>report
 <script type="midscene_web_dump">{"message":"raw
 control character","usage":{"_midscene_call_id":"call-2","time_cost":3500,"total_tokens":180}}</script>
 </body></html>`;
+
+const shellPrompts = [
+  'The Omarchy system menu is open and Shutdown is readable.',
+  'Exactly one row in the open system menu is highlighted.',
+  'The Omarchy bar is visible on the left.',
+];
+const shellFixtureHtml = `<!doctype html><html><body>${shellPrompts
+  .map(
+    (prompt, index) => `
+<script type="midscene_web_dump">${JSON.stringify({
+      executions: [
+        {
+          tasks: [
+            {
+              status: 'finished',
+              subType: 'Assert',
+              param: { dataDemand: prompt },
+              output: true,
+              uiContext: { screenshot: { id: `image-${index}` } },
+            },
+          ],
+        },
+      ],
+    })}</script>
+<script type="midscene-image" data-id="image-${index}">data:image/jpeg;base64,/9j/2Q==</script>`,
+  )
+  .join('')}</body></html>`;
 
 async function fixtureDirectory(root) {
   const reportDirectory = path.join(root, 'artifact', 'report');
@@ -63,13 +90,59 @@ test('simulates a first deployment when Pages returns 404', async (context) => {
   assert.equal(manifest.reports[0].averageDurationMs, 3000);
   assert.equal(manifest.reports[0].modelCallCount, 2);
   assert.equal(manifest.reports[0].tokenUsage, 300);
-  const indexHtml = await readFile(path.join(siteDirectory, 'index.html'), 'utf8');
+  const indexHtml = await readFile(
+    path.join(siteDirectory, 'index.html'),
+    'utf8',
+  );
   assert.match(indexHtml, /Run ID/);
   assert.match(indexHtml, /Distribution/);
   assert.match(indexHtml, /Ubuntu 22\.04/);
   assert.equal(
-    await readFile(path.join(siteDirectory, 'reports', '200', 'index.html'), 'utf8'),
+    await readFile(
+      path.join(siteDirectory, 'reports', '200', 'index.html'),
+      'utf8',
+    ),
     fixtureHtml,
+  );
+});
+
+test('builds a visual showcase from onboarding and shell reports', async (context) => {
+  const root = await mkdtemp(path.join(os.tmpdir(), 'pages-omarchy-'));
+  const reportDirectory = await fixtureDirectory(root);
+  await writeFile(
+    path.join(reportDirectory, 'report', 'shell.html'),
+    shellFixtureHtml,
+  );
+  const siteDirectory = path.join(root, 'site');
+  const server = await startServer((_request, response) =>
+    response.writeHead(404).end(),
+  );
+  context.after(server.close);
+
+  const manifest = await buildPagesReport(
+    options(reportDirectory, siteDirectory, server.url),
+  );
+
+  assert.equal(manifest.reports[0].testCount, 3);
+  assert.equal(manifest.reports[0].files.length, 5);
+  const showcase = await readFile(
+    path.join(siteDirectory, 'reports', '200', 'index.html'),
+    'utf8',
+  );
+  assert.match(showcase, /3 \/ 3/);
+  assert.match(showcase, /<iframe src="shell-report.html"/);
+  assert.match(showcase, /menu.jpg/);
+  assert.equal(
+    await readFile(
+      path.join(siteDirectory, 'reports', '200', 'shell-report.html'),
+      'utf8',
+    ),
+    shellFixtureHtml,
+  );
+  assert.equal(
+    (await readFile(path.join(siteDirectory, 'reports', '200', 'bar.jpg')))
+      .length,
+    4,
   );
 });
 
@@ -112,11 +185,17 @@ test('restores retained history before adding the new run', async (context) => {
     ['200', '100'],
   );
   assert.equal(
-    await readFile(path.join(siteDirectory, 'reports', '100', 'index.html'), 'utf8'),
+    await readFile(
+      path.join(siteDirectory, 'reports', '100', 'index.html'),
+      'utf8',
+    ),
     oldReport,
   );
   const writtenManifest = JSON.parse(
-    await readFile(path.join(siteDirectory, 'reports', 'manifest.json'), 'utf8'),
+    await readFile(
+      path.join(siteDirectory, 'reports', 'manifest.json'),
+      'utf8',
+    ),
   );
   assert.equal(writtenManifest.reports[0].reportPath, 'reports/200/index.html');
   assert.equal(
@@ -138,7 +217,8 @@ test('stops when a manifest exists but an old report cannot be restored', async 
           reports: [
             {
               runId: '100',
-              workflowUrl: 'https://github.com/quanru/doubao-say/actions/runs/100',
+              workflowUrl:
+                'https://github.com/quanru/doubao-say/actions/runs/100',
               reportPath: 'reports/100/index.html',
             },
           ],

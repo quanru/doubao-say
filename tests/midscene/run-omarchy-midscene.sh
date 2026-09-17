@@ -204,3 +204,46 @@ if [[ $MIDSCENE_PASSED != true ]]; then
 fi
 
 ssh_session "hyprctl -j clients | jq -e '[.[] | select(.title == \"Doubao Say\")] | length == 1'"
+
+# The shell PoC should show Omarchy itself, without the onboarding fixture
+# obscuring the desktop or its first-run notifications.
+ssh_session "if test -s /tmp/doubao-midscene-fixture.pid; then \
+  kill \"\$(cat /tmp/doubao-midscene-fixture.pid)\" >/dev/null 2>&1 || true; \
+  fi; omarchy-shell notifications dismissAll"
+for _close_attempt in $(seq 1 15); do
+  if ssh_session "hyprctl -j clients | jq -e '[.[] | select(.title == \"Doubao Say\")] | length == 0'" \
+      >/dev/null 2>&1; then
+    break
+  fi
+  if [[ $_close_attempt -eq 15 ]]; then
+    echo "Doubao Say fixture did not close before the shell visual test." >&2
+    exit 1
+  fi
+  sleep 1
+done
+
+# Reuse the same live Hyprland session for a visual comparison against
+# Omarchy's OCR and hyprctl-based acceptance checks.
+MENU_PASSED=false
+for _test_attempt in 1 2 3; do
+  ATTEMPT_LOG="/tmp/omarchy-menu-midscene-attempt-${_test_attempt}.log"
+  if OMARCHY_E2E=true OMARCHY_SSH_KEY="$SSH_KEY" npm --prefix tests/midscene test -- \
+      e2e/omarchy-system-menu.test.ts 2>&1 | tee "$ATTEMPT_LOG"; then
+    MENU_PASSED=true
+    break
+  fi
+
+  if ! grep -Eq 'Connection error|ETIMEDOUT|failed to call AI model service' "$ATTEMPT_LOG"; then
+    echo "Omarchy menu visual test failed for a non-network reason; not retrying." >&2
+    exit 1
+  fi
+  if [[ $_test_attempt -lt 3 ]]; then
+    echo "Transient model connection failure on menu attempt $_test_attempt; retrying in 10 seconds." >&2
+    sleep 10
+  fi
+done
+
+if [[ $MENU_PASSED != true ]]; then
+  echo "Omarchy menu visual test exhausted three model-connection attempts." >&2
+  exit 1
+fi
