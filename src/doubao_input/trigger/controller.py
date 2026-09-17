@@ -11,11 +11,12 @@ from doubao_input.settings import (CAPTURABLE_KEY_CODES, MODIFIER_KEY_CODES,
 class TriggerController:
     def __init__(self, reader_factory, schedule, cancel, *, start, stop, toggle, enter,
                  cancel_input, debug_edge, error, escape_edge=lambda pressed: None,
-                 prime=lambda: None, discard=lambda: None):
+                 prime=lambda: None, discard=lambda: None, scroll=lambda steps: None):
         self._factory = reader_factory
         self._schedule, self._cancel = schedule, cancel
         self._actions = start, stop, toggle, enter
         self._prime, self._discard = prime, discard
+        self._scroll = scroll
         self._escape_edge = escape_edge
         self._cancel_input, self._debug_edge, self._error = cancel_input, debug_edge, error
         self._timers = TimerScope(schedule, cancel)
@@ -182,6 +183,10 @@ class TriggerController:
             self._actions[3]()
         elif action == "cancel" and pressed:
             self._cancel_input()
+        elif action == "scroll_down" and pressed:
+            self._scroll(-1)
+        elif action == "scroll_up" and pressed:
+            self._scroll(1)
 
     def _gesture_edge(self, source, pressed):
         """Keep the shared gesture held until every active source releases."""
