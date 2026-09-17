@@ -16,24 +16,28 @@ class TriggerPicker(Gtk.Box):
     """Select one preset, or record one custom shortcut that replaces it."""
 
     def __init__(self, key, apply_key, capture_key=None, cancel_capture=lambda: None,
-                 *, modifiers=()):
+                 *, modifiers=(), title=None, compact=False, default_label=None):
         super().__init__(orientation=Gtk.Orientation.VERTICAL, spacing=10)
-        self.applied_key, self.applied_modifiers = canonical_shortcut(key, modifiers)
+        self.applied_key, self.applied_modifiers = TriggerPicker._normalize(key, modifiers)
         self.listening = False
         self._apply = apply_key
         self._capture, self._cancel = capture_key, cancel_capture
         self._updating = False
         self._rebuild_source = 0
+        self._title = title
+        self._compact = compact
+        self._default_label = default_label
         self.entries = []
         self.keys = []
 
         self.current = Gtk.Label(xalign=0, wrap=True)
         self.append(self.current)
-        self.append(Gtk.Label(xalign=0, wrap=True, label=tr(
-            "Choose one trigger below. Presets take effect immediately. To use a key combination, choose Record a shortcut; the recorded shortcut completely replaces the current trigger.",
-            "请在下方选择一个触发快捷键。预设项会立即生效；如需组合键，请选择“录制快捷键”，录制结果会完整替换当前快捷键。")))
+        if not compact:
+            self.append(Gtk.Label(xalign=0, wrap=True, label=tr(
+                "Choose one trigger below. Presets take effect immediately. To use a key combination, choose Record a shortcut; the recorded shortcut completely replaces the current trigger.",
+                "请在下方选择一个触发快捷键。预设项会立即生效；如需组合键，请选择“录制快捷键”，录制结果会完整替换当前快捷键。")))
         self.choice = Gtk.DropDown.new_from_strings([""])
-        self.choice.set_tooltip_text(tr("Active dictation trigger", "当前听写快捷键"))
+        self.choice.set_tooltip_text(title or tr("Active dictation trigger", "当前听写快捷键"))
         self.append(self.choice)
         self.capture_field = Gtk.Entry(editable=False, can_focus=False)
         self.capture_field.set_placeholder_text(tr("Press your shortcut…", "请按下快捷键…"))
@@ -50,11 +54,13 @@ class TriggerPicker(Gtk.Box):
                 for name in KEY_CHOICES]
 
     def _preset_index(self, key, modifiers):
+        if key is None:
+            return 0 if self._default_label else None
         key, modifiers = canonical_shortcut(key, modifiers)
         if modifiers:
             return None
         try:
-            return list(KEY_CHOICES.values()).index(key)
+            return list(KEY_CHOICES.values()).index(key) + bool(self._default_label)
         except ValueError:
             return None
 
@@ -62,12 +68,14 @@ class TriggerPicker(Gtk.Box):
         """Rebuild rows and select the one representing the active shortcut."""
         self.entries = [("preset", code, ()) for code in KEY_CHOICES.values()]
         labels = self._preset_labels()
+        if self._default_label:
+            self.entries.insert(0, ("default", None, ()))
+            labels.insert(0, self._default_label)
         active_index = self._preset_index(self.applied_key, self.applied_modifiers)
         if active_index is None:
             active_index = len(self.entries)
             self.entries.append(("custom", self.applied_key, self.applied_modifiers))
-            labels.append(trigger_shortcut_display(self.applied_key,
-                                                   self.applied_modifiers))
+            labels.append(self._display(self.applied_key, self.applied_modifiers))
         self.entries.append(("record", None, ()))
         labels.append(tr("Record a shortcut…", "录制快捷键…"))
         self.keys = [entry[1] for entry in self.entries]
@@ -81,9 +89,22 @@ class TriggerPicker(Gtk.Box):
         self._update_current()
 
     def _update_current(self):
-        self.current.set_text(tr("Active trigger: ", "当前生效：") +
-                              trigger_shortcut_display(self.applied_key,
-                                                       self.applied_modifiers))
+        if self._compact and self._title:
+            self.current.set_text(self._title)
+        else:
+            self.current.set_text((self._title + ": " if self._title else
+                                   tr("Active trigger: ", "当前生效：")) +
+                                  self._display(self.applied_key,
+                                                self.applied_modifiers))
+
+    def _display(self, key, modifiers):
+        if key is None and self._default_label:
+            return self._default_label
+        return trigger_shortcut_display(key, modifiers)
+
+    @staticmethod
+    def _normalize(key, modifiers):
+        return (None, ()) if key is None else canonical_shortcut(key, modifiers)
 
     def _queue_rebuild(self):
         """Avoid replacing a dropdown model inside its selection notification."""
@@ -97,9 +118,9 @@ class TriggerPicker(Gtk.Box):
         return False
 
     def _show_active_status(self):
-        self.status.set_text(tr("Saved and active: ", "已保存并生效：") +
-                             trigger_shortcut_display(self.applied_key,
-                                                      self.applied_modifiers))
+        # The selected dropdown value is already the active, auto-saved value.
+        # Keep this row for actionable recording and error feedback only.
+        self.status.set_text("")
 
     def _selection_changed(self, *_):
         if self._updating or self.listening:
@@ -110,14 +131,14 @@ class TriggerPicker(Gtk.Box):
         kind, key, modifiers = self.entries[selected]
         if kind == "record":
             self.begin()
-        elif kind == "preset":
+        elif kind in ("preset", "default"):
             self._activate(key, modifiers)
         else:
             self._show_active_status()
 
     def _activate(self, key, modifiers):
         """Replace the active shortcut, restoring the old row if saving fails."""
-        key, modifiers = canonical_shortcut(key, modifiers)
+        key, modifiers = TriggerPicker._normalize(key, modifiers)
         if (key, modifiers) == (self.applied_key, self.applied_modifiers):
             self._queue_rebuild()
             self._show_active_status()
@@ -135,7 +156,7 @@ class TriggerPicker(Gtk.Box):
         self._show_active_status()
 
     def sync(self, key, modifiers=()):
-        key, modifiers = canonical_shortcut(key, modifiers)
+        key, modifiers = TriggerPicker._normalize(key, modifiers)
         if (key, modifiers) != (self.applied_key, self.applied_modifiers):
             self.applied_key = key
             self.applied_modifiers = modifiers
@@ -176,11 +197,6 @@ class TriggerPicker(Gtk.Box):
             code, modifiers = canonical_shortcut(code, modifiers)
         if is_trigger_key(code) and code:
             self._activate(code, modifiers)
-            if (code, tuple(modifiers)) == (self.applied_key,
-                                            self.applied_modifiers):
-                self.status.set_text(tr("Recorded, saved and active: ",
-                                        "已录制、保存并生效：") +
-                                     trigger_shortcut_display(code, modifiers))
         else:
             self._queue_rebuild()
             self.status.set_text(tr(

@@ -50,6 +50,24 @@ class TriggerPickerTest(TestCase):
         picker._apply.assert_called_once_with(464, ())
         self.assertEqual((picker.applied_key, picker.applied_modifiers), (464, ()))
 
+    def test_special_default_replaces_custom_shortcut(self):
+        picker = self.picker()
+        picker.applied_key = 57
+        picker.applied_modifiers = (29,)
+        TriggerPicker._activate(picker, None, ())
+        picker._apply.assert_called_once_with(None, ())
+        self.assertEqual((picker.applied_key, picker.applied_modifiers), (None, ()))
+
+    def test_active_value_does_not_repeat_as_saved_status(self):
+        picker = SimpleNamespace(status=Mock())
+        TriggerPicker._show_active_status(picker)
+        picker.status.set_text.assert_called_once_with("")
+
+    def test_compact_picker_title_does_not_repeat_selected_value(self):
+        picker = SimpleNamespace(_compact=True, _title="录音按键", current=Mock())
+        TriggerPicker._update_current(picker)
+        picker.current.set_text.assert_called_once_with("录音按键")
+
     def test_failed_save_restores_previous_active_shortcut(self):
         picker = self.picker()
         picker._apply.side_effect = OSError("disk full")
@@ -72,17 +90,20 @@ class TriggerPickerTest(TestCase):
         picker._apply.assert_not_called()
 
     def test_closing_settings_cancels_picker(self):
-        picker = Mock()
-        view = SimpleNamespace(trigger_picker=picker, _save_current=Mock(return_value=True))
+        picker, dial = Mock(), Mock()
+        view = SimpleNamespace(trigger_picker=picker, vibekey_pickers=(dial,),
+                               _save_current=Mock(return_value=True))
         self.assertFalse(SettingsWindow._close(view))
         picker.cancel.assert_called_once_with()
+        dial.cancel.assert_called_once_with()
         view._save_current.assert_called_once_with()
 
     def test_setting_change_saves_immediately(self):
         previous = Settings()
         proposed = replace(previous, autostart=True)
         view = SimpleNamespace(_updating=False,
-            trigger_picker=SimpleNamespace(listening=False), _settings=previous,
+            trigger_picker=SimpleNamespace(listening=False), vibekey_pickers=(),
+            _settings=previous,
             _value=Mock(return_value=proposed), _apply=Mock(), status=Mock(),
             _restore_controls=Mock())
         self.assertTrue(SettingsWindow._save_current(view))
@@ -93,13 +114,33 @@ class TriggerPickerTest(TestCase):
         previous = Settings()
         proposed = replace(previous, autostart=True)
         view = SimpleNamespace(_updating=False,
-            trigger_picker=SimpleNamespace(listening=False), _settings=previous,
+            trigger_picker=SimpleNamespace(listening=False), vibekey_pickers=(),
+            _settings=previous,
             _value=Mock(return_value=proposed),
             _apply=Mock(side_effect=OSError("disk full")), status=Mock(),
             _restore_controls=Mock())
         self.assertFalse(SettingsWindow._save_current(view))
         view._restore_controls.assert_called_once_with()
         self.assertEqual(view._settings, previous)
+
+    def test_vibekey_details_follow_enable_switch(self):
+        view = SimpleNamespace(vibekey=Mock(), vibekey_details=Mock())
+        view.vibekey.get_active.side_effect = (False, True)
+        SettingsWindow._sync_vibekey_details(view)
+        SettingsWindow._sync_vibekey_details(view)
+        self.assertEqual(
+            [call.args for call in view.vibekey_details.set_visible.call_args_list],
+            [(False,), (True,)])
+
+    def test_vibekey_toggle_restores_switch_when_capture_blocks_save(self):
+        view = SimpleNamespace(
+            _updating=False, _save_current=Mock(return_value=False),
+            _settings=Settings(vibekey_enabled=True), vibekey=Mock(),
+            _sync_vibekey_details=Mock())
+        SettingsWindow._vibekey_changed(view)
+        view.vibekey.set_active.assert_called_once_with(True)
+        view._sync_vibekey_details.assert_called_once_with()
+        self.assertFalse(view._updating)
 
     def test_unavailable_keyboard_returns_actionable_error(self):
         triggers = Mock()

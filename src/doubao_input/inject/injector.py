@@ -13,6 +13,7 @@ from doubao_input.doubao.host_tools import command_candidates
 from doubao_input.desktop import is_x11
 from doubao_input.inject.target import focused_target, x11_window
 from doubao_input.inject.direct import type_text
+from doubao_input.settings import CAPTURABLE_KEY_CODES
 
 logger = logging.getLogger(__name__)
 
@@ -34,8 +35,7 @@ class ClipboardSnapshot:
 KEY_LEFTCTRL = 29
 KEY_V = 47
 KEY_LEFTSHIFT = 42
-EV_REL = 2
-REL_WHEEL = 8
+EV_KEY = 1
 
 TERMINAL_CLASSES = {
     "foot", "footclient", "kitty", "alacritty", "wezterm",
@@ -160,26 +160,43 @@ class Injector:
                         logger.warning("Could not release virtual Enter key")
                         self._discard_uinput(ui)
 
-    def scroll(self, steps: int) -> bool:
-        """Send vertical wheel detents; positive is up and negative is down."""
-        if not steps:
+    def send_shortcut(self, key: int, modifiers=()) -> bool:
+        """Send one configurable keyboard shortcut through the virtual keyboard."""
+        if not key:
             return True
         with self._lock:
+            pressed = []
+            ui = None
+            failed = False
+            release_failed = False
             try:
                 created = self._ui is None
                 ui = self._get_uinput()
                 if created:
-                    # Give the compositor time to discover a newly registered
-                    # virtual device before its first wheel event.
+                    # Give the compositor time to discover the new keyboard.
                     time.sleep(0.08)
-                ui.write(EV_REL, REL_WHEEL, steps)
-                ui.syn()
-                return True
+                for code in (*modifiers, key):
+                    ui.write(EV_KEY, code, 1)
+                    pressed.append(code)
+                    ui.syn()
+                    time.sleep(0.012)
             except OSError:
-                logger.exception("Could not inject mouse wheel event")
-                if self._ui is not None:
-                    self._discard_uinput(self._ui)
-                return False
+                logger.exception("Could not inject shortcut")
+                failed = True
+            finally:
+                for code in reversed(pressed):
+                    try:
+                        ui.write(EV_KEY, code, 0)
+                        ui.syn()
+                        time.sleep(0.012)
+                    except OSError:
+                        logger.warning("Could not release a virtual shortcut key")
+                        release_failed = True
+                        break
+                if ((failed or release_failed) and ui is not None
+                        and self._ui is ui):
+                    self._discard_uinput(ui)
+            return not failed and not release_failed
 
     # ---- internals ----
 
@@ -296,8 +313,7 @@ class Injector:
         # never happens.
         self._ui = evdev.UInput(
             events={
-                evdev.ecodes.EV_KEY: [KEY_LEFTCTRL, KEY_LEFTSHIFT, KEY_V, 28],
-                EV_REL: [REL_WHEEL],
+                evdev.ecodes.EV_KEY: sorted(CAPTURABLE_KEY_CODES),
             },
             name="doubao-say-virtual-kbd",
         )

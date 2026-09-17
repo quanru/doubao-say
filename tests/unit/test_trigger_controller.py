@@ -21,11 +21,11 @@ class TriggerControllerTest(TestCase):
             self.readers.append(value)
             return value
         self.start, self.stop, self.toggle, self.enter, self.cancel = [Mock() for _ in range(5)]
-        self.scroll = Mock()
+        self.shortcut = Mock()
         self.error = Mock()
         self.control = TriggerController(reader, schedule, Mock(), start=self.start, stop=self.stop,
             toggle=self.toggle, enter=self.enter, cancel_input=self.cancel,
-            debug_edge=Mock(return_value=False), error=self.error, scroll=self.scroll)
+            debug_edge=Mock(return_value=False), error=self.error, shortcut=self.shortcut)
         self.settings = Settings(doubao_key=100)
         self.control.configure(self.settings)
 
@@ -238,10 +238,39 @@ class TriggerControllerTest(TestCase):
         self.aux("cancel")
         self.cancel.assert_called_once()
 
-    def test_dedicated_dial_maps_to_vertical_mouse_wheel(self):
-        self.aux("scroll_down")
-        self.aux("scroll_up")
-        self.assertEqual([call.args for call in self.scroll.call_args_list], [(-1,), (1,)])
+    def test_record_enter_and_cancel_buttons_can_send_custom_shortcuts(self):
+        self.control.configure(replace(
+            self.settings,
+            vibekey_record_key=57, vibekey_record_modifiers=(29,),
+            vibekey_enter_key=66, vibekey_cancel_key=0))
+        self.aux("record")
+        self.aux("record", False)
+        self.aux("enter")
+        self.aux("enter", False)
+        self.aux("cancel")
+        self.assertEqual([call.args for call in self.shortcut.call_args_list], [
+            (57, (29,)), (66, ()),
+        ])
+        self.start.assert_not_called()
+        self.enter.assert_not_called()
+        self.cancel.assert_not_called()
+
+    def test_dedicated_dial_uses_default_keyboard_shortcuts(self):
+        self.aux("dial_clockwise")
+        self.aux("dial_counterclockwise")
+        self.aux("dial_press")
+        self.assertEqual([call.args for call in self.shortcut.call_args_list], [
+            (108, ()), (103, ()), (14, (125,)),
+        ])
+
+    def test_dedicated_dial_uses_custom_keyboard_shortcuts_on_press_only(self):
+        self.control.configure(replace(
+            self.settings, vibekey_clockwise_key=106,
+            vibekey_clockwise_modifiers=(29,), vibekey_press_key=0))
+        self.aux("dial_clockwise")
+        self.aux("dial_clockwise", False)
+        self.aux("dial_press")
+        self.shortcut.assert_called_once_with(106, (29,))
 
     def test_dedicated_buttons_do_not_interfere_with_key_capture(self):
         result = Mock()

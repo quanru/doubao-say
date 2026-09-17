@@ -11,7 +11,7 @@ from doubao_input import __main__ as entrypoint
 from doubao_input.doubao import devices, host_tools
 from doubao_input.inject import injector as injector_module
 from doubao_input.inject.injector import (ClipboardSnapshot, Injector, KEY_LEFTCTRL,
-                                         KEY_LEFTSHIFT, KEY_V, EV_REL, REL_WHEEL)
+                                         KEY_LEFTSHIFT, KEY_V, EV_KEY)
 from doubao_input.inject.target import focused_target
 from doubao_input.trigger.evdev_ptt import EV_KEY, EvdevPtt
 
@@ -222,19 +222,40 @@ class InjectorEdgesTest(TestCase):
             self.assertTrue(instance.send_enter())
         self.assertIsNone(instance._ui)
 
-    def test_scroll_writes_vertical_relative_event(self):
+    def test_shortcut_presses_in_order_and_releases_in_reverse(self):
         instance, device = Injector(), Mock()
         def get_uinput():
             instance._ui = device
             return device
         with patch.object(instance, "_get_uinput", side_effect=get_uinput), \
                 patch("doubao_input.inject.injector.time.sleep") as sleep:
-            self.assertTrue(instance.scroll(-1))
-            self.assertTrue(instance.scroll(1))
-        self.assertEqual([call.args for call in device.write.call_args_list],
-                         [(EV_REL, REL_WHEEL, -1), (EV_REL, REL_WHEEL, 1)])
-        self.assertEqual(device.syn.call_count, 2)
-        sleep.assert_called_once_with(0.08)
+            self.assertTrue(instance.send_shortcut(14, (125,)))
+            self.assertTrue(instance.send_shortcut(108))
+        self.assertEqual([call.args for call in device.write.call_args_list], [
+            (EV_KEY, 125, 1), (EV_KEY, 14, 1),
+            (EV_KEY, 14, 0), (EV_KEY, 125, 0),
+            (EV_KEY, 108, 1), (EV_KEY, 108, 0),
+        ])
+        self.assertEqual(sum(call.args == (0.08,) for call in sleep.call_args_list), 1)
+
+    def test_disabled_shortcut_is_a_noop(self):
+        instance = Injector()
+        with patch.object(instance, "_get_uinput") as get_uinput:
+            self.assertTrue(instance.send_shortcut(0))
+        get_uinput.assert_not_called()
+
+    def test_shortcut_failure_releases_modifiers_and_discards_device(self):
+        instance, device = Injector(), Mock()
+        instance._ui = device
+        device.write.side_effect = [None, OSError("disconnected"), None]
+        with patch.object(instance, "_get_uinput", return_value=device), \
+                patch("doubao_input.inject.injector.time.sleep"):
+            self.assertFalse(instance.send_shortcut(14, (125,)))
+        self.assertEqual([call.args for call in device.write.call_args_list], [
+            (EV_KEY, 125, 1), (EV_KEY, 14, 1), (EV_KEY, 125, 0),
+        ])
+        device.close.assert_called_once_with()
+        self.assertIsNone(instance._ui)
 
 
 class EvdevLifecycleTest(TestCase):

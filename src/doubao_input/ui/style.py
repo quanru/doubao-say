@@ -28,6 +28,8 @@ _CSS = """
   border-radius: 11px;
   padding-left: 6px;
   padding-right: 6px;
+  font-size: 22px;
+  font-weight: 600;
 }
 
 .doubao-window .step-current {
