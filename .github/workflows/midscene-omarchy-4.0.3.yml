@@ -8,6 +8,8 @@ on:
       - ".github/workflows/midscene-omarchy-4.0.3.yml"
       - ".github/workflows/deploy-midscene-report.yml"
       - "scripts/build-pages-report.mjs"
+      - "scripts/build-omarchy-summary.mjs"
+      - "scripts/omarchy-shell-evidence.mjs"
       - "tests/test_pages_report_history.mjs"
       - "tests/midscene/package.json"
       - "tests/midscene/package-lock.json"
@@ -28,6 +30,8 @@ on:
       - ".github/workflows/midscene-omarchy-4.0.3.yml"
       - ".github/workflows/deploy-midscene-report.yml"
       - "scripts/build-pages-report.mjs"
+      - "scripts/build-omarchy-summary.mjs"
+      - "scripts/omarchy-shell-evidence.mjs"
       - "tests/test_pages_report_history.mjs"
       - "tests/midscene/package.json"
       - "tests/midscene/package-lock.json"
@@ -130,6 +134,7 @@ jobs:
           retention-days: 3
 
       - name: Upload Omarchy Midscene report
+        id: report
         if: always()
         uses: actions/upload-artifact@043fb46d1a93c77aae656e7c1c64a875d1fc6a0a # v7.0.1
         with:
@@ -137,6 +142,12 @@ jobs:
           path: tests/midscene/midscene_run/
           if-no-files-found: warn
           retention-days: 7
+
+      - name: Show visual results on the CI run page
+        if: success()
+        env:
+          REPORT_ARTIFACT_URL: ${{ steps.report.outputs.artifact-url }}
+        run: node scripts/build-omarchy-summary.mjs tests/midscene/midscene_run
 
   pages-report:
     name: GitHub Pages report

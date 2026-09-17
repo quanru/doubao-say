@@ -205,6 +205,23 @@ fi
 
 ssh_session "hyprctl -j clients | jq -e '[.[] | select(.title == \"Doubao Say\")] | length == 1'"
 
+# The shell PoC should show Omarchy itself, without the onboarding fixture
+# obscuring the desktop or its first-run notifications.
+ssh_session "if test -s /tmp/doubao-midscene-fixture.pid; then \
+  kill \"\$(cat /tmp/doubao-midscene-fixture.pid)\" >/dev/null 2>&1 || true; \
+  fi; omarchy-shell notifications dismissAll"
+for _close_attempt in $(seq 1 15); do
+  if ssh_session "hyprctl -j clients | jq -e '[.[] | select(.title == \"Doubao Say\")] | length == 0'" \
+      >/dev/null 2>&1; then
+    break
+  fi
+  if [[ $_close_attempt -eq 15 ]]; then
+    echo "Doubao Say fixture did not close before the shell visual test." >&2
+    exit 1
+  fi
+  sleep 1
+done
+
 # Reuse the same live Hyprland session for a visual comparison against
 # Omarchy's OCR and hyprctl-based acceptance checks.
 MENU_PASSED=false

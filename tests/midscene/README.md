@@ -69,7 +69,10 @@ shell IPC and uses Midscene's VNC view to assert that **Shutdown** is readable
 and one menu row has a clean focus highlight. It then sets the bar to the left,
 asserts that the rendered bar is vertical and docked to the left edge, and
 restores the original bar configuration. The HTML replay is included in the
-`omarchy-midscene-e2e-report` artifact.
+`omarchy-midscene-e2e-report` artifact. The Actions run summary shows the
+three visual verdicts directly. Successful runs on `main` publish a Pages
+showcase with the actual screenshots and an embedded interactive shell replay;
+the full onboarding replay remains available from the same page.
 
 | Omarchy acceptance test today | Midscene visual check |
 | --- | --- |
