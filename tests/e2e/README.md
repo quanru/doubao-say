@@ -112,3 +112,19 @@ ASR, recording, credential persistence, or global shortcut delivery.
 Run `npm test -- --project ubuntu` with the system dependencies and model
 configuration from the Ubuntu workflow. The Omarchy projects retain their shared
 onboarding and shell cases.
+
+## Polishing overlay regression
+
+The Ubuntu workflow also runs `npm test -- --project ubuntu-polishing`.
+`polish_fixture.py` exposes test controls around the real Overlay component,
+using synthetic transcripts without microphone, network, or input injection.
+`cases/polishing.yaml` visually checks English and Chinese status/transcript
+separation, stars, absence of a divider, the delayed hint, streaming text updates,
+reduced-motion presentation, completion, and hiding. Timing and static-star
+behavior are additionally checked by `tests/manual/polish_overlay.py`; a still
+image alone does not prove animation or reduced-motion timing.
+
+The test shares the existing isolated desktop setup and model credentials.
+Inspect the HTML replay under `midscene_run/report/`. This component flow does not
+establish live ASR, polishing service, or paste acceptance, and does not add
+Wayland coverage for the overlay.

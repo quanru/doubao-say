@@ -116,7 +116,7 @@ const setup = defineProjectSetup<DesktopContext>({
       context.resetFixture = async () => {
         await cleanup();
         configDirectory = await mkdtemp(resolve(tmpdir(), 'doubao-midscene-'));
-        fixture = spawn('/usr/bin/python3', ['tests/e2e/gtk_fixture.py'], {
+        fixture = spawn('/usr/bin/python3', [polishing ? 'tests/e2e/polish_fixture.py' : 'tests/e2e/gtk_fixture.py'], {
           cwd: root, detached: true, stdio: ['ignore', 'pipe', 'pipe'],
           env: {
             ...process.env, GDK_BACKEND: 'x11', GSK_RENDERER: 'cairo', GTK_A11Y: 'none',
@@ -177,6 +177,7 @@ const moveBarLeft = defineNode<typeof empty, void, DesktopContext>({
 export default defineTestProject<DesktopContext>({
   test: { maxConcurrency: 1, testTimeout: 8 * 60_000 },
   projects: [
+    { name: 'ubuntu-polishing', setup, files: { include: ['cases/polishing.yaml'] } },
     { name: 'ubuntu', setup, files: { include: ['cases/onboarding.yaml', 'cases/onboarding-regressions.yaml'] } },
     { name: 'omarchy-onboarding', setup, files: { include: ['cases/onboarding.yaml'] } },
     { name: 'omarchy-shell', setup, files: { include: ['cases/omarchy-shell.yaml'] } },
