@@ -181,3 +181,4 @@ jobs:
     with:
       artifact-name: omarchy-midscene-e2e-report
       report-label: Omarchy 4.0.3
+      run-result: ${{ needs.omarchy-vm.result }}
