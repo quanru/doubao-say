@@ -224,12 +224,17 @@ class InjectorEdgesTest(TestCase):
 
     def test_scroll_writes_vertical_relative_event(self):
         instance, device = Injector(), Mock()
-        with patch.object(instance, "_get_uinput", return_value=device):
+        def get_uinput():
+            instance._ui = device
+            return device
+        with patch.object(instance, "_get_uinput", side_effect=get_uinput), \
+                patch("doubao_input.inject.injector.time.sleep") as sleep:
             self.assertTrue(instance.scroll(-1))
             self.assertTrue(instance.scroll(1))
         self.assertEqual([call.args for call in device.write.call_args_list],
                          [(EV_REL, REL_WHEEL, -1), (EV_REL, REL_WHEEL, 1)])
         self.assertEqual(device.syn.call_count, 2)
+        sleep.assert_called_once_with(0.08)
 
 
 class EvdevLifecycleTest(TestCase):

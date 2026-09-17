@@ -166,7 +166,12 @@ class Injector:
             return True
         with self._lock:
             try:
+                created = self._ui is None
                 ui = self._get_uinput()
+                if created:
+                    # Give the compositor time to discover a newly registered
+                    # virtual device before its first wheel event.
+                    time.sleep(0.08)
                 ui.write(EV_REL, REL_WHEEL, steps)
                 ui.syn()
                 return True
