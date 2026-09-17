@@ -26,7 +26,7 @@ await appendFile(
 | --- | --- | --- |
 ${checks.map((check) => `| ${check.label} | ${check.passed ? '✅ Passed' : '❌ Failed'} | VLM screenshot assertion |`).join('\n')}
 
-**Real VM:** official Omarchy ISO → KVM → Hyprland/Wayland → VNC → Midscene on X11.  
+**Real VM:** official Omarchy ISO → KVM → Hyprland/Wayland → VNC → Midscene on X11.
 **Evidence:** [Download the complete interactive HTML replay](${artifactUrl}) · [Open CI run](${runUrl}).
 
 The replay contains the actual desktop screenshots, model judgments, and step timeline. The GitHub Pages job publishes a browser-ready showcase for successful main-branch runs.
