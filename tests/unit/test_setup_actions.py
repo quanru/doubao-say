@@ -1,7 +1,7 @@
 """Setup interaction contracts without a desktop, microphone or account."""
 from types import SimpleNamespace
 import unittest
-from unittest.mock import Mock
+from unittest.mock import Mock, patch
 
 from gi.repository import GLib
 
@@ -12,6 +12,49 @@ from doubao_input.ui.settings_window import SettingsWindow
 
 
 class SetupActionsTest(unittest.TestCase):
+    def test_settings_show_rescans_microphones_before_presenting(self):
+        view = SimpleNamespace(_refresh_microphones=Mock(), window=Mock())
+
+        SettingsWindow.show(view)
+
+        view._refresh_microphones.assert_called_once_with()
+        view.window.present.assert_called_once_with()
+
+    def test_settings_microphone_refresh_preserves_saved_selection(self):
+        view = SimpleNamespace(
+            _settings=SimpleNamespace(microphone="usb-mic"),
+            _updating=False,
+            microphone=Mock(),
+            status=Mock(),
+            sources=[],
+        )
+        with patch("doubao_input.ui.settings_window.microphones", return_value=[
+                ("built-in", "Built-in microphone"),
+                ("usb-mic", "USB microphone"),
+        ]):
+            SettingsWindow._refresh_microphones(view, announce=True)
+
+        self.assertEqual([key for key, _ in view.sources], ["", "built-in", "usb-mic"])
+        view.microphone.set_model.assert_called_once()
+        view.microphone.set_selected.assert_called_once_with(2)
+        self.assertIn("2", view.status.set_text.call_args.args[0])
+        self.assertFalse(view._updating)
+
+    def test_settings_microphone_refresh_keeps_missing_saved_device(self):
+        view = SimpleNamespace(
+            _settings=SimpleNamespace(microphone="unplugged-mic"),
+            _updating=False,
+            microphone=Mock(),
+            status=Mock(),
+            sources=[],
+        )
+        with patch("doubao_input.ui.settings_window.microphones", return_value=[]):
+            SettingsWindow._refresh_microphones(view, announce=True)
+
+        self.assertEqual([key for key, _ in view.sources], ["", "unplugged-mic"])
+        view.microphone.set_selected.assert_called_once_with(1)
+        self.assertIn("0", view.status.set_text.call_args.args[0])
+
     def test_hiding_preview_cancels_before_hiding(self):
         events = []
         actions = SimpleNamespace(is_preview_testing=lambda: True,

@@ -80,6 +80,28 @@ class SettingsWindow:
         self.autostart = row(tr("Start in background at login", "登录桌面后后台启动"),
                              Gtk.Switch(active=settings.autostart))
 
+        section(tr("Audio", "音频"))
+        self.sources = [("", tr("System default", "系统默认"))]
+        if settings.microphone:
+            self.sources.append((settings.microphone, tr(
+                "Saved device (unavailable)", "已保存设备（当前不可用）")))
+        self.microphone = Gtk.DropDown.new_from_strings(
+            [label for _, label in self.sources])
+        self.microphone.set_selected(
+            [key for key, _ in self.sources].index(settings.microphone))
+        self.microphone.set_hexpand(True)
+        microphone_controls = Gtk.Box(spacing=8)
+        microphone_controls.append(self.microphone)
+        self.microphone_refresh = Gtk.Button(label=tr(
+            "Refresh devices", "刷新设备"))
+        self.microphone_refresh.connect(
+            "clicked", lambda *_: self._refresh_microphones(announce=True))
+        microphone_controls.append(self.microphone_refresh)
+        row(tr("Microphone", "麦克风"), microphone_controls)
+        box.append(Gtk.Label(xalign=0, wrap=True, label=tr(
+            "Changes save automatically. Choose System default to follow the desktop input device.",
+            "更改会自动保存；选择“系统默认”可跟随桌面的输入设备。")))
+
         section(tr("Recognition service", "语音识别服务"))
         self.asr_provider = Gtk.DropDown.new_from_strings([
             tr("Doubao account", "豆包账号"),
@@ -206,18 +228,6 @@ class SettingsWindow:
         box.append(Gtk.Label(xalign=0, wrap=True, label=tr(
             "Tap once to start or stop dictation. Hold to talk and release to finish. Pressing the active trigger twice sends Enter without dictation; it can submit a message or execute a terminal command. Test it in a plain text editor first.",
             "短按一次开始或停止听写，长按说话、松开结束。连续按两次当前触发键会在不听写的情况下直接发送回车，可能发送消息或执行终端命令。请先在普通文本编辑器中测试。")))
-
-        section(tr("Audio", "音频"))
-        sources = [("", tr("System default", "系统默认"))] + microphones()
-        if settings.microphone and settings.microphone not in [key for key, _ in sources]:
-            sources.append((settings.microphone, tr("Saved device (unavailable)", "已保存设备（当前不可用）")))
-        self.sources = sources
-        self.microphone = Gtk.DropDown.new_from_strings([label for _, label in sources])
-        self.microphone.set_selected([key for key, _ in sources].index(settings.microphone))
-        row(tr("Microphone", "麦克风"), self.microphone)
-        box.append(Gtk.Label(xalign=0, wrap=True, label=tr(
-            "Changes save automatically. Check your microphone from the setup page.",
-            "更改会自动保存；可在引导页检查麦克风。")))
 
         section(tr("Appearance", "外观"))
         self.waveform_style = Gtk.DropDown.new_from_strings([
@@ -400,6 +410,29 @@ class SettingsWindow:
                 self._updating = False
         self._sync_vibekey_details()
 
+    def _refresh_microphones(self, *, announce=False):
+        discovered = microphones()
+        sources = [("", tr("System default", "系统默认"))] + discovered
+        selected = self._settings.microphone
+        if selected and selected not in [key for key, _ in sources]:
+            sources.append((selected, tr(
+                "Saved device (unavailable)", "已保存设备（当前不可用）")))
+        was_updating = self._updating
+        self._updating = True
+        try:
+            self.sources = sources
+            self.microphone.set_model(Gtk.StringList.new(
+                [label for _, label in sources]))
+            self.microphone.set_selected(
+                [key for key, _ in sources].index(selected))
+        finally:
+            self._updating = was_updating
+        if announce:
+            count = len(discovered)
+            self.status.set_text(tr(
+                f"Microphone devices refreshed: {count} found.",
+                f"已刷新麦克风设备：找到 {count} 个。"))
+
     def _language_changed(self, *_):
         previous = self._settings.language
         if not self._save_current() or self._settings.language == previous:
@@ -518,4 +551,5 @@ class SettingsWindow:
         return not self._save_current()
 
     def show(self):
+        self._refresh_microphones()
         self.window.present()
