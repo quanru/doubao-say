@@ -73,6 +73,7 @@ const setup = defineProjectSetup<DesktopContext>({
   async setup({ project, onTeardown }) {
     const omarchy = project.name.startsWith('omarchy-');
     const shell = project.name === 'omarchy-shell';
+    const polishing = project.name === 'ubuntu-polishing';
     let desktopReady = false;
     const createAgent = async () => {
       const agent = await agentForComputer({
@@ -84,6 +85,7 @@ const setup = defineProjectSetup<DesktopContext>({
         keepXvfbAliveUntilProcessExit: true,
         aiContexts: shell
           ? { aiAssert: 'Inspect the real Omarchy desktop through VNC. Judge only visible pixels; do not infer success from commands or configuration.' }
+          : polishing ? { aiAct: 'Test the native polishing overlay using the separate Polishing overlay test controls window. Use visible button labels.' }
           : { aiAct: `Test the English Doubao Say GTK onboarding window${omarchy ? ' inside a real Omarchy VM shown through VNC' : ''}. Interact only with Doubao Say and use visible labels.` },
       });
       desktopReady = true;
