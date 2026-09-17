@@ -1,0 +1,19 @@
+cases:
+  - name: Complete Doubao Say onboarding on a real desktop
+    steps:
+      - aiAssert: The visible Doubao Say window is on Sign in, says the user is not signed in, and shows Open Doubao sign-in.
+      - aiAct: Click Open Doubao sign-in exactly once, then stop immediately.
+      - wait: { duration: 1500 }
+      - aiAssert: A Synthetic Doubao sign-in window is visible and explicitly says it is CI-only, makes no network request, and uses no real credentials.
+      - aiAct: In the Synthetic Doubao sign-in window, click Simulate successful sign-in exactly once, then stop immediately.
+      - aiAssert: The synthetic sign-in window closed and Doubao Say automatically advanced to the Microphone step with Next in the fixed top navigation.
+      - aiAct: Click Next in the Doubao Say fixed top navigation exactly once. Do not click Next a second time.
+      - aiAssert: The current Doubao Say step is Trigger key.
+      - aiAct: Stay on Trigger key. Scroll inside the light-gray central content panel until the Voice polishing heading and its controls are visible.
+      - aiAct: On Trigger key, click Test endpoint in the visible Voice polishing section and wait for the endpoint result.
+      - aiAssert: A visible message says the endpoint works and includes Synthetic endpoint response.
+      - aiAct: Click Next in the fixed top navigation exactly once. Do not click Next a second time.
+      - aiAssert: The current Doubao Say step is Voice test.
+      - aiAssert: The Voice test heading and introductory text are visible near the top of the content, showing navigation reset the previous scroll position.
+      - aiAct: Scroll within Voice test content if needed and click Finish setup exactly once. Stop when the button changes to the disabled status Setup completed by the synthetic E2E fixture.
+      - aiAssert: The Finish setup button changed to a disabled visible status saying Setup completed by the synthetic E2E fixture.

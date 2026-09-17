@@ -43,12 +43,22 @@ The Omarchy workflow continues from that installed base image:
 3. Run the focused Midscene onboarding suite through VNC in the real
    Omarchy/Hyprland guest session.
 
-The Ubuntu workflow runs the deterministic GTK fixture directly with Rstest
+The Ubuntu workflow runs the deterministic GTK fixture through
+[`@midscene/test`](https://midscenejs.com/zh/midscene-test/overview.html)
 and `@midscene/computer`. Pull requests from forks are skipped because GitHub
 does not expose the required model secret to untrusted workflow code.
 
-Both distributions execute the same shared Midscene onboarding scenario. The
-Ubuntu stage maps the real GTK onboarding window inside the
+Both distributions execute the same declarative onboarding scenario in
+`cases/onboarding.yaml`. `midscene.config.ts` prepares the local Xvfb desktop,
+GTK fixture or Omarchy VNC viewer. Custom `shell.*` Nodes prepare the real
+Omarchy menu and bar; `cases/omarchy-shell.yaml` keeps the three pixel-level
+assertions explicit. Run `npm run nodes` in this directory to regenerate the
+Node reference, or `npm test -- --project ubuntu` on a prepared Linux desktop.
+Each invocation writes a unified Midscene Test HTML report under
+`midscene_run/report/`; CI publishes those reports and the Omarchy screenshot
+showcase.
+
+The Ubuntu stage maps the real GTK onboarding window inside the
 headless Midscene desktop. Its synthetic fixture starts signed out, opens an
 explicitly labelled CI-only sign-in window, and simulates a successful return
 without a network request or real credentials. It also performs no recording,
@@ -76,8 +86,8 @@ the full onboarding replay remains available from the same page.
 
 | Omarchy acceptance test today | Midscene visual check |
 | --- | --- |
-| `screen_contains "Shutdown"`: enlarge a `grim` image, run Tesseract, and grep for text | `agent.aiAssert` checks that Shutdown is legible in the rendered system menu |
-| `hyprctl -j layers` and `bar_is_vertical`: compare layer dimensions | `agent.aiAssert` checks the visible bar's shape and left-edge placement |
+| `screen_contains "Shutdown"`: enlarge a `grim` image, run Tesseract, and grep for text | YAML `aiAssert` checks that Shutdown is legible in the rendered system menu |
+| `hyprctl -j layers` and `bar_is_vertical`: compare layer dimensions | YAML `aiAssert` checks the visible bar's shape and left-edge placement |
 | Standalone `grim` PNGs | Step-by-step HTML replay with assertions and screenshots |
 
 The SSH and `hyprctl` calls in this PoC set up the scene and wait for the menu;

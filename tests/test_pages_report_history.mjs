@@ -43,7 +43,8 @@ const shellFixtureHtml = `<!doctype html><html><body>${shellPrompts
 async function fixtureDirectory(root) {
   const reportDirectory = path.join(root, 'artifact', 'report');
   await mkdir(reportDirectory, { recursive: true });
-  await writeFile(path.join(reportDirectory, 'midscene.html'), fixtureHtml);
+  await writeFile(path.join(reportDirectory, 'test-run-ubuntu.html'), fixtureHtml);
+  await writeFile(path.join(reportDirectory, 'agent-detail.html'), '<html>intermediate Agent report</html>');
   return path.dirname(reportDirectory);
 }
 
@@ -110,7 +111,7 @@ test('builds a visual showcase from onboarding and shell reports', async (contex
   const root = await mkdtemp(path.join(os.tmpdir(), 'pages-omarchy-'));
   const reportDirectory = await fixtureDirectory(root);
   await writeFile(
-    path.join(reportDirectory, 'report', 'shell.html'),
+    path.join(reportDirectory, 'report', 'test-run-shell.html'),
     shellFixtureHtml,
   );
   const siteDirectory = path.join(root, 'site');

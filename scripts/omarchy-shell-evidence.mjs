@@ -30,7 +30,11 @@ export async function findHtmlFiles(directory) {
     }
   }
   await visit(directory);
-  return results.sort();
+  const testRunReports = results.filter((file) =>
+    path.basename(file).startsWith('test-run-') ||
+    path.basename(path.dirname(file)).startsWith('test-run-'),
+  );
+  return (testRunReports.length ? testRunReports : results).sort();
 }
 
 // Some report versions put raw control characters inside JSON strings.

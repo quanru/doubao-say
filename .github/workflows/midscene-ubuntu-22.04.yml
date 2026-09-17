@@ -12,7 +12,8 @@ on:
       - "tests/midscene/package.json"
       - "tests/midscene/package-lock.json"
       - "tests/midscene/gtk_fixture.py"
-      - "tests/midscene/e2e/**"
+      - "tests/midscene/cases/**"
+      - "tests/midscene/midscene.config.ts"
       - "src/**"
   pull_request:
     branches: [main]
@@ -24,7 +25,8 @@ on:
       - "tests/midscene/package.json"
       - "tests/midscene/package-lock.json"
       - "tests/midscene/gtk_fixture.py"
-      - "tests/midscene/e2e/**"
+      - "tests/midscene/cases/**"
+      - "tests/midscene/midscene.config.ts"
       - "src/**"
   workflow_dispatch:
 
@@ -118,7 +120,7 @@ jobs:
           midscene_passed=false
           for test_attempt in 1 2 3; do
             attempt_log="/tmp/ubuntu-midscene-attempt-${test_attempt}.log"
-            if npm test 2>&1 | tee "$attempt_log"; then
+            if npm test -- --project ubuntu 2>&1 | tee "$attempt_log"; then
               midscene_passed=true
               break
             fi
