@@ -39,10 +39,7 @@ const report = await findLatestTestReport(reportDirectory);
 const runnerDump = report.run;
 if (!runnerDump) throw new Error('Midscene Test runner dump was not found');
 const previewUrl = new URL(pathToFileURL(report.file));
-previewUrl.hash = new URLSearchParams({
-  'runner-step': 'last',
-  'runner-trace': 'page',
-}).toString();
+previewUrl.hash = new URLSearchParams({ 'runner-step': 'last' }).toString();
 await mkdir(path.dirname(outputFile), { recursive: true });
 
 const browser = await puppeteer.launch({
@@ -57,7 +54,10 @@ try {
   await page.goto(previewUrl.href, {
     waitUntil: 'networkidle0',
   });
-  await page.waitForFunction(() => document.body.innerText.includes('AI TRACE'));
+  await page.waitForSelector('[aria-label="Execution steps"]');
+  await page.waitForFunction(() =>
+    /STEPS\s*\xb7\s*STEP\s+\d+/i.test(document.body.innerText),
+  );
   await page.evaluate(() => window.scrollTo(0, 0));
   await page.waitForFunction(() =>
     /Passed|Failed|Error/.test(document.body.innerText),
