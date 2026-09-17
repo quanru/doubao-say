@@ -83,10 +83,20 @@ class Au05ProtocolTest(TestCase):
         events = []
         listener = Au05Listener(lambda action, pressed: events.append((action, pressed)),
                                 idle_add=lambda callback, *args: callback(*args))
-        for code, action, physical in ((0x72, "scroll_down", 4),
-                                       (0x73, "scroll_up", 5)):
+        for code, action, physical in ((0x72, "dial_clockwise", 4),
+                                       (0x73, "dial_counterclockwise", 5)):
             with self.subTest(action=action):
                 report = _encode_message(bytes((0x8B, 0x10, code, 1, physical)))
                 listener._handle_report(report)
-        self.assertEqual(events, [("scroll_down", True), ("scroll_up", True)])
+        self.assertEqual(events, [("dial_clockwise", True),
+                                  ("dial_counterclockwise", True)])
         self.assertEqual(listener._pressed, set())
+
+    def test_maps_dial_press_as_a_button_edge(self):
+        events = []
+        listener = Au05Listener(lambda action, pressed: events.append((action, pressed)),
+                                idle_add=lambda callback, *args: callback(*args))
+        for status in (1, 1, 0):
+            listener._handle_report(_encode_message(
+                bytes((0x8B, 0x10, 0x6E, status, 3))))
+        self.assertEqual(events, [("dial_press", True), ("dial_press", False)])

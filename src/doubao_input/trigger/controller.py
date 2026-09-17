@@ -11,12 +11,13 @@ from doubao_input.settings import (CAPTURABLE_KEY_CODES, MODIFIER_KEY_CODES,
 class TriggerController:
     def __init__(self, reader_factory, schedule, cancel, *, start, stop, toggle, enter,
                  cancel_input, debug_edge, error, escape_edge=lambda pressed: None,
-                 prime=lambda: None, discard=lambda: None, scroll=lambda steps: None):
+                 prime=lambda: None, discard=lambda: None,
+                 shortcut=lambda key, modifiers=(): None):
         self._factory = reader_factory
         self._schedule, self._cancel = schedule, cancel
         self._actions = start, stop, toggle, enter
         self._prime, self._discard = prime, discard
-        self._scroll = scroll
+        self._shortcut = shortcut
         self._escape_edge = escape_edge
         self._cancel_input, self._debug_edge, self._error = cancel_input, debug_edge, error
         self._timers = TimerScope(schedule, cancel)
@@ -175,18 +176,39 @@ class TriggerController:
         if self.capturing or not self._gesture:
             return
         if action == "record":
-            code = self._settings.doubao_key if self._settings else 0
-            if self._debug_edge(code, pressed):
-                return
-            self._gesture_edge(("vibekey", "record"), pressed)
+            if self._settings.vibekey_record_key is None:
+                code = self._settings.doubao_key
+                if self._debug_edge(code, pressed):
+                    return
+                self._gesture_edge(("vibekey", "record"), pressed)
+            elif pressed:
+                self._send_shortcut(self._settings.vibekey_record_key,
+                                    self._settings.vibekey_record_modifiers)
         elif action == "enter" and pressed:
-            self._actions[3]()
+            if self._settings.vibekey_enter_key is None:
+                self._actions[3]()
+            else:
+                self._send_shortcut(self._settings.vibekey_enter_key,
+                                    self._settings.vibekey_enter_modifiers)
         elif action == "cancel" and pressed:
-            self._cancel_input()
-        elif action == "scroll_down" and pressed:
-            self._scroll(-1)
-        elif action == "scroll_up" and pressed:
-            self._scroll(1)
+            if self._settings.vibekey_cancel_key is None:
+                self._cancel_input()
+            else:
+                self._send_shortcut(self._settings.vibekey_cancel_key,
+                                    self._settings.vibekey_cancel_modifiers)
+        elif action == "dial_clockwise" and pressed:
+            self._send_shortcut(self._settings.vibekey_clockwise_key,
+                                self._settings.vibekey_clockwise_modifiers)
+        elif action == "dial_counterclockwise" and pressed:
+            self._send_shortcut(self._settings.vibekey_counterclockwise_key,
+                                self._settings.vibekey_counterclockwise_modifiers)
+        elif action == "dial_press" and pressed:
+            self._send_shortcut(self._settings.vibekey_press_key,
+                                self._settings.vibekey_press_modifiers)
+
+    def _send_shortcut(self, key, modifiers):
+        if key:
+            self._shortcut(key, modifiers)
 
     def _gesture_edge(self, source, pressed):
         """Keep the shared gesture held until every active source releases."""

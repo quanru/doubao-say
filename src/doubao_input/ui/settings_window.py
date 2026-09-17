@@ -143,9 +143,52 @@ class SettingsWindow:
         self.vibekey = row(tr("Enable Vibekey receiver buttons",
                               "启用 Vibekey 接收器按键"),
                            Gtk.Switch(active=settings.vibekey_enabled))
-        box.append(Gtk.Label(xalign=0, wrap=True, label=tr(
-            "Off by default. When enabled, Doubao Say detects Vibekey and maps its three buttons to record, Enter and cancel.",
-            "默认关闭。启用后，豆包说会自动探测 Vibekey，并将三个按键映射为录音、回车确认和取消。")))
+        self.vibekey_details = Gtk.Box(
+            orientation=Gtk.Orientation.VERTICAL, spacing=10)
+        self.vibekey_details.set_margin_start(12)
+        self.vibekey_details.append(Gtk.Label(xalign=0, wrap=True, label=tr(
+            "Each Vibekey control keeps its built-in default below, or can send any recorded keyboard shortcut instead.",
+            "每个 Vibekey 控件都保留下方所示的默认功能，也可以改为发送任意录制的键盘快捷键。")))
+        box.append(self.vibekey_details)
+        def vibekey_picker(key_field, modifiers_field, title, default_label=None):
+            def use_shortcut(key, modifiers=()):
+                value = replace(self._settings, **{
+                    key_field: key, modifiers_field: tuple(modifiers),
+                })
+                apply(value)
+                self._settings = value
+            picker = TriggerPicker(
+                getattr(settings, key_field), use_shortcut, capture_key,
+                cancel_capture, modifiers=getattr(settings, modifiers_field),
+                title=title, compact=True, default_label=default_label)
+            self.vibekey_details.append(picker)
+            return picker
+        self.vibekey_record = vibekey_picker(
+            "vibekey_record_key", "vibekey_record_modifiers",
+            tr("Record button", "录音按键"),
+            tr("Fn · Record dictation (default)", "Fn · 录音（默认）"))
+        self.vibekey_enter = vibekey_picker(
+            "vibekey_enter_key", "vibekey_enter_modifiers",
+            tr("Confirm button", "确认按键"),
+            tr("Enter · Confirm (default)", "Enter · 确认（默认）"))
+        self.vibekey_cancel = vibekey_picker(
+            "vibekey_cancel_key", "vibekey_cancel_modifiers",
+            tr("Cancel button", "取消按键"),
+            tr("Esc · Cancel (default)", "Esc · 取消（默认）"))
+        self.vibekey_clockwise = vibekey_picker(
+            "vibekey_clockwise_key", "vibekey_clockwise_modifiers",
+            tr("Turn right", "向右旋转"))
+        self.vibekey_counterclockwise = vibekey_picker(
+            "vibekey_counterclockwise_key", "vibekey_counterclockwise_modifiers",
+            tr("Turn left", "向左旋转"))
+        self.vibekey_press = vibekey_picker(
+            "vibekey_press_key", "vibekey_press_modifiers",
+            tr("Press dial", "按下旋钮"))
+        self.vibekey_pickers = (
+            self.vibekey_record, self.vibekey_enter, self.vibekey_cancel,
+            self.vibekey_clockwise, self.vibekey_counterclockwise,
+            self.vibekey_press)
+        self._sync_vibekey_details()
         self.hold = Gtk.SpinButton.new_with_range(200, 1500, 50)
         self.hold.set_value(settings.hold_ms)
         self.double = Gtk.SpinButton.new_with_range(150, 600, 25)
@@ -242,7 +285,7 @@ class SettingsWindow:
         self.autostart.connect("notify::active", self._changed)
         self.input_method.connect("notify::selected", self._changed)
         self.enter.connect("notify::active", self._changed)
-        self.vibekey.connect("notify::active", self._changed)
+        self.vibekey.connect("notify::active", self._vibekey_changed)
         self.hold.connect("value-changed", self._changed)
         self.double.connect("value-changed", self._changed)
         self.microphone.connect("notify::selected", self._changed)
@@ -261,6 +304,18 @@ class SettingsWindow:
             double_ms=self.double.get_value_as_int(),
             double_enter=self.enter.get_active(),
             vibekey_enabled=self.vibekey.get_active(),
+            vibekey_record_key=self.vibekey_record.applied_key,
+            vibekey_record_modifiers=self.vibekey_record.applied_modifiers,
+            vibekey_enter_key=self.vibekey_enter.applied_key,
+            vibekey_enter_modifiers=self.vibekey_enter.applied_modifiers,
+            vibekey_cancel_key=self.vibekey_cancel.applied_key,
+            vibekey_cancel_modifiers=self.vibekey_cancel.applied_modifiers,
+            vibekey_clockwise_key=self.vibekey_clockwise.applied_key,
+            vibekey_clockwise_modifiers=self.vibekey_clockwise.applied_modifiers,
+            vibekey_counterclockwise_key=self.vibekey_counterclockwise.applied_key,
+            vibekey_counterclockwise_modifiers=self.vibekey_counterclockwise.applied_modifiers,
+            vibekey_press_key=self.vibekey_press.applied_key,
+            vibekey_press_modifiers=self.vibekey_press.applied_modifiers,
             input_method=INPUT_METHODS[self.input_method.get_selected()],
             autostart=self.autostart.get_active(),
             microphone=self.sources[self.microphone.get_selected()][0],
@@ -276,6 +331,24 @@ class SettingsWindow:
             self.autostart.set_active(self._settings.autostart)
             self.enter.set_active(self._settings.double_enter)
             self.vibekey.set_active(self._settings.vibekey_enabled)
+            self.vibekey_record.sync(
+                self._settings.vibekey_record_key,
+                self._settings.vibekey_record_modifiers)
+            self.vibekey_enter.sync(
+                self._settings.vibekey_enter_key,
+                self._settings.vibekey_enter_modifiers)
+            self.vibekey_cancel.sync(
+                self._settings.vibekey_cancel_key,
+                self._settings.vibekey_cancel_modifiers)
+            self.vibekey_clockwise.sync(
+                self._settings.vibekey_clockwise_key,
+                self._settings.vibekey_clockwise_modifiers)
+            self.vibekey_counterclockwise.sync(
+                self._settings.vibekey_counterclockwise_key,
+                self._settings.vibekey_counterclockwise_modifiers)
+            self.vibekey_press.sync(
+                self._settings.vibekey_press_key,
+                self._settings.vibekey_press_modifiers)
             self.input_method.set_selected(INPUT_METHODS.index(self._settings.input_method))
             self.hold.set_value(self._settings.hold_ms)
             self.double.set_value(self._settings.double_ms)
@@ -285,11 +358,13 @@ class SettingsWindow:
             self.waveform_style.set_selected(WAVEFORM_STYLES.index(self._settings.waveform_style))
         finally:
             self._updating = False
+        self._sync_vibekey_details()
 
     def _save_current(self):
         if self._updating:
             return True
-        if self.trigger_picker.listening:
+        if any(picker.listening for picker in
+               (self.trigger_picker, *self.vibekey_pickers)):
             self.status.set_text(tr("Finish or cancel key capture first.",
                                     "请先结束或取消按键录制。"))
             return False
@@ -309,6 +384,21 @@ class SettingsWindow:
     def _changed(self, *_):
         self._save_current()
         self.direct_hint.set_visible(self._settings.input_method == "direct")
+
+    def _sync_vibekey_details(self):
+        self.vibekey_details.set_visible(self.vibekey.get_active())
+
+    def _vibekey_changed(self, *_):
+        if self._updating:
+            self._sync_vibekey_details()
+            return
+        if not self._save_current():
+            self._updating = True
+            try:
+                self.vibekey.set_active(self._settings.vibekey_enabled)
+            finally:
+                self._updating = False
+        self._sync_vibekey_details()
 
     def _language_changed(self, *_):
         previous = self._settings.language
@@ -420,7 +510,8 @@ class SettingsWindow:
                                      "API key accepted.", "API Key 可用。")))
 
     def _close(self, *_):
-        self.trigger_picker.cancel()
+        for picker in (self.trigger_picker, *self.vibekey_pickers):
+            picker.cancel()
         flush = getattr(self, "_flush_asr_key", None)
         if flush:
             flush()

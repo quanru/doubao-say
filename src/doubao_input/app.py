@@ -258,7 +258,7 @@ class DoubaoInputApp(Gtk.Application):
             escape_edge=self._escape_guard.edge,
             start=self._voice_start, stop=self._voice_stop, toggle=self._voice_toggle,
             enter=self._voice_enter, cancel_input=self._cancel_input,
-            scroll=self._injector.scroll,
+            shortcut=self._injector.send_shortcut,
             prime=self._voice_prime, discard=self._tm.discard_primed_audio,
             debug_edge=self._debug_edge, error=lambda message: logger.warning("PTT error: %s", message))
 

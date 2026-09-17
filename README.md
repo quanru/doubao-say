@@ -219,9 +219,12 @@ time contain no account, transcript or device identifier.
 
 Keyboard access and `/dev/uinput` permissions are required. Do not run the app as root.
 Vibekey support is optional and off by default. When enabled in Settings, its three
-transmitter buttons map to recording, Enter and cancel; its narrowly scoped udev rule
-is documented in [the installation guide](packaging/INSTALL.md). No Vibekey software
-dependency is required.
+transmitter buttons map to recording, Enter and cancel. Turning the dial right or
+left sends Down or Up by default, and pressing it sends Meta+Backspace. All six
+controls can keep their default or record a different keyboard shortcut in Settings;
+the mapping controls stay hidden while Vibekey support is off. Its narrowly scoped
+udev rule is documented in [the installation guide](packaging/INSTALL.md). No
+Vibekey software dependency is required.
 Settings and sign-in
 data are kept separately from installed files. Never publish credential files,
 personal transcripts, recordings, or logs. The release builder uses an explicit
