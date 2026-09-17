@@ -73,15 +73,22 @@ const setup = defineProjectSetup<DesktopContext>({
   async setup({ project, onTeardown }) {
     const omarchy = project.name.startsWith('omarchy-');
     const shell = project.name === 'omarchy-shell';
-    const createAgent = () => agentForComputer({
-      xvfbResolution: omarchy ? '1280x800x24' : '1280x960x24',
-      // libnut and the VNC viewer may still hold X11 connections while the
-      // Agent finalizes its report. Stop Xvfb only after this process exits.
-      keepXvfbAliveUntilProcessExit: true,
-      aiContexts: shell
-        ? { aiAssert: 'Inspect the real Omarchy desktop through VNC. Judge only visible pixels; do not infer success from commands or configuration.' }
-        : { aiAct: `Test the English Doubao Say GTK onboarding window${omarchy ? ' inside a real Omarchy VM shown through VNC' : ''}. Interact only with Doubao Say and use visible labels.` },
-    });
+    let desktopReady = false;
+    const createAgent = async () => {
+      const agent = await agentForComputer({
+        // Later case agents share the Xvfb display hosting Fluxbox and libnut.
+        headless: desktopReady ? false : undefined,
+        xvfbResolution: omarchy ? '1280x800x24' : '1280x960x24',
+        // libnut and the VNC viewer may still hold X11 connections while the
+        // Agent finalizes its report. Stop Xvfb only after this process exits.
+        keepXvfbAliveUntilProcessExit: true,
+        aiContexts: shell
+          ? { aiAssert: 'Inspect the real Omarchy desktop through VNC. Judge only visible pixels; do not infer success from commands or configuration.' }
+          : { aiAct: `Test the English Doubao Say GTK onboarding window${omarchy ? ' inside a real Omarchy VM shown through VNC' : ''}. Interact only with Doubao Say and use visible labels.` },
+      });
+      desktopReady = true;
+      return agent;
+    };
     const context: DesktopContext = { agent: await createAgent(), createAgent };
     onTeardown(() => context.agent?.destroy());
     const fluxbox = spawn('fluxbox', [], { detached: true, stdio: 'ignore', env: process.env });
