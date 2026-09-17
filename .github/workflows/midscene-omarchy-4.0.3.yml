@@ -8,7 +8,7 @@ on:
       - ".github/workflows/midscene-omarchy-4.0.3.yml"
       - ".github/workflows/deploy-midscene-report.yml"
       - "scripts/build-pages-report.mjs"
-      - "scripts/build-omarchy-summary.mjs"
+      - "scripts/verify-omarchy-evidence.mjs"
       - "scripts/omarchy-shell-evidence.mjs"
       - "tests/test_pages_report_history.mjs"
       - "tests/midscene/package.json"
@@ -31,7 +31,7 @@ on:
       - ".github/workflows/midscene-omarchy-4.0.3.yml"
       - ".github/workflows/deploy-midscene-report.yml"
       - "scripts/build-pages-report.mjs"
-      - "scripts/build-omarchy-summary.mjs"
+      - "scripts/verify-omarchy-evidence.mjs"
       - "scripts/omarchy-shell-evidence.mjs"
       - "tests/test_pages_report_history.mjs"
       - "tests/midscene/package.json"
@@ -152,11 +152,9 @@ jobs:
           if-no-files-found: warn
           retention-days: 7
 
-      - name: Show visual results on the CI run page
+      - name: Verify visual evidence before publishing
         if: success()
-        env:
-          REPORT_ARTIFACT_URL: ${{ steps.report.outputs.artifact-url }}
-        run: node scripts/build-omarchy-summary.mjs tests/midscene/midscene_run
+        run: node scripts/verify-omarchy-evidence.mjs tests/midscene/midscene_run
 
   pages-report:
     name: GitHub Pages report
@@ -174,3 +172,22 @@ jobs:
     with:
       artifact-name: omarchy-midscene-e2e-report
       report-label: Omarchy 4.0.3
+
+  showcase-summary:
+    name: Visual report on CI page
+    needs: pages-report
+    if: needs.pages-report.result == 'success'
+    runs-on: ubuntu-latest
+    steps:
+      - name: Show the real desktop and native Test report
+        env:
+          REPORT_BASE: https://${{ github.repository_owner }}.github.io/${{ github.event.repository.name }}/reports/${{ github.run_id }}
+        run: |
+          cat >> "$GITHUB_STEP_SUMMARY" <<EOF
+          # Omarchy × Midscene · 3/3 visual checks passed
+
+          [![Real Omarchy system menu with a focused row and readable Shutdown item]($REPORT_BASE/menu.jpg)]($REPORT_BASE/index.html)
+
+          **Click the desktop screenshot to inspect the native Midscene Test report.**
+          [Onboarding replay]($REPORT_BASE/onboarding-report.html) · [Report history](https://${{ github.repository_owner }}.github.io/${{ github.event.repository.name }}/)
+          EOF
