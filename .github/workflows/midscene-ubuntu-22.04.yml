@@ -13,6 +13,7 @@ on:
       - "tests/e2e/package-lock.json"
       - "tests/e2e/gtk_fixture.py"
       - "tests/e2e/is-transient-midscene-failure.sh"
+      - "tests/e2e/capture-report-preview.mjs"
       - "tests/e2e/polish_fixture.py"
       - "tests/e2e/cases/**"
       - "tests/e2e/midscene.config.ts"
@@ -28,6 +29,7 @@ on:
       - "tests/e2e/package-lock.json"
       - "tests/e2e/gtk_fixture.py"
       - "tests/e2e/is-transient-midscene-failure.sh"
+      - "tests/e2e/capture-report-preview.mjs"
       - "tests/e2e/polish_fixture.py"
       - "tests/e2e/cases/**"
       - "tests/e2e/midscene.config.ts"
@@ -60,6 +62,8 @@ jobs:
       # GitHub's Ubuntu 22.04 runner intermittently times out while Node races
       # IPv4 and IPv6 addresses. The model endpoint is reachable over IPv4.
       NODE_OPTIONS: "--dns-result-order=ipv4first --no-network-family-autoselection"
+    outputs:
+      report-artifact-id: ${{ steps.report.outputs.artifact-id }}
     steps:
       - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
         with:
@@ -188,7 +192,12 @@ jobs:
             exit 1
           fi
 
+      - name: Capture the final report node for the CI summary
+        if: always()
+        run: node tests/e2e/capture-report-preview.mjs
+
       - name: Upload Midscene report
+        id: report
         if: always()
         uses: actions/upload-artifact@043fb46d1a93c77aae656e7c1c64a875d1fc6a0a # v7.0.1
         with:
@@ -201,7 +210,8 @@ jobs:
     name: GitHub Pages report
     needs: ubuntu-gtk
     if: >-
-      needs.ubuntu-gtk.result == 'success' &&
+      always() &&
+      needs.ubuntu-gtk.outputs.report-artifact-id != '' &&
       github.event_name != 'pull_request' &&
       github.ref_name == vars.PAGES_REPORT_BRANCH
     permissions:
@@ -213,3 +223,5 @@ jobs:
     with:
       artifact-name: midscene-ubuntu-22.04-e2e-report
       report-label: Ubuntu 22.04
+      summary-title: Ubuntu
+      run-result: ${{ needs.ubuntu-gtk.result }}

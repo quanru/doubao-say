@@ -316,13 +316,12 @@ export async function buildPagesReport(options) {
     }),
     { passed: 0, tests: 0 },
   );
-  const isOmarchy = label.startsWith('Omarchy');
   const reportPrefix = `reports/${runId}`;
   const files = shellReport && htmlReports.length === 2
     ? ['index.html', 'onboarding-report.html', 'report-preview.png'].map((name) => `${reportPrefix}/${name}`)
     : [
         `${reportPrefix}/index.html`,
-        ...(isOmarchy ? [`${reportPrefix}/report-preview.png`] : []),
+        `${reportPrefix}/report-preview.png`,
       ];
   const current = {
     runId,
@@ -361,12 +360,10 @@ export async function buildPagesReport(options) {
     await copyFile(path.join(reportDirectory, 'report-preview.png'), path.join(currentDirectory, 'report-preview.png'));
   } else {
     await copyFile(htmlReports.at(-1).file, path.join(currentDirectory, 'index.html'));
-    if (isOmarchy) {
-      await copyFile(
-        path.join(reportDirectory, 'report-preview.png'),
-        path.join(currentDirectory, 'report-preview.png'),
-      );
-    }
+    await copyFile(
+      path.join(reportDirectory, 'report-preview.png'),
+      path.join(currentDirectory, 'report-preview.png'),
+    );
   }
 
   const reports = [current, ...history];

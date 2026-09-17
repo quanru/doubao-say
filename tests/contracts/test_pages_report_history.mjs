@@ -59,6 +59,7 @@ async function fixtureDirectory(root) {
   await mkdir(reportDirectory, { recursive: true });
   await writeFile(path.join(reportDirectory, 'test-run-ubuntu.html'), fixtureHtml);
   await writeFile(path.join(reportDirectory, 'agent-detail.html'), '<html>intermediate Agent report</html>');
+  await writeFile(path.join(path.dirname(reportDirectory), 'report-preview.png'), 'preview');
   return path.dirname(reportDirectory);
 }
 
@@ -118,6 +119,17 @@ test('simulates a first deployment when Pages returns 404', async (context) => {
       'utf8',
     ),
     fixtureHtml,
+  );
+  assert.deepEqual(manifest.reports[0].files, [
+    'reports/200/index.html',
+    'reports/200/report-preview.png',
+  ]);
+  assert.equal(
+    await readFile(
+      path.join(siteDirectory, 'reports', '200', 'report-preview.png'),
+      'utf8',
+    ),
+    'preview',
   );
 });
 
