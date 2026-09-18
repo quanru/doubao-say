@@ -194,7 +194,11 @@ jobs:
 
       - name: Capture the final report node for the CI summary
         if: always()
-        run: node tests/e2e/capture-report-preview.mjs
+        run: >-
+          node tests/e2e/capture-report-preview.mjs
+          tests/e2e/midscene_run
+          tests/e2e/midscene_run/report-preview.png
+          ubuntu
 
       - name: Upload Midscene report
         id: report
@@ -224,4 +228,6 @@ jobs:
       artifact-name: midscene-ubuntu-22.04-e2e-report
       report-label: Ubuntu 22.04
       summary-title: Ubuntu
+      primary-project: ubuntu
+      auxiliary-report-label: Polishing overlay report
       run-result: ${{ needs.ubuntu-gtk.result }}

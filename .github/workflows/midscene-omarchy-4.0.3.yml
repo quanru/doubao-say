@@ -146,7 +146,11 @@ jobs:
 
       - name: Capture the final report node for the CI summary
         if: always()
-        run: node tests/e2e/capture-report-preview.mjs
+        run: >-
+          node tests/e2e/capture-report-preview.mjs
+          tests/e2e/midscene_run
+          tests/e2e/midscene_run/report-preview.png
+          omarchy-onboarding
 
       - name: Upload installer evidence
         if: always()
@@ -189,4 +193,6 @@ jobs:
       artifact-name: omarchy-midscene-e2e-report
       report-label: Omarchy 4.0.3
       summary-title: Omarchy
+      primary-project: omarchy-onboarding
+      auxiliary-report-label: Omarchy visual checks
       run-result: ${{ needs.omarchy-vm.result }}

@@ -24,7 +24,7 @@ const fixtureHtml = `<!doctype html><html><body>report
 <script type="midscene_web_dump">{"usage":{"_midscene_call_id":"call-1","time_cost":2500,"total_tokens":120}}</script>
 <script type="midscene_web_dump">{"message":"raw
 control character","usage":{"_midscene_call_id":"call-2","time_cost":3500,"total_tokens":180}}</script>
-${runnerScript({ project: 'ubuntu-onboarding', startedAt: '2026-09-15T12:00:00Z' })}
+${runnerScript({ project: 'ubuntu', startedAt: '2026-09-15T12:00:00Z' })}
 </body></html>`;
 
 const shellPrompts = [
@@ -83,6 +83,7 @@ function options(reportDirectory, siteDirectory, pagesUrl, runId = '200') {
     retention: '10',
     'pages-url': pagesUrl,
     label: 'Ubuntu 22.04',
+    'primary-project': 'ubuntu',
   };
 }
 
@@ -133,7 +134,7 @@ test('simulates a first deployment when Pages returns 404', async (context) => {
   );
 });
 
-test('publishes the shell test-run report directly with a CI entrance image', async (context) => {
+test('publishes the Doubao Say report as the primary CI entrance', async (context) => {
   const root = await mkdtemp(path.join(os.tmpdir(), 'pages-omarchy-'));
   const reportDirectory = await fixtureDirectory(root);
   await writeFile(
@@ -158,13 +159,13 @@ test('publishes the shell test-run report directly with a CI entrance image', as
     path.join(siteDirectory, 'reports', '200', 'index.html'),
     'utf8',
   );
-  assert.equal(publishedReport, shellFixtureHtml);
+  assert.equal(publishedReport, fixtureHtml);
   assert.equal(
     await readFile(
-      path.join(siteDirectory, 'reports', '200', 'onboarding-report.html'),
+      path.join(siteDirectory, 'reports', '200', 'auxiliary-report.html'),
       'utf8',
     ),
-    fixtureHtml,
+    shellFixtureHtml,
   );
   assert.equal(
     await readFile(
@@ -227,6 +228,7 @@ test('keeps only the latest failed retry for an Omarchy project', async (context
   const manifest = await buildPagesReport({
     ...options(reportDirectory, siteDirectory, server.url),
     label: 'Omarchy 4.0.3',
+    'primary-project': 'omarchy-onboarding',
   });
 
   assert.equal(manifest.reports[0].successRate, 0);

@@ -14,6 +14,7 @@ const reportDirectory = path.resolve(
 const outputFile = path.resolve(
   process.argv[3] || path.join(reportDirectory, 'report-preview.png'),
 );
+const projectName = process.argv[4];
 
 const candidates = [
   process.env.CHROME_BIN,
@@ -35,7 +36,7 @@ if (!executablePath) {
   throw new Error('Chrome executable was not found');
 }
 
-const report = await findLatestTestReport(reportDirectory);
+const report = await findLatestTestReport(reportDirectory, { projectName });
 const runnerDump = report.run;
 if (!runnerDump) throw new Error('Midscene Test runner dump was not found');
 const previewUrl = new URL(pathToFileURL(report.file));

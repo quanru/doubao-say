@@ -265,6 +265,7 @@ export async function buildPagesReport(options) {
   const retention = validateRetention(required(options, 'retention'));
   const baseUrl = normalizeBaseUrl(required(options, 'pages-url'));
   const label = options.label || 'Midscene E2E';
+  const primaryProject = required(options, 'primary-project');
 
   const existingItems = await readdir(siteDirectory).catch((error) => {
     if (error.code === 'ENOENT') return null;
@@ -300,6 +301,13 @@ export async function buildPagesReport(options) {
       `Expected reports for one or two projects, found ${htmlReports.length}`,
     );
   }
+  const primaryReport = htmlReports.find((report) =>
+    report.run?.projects?.some((project) => project.name === primaryProject),
+  );
+  if (!primaryReport) {
+    throw new Error(`No Midscene Test report found for project ${primaryProject}`);
+  }
+  const auxiliaryReport = htmlReports.find((report) => report !== primaryReport);
   const shellReport = htmlReports.find((report) =>
     report.html.includes('The Omarchy system menu is open'),
   );
@@ -317,8 +325,8 @@ export async function buildPagesReport(options) {
     { passed: 0, tests: 0 },
   );
   const reportPrefix = `reports/${runId}`;
-  const files = shellReport && htmlReports.length === 2
-    ? ['index.html', 'onboarding-report.html', 'report-preview.png'].map((name) => `${reportPrefix}/${name}`)
+  const files = auxiliaryReport
+    ? ['index.html', 'auxiliary-report.html', 'report-preview.png'].map((name) => `${reportPrefix}/${name}`)
     : [
         `${reportPrefix}/index.html`,
         `${reportPrefix}/report-preview.png`,
@@ -353,13 +361,12 @@ export async function buildPagesReport(options) {
 
   const currentDirectory = path.join(siteDirectory, reportPrefix);
   await mkdir(currentDirectory, { recursive: true });
-  if (shellReport && htmlReports.length === 2) {
-    const onboardingReport = htmlReports.find((report) => report !== shellReport);
-    await copyFile(shellReport.file, path.join(currentDirectory, 'index.html'));
-    await copyFile(onboardingReport.file, path.join(currentDirectory, 'onboarding-report.html'));
+  if (auxiliaryReport) {
+    await copyFile(primaryReport.file, path.join(currentDirectory, 'index.html'));
+    await copyFile(auxiliaryReport.file, path.join(currentDirectory, 'auxiliary-report.html'));
     await copyFile(path.join(reportDirectory, 'report-preview.png'), path.join(currentDirectory, 'report-preview.png'));
   } else {
-    await copyFile(htmlReports.at(-1).file, path.join(currentDirectory, 'index.html'));
+    await copyFile(primaryReport.file, path.join(currentDirectory, 'index.html'));
     await copyFile(
       path.join(reportDirectory, 'report-preview.png'),
       path.join(currentDirectory, 'report-preview.png'),
