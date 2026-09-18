@@ -176,12 +176,24 @@ const fixtureMode = z.strictObject({
     'runtime-cancel',
   ]),
 });
+const keyboardKey = z.strictObject({
+  keyName: z.enum(['F8', 'Escape']),
+});
 const prepareFixture = defineNode<typeof fixtureMode, void, DesktopContext>({
   name: 'fixture.prepare',
   description: 'Select deterministic synthetic state for this test case.',
   inputSchema: fixtureMode,
   execute({ context, input }) {
     context.fixtureMode = input.mode;
+  },
+});
+const pressKeyboardKey = defineNode<typeof keyboardKey, void, DesktopContext>({
+  name: 'computer.keyPress',
+  description: 'Press a desktop shortcut through the active Midscene Computer Agent.',
+  inputSchema: keyboardKey,
+  async execute({ context, input }) {
+    if (!context.agent) throw new Error('Midscene Computer Agent is not active');
+    await context.agent.aiKeyboardPress(undefined, { keyName: input.keyName });
   },
 });
 const openSystemMenu = defineNode<typeof empty, void, DesktopContext>({
@@ -282,6 +294,6 @@ export default defineTestProject<DesktopContext>({
         };
       })(),
     }),
-    prepareFixture, openSystemMenu, closeSystemMenu, moveBarLeft,
+    prepareFixture, pressKeyboardKey, openSystemMenu, closeSystemMenu, moveBarLeft,
   ],
 });

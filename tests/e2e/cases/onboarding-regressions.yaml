@@ -54,22 +54,28 @@ cases:
       - aiAct: "Verify Voice polishing enabled is visible, the switch is on, and the Base URL and Model fields have returned. Scroll within the content if needed and verify Model still contains synthetic-model."
   - name: Recover from an endpoint failure
     steps:
-      - aiAct: "Verify the visible Doubao Say window starts on the Sign in step, says the user is not signed in, and shows an Open Doubao sign-in button. Do not click anything."
-      - aiAct: "Click Open Doubao sign-in exactly once, then stop immediately."
-      - aiAct: "Verify a Synthetic Doubao sign-in window is visible and explicitly says it is CI-only, makes no network request, and uses no real credentials. Do not click anything."
-      - aiAct: "In the Synthetic Doubao sign-in window, click Simulate successful sign-in exactly once, then stop immediately."
-      - aiAct: "Verify the synthetic sign-in window closed and the visible Doubao Say window automatically advanced to the Microphone step with a right-arrow Next button in the fixed top navigation."
-      - aiAct: "Click right-arrow Next in the fixed top navigation exactly once, then stop."
-      - aiAct: "Verify the current step is Trigger key and the heading Choose how to start speaking is visible. Do not navigate."
-      - aiAct: "Scroll inside the central content panel to Voice polishing. Replace the Model field with synthetic-failing-model, then click Test endpoint exactly once, scrolling within the panel if needed."
-      - aiAct: "Verify the visible endpoint feedback says Endpoint test failed: Synthetic endpoint unavailable, and the enabled retry button says Test failed — try again."
-      - aiAct: "Scroll upward inside the central content panel until the Voice polishing Model input is visible. Stop with that input on screen."
-      - aiAct: "In the Model input, select all existing text and replace it with exactly synthetic-model. Do not change Base URL or API Key. Stop after entering the new value."
-      - aiAct: "Verify the Model input now contains exactly synthetic-model, without the word failing. Do not click or type anything."
-      - aiAct: "Scroll downward inside the central content panel until the Test failed — try again button is visible. Do not click it yet."
-      - aiAct: "Click the Test failed — try again button exactly once to run a new endpoint test. Stop immediately after the click."
-      - aiAct: "Scroll within the central content panel if needed until the endpoint result text below the retry button is fully visible."
-      - aiAct: "Verify the endpoint result says Endpoint works: Synthetic endpoint response, the enabled button says Endpoint works, and the previous Synthetic endpoint unavailable error is no longer visible."
+      - aiAssert: The visible Doubao Say window starts on the Sign in step and says the user is not signed in.
+      - aiAct: Scroll inside the Sign in content panel until Open Doubao sign-in is fully visible.
+      - aiTap: Open Doubao sign-in button in the Sign in content panel
+      - wait: { duration: 500 }
+      - aiAssert: A Synthetic Doubao sign-in window is visible and explicitly says it is CI-only, makes no network request, and uses no real credentials.
+      - aiTap: Simulate successful sign-in button in the Synthetic Doubao sign-in window
+      - wait: { duration: 500 }
+      - aiAssert: The synthetic sign-in window closed and Doubao Say automatically advanced to the Microphone step.
+      - aiTap: Right-arrow Next button in the fixed top navigation
+      - aiAssert: The current step is Trigger key and the heading Choose how to start speaking is visible.
+      - aiAct: Scroll inside the central content panel until the Voice polishing Model input is fully visible, then replace its value with exactly synthetic-failing-model. Do not click Test endpoint.
+      - aiAssert: The Voice polishing Model input contains exactly synthetic-failing-model.
+      - aiTap: Test endpoint button in the Voice polishing section
+      - wait: { duration: 750 }
+      - aiAssert: "The visible endpoint feedback says Endpoint test failed: Synthetic endpoint unavailable, and the enabled retry button says Test failed — try again."
+      - aiAct: Scroll inside the central content panel until the Voice polishing Model input is fully visible, then replace its value with exactly synthetic-model. Do not click the retry button.
+      - aiAssert: The Voice polishing Model input contains exactly synthetic-model, without the word failing.
+      - aiAct: Scroll inside the central content panel until the Test failed — try again button is fully visible.
+      - aiTap: Test failed — try again button in the Voice polishing section
+      - wait: { duration: 750 }
+      - aiAct: Scroll inside the central content panel until the endpoint result text below the retry button is fully visible.
+      - aiAssert: "The endpoint result says Endpoint works: Synthetic endpoint response, the enabled button says Endpoint works, and the previous Synthetic endpoint unavailable error is no longer visible."
   - name: Microphone check gates setup completion
     steps:
       - fixture.prepare: { mode: microphone-gate }
@@ -113,7 +119,8 @@ cases:
       - aiAct: In Recognition service, select Volcengine API exactly once.
       - aiAct: Scroll down inside the central content panel until the API Key field and Test API key button are both visible.
       - aiAssert: The page is now Recognition, shows an API Key field and Test API key button, hides Open Doubao sign-in, and keeps right-arrow Next disabled.
-      - aiAct: Click Test API key without entering a key.
+      - aiTap: Test API key button below the empty API Key field
+      - wait: { duration: 500 }
       - aiAssert: A visible validation message says Enter an API key first and right-arrow Next remains disabled.
       - aiAct: Enter synthetic-ci-key in the API Key field, wait until the interface says the key was saved automatically, then click Test API key exactly once and wait for the result.
       - aiAssert: The result says API key accepted by synthetic endpoint, the page reports that the official API is ready, and right-arrow Next is enabled.

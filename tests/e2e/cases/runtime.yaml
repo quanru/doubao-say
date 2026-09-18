@@ -3,17 +3,24 @@ cases:
     steps:
       - fixture.prepare: { mode: runtime-delivery }
       - aiAssert: A Synthetic dictation target window is focused, its text field is empty, and the status says Idle with 0 deliveries.
-      - aiAct: Press F8 exactly once and wait for the recording overlay.
+      - computer.keyPress: { keyName: F8 }
+      - wait: { duration: 1000 }
       - aiAssert: A dark Doubao Say overlay visibly says Listening to synthetic speech and shows Synthetic dictation is ready to deliver; the target field remains empty.
-      - aiAct: Press F8 exactly once again and wait for delivery to finish.
+      - computer.keyPress: { keyName: F8 }
+      - wait: { duration: 1200 }
       - aiAssert: The target field contains exactly Synthetic dictation delivered exactly once, and the status says Delivered once, target focus preserved, and 1 delivery.
   - name: Cancel synthetic dictation without delivering text
     steps:
       - fixture.prepare: { mode: runtime-cancel }
       - aiAssert: A Synthetic dictation target window is focused, its text field is empty, and the status says Idle with 0 deliveries.
-      - aiAct: Press F8 exactly once and wait for the recording overlay.
+      - computer.keyPress: { keyName: F8 }
+      - wait: { duration: 1000 }
       - aiAssert: The recording overlay is visible and the target field is still empty.
-      - aiAct: Press Escape exactly once and wait for the overlay to close.
+      - computer.keyPress: { keyName: Escape }
+      - wait: { duration: 1000 }
       - aiAssert: The overlay is gone, the target field remains empty, and the status says Cancelled, no text delivered, and ready to try again.
-      - aiAct: Press F8 exactly once, wait for the recording overlay, then press F8 exactly once again and wait for delivery to finish.
+      - computer.keyPress: { keyName: F8 }
+      - wait: { duration: 1000 }
+      - computer.keyPress: { keyName: F8 }
+      - wait: { duration: 1200 }
       - aiAssert: A new attempt succeeds with exactly one delivered synthetic sentence and the status reports 1 delivery.
