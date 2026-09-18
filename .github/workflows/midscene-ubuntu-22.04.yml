@@ -7,8 +7,9 @@ on:
     paths:
       - ".github/workflows/midscene-ubuntu-22.04.yml"
       - ".github/workflows/deploy-midscene-report.yml"
-      - ".github/workflows/preview-midscene-summary.yml"
       - "scripts/build-pages-report.mjs"
+      - "scripts/render-ci-report-summary.mjs"
+      - "scripts/verify-pages-report.mjs"
       - "tests/contracts/test_pages_report_history.mjs"
       - "tests/e2e/package.json"
       - "tests/e2e/package-lock.json"
@@ -24,8 +25,9 @@ on:
     paths:
       - ".github/workflows/midscene-ubuntu-22.04.yml"
       - ".github/workflows/deploy-midscene-report.yml"
-      - ".github/workflows/preview-midscene-summary.yml"
       - "scripts/build-pages-report.mjs"
+      - "scripts/render-ci-report-summary.mjs"
+      - "scripts/verify-pages-report.mjs"
       - "tests/contracts/test_pages_report_history.mjs"
       - "tests/e2e/package.json"
       - "tests/e2e/package-lock.json"
@@ -48,15 +50,6 @@ concurrency:
   cancel-in-progress: false
 
 jobs:
-  report-summary-preview:
-    name: CI report layout preview
-    if: github.event_name == 'pull_request'
-    uses: ./.github/workflows/preview-midscene-summary.yml
-    with:
-      report-label: Ubuntu 22.04
-      summary-title: Ubuntu
-      auxiliary-report-label: Polishing overlay report
-
   ubuntu-gtk:
     name: Midscene onboarding
     if: github.event_name != 'pull_request' || github.event.pull_request.head.repo.full_name == github.repository
@@ -205,15 +198,11 @@ jobs:
 
       - name: Capture the final report node for the CI summary
         if: always()
-        run: >-
-          node tests/e2e/capture-report-preview.mjs
-          tests/e2e/midscene_run
-          tests/e2e/midscene_run/report-preview.png
-          ubuntu
-          && node tests/e2e/capture-report-preview.mjs
-          tests/e2e/midscene_run
-          tests/e2e/midscene_run/auxiliary-report-preview.png
-          ubuntu-polishing
+        run: |
+          node tests/e2e/capture-report-preview.mjs \
+            --report-dir tests/e2e/midscene_run \
+            --primary-project ubuntu \
+            --auxiliary-project ubuntu-polishing
 
       - name: Upload Midscene report
         id: report
@@ -244,5 +233,6 @@ jobs:
       report-label: Ubuntu 22.04
       summary-title: Ubuntu
       primary-project: ubuntu
+      auxiliary-project: ubuntu-polishing
       auxiliary-report-label: Polishing overlay report
       run-result: ${{ needs.ubuntu-gtk.result }}

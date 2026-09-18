@@ -5,17 +5,14 @@ export const SHELL_CHECKS = [
   {
     key: 'shutdown',
     label: 'Shutdown is readable',
-    marker: 'The Omarchy system menu is open',
   },
   {
     key: 'focus',
     label: 'Menu focus highlight is clean',
-    marker: 'Exactly one row in the open system menu',
   },
   {
     key: 'bar',
     label: 'Bar is vertical on the left',
-    marker: 'The Omarchy bar is visible',
   },
 ];
 
@@ -125,27 +122,23 @@ export function extractShellEvidence(html, { allowIncomplete = false } = {}) {
     });
   }
 
-  const finished = new Map();
+  const finished = [];
   for (const dump of reportDumps(html)) {
     for (const execution of dump.executions ?? []) {
       for (const task of execution.tasks ?? []) {
         if (task.status !== 'finished' || task.subType !== 'Assert') continue;
-        const demand = task.param?.dataDemand;
-        if (typeof demand === 'string') finished.set(demand, task);
+        finished.push(task);
       }
     }
   }
 
-  return SHELL_CHECKS.map((check) => {
-    const entry = [...finished.entries()].find(([demand]) =>
-      demand.startsWith(check.marker),
-    );
-    if (!entry) {
+  return SHELL_CHECKS.map((check, index) => {
+    const task = finished[index];
+    if (!task) {
       if (allowIncomplete)
         return { ...check, passed: false, screenshot: null, missing: true };
       throw new Error(`Missing finished Omarchy assertion: ${check.label}`);
     }
-    const task = entry[1];
     const screenshot = images.get(task.uiContext?.screenshot?.id);
     if (!screenshot) {
       if (allowIncomplete)
@@ -159,10 +152,8 @@ export function extractShellEvidence(html, { allowIncomplete = false } = {}) {
 export async function findShellReport(directory) {
   for (const file of await findHtmlFiles(directory)) {
     const html = await readFile(file, 'utf8');
-    if (
-      html.includes(SHELL_CHECKS[0].marker) &&
-      html.includes(SHELL_CHECKS[2].marker)
-    ) {
+    const run = testRunDump(html);
+    if (run?.projects?.some((project) => project.name === 'omarchy-shell')) {
       return { file, html, checks: extractShellEvidence(html) };
     }
   }

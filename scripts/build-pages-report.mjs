@@ -10,13 +10,13 @@ import {
 import path from 'node:path';
 import process from 'node:process';
 import {
-  extractShellEvidence,
   findHtmlFiles,
   reportDumps,
   testRunDump,
 } from './omarchy-shell-evidence.mjs';
 
-const MANIFEST_VERSION = 1;
+const MANIFEST_VERSION = 2;
+const SUPPORTED_MANIFEST_VERSIONS = new Set([1, MANIFEST_VERSION]);
 
 function parseArguments(argv) {
   const options = {};
@@ -113,10 +113,25 @@ function collectModelUsage(reportHtml) {
   };
 }
 
+function collectAssertionResults(reportHtml) {
+  let passed = 0;
+  let total = 0;
+  for (const dump of reportDumps(reportHtml)) {
+    for (const execution of dump.executions ?? []) {
+      for (const task of execution.tasks ?? []) {
+        if (task.status !== 'finished' || task.subType !== 'Assert') continue;
+        total += 1;
+        if (task.output === true) passed += 1;
+      }
+    }
+  }
+  return { passed, total };
+}
+
 function validateHistoryManifest(manifest) {
   if (
     !manifest ||
-    manifest.version !== MANIFEST_VERSION ||
+    !SUPPORTED_MANIFEST_VERSIONS.has(manifest.version) ||
     !Array.isArray(manifest.reports)
   ) {
     throw new Error('Existing Pages manifest has an unsupported shape');
@@ -134,6 +149,20 @@ function validateHistoryManifest(manifest) {
               typeof file !== 'string' ||
               !/^reports\/\d+\/[a-z0-9.-]+$/.test(file) ||
               !file.startsWith(`reports/${report.runId}/`),
+          ))) ||
+      (report.entries !== undefined &&
+        (!Array.isArray(report.entries) ||
+          report.entries.some(
+            (entry) =>
+              !['primary', 'auxiliary'].includes(entry.role) ||
+              typeof entry.project !== 'string' ||
+              typeof entry.label !== 'string' ||
+              !report.files?.includes(entry.reportPath) ||
+              !report.files?.includes(entry.previewPath) ||
+              !Number.isInteger(entry.scenarios?.passed) ||
+              !Number.isInteger(entry.scenarios?.total) ||
+              !Number.isInteger(entry.assertions?.passed) ||
+              !Number.isInteger(entry.assertions?.total),
           )))
     ) {
       throw new Error(
@@ -242,7 +271,7 @@ function buildIndex(reports) {
   <body>
     <main>
       <h1>Doubao Say test report history</h1>
-      <p>Successful Midscene CI reports, newest first.</p>
+      <p>Midscene CI reports, newest first.</p>
       <div class="table-wrap">
         <table>
           <thead><tr><th>Run ID</th><th>Distribution</th><th>Generated (UTC)</th><th>Success rate</th><th>Avg. model call</th><th>Model calls</th><th>Tokens</th><th>Workflow</th><th>Report</th></tr></thead>
@@ -266,6 +295,14 @@ export async function buildPagesReport(options) {
   const baseUrl = normalizeBaseUrl(required(options, 'pages-url'));
   const label = options.label || 'Midscene E2E';
   const primaryProject = required(options, 'primary-project');
+  const primaryReportLabel = options['primary-report-label'] || 'Doubao Say';
+  const auxiliaryProject = options['auxiliary-project'];
+  const auxiliaryReportLabel = options['auxiliary-report-label'];
+  if (Boolean(auxiliaryProject) !== Boolean(auxiliaryReportLabel)) {
+    throw new Error(
+      '--auxiliary-project and --auxiliary-report-label must be provided together',
+    );
+  }
 
   const existingItems = await readdir(siteDirectory).catch((error) => {
     if (error.code === 'ENOENT') return null;
@@ -296,28 +333,35 @@ export async function buildPagesReport(options) {
   const htmlReports = [...latestByProject.values()].sort(
     (left, right) => left.startedAt - right.startedAt,
   );
-  if (htmlReports.length < 1 || htmlReports.length > 2) {
-    throw new Error(
-      `Expected reports for one or two projects, found ${htmlReports.length}`,
+  const reportForProject = (projectName) =>
+    htmlReports.find(
+      (report) =>
+        report.run?.projects?.length === 1 &&
+        report.run.projects[0].name === projectName,
     );
-  }
-  const primaryReport = htmlReports.find((report) =>
-    report.run?.projects?.some((project) => project.name === primaryProject),
-  );
+  const primaryReport = reportForProject(primaryProject);
   if (!primaryReport) {
     throw new Error(`No Midscene Test report found for project ${primaryProject}`);
   }
-  const auxiliaryReport = htmlReports.find((report) => report !== primaryReport);
-  const shellReport = htmlReports.find((report) =>
-    report.html.includes('The Omarchy system menu is open'),
-  );
-  const checks = shellReport
-    ? extractShellEvidence(shellReport.html, { allowIncomplete: true })
+  const auxiliaryReport = auxiliaryProject
+    ? reportForProject(auxiliaryProject)
     : null;
+  const selectedReports = [primaryReport, auxiliaryReport].filter(Boolean);
+  const selectedFiles = new Set(selectedReports.map((report) => report.file));
+  const unexpectedProjects = htmlReports
+    .filter((report) => !selectedFiles.has(report.file))
+    .flatMap((report) =>
+      report.run?.projects?.map((project) => project.name) ?? [path.basename(report.file)],
+    );
+  if (unexpectedProjects.length) {
+    throw new Error(
+      `Unexpected Midscene Test project(s): ${unexpectedProjects.join(', ')}`,
+    );
+  }
   const usage = collectModelUsage(
-    htmlReports.map((report) => report.html).join('\n'),
+    selectedReports.map((report) => report.html).join('\n'),
   );
-  const result = htmlReports.reduce(
+  const result = selectedReports.reduce(
     (total, report) => ({
       passed: total.passed + (report.run?.summary?.passed ?? 0),
       tests: total.tests + (report.run?.summary?.total ?? 0),
@@ -336,23 +380,49 @@ export async function buildPagesReport(options) {
         `${reportPrefix}/index.html`,
         `${reportPrefix}/report-preview.png`,
       ];
+  const entries = [
+    {
+      role: 'primary',
+      project: primaryProject,
+      label: primaryReportLabel,
+      reportPath: `${reportPrefix}/index.html`,
+      previewPath: `${reportPrefix}/report-preview.png`,
+      scenarios: {
+        passed: primaryReport.run?.summary?.passed ?? 0,
+        total: primaryReport.run?.summary?.total ?? 0,
+      },
+      assertions: collectAssertionResults(primaryReport.html),
+    },
+    ...(auxiliaryReport
+      ? [
+          {
+            role: 'auxiliary',
+            project: auxiliaryProject,
+            label: auxiliaryReportLabel,
+            reportPath: `${reportPrefix}/auxiliary-report.html`,
+            previewPath: `${reportPrefix}/auxiliary-report-preview.png`,
+            scenarios: {
+              passed: auxiliaryReport.run?.summary?.passed ?? 0,
+              total: auxiliaryReport.run?.summary?.total ?? 0,
+            },
+            assertions: collectAssertionResults(auxiliaryReport.html),
+          },
+        ]
+      : []),
+  ];
   const current = {
     runId,
     generatedAt,
     label,
     successRate: result.tests
       ? Math.round((result.passed / result.tests) * 100)
-      : checks
-        ? Math.round(
-            (checks.filter((check) => check.passed).length / checks.length) *
-              100,
-          )
-        : 0,
-    testCount: result.tests || htmlReports.length,
+      : 0,
+    testCount: result.tests,
     ...usage,
     workflowUrl,
     reportPath: `reports/${runId}/index.html`,
     files,
+    entries,
   };
 
   const history = (await fetchHistory(baseUrl))

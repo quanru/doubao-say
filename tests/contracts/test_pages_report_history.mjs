@@ -6,6 +6,9 @@ import path from 'node:path';
 import test from 'node:test';
 
 import { buildPagesReport } from '../../scripts/build-pages-report.mjs';
+import { findShellReport } from '../../scripts/omarchy-shell-evidence.mjs';
+import { renderReportSummary } from '../../scripts/render-ci-report-summary.mjs';
+import { verifyPublishedReport } from '../../scripts/verify-pages-report.mjs';
 
 function runnerScript({ project, status = 'success', startedAt }) {
   return `<script type="midscene_test_run_dump">${JSON.stringify({
@@ -96,9 +99,11 @@ test('simulates a first deployment when Pages returns 404', async (context) => {
   });
   context.after(server.close);
 
-  const manifest = await buildPagesReport(
-    options(reportDirectory, siteDirectory, server.url),
-  );
+  const manifest = await buildPagesReport({
+    ...options(reportDirectory, siteDirectory, server.url),
+    'auxiliary-project': 'ubuntu-polishing',
+    'auxiliary-report-label': 'Polishing overlay report',
+  });
 
   assert.equal(manifest.reports.length, 1);
   assert.equal(manifest.reports[0].runId, '200');
@@ -125,6 +130,7 @@ test('simulates a first deployment when Pages returns 404', async (context) => {
     'reports/200/index.html',
     'reports/200/report-preview.png',
   ]);
+  assert.equal(manifest.reports[0].entries.length, 1);
   assert.equal(
     await readFile(
       path.join(siteDirectory, 'reports', '200', 'report-preview.png'),
@@ -152,12 +158,34 @@ test('publishes the Doubao Say report as the primary CI entrance', async (contex
   );
   context.after(server.close);
 
-  const manifest = await buildPagesReport(
-    options(reportDirectory, siteDirectory, server.url),
-  );
+  const manifest = await buildPagesReport({
+    ...options(reportDirectory, siteDirectory, server.url),
+    'auxiliary-project': 'omarchy-shell',
+    'auxiliary-report-label': 'Omarchy visual checks',
+  });
 
   assert.equal(manifest.reports[0].testCount, 2);
   assert.equal(manifest.reports[0].successRate, 100);
+  assert.deepEqual(manifest.reports[0].entries, [
+    {
+      role: 'primary',
+      project: 'ubuntu',
+      label: 'Doubao Say',
+      reportPath: 'reports/200/index.html',
+      previewPath: 'reports/200/report-preview.png',
+      scenarios: { passed: 1, total: 1 },
+      assertions: { passed: 0, total: 0 },
+    },
+    {
+      role: 'auxiliary',
+      project: 'omarchy-shell',
+      label: 'Omarchy visual checks',
+      reportPath: 'reports/200/auxiliary-report.html',
+      previewPath: 'reports/200/auxiliary-report-preview.png',
+      scenarios: { passed: 1, total: 1 },
+      assertions: { passed: 3, total: 3 },
+    },
+  ]);
   assert.deepEqual(manifest.reports[0].files, [
     'reports/200/index.html',
     'reports/200/auxiliary-report.html',
@@ -221,7 +249,11 @@ test('publishes a failed shell report with its result in history', async (contex
   context.after(server.close);
 
   const manifest = await buildPagesReport(
-    options(reportDirectory, siteDirectory, server.url),
+    {
+      ...options(reportDirectory, siteDirectory, server.url),
+      'auxiliary-project': 'omarchy-shell',
+      'auxiliary-report-label': 'Omarchy visual checks',
+    },
   );
 
   assert.equal(manifest.reports[0].successRate, 50);
@@ -322,6 +354,7 @@ test('restores retained history before adding the new run', async (context) => {
       'utf8',
     ),
   );
+  assert.equal(writtenManifest.version, 2);
   assert.equal(writtenManifest.reports[0].reportPath, 'reports/200/index.html');
   assert.equal(
     writtenManifest.reports[0].workflowUrl,
@@ -372,4 +405,164 @@ test('rejects retention outside the supported range', async (context) => {
   invalid.retention = '51';
 
   await assert.rejects(buildPagesReport(invalid), /integer from 1 to 50/);
+});
+
+test('rejects an undeclared report project', async (context) => {
+  const root = await mkdtemp(path.join(os.tmpdir(), 'pages-project-'));
+  const reportDirectory = await fixtureDirectory(root);
+  await writeFile(
+    path.join(reportDirectory, 'report', 'test-run-shell.html'),
+    shellFixtureHtml,
+  );
+  const server = await startServer((_request, response) =>
+    response.writeHead(404).end(),
+  );
+  context.after(server.close);
+
+  await assert.rejects(
+    buildPagesReport(
+      options(reportDirectory, path.join(root, 'site'), server.url),
+    ),
+    /Unexpected Midscene Test project\(s\): omarchy-shell/,
+  );
+});
+
+test('renders one full-width section per structured report entry', () => {
+  const manifest = {
+    reports: [
+      {
+        runId: '200',
+        entries: [
+          {
+            role: 'primary',
+            project: 'ubuntu',
+            label: 'Doubao Say',
+            reportPath: 'reports/200/index.html',
+            previewPath: 'reports/200/report-preview.png',
+            scenarios: { passed: 6, total: 6 },
+            assertions: { passed: 5, total: 5 },
+          },
+          {
+            role: 'auxiliary',
+            project: 'ubuntu-polishing',
+            label: 'Polishing overlay report',
+            reportPath: 'reports/200/auxiliary-report.html',
+            previewPath: 'reports/200/auxiliary-report-preview.png',
+            scenarios: { passed: 1, total: 1 },
+            assertions: { passed: 8, total: 8 },
+          },
+        ],
+      },
+    ],
+  };
+  const summary = renderReportSummary({
+    manifest,
+    pagesUrl: 'https://example.test/doubao-say/',
+    producerResult: 'success',
+    runId: '200',
+    summaryTitle: 'Ubuntu',
+  });
+
+  assert.match(summary, /Ubuntu × Midscene · passed/);
+  assert.match(summary, /Doubao Say: 6\/6 scenarios passed/);
+  assert.match(summary, /Polishing overlay report: 1\/1 scenarios passed/);
+  assert.doesNotMatch(summary, /\|:--\|/);
+  assert.doesNotMatch(summary, /report report/);
+  assert.match(summary, /Click the final-node previews/);
+});
+
+test('renders singular failure copy for one available report', () => {
+  const manifest = {
+    reports: [
+      {
+        runId: '200',
+        entries: [
+          {
+            role: 'primary',
+            project: 'ubuntu',
+            label: 'Doubao Say',
+            reportPath: 'reports/200/index.html',
+            previewPath: 'reports/200/report-preview.png',
+            scenarios: { passed: 0, total: 1 },
+            assertions: { passed: 1, total: 2 },
+          },
+        ],
+      },
+    ],
+  };
+  const summary = renderReportSummary({
+    manifest,
+    pagesUrl: 'https://example.test/doubao-say',
+    producerResult: 'failure',
+    runId: '200',
+    summaryTitle: 'Ubuntu',
+  });
+
+  assert.match(summary, /Ubuntu × Midscene · failure captured/);
+  assert.match(summary, /Click the final-node preview to inspect/);
+  assert.doesNotMatch(summary, /Click the final-node previews/);
+});
+
+test('finds Omarchy evidence by project instead of assertion wording', async () => {
+  const root = await mkdtemp(path.join(os.tmpdir(), 'shell-project-'));
+  const reportDirectory = path.join(root, 'report');
+  await mkdir(reportDirectory, { recursive: true });
+  await writeFile(
+    path.join(reportDirectory, 'test-run-shell.html'),
+    shellFixtureHtml
+      .replace(shellPrompts[0], 'Renamed menu assertion.')
+      .replace(shellPrompts[1], 'Renamed focus assertion.')
+      .replace(shellPrompts[2], 'Renamed bar assertion.'),
+  );
+
+  const report = await findShellReport(root);
+  assert.deepEqual(
+    report.checks.map(({ key, passed }) => ({ key, passed })),
+    [
+      { key: 'shutdown', passed: true },
+      { key: 'focus', passed: true },
+      { key: 'bar', passed: true },
+    ],
+  );
+});
+
+test('verifies every file and its expected content type', async () => {
+  const requested = [];
+  const manifest = {
+    reports: [
+      {
+        runId: '200',
+        files: [
+          'reports/200/index.html',
+          'reports/200/auxiliary-report.html',
+          'reports/200/report-preview.png',
+          'reports/200/auxiliary-report-preview.png',
+        ],
+      },
+    ],
+  };
+  await verifyPublishedReport({
+    manifest,
+    pagesUrl: 'https://example.test/doubao-say/',
+    runId: '200',
+    fetchImpl: async (url) => {
+      requested.push(url.href);
+      return new Response(null, {
+        status: 200,
+        headers: {
+          'content-type': url.pathname.endsWith('.png')
+            ? 'image/png'
+            : 'text/html; charset=utf-8',
+        },
+      });
+    },
+  });
+
+  assert.deepEqual(requested, [
+    'https://example.test/doubao-say/',
+    'https://example.test/doubao-say/reports/200/index.html',
+    'https://example.test/doubao-say/reports/200/auxiliary-report.html',
+    'https://example.test/doubao-say/reports/200/report-preview.png',
+    'https://example.test/doubao-say/reports/200/auxiliary-report-preview.png',
+  ]);
 });

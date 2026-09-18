@@ -30,10 +30,13 @@ class MidsceneRetryClassifierTest(unittest.TestCase):
                 self.assertEqual(self.classify(message).returncode, 0)
 
     def test_does_not_retry_product_assertion_failures(self):
-        result = self.classify(
-            "Assertion failed: the expected endpoint result is not visible"
-        )
-        self.assertEqual(result.returncode, 1)
+        for message in (
+            "Assertion failed: the expected endpoint result is not visible",
+            "Invalid parameters for action KeyboardPress",
+            "No valid action generated for disabled product control",
+        ):
+            with self.subTest(message=message):
+                self.assertEqual(self.classify(message).returncode, 1)
 
 
 if __name__ == "__main__":
