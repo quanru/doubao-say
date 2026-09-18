@@ -1,4 +1,4 @@
-import { access, mkdir } from 'node:fs/promises';
+import { access, mkdir, writeFile } from 'node:fs/promises';
 import path from 'node:path';
 import { pathToFileURL } from 'node:url';
 
@@ -120,43 +120,13 @@ try {
       `Captured Midscene report node ${previewStep} (${runnerDump.status}): ${outputFile}`,
     );
 
-    for (const testCase of reportCases(runnerDump, projectName)) {
-      const caseUrl = new URL(pathToFileURL(report.file));
-      caseUrl.hash = new URLSearchParams({
-        'runner-step': testCase.stepId,
-      }).toString();
+    for (const testCase of reportCases(runnerDump, projectName, {
+      reportHtml: report.html,
+    })) {
       const caseOutput = path.join(reportDirectory, testCase.previewFile);
-      const casePage = await browser.newPage();
-      await casePage.setViewport({
-        width: 1600,
-        height: 1000,
-        deviceScaleFactor: 1,
-      });
-      await casePage.goto(caseUrl.href, { waitUntil: 'networkidle0' });
-      await casePage.waitForSelector(
-        '[aria-label="Execution steps"] button.is-selected',
-      );
-      await casePage.waitForSelector('.runner-detail-evidence-panel');
-      await casePage.waitForFunction((expectedTitle) => {
-        const selected = document.querySelector(
-          '[aria-label="Execution steps"] button.is-selected',
-        );
-        const selectedTitle =
-          selected?.querySelector('.runner-detail-step-copy small')
-            ?.textContent ??
-          selected?.querySelector('.runner-detail-step-copy strong')
-            ?.textContent;
-        return selectedTitle === expectedTitle;
-      }, {}, testCase.stepTitle);
-      await casePage.evaluate(() => window.scrollTo(0, 0));
-      await casePage.screenshot({
-        path: caseOutput,
-        type: 'jpeg',
-        quality: 78,
-      });
-      await casePage.close();
+      await writeFile(caseOutput, testCase.screenshot.bytes);
       console.log(
-        `Captured ${testCase.status} case ${testCase.name} at ${testCase.stepId}: ${caseOutput}`,
+        `Extracted ${testCase.status} node screenshot for ${testCase.name} at ${testCase.stepId}: ${caseOutput}`,
       );
     }
   }

@@ -99,6 +99,9 @@ export function renderReportSummary({
       throw new Error(`${entry.label} does not contain case evidence`);
     }
     const rows = entry.cases.map((testCase) => {
+      if (!testCase.description || !testCase.descriptionKind) {
+        throw new Error(`${testCase.name} does not contain node text evidence`);
+      }
       const target = stepUrl(pagesUrl, entry.reportPath, testCase.stepId);
       const image = reportUrl(pagesUrl, testCase.previewPath);
       const status = testCase.status === 'success' ? '✅ Passed' : '❌ Failed';
@@ -106,12 +109,17 @@ export function renderReportSummary({
         testCase.status === 'success'
           ? 'Last screenshot'
           : 'First failing screenshot';
-      return `| ${status} | [${markdownCell(testCase.name)}](${target}) | [![${evidence}: ${markdownCell(testCase.name)}](${image})](${target}) |`;
+      const descriptionLabel = {
+        ai: '**AI:** ',
+        error: '**Error:** ',
+        result: '**Result:** ',
+      }[testCase.descriptionKind];
+      return `| ${status} | [${markdownCell(testCase.name)}](${target}) | [![${evidence}: ${markdownCell(testCase.name)}](${image})](${target}) | ${descriptionLabel}${markdownCell(testCase.description)} |`;
     });
     return `### ${entry.label}
 
-| Result | Case | Evidence |
-|:--|:--|:--|
+| Result | Case | Node screenshot | AI response / error |
+|:--|:--|:--|:--|
 ${rows.join('\n')}`;
   })
     .join('\n\n');
@@ -124,7 +132,7 @@ ${links}
 
 ${caseTables}
 
-Click a case name or evidence image to open that exact Midscene Test node, with its screenshots and Agent replay.
+Each image is the original page screenshot used by that node. Click a case name or image to open the exact Midscene Test node and Agent replay.
 `;
 }
 

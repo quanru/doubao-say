@@ -6,7 +6,10 @@ import path from 'node:path';
 import test from 'node:test';
 
 import { buildPagesReport } from '../../scripts/build-pages-report.mjs';
-import { findShellReport } from '../../scripts/omarchy-shell-evidence.mjs';
+import {
+  findShellReport,
+  testRunDump,
+} from '../../scripts/omarchy-shell-evidence.mjs';
 import { reportCases } from '../../scripts/report-cases.mjs';
 import { renderReportSummary } from '../../scripts/render-ci-report-summary.mjs';
 import { verifyPublishedReport } from '../../scripts/verify-pages-report.mjs';
@@ -23,7 +26,31 @@ function runnerScript({
     (assertionCount
       ? [Array.from({ length: assertionCount }, () => 'success')]
       : [[status === 'success' ? 'success' : 'failed']]);
-  return `<script type="midscene_test_run_dump">${JSON.stringify({
+  const reportId = 'runner-report-1';
+  const executions = attempts.flatMap((statuses, attemptIndex) =>
+    statuses.map((stepStatus, stepIndex) => ({
+      id: `execution-${attemptIndex}-${stepIndex}`,
+      tasks: [
+        {
+          status: stepStatus === 'success' ? 'finished' : 'failed',
+          type: 'Insight',
+          subType: 'Assert',
+          uiContext: {
+            screenshot: {
+              id: `screenshot-${attemptIndex}-${stepIndex}`,
+              mimeType: 'image/jpeg',
+              storage: 'inline',
+            },
+          },
+          thought:
+            stepStatus === 'success'
+              ? `AI explanation ${attemptIndex}-${stepIndex}`
+              : `AI failure explanation ${attemptIndex}-${stepIndex}`,
+        },
+      ],
+    })),
+  );
+  const run = {
     startedAt,
     status,
     summary: {
@@ -50,7 +77,14 @@ function runnerScript({
                         node: assertionCount || assertionAttempts ? 'aiAssert' : 'aiAct',
                         title: `Evidence ${attemptIndex}-${stepIndex}`,
                         status: stepStatus,
-                        agentDetails: [{ reportId: 'runner-report-1', executionId: `execution-${attemptIndex}-${stepIndex}` }],
+                        ...(stepStatus === 'failed'
+                          ? {
+                              error: {
+                                message: `Fixture error ${attemptIndex}-${stepIndex}`,
+                              },
+                            }
+                          : {}),
+                        agentDetails: [{ reportId, executionId: `execution-${attemptIndex}-${stepIndex}` }],
                       })),
                     })),
                   },
@@ -59,7 +93,17 @@ function runnerScript({
             ],
       },
     ],
-  })}</script>`;
+  };
+  return `<script type="midscene_web_dump" data-report-id="${reportId}">${JSON.stringify({ executions })}</script>
+${attempts
+  .flatMap((statuses, attemptIndex) =>
+    statuses.map(
+      (_stepStatus, stepIndex) =>
+        `<script type="midscene-image" data-id="screenshot-${attemptIndex}-${stepIndex}">data:image/jpeg;base64,/9j/2Q==</script>`,
+    ),
+  )
+  .join('\n')}
+<script type="midscene_test_run_dump">${JSON.stringify(run)}</script>`;
 }
 
 const fixtureHtml = `<!doctype html><html><body>report
@@ -232,6 +276,8 @@ test('publishes the Doubao Say report as the primary CI entrance', async (contex
           status: 'success',
           stepId: 'assert-0-0',
           selection: 'last-screenshot',
+          description: 'AI explanation 0-0',
+          descriptionKind: 'ai',
           previewPath: 'reports/200/case-preview-ubuntu-case-ubuntu.jpg',
         },
       ],
@@ -253,6 +299,8 @@ test('publishes the Doubao Say report as the primary CI entrance', async (contex
           status: 'success',
           stepId: 'assert-0-2',
           selection: 'last-screenshot',
+          description: 'AI explanation 0-2',
+          descriptionKind: 'ai',
           previewPath:
             'reports/200/case-preview-omarchy-shell-case-omarchy-shell.jpg',
         },
@@ -484,7 +532,7 @@ test('restores retained history before adding the new run', async (context) => {
       'utf8',
     ),
   );
-  assert.equal(writtenManifest.version, 3);
+  assert.equal(writtenManifest.version, 4);
   assert.equal(writtenManifest.reports[0].reportPath, 'reports/200/index.html');
   assert.equal(
     writtenManifest.reports[0].workflowUrl,
@@ -580,6 +628,8 @@ test('renders one full-width section per structured report entry', () => {
                 status: 'success',
                 stepId: 'case-ubuntu:steps:8',
                 selection: 'last-screenshot',
+                description: 'The setup completion state is visible.',
+                descriptionKind: 'ai',
                 previewPath:
                   'reports/200/case-preview-ubuntu-case-ubuntu.jpg',
               },
@@ -602,6 +652,8 @@ test('renders one full-width section per structured report entry', () => {
                 status: 'success',
                 stepId: 'case-polishing:steps:5',
                 selection: 'last-screenshot',
+                description: 'The polished text is visible.',
+                descriptionKind: 'ai',
                 previewPath:
                   'reports/200/case-preview-ubuntu-polishing-case-polishing.jpg',
               },
@@ -622,15 +674,19 @@ test('renders one full-width section per structured report entry', () => {
   assert.match(summary, /Ubuntu × Midscene · passed/);
   assert.match(summary, /Doubao Say: 6\/6 scenarios passed/);
   assert.match(summary, /Polishing overlay report: 1\/1 scenarios passed/);
-  assert.match(summary, /\| Result \| Case \| Evidence \|/);
+  assert.match(
+    summary,
+    /\| Result \| Case \| Node screenshot \| AI response \/ error \|/,
+  );
   assert.match(summary, /✅ Passed/);
   assert.match(
     summary,
     /index\.html#runner-step=case-ubuntu%3Asteps%3A8/,
   );
   assert.match(summary, /Last screenshot: Launch and finish onboarding/);
+  assert.match(summary, /\*\*AI:\*\* The setup completion state is visible\./);
   assert.doesNotMatch(summary, /report report/);
-  assert.match(summary, /Click a case name or evidence image/);
+  assert.match(summary, /Each image is the original page screenshot/);
 });
 
 test('renders singular failure copy for one available report', () => {
@@ -656,6 +712,8 @@ test('renders singular failure copy for one available report', () => {
                 status: 'failed',
                 stepId: 'case-fail:steps:2',
           selection: 'first-failing-screenshot',
+                description: 'Node "aiAssert" failed: expected state missing.',
+                descriptionKind: 'error',
                 previewPath:
                   'reports/200/case-preview-ubuntu-case-fail.jpg',
               },
@@ -678,9 +736,13 @@ test('renders singular failure copy for one available report', () => {
   assert.match(summary, /First failing screenshot: Broken flow/);
   assert.match(
     summary,
+    /\*\*Error:\*\* Node "aiAssert" failed: expected state missing\./,
+  );
+  assert.match(
+    summary,
     /index\.html#runner-step=case-fail%3Asteps%3A2/,
   );
-  assert.match(summary, /Click a case name or evidence image/);
+  assert.match(summary, /Each image is the original page screenshot/);
 });
 
 test('selects the last screenshot for success and first failed screenshot for failure', () => {
@@ -745,6 +807,31 @@ test('selects the last screenshot for success and first failed screenshot for fa
       },
     ],
   );
+});
+
+test('pairs an original node screenshot with its AI text or error', () => {
+  const successHtml = runnerScript({
+    project: 'ubuntu',
+    startedAt: '2026-09-15T12:00:00Z',
+  });
+  const success = reportCases(testRunDump(successHtml), 'ubuntu', {
+    reportHtml: successHtml,
+  })[0];
+  assert.equal(success.descriptionKind, 'ai');
+  assert.equal(success.description, 'AI explanation 0-0');
+  assert.deepEqual(success.screenshot.bytes, Buffer.from('/9j/2Q==', 'base64'));
+
+  const failureHtml = runnerScript({
+    project: 'ubuntu',
+    startedAt: '2026-09-15T12:00:00Z',
+    status: 'failed',
+  });
+  const failure = reportCases(testRunDump(failureHtml), 'ubuntu', {
+    reportHtml: failureHtml,
+  })[0];
+  assert.equal(failure.descriptionKind, 'error');
+  assert.equal(failure.description, 'Fixture error 0-0');
+  assert.deepEqual(failure.screenshot.bytes, Buffer.from('/9j/2Q==', 'base64'));
 });
 
 test('finds Omarchy evidence by project instead of assertion wording', async () => {

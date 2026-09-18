@@ -16,8 +16,8 @@ import {
 } from './omarchy-shell-evidence.mjs';
 import { reportCases } from './report-cases.mjs';
 
-const MANIFEST_VERSION = 3;
-const SUPPORTED_MANIFEST_VERSIONS = new Set([1, 2, MANIFEST_VERSION]);
+const MANIFEST_VERSION = 4;
+const SUPPORTED_MANIFEST_VERSIONS = new Set([1, 2, 3, MANIFEST_VERSION]);
 
 function parseArguments(argv) {
   const options = {};
@@ -146,12 +146,16 @@ function buildReportEntry({
   role,
 }) {
   const status = report.run?.status ?? 'unknown';
-  const cases = reportCases(report.run, project).map((testCase) => ({
+  const cases = reportCases(report.run, project, {
+    reportHtml: report.html,
+  }).map((testCase) => ({
     caseId: testCase.caseId,
     name: testCase.name,
     status: testCase.status,
     stepId: testCase.stepId,
     selection: testCase.selection,
+    description: testCase.description,
+    descriptionKind: testCase.descriptionKind,
     previewPath: `${path.posix.dirname(reportPath)}/${testCase.previewFile}`,
   }));
   return {
@@ -179,6 +183,7 @@ function validateHistoryManifest(manifest) {
   ) {
     throw new Error('Existing Pages manifest has an unsupported shape');
   }
+  const requiresCaseText = manifest.version >= 4;
   for (const report of manifest.reports) {
     if (
       typeof report.runId !== 'string' ||
@@ -219,6 +224,20 @@ function validateHistoryManifest(manifest) {
                       !['last-screenshot', 'first-failing-screenshot'].includes(
                         testCase.selection,
                       ) ||
+                      (requiresCaseText &&
+                        (typeof testCase.description !== 'string' ||
+                          testCase.description.length === 0)) ||
+                      (requiresCaseText &&
+                        !['ai', 'error', 'result'].includes(
+                          testCase.descriptionKind,
+                        )) ||
+                      (testCase.description !== undefined &&
+                        (typeof testCase.description !== 'string' ||
+                          testCase.description.length === 0)) ||
+                      (testCase.descriptionKind !== undefined &&
+                        !['ai', 'error', 'result'].includes(
+                          testCase.descriptionKind,
+                        )) ||
                       !report.files?.includes(testCase.previewPath),
                   ))),
           )))
