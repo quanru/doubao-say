@@ -193,7 +193,7 @@ const pressKeyboardKey = defineNode<typeof keyboardKey, void, DesktopContext>({
   inputSchema: keyboardKey,
   async execute({ context, input }) {
     if (!context.agent) throw new Error('Midscene Computer Agent is not active');
-    await context.agent.aiKeyboardPress(undefined, { keyName: input.keyName });
+    await context.agent.aiKeyboardPress(input.keyName);
   },
 });
 const openSystemMenu = defineNode<typeof empty, void, DesktopContext>({

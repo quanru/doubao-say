@@ -87,6 +87,8 @@ cases:
       - aiAssert: The current step is Trigger key and the heading Choose how to start speaking is visible.
       - aiAct: Scroll inside the central content panel until the Voice polishing Model input is fully visible, then replace its value with exactly synthetic-failing-model. Do not click Test endpoint.
       - aiAssert: The Voice polishing Model input contains exactly synthetic-failing-model.
+      - aiAct: Scroll downward inside the central content panel until the Test endpoint button is fully visible.
+      - aiAssert: The Test endpoint button in Voice polishing is fully visible.
       - aiTap: Test endpoint button in the Voice polishing section
       - wait: { duration: 750 }
       - aiAssert: "The visible endpoint feedback says Endpoint test failed: Synthetic endpoint unavailable, and the enabled retry button says Test failed — try again."
@@ -145,7 +147,7 @@ cases:
       - aiAct: In Recognition service, select Volcengine API exactly once.
       - aiAct: Scroll down inside the central content panel until the API Key field and Test API key button are both visible.
       - aiAssert: The page is now Recognition, shows an API Key field and Test API key button, hides Open Doubao sign-in, and keeps right-arrow Next disabled.
-      - aiTap: Test API key button below the empty API Key field
+      - aiTap: Center of the rectangular Test API key button directly below the empty API Key field; do not tap the input field.
       - wait: { duration: 500 }
       - aiAssert: A visible validation message says Enter an API key first and right-arrow Next remains disabled.
       - aiAct: Enter exactly synthetic-ci-key in the API Key field and wait until the interface says the key was saved automatically. Do not click Test API key.
