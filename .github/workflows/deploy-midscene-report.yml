@@ -66,7 +66,7 @@ jobs:
 
       - name: Restore history and prepare the Pages site
         env:
-          REPORT_RETENTION: ${{ vars.REPORT_RETENTION || '10' }}
+          REPORT_RETENTION: ${{ vars.REPORT_RETENTION || '30' }}
           PAGES_BASE_URL: ${{ steps.pages.outputs.base_url }}
           REPORT_LABEL: ${{ inputs.report-label }}
           PRIMARY_PROJECT: ${{ inputs.primary-project }}
