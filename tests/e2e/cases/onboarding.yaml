@@ -13,7 +13,8 @@ cases:
       - aiAssert: A visible message says Microphone is working and instructs the user to continue to the trigger key step.
       - aiTap: Right-arrow Next button in the Doubao Say fixed top navigation
       - aiAssert: The current Doubao Say step is Trigger key.
-      - aiAct: Stay on Trigger key. Scroll inside the light-gray central content panel until the Voice polishing heading and its controls are visible.
+      - aiAct: Stay on Trigger key. Scroll downward inside the light-gray central content panel until the Test endpoint button in Voice polishing is fully visible.
+      - aiAssert: The Test endpoint button in the Voice polishing section is fully visible.
       - aiTap: Test endpoint button in the visible Voice polishing section
       - wait: { duration: 750 }
       - aiAct: If needed, scroll down slightly inside the central content panel until Synthetic endpoint response is visible below Endpoint works. Keep both results on screen.

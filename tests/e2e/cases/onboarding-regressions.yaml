@@ -70,8 +70,9 @@ cases:
       - aiTap: Enabled switch beside Voice polishing
       - aiAssert: Voice polishing disabled is visible, the switch is off, and the polishing Base URL and Model fields are hidden.
       - aiTap: Disabled switch beside Voice polishing
-      - aiAct: Scroll inside the central content panel until the Voice polishing Model input is fully visible.
-      - aiAssert: Voice polishing enabled is visible, the switch is on, the Base URL and Model fields are present, and Model still contains synthetic-model.
+      - aiAssert: Voice polishing enabled is visible, the switch is on, and the Base URL field is present.
+      - aiAct: Scroll downward inside the central content panel until the Voice polishing Model input and its complete value are fully visible.
+      - aiAssert: The Voice polishing Model input contains exactly synthetic-model.
   - name: Recover from an endpoint failure
     steps:
       - aiAssert: The visible Doubao Say window starts on the Sign in step and says the user is not signed in.
