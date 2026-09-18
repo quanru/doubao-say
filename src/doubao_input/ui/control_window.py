@@ -419,7 +419,7 @@ class ControlWindow:
         # Microphone checks and other async actions finish after the user's
         # click, so placing this label in the scroller can hide their result.
         outer.append(self._feedback)
-        button(outer, tr("Quit application", "退出应用"), self._on_quit)
+        button(content, tr("Quit application", "退出应用"), self._on_quit)
         if self._actions.summary().get("onboarding_complete"):
             self._stack.set_visible_child_name("voice")
         elif self._app_state.login_status == LoginStatus.LOGGED_IN:
