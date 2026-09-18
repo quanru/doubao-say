@@ -61,15 +61,25 @@ def build_runtime_fixture():
             return False
         target.set_text(text)
         state["deliveries"] += 1
-        state["focus_preserved"] = target.has_focus()
         return True
 
     def delivery_changed(value):
         if value == "attempted":
-            focus = "focus preserved" if state["focus_preserved"] else "focus lost"
-            status.set_text(
-                f"Delivered once · target {focus} · {state['deliveries']} delivery"
-            )
+            status.set_text("Delivered once · restoring target focus…")
+
+            def report_final_focus():
+                state["focus_preserved"] = target.has_focus()
+                focus = (
+                    "focus preserved" if state["focus_preserved"] else "focus lost"
+                )
+                status.set_text(
+                    f"Delivered once · target {focus} · "
+                    f"{state['deliveries']} delivery"
+                )
+
+            # The non-focusable overlay closes 500 ms after delivery. Verify
+            # the user's final focus after that transition completes.
+            schedule(650, report_final_focus)
 
     delivery = Delivery(
         schedule=schedule,

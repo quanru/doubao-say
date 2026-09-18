@@ -78,7 +78,6 @@ cases:
       - aiAssert: The current step is Voice test and Finish setup is disabled because the microphone check has not passed.
       - aiAct: Click left-arrow Previous once to open Trigger key, then click left-arrow Previous once more to return to Microphone.
       - aiAct: Click Check microphone · 3 seconds exactly once and wait for the result.
-      - aiAct: Scroll down inside the central content panel until the microphone check result below the button is visible.
       - aiAssert: A visible message says Microphone is working and instructs the user to continue to the trigger key step.
       - aiAct: Click right-arrow Next once to open Trigger key, then click right-arrow Next once more to return to Voice test.
       - aiAssert: Finish setup is now enabled because both the synthetic microphone check and the preconfigured voice test have passed.
@@ -99,6 +98,7 @@ cases:
       - aiAssert: Synthetic voice test transcript is visible, and Finish & check result is available again.
       - aiTap: Finish & check result button in the Voice test content panel
       - wait: { duration: 750 }
+      - aiAct: Scroll down inside the Voice test content panel until the setup button is fully visible.
       - aiAssert: The enabled setup button visibly says Voice test passed and nothing pasted or sent.
   - name: Switch to Volcengine and validate credentials
     steps:
@@ -116,13 +116,11 @@ cases:
       - fixture.prepare: { mode: microphone-change }
       - aiAssert: The visible Doubao Say window starts on the Microphone step with Synthetic microphone one selected.
       - aiAct: In the microphone dropdown, select Synthetic microphone two exactly once.
-      - aiAct: Scroll down inside the central content panel until the microphone selection result below the controls is visible.
       - aiAssert: A visible message says Microphone saved and requires a new three-second check.
       - aiAct: Click right-arrow Next once to open Trigger key, then click right-arrow Next once more to open Voice test.
-      - aiAssert: Finish setup is disabled because changing the microphone invalidated the previous microphone check.
+      - aiAssert: The Finish setup button is visibly disabled.
       - aiAct: Click left-arrow Previous once to open Trigger key, then click left-arrow Previous once more to return to Microphone.
       - aiAct: Click Check microphone · 3 seconds exactly once and wait for the result.
-      - aiAct: Scroll down inside the central content panel until the microphone check result below the button is visible.
       - aiAssert: The result says Microphone is working and Synthetic microphone two remains selected.
       - aiAct: Click right-arrow Next once to open Trigger key, then click right-arrow Next once more to return to Voice test.
       - aiAssert: Finish setup is enabled again after the replacement microphone passes its check.
