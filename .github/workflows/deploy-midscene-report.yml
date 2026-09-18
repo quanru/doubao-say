@@ -149,9 +149,13 @@ jobs:
 
           if [[ "$HAS_AUXILIARY_REPORT" == "true" ]]; then
             REPORT_LINKS="[Open the Doubao Say report]($REPORT_URL) · [$AUXILIARY_REPORT_LABEL]($AUXILIARY_URL) · [Report history]($HISTORY_URL)"
-            REPORT_PREVIEWS="| Doubao Say | $AUXILIARY_REPORT_LABEL |
-          |:--|:--|
-          | [![Final Doubao Say report node with its pass or error status]($REPORT_PREVIEW_URL)]($REPORT_URL) | [![Final $AUXILIARY_REPORT_LABEL node with its pass or error status]($AUXILIARY_PREVIEW_URL)]($AUXILIARY_URL) |"
+            REPORT_PREVIEWS="### Doubao Say
+
+          [![Final Doubao Say report node with its pass or error status]($REPORT_PREVIEW_URL)]($REPORT_URL)
+
+          ### $AUXILIARY_REPORT_LABEL
+
+          [![Final $AUXILIARY_REPORT_LABEL node with its pass or error status]($AUXILIARY_PREVIEW_URL)]($AUXILIARY_URL)"
           else
             REPORT_LINKS="[Open the Doubao Say report]($REPORT_URL) · [Report history]($HISTORY_URL)"
             REPORT_PREVIEWS="[![Final Doubao Say report node with its pass or error status]($REPORT_PREVIEW_URL)]($REPORT_URL)"
