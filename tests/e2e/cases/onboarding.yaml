@@ -19,9 +19,13 @@ cases:
       - aiAct: Click the right-arrow Next button in the fixed top navigation exactly once. Do not click it a second time.
       - aiAssert: The current Doubao Say step is Voice test.
       - aiAssert: The Voice test heading and introductory text are clearly visible near the top of the current content panel.
-      - aiAct: Click Start voice test exactly once and wait until the synthetic transcript appears.
+      - aiTap: Start voice test button in the Voice test content panel
+      - wait: { duration: 750 }
       - aiAssert: The Voice test shows Synthetic voice test transcript and offers both Finish & check result and Cancel test.
-      - aiAct: Click Finish & check result exactly once and wait for the test result.
+      - aiTap: Finish & check result button in the Voice test content panel
+      - wait: { duration: 750 }
+      - aiAct: Scroll down inside the central content panel until the voice test result below the setup controls is visible.
       - aiAssert: A visible message says Voice test passed and confirms that nothing was pasted or sent; Finish setup is enabled.
-      - aiAct: Scroll within Voice test content if needed and click Finish setup exactly once. Stop when the button changes to the disabled status Setup completed by the synthetic E2E fixture.
+      - aiTap: Enabled Finish setup button in the Voice test content panel
+      - wait: { duration: 500 }
       - aiAssert: The Finish setup button changed to a disabled visible status saying Setup completed by the synthetic E2E fixture.

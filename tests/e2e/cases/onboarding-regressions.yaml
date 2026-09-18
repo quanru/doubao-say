@@ -88,12 +88,18 @@ cases:
       - aiAssert: The visible Doubao Say window starts on the Microphone step and the microphone is already configured.
       - aiAct: Click right-arrow Next once to open Trigger key, then click right-arrow Next once more to open Voice test.
       - aiAssert: The current step is Voice test, Start voice test is available, and Finish setup is disabled.
-      - aiAct: Click Start voice test exactly once and wait for the synthetic transcript.
+      - aiTap: Start voice test button in the Voice test content panel
+      - wait: { duration: 750 }
       - aiAssert: Synthetic voice test transcript is visible, and both Finish & check result and Cancel test are available.
-      - aiAct: Click Cancel test exactly once and wait for the cancellation result.
+      - aiTap: Cancel test button in the Voice test content panel
+      - wait: { duration: 500 }
       - aiAct: Scroll down inside the central content panel until the voice test result below the setup controls is visible.
       - aiAssert: A visible message says Voice test cancelled and confirms nothing was pasted or sent; the transcript is empty and Finish setup remains disabled.
-      - aiAct: Click Start voice test exactly once, wait for Synthetic voice test transcript, then click Finish & check result exactly once and wait for the result.
+      - aiTap: Start voice test button in the Voice test content panel
+      - wait: { duration: 750 }
+      - aiAssert: Synthetic voice test transcript is visible, and Finish & check result is available again.
+      - aiTap: Finish & check result button in the Voice test content panel
+      - wait: { duration: 750 }
       - aiAct: Scroll down inside the central content panel until the voice test result below the setup controls is visible.
       - aiAssert: A visible message says Voice test passed and confirms nothing was pasted or sent; Finish setup is enabled.
   - name: Switch to Volcengine and validate credentials
