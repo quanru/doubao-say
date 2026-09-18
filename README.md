@@ -77,7 +77,10 @@ meaning, and can be edited or restored to its default.
 
 Disable deep thinking/reasoning for this latency-sensitive task. **DeepSeek Flash
 (`deepseek-v4-flash`) is recommended.** Doubao Say requests non-thinking mode when
-using the official DeepSeek endpoint; with a gateway or another provider, confirm
+using the official DeepSeek or Zhipu (`open.bigmodel.cn`) endpoint, including
+Zhipu's standard and Coding Plan APIs. GLM-5.3 and GLM-5.3-Flash cannot disable
+thinking, so Doubao Say requests low reasoning effort instead; this does not
+guarantee completion within the five-second budget. With a gateway or another provider, confirm
 that thinking is disabled or select a non-reasoning model.
 
 When enabled, 1.2 seconds of silence with stable recognized text starts provisional

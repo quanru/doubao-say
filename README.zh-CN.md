@@ -57,7 +57,9 @@ API Key 保存在 `~/.config/doubao-say/volcengine_api_key`（或对应的
 自行修改，也可一键恢复默认内容。
 
 这类低延迟任务应关闭深度思考／推理模式，**推荐使用 DeepSeek Flash
-（`deepseek-v4-flash`）**。使用 DeepSeek 官方接口时，豆包说会请求非思考模式；使用中转接口
+（`deepseek-v4-flash`）**。使用 DeepSeek 或智谱（`open.bigmodel.cn`）官方接口时，豆包说会请求非思考模式，
+包括智谱标准 API 和 Coding Plan 接口。GLM-5.3 和 GLM-5.3-Flash 无法关闭思考，
+因此改为请求最低推理强度 `low`，但不保证能在五秒内完成。使用中转接口
 或其他服务商时，请确认已经关闭思考，或选择非推理模型。
 
 开启后，识别文本稳定且静音 1.2 秒会启动预润色；再次说话会立即让旧请求失效并回到聆听状态。
