@@ -10,7 +10,8 @@ import { createMidsceneNodes } from '@midscene/test/midscene';
 interface DesktopContext {
   agent?: ComputerAgent;
   createAgent: () => Promise<ComputerAgent>;
-  resetFixture?: () => Promise<void>;
+  fixtureMode?: string;
+  resetFixture?: (mode: string) => Promise<void>;
   barConfigBackup?: string;
   barConfigExisted?: boolean;
 }
@@ -107,9 +108,10 @@ const setup = defineProjectSetup<DesktopContext>({
           guest('if test -s /tmp/doubao-midscene-fixture.pid; then kill "$(cat /tmp/doubao-midscene-fixture.pid)" >/dev/null 2>&1 || true; fi; rm -f /tmp/doubao-midscene-fixture.pid');
         };
         onTeardown(stopGuestFixture);
-        context.resetFixture = async () => {
+        context.resetFixture = async (mode) => {
+          const encodedMode = Buffer.from(mode).toString('base64');
           stopGuestFixture();
-          guest(`rm -rf /tmp/doubao-midscene-config; mkdir -p /tmp/doubao-midscene-config; export PYTHONPATH='/home/omarchy/.config/omarchy/plugins/md.lifeos.doubao-say/src'; export XDG_CONFIG_HOME=/tmp/doubao-midscene-config; export PYTHONDONTWRITEBYTECODE=1; nohup setsid python3 '/home/omarchy/.config/omarchy/plugins/md.lifeos.doubao-say/tests/e2e/gtk_fixture.py' >/tmp/doubao-midscene-fixture.log 2>&1 </dev/null & echo $! >/tmp/doubao-midscene-fixture.pid`);
+          guest(`rm -rf /tmp/doubao-midscene-config; mkdir -p /tmp/doubao-midscene-config; export PYTHONPATH='/home/omarchy/.config/omarchy/plugins/md.lifeos.doubao-say/src'; export XDG_CONFIG_HOME=/tmp/doubao-midscene-config; export PYTHONDONTWRITEBYTECODE=1; export DOUBAO_E2E_MODE_B64='${encodedMode}'; nohup setsid python3 '/home/omarchy/.config/omarchy/plugins/md.lifeos.doubao-say/tests/e2e/gtk_fixture.py' >/tmp/doubao-midscene-fixture.log 2>&1 </dev/null & echo $! >/tmp/doubao-midscene-fixture.pid`);
           for (let attempt = 0; attempt < 30; attempt++) {
             const ready = guest(`grep -q 'READY: synthetic Doubao Say GTK fixture' /tmp/doubao-midscene-fixture.log && hyprctl -j clients | jq -r '[.[] | select(.title == "Doubao Say")] | length' || true`);
             if (ready === '1') return;
@@ -131,7 +133,7 @@ const setup = defineProjectSetup<DesktopContext>({
         }
       };
       onTeardown(cleanup);
-      context.resetFixture = async () => {
+      context.resetFixture = async (mode) => {
         await cleanup();
         configDirectory = await mkdtemp(resolve(tmpdir(), 'doubao-midscene-'));
         fixture = spawn('/usr/bin/python3', [polishing ? 'tests/e2e/polish_fixture.py' : 'tests/e2e/gtk_fixture.py'], {
@@ -139,6 +141,7 @@ const setup = defineProjectSetup<DesktopContext>({
           env: {
             ...process.env, GDK_BACKEND: 'x11', GSK_RENDERER: 'cairo', GTK_A11Y: 'none',
             PYTHONPATH: resolve(root, 'src'), XDG_CONFIG_HOME: configDirectory,
+            DOUBAO_E2E_MODE_B64: Buffer.from(mode).toString('base64'),
           },
         });
         await waitForFixture(fixture);
@@ -162,6 +165,25 @@ const setup = defineProjectSetup<DesktopContext>({
 });
 
 const empty = z.strictObject({});
+const fixtureMode = z.strictObject({
+  mode: z.enum([
+    'microphone-gate',
+    'voice-test',
+    'volcengine',
+    'microphone-change',
+    'shortcut-capture',
+    'runtime-delivery',
+    'runtime-cancel',
+  ]),
+});
+const prepareFixture = defineNode<typeof fixtureMode, void, DesktopContext>({
+  name: 'fixture.prepare',
+  description: 'Select deterministic synthetic state for this test case.',
+  inputSchema: fixtureMode,
+  execute({ context, input }) {
+    context.fixtureMode = input.mode;
+  },
+});
 const openSystemMenu = defineNode<typeof empty, void, DesktopContext>({
   name: 'shell.openSystemMenu', description: 'Open the real Omarchy system menu and focus one row.', inputSchema: empty,
   async execute() {
@@ -211,7 +233,11 @@ export default defineTestProject<DesktopContext>({
       retry: 2,
       setup,
       files: {
-        include: ['cases/onboarding.yaml', 'cases/onboarding-regressions.yaml'],
+        include: [
+          'cases/onboarding.yaml',
+          'cases/onboarding-regressions.yaml',
+          'cases/runtime.yaml',
+        ],
       },
     },
     {
@@ -233,11 +259,12 @@ export default defineTestProject<DesktopContext>({
       agentProvider: (() => {
         const active = new Map<string, { agent: ComputerAgent; context: DesktopContext }>();
         return {
-          async getAgent(runId: string, { context }: { context: DesktopContext }) {
+          async getAgent(runId: string, execution) {
+            const { context } = execution;
             const existing = active.get(runId);
             if (existing) return existing.agent;
             context.agent ??= await context.createAgent();
-            await context.resetFixture?.();
+            await context.resetFixture?.(context.fixtureMode ?? '');
             active.set(runId, { agent: context.agent, context });
             return context.agent;
           },
@@ -248,12 +275,13 @@ export default defineTestProject<DesktopContext>({
             const { agent, context } = entry;
             await agent.destroy();
             context.agent = undefined;
+            context.fixtureMode = undefined;
             if (!agent.reportFile) throw new Error(`No Agent report for Midscene case ${runId}`);
             return { reportPath: agent.reportFile };
           },
         };
       })(),
     }),
-    openSystemMenu, closeSystemMenu, moveBarLeft,
+    prepareFixture, openSystemMenu, closeSystemMenu, moveBarLeft,
   ],
 });

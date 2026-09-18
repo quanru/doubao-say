@@ -72,4 +72,6 @@ verification of the current change.
 Add or update the relevant YAML scenario when fixing a user-visible flow covered
 by E2E. Use image assertions to establish visible results and deterministic tests
 for underlying logic. Synthetic onboarding does not verify real credentials,
-microphone capture, ASR, or text delivery; those require separate acceptance.
+microphone capture, live ASR, system clipboard paste, or delivery into an
+unrelated application; those require separate acceptance. The synthetic runtime
+target does exercise the real Delivery state machine against its own GTK field.

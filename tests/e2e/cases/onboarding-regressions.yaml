@@ -70,3 +70,58 @@ cases:
       - aiAct: "Click the Test failed — try again button exactly once to run a new endpoint test. Stop immediately after the click."
       - aiAct: "Scroll within the central content panel if needed until the endpoint result text below the retry button is fully visible."
       - aiAct: "Verify the endpoint result says Endpoint works: Synthetic endpoint response, the enabled button says Endpoint works, and the previous Synthetic endpoint unavailable error is no longer visible."
+  - name: Microphone check gates setup completion
+    steps:
+      - fixture.prepare: { mode: microphone-gate }
+      - aiAssert: The visible Doubao Say window starts on the Microphone step, shows Synthetic microphone one, and offers Check microphone · 3 seconds.
+      - aiAct: Click right-arrow Next once to open Trigger key, then click right-arrow Next once more to open Voice test.
+      - aiAssert: The current step is Voice test and Finish setup is disabled because the microphone check has not passed.
+      - aiAct: Click left-arrow Previous once to open Trigger key, then click left-arrow Previous once more to return to Microphone.
+      - aiAct: Click Check microphone · 3 seconds exactly once and wait for the result.
+      - aiAssert: A visible message says Microphone is working and instructs the user to continue to the trigger key step.
+      - aiAct: Click right-arrow Next once to open Trigger key, then click right-arrow Next once more to return to Voice test.
+      - aiAssert: Finish setup is now enabled because both the synthetic microphone check and the preconfigured voice test have passed.
+  - name: Complete and cancel a voice test safely
+    steps:
+      - fixture.prepare: { mode: voice-test }
+      - aiAssert: The visible Doubao Say window starts on the Microphone step and the microphone is already configured.
+      - aiAct: Click right-arrow Next once to open Trigger key, then click right-arrow Next once more to open Voice test.
+      - aiAssert: The current step is Voice test, Start voice test is available, and Finish setup is disabled.
+      - aiAct: Click Start voice test exactly once and wait for the synthetic transcript.
+      - aiAssert: Synthetic voice test transcript is visible, and both Finish & check result and Cancel test are available.
+      - aiAct: Click Cancel test exactly once and wait for the cancellation result.
+      - aiAssert: A visible message says Voice test cancelled and confirms nothing was pasted or sent; the transcript is empty and Finish setup remains disabled.
+      - aiAct: Click Start voice test exactly once, wait for Synthetic voice test transcript, then click Finish & check result exactly once and wait for the result.
+      - aiAssert: A visible message says Voice test passed and confirms nothing was pasted or sent; Finish setup is enabled.
+  - name: Switch to Volcengine and validate credentials
+    steps:
+      - fixture.prepare: { mode: volcengine }
+      - aiAssert: The visible Doubao Say window starts on Sign in with Doubao account selected and right-arrow Next disabled.
+      - aiAct: In Recognition service, select Volcengine API exactly once.
+      - aiAssert: The page is now Recognition, shows an API Key field and Test API key button, hides Open Doubao sign-in, and keeps right-arrow Next disabled.
+      - aiAct: Click Test API key without entering a key.
+      - aiAssert: A visible validation message says Enter an API key first and right-arrow Next remains disabled.
+      - aiAct: Enter synthetic-ci-key in the API Key field, wait until the interface says the key was saved automatically, then click Test API key exactly once and wait for the result.
+      - aiAssert: The result says API key accepted by synthetic endpoint, the page reports that the official API is ready, and right-arrow Next is enabled.
+  - name: Changing microphone requires another check
+    steps:
+      - fixture.prepare: { mode: microphone-change }
+      - aiAssert: The visible Doubao Say window starts on the Microphone step with Synthetic microphone one selected.
+      - aiAct: In the microphone dropdown, select Synthetic microphone two exactly once.
+      - aiAssert: A visible message says Microphone saved and requires a new three-second check.
+      - aiAct: Click right-arrow Next once to open Trigger key, then click right-arrow Next once more to open Voice test.
+      - aiAssert: Finish setup is disabled because changing the microphone invalidated the previous microphone check.
+      - aiAct: Click left-arrow Previous once to open Trigger key, then click left-arrow Previous once more to return to Microphone.
+      - aiAct: Click Check microphone · 3 seconds exactly once and wait for the result.
+      - aiAssert: The result says Microphone is working and Synthetic microphone two remains selected.
+      - aiAct: Click right-arrow Next once to open Trigger key, then click right-arrow Next once more to return to Voice test.
+      - aiAssert: Finish setup is enabled again after the replacement microphone passes its check.
+  - name: Capture and retain a custom trigger shortcut
+    steps:
+      - fixture.prepare: { mode: shortcut-capture }
+      - aiAct: From the Microphone step, click right-arrow Next exactly once to open Trigger key.
+      - aiAssert: The Trigger key page shows Active trigger fn and a trigger selection dropdown.
+      - aiAct: In the trigger selection dropdown, select Record a shortcut… exactly once and wait for the synthetic shortcut capture to finish.
+      - aiAssert: The active trigger now shows the control symbol ⌃ plus F8, and the trigger dropdown displays that same custom shortcut.
+      - aiAct: Click right-arrow Next once to open Voice test, then click left-arrow Previous once to return to Trigger key.
+      - aiAssert: The Trigger key page still shows the custom ⌃ plus F8 shortcut as the active and selected trigger.

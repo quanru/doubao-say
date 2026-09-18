@@ -7,6 +7,8 @@ cases:
       - aiAssert: A Synthetic Doubao sign-in window is visible and explicitly says it is CI-only, makes no network request, and uses no real credentials.
       - aiAct: In the Synthetic Doubao sign-in window, click Simulate successful sign-in exactly once, then stop immediately.
       - aiAssert: The synthetic sign-in window closed and Doubao Say automatically advanced to the Microphone step with a right-arrow Next button in the fixed top navigation.
+      - aiAct: On the Microphone step, click Check microphone · 3 seconds exactly once and wait for the result.
+      - aiAssert: A visible message says Microphone is working and instructs the user to continue to the trigger key step.
       - aiAct: Click the right-arrow Next button in the Doubao Say fixed top navigation exactly once. Do not click it a second time.
       - aiAssert: The current Doubao Say step is Trigger key.
       - aiAct: Stay on Trigger key. Scroll inside the light-gray central content panel until the Voice polishing heading and its controls are visible.
@@ -16,5 +18,9 @@ cases:
       - aiAct: Click the right-arrow Next button in the fixed top navigation exactly once. Do not click it a second time.
       - aiAssert: The current Doubao Say step is Voice test.
       - aiAssert: The Voice test heading and introductory text are clearly visible near the top of the current content panel.
+      - aiAct: Click Start voice test exactly once and wait until the synthetic transcript appears.
+      - aiAssert: The Voice test shows Synthetic voice test transcript and offers both Finish & check result and Cancel test.
+      - aiAct: Click Finish & check result exactly once and wait for the test result.
+      - aiAssert: A visible message says Voice test passed and confirms that nothing was pasted or sent; Finish setup is enabled.
       - aiAct: Scroll within Voice test content if needed and click Finish setup exactly once. Stop when the button changes to the disabled status Setup completed by the synthetic E2E fixture.
       - aiAssert: The Finish setup button changed to a disabled visible status saying Setup completed by the synthetic E2E fixture.

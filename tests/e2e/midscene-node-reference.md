@@ -17,6 +17,7 @@ This table lists all available Nodes. See [Node Details](#node-details) below fo
 | aiNumber | Run aiNumber with a Midscene UI Agent and store its value. |
 | aiString | Run aiString with a Midscene UI Agent and store its value. |
 | aiTap | Locate and tap an element with a Midscene UI Agent. |
+| fixture.prepare | Select deterministic synthetic state for this test case. |
 | recordToReport | Add text or screenshots to the current Midscene report. |
 | shell.closeSystemMenu | Close the Omarchy system menu. |
 | shell.moveBarLeft | Back up Omarchy bar settings and dock the bar left. |
@@ -31,7 +32,9 @@ Projects created by `midscene-test create` select `cases/**/*.{yaml,yml}` by def
 
 **Config file:** `midscene.config.ts`
 
-**Case files:** `cases/onboarding.yaml`, `cases/onboarding-regressions.yaml` (Execution Project: ubuntu)
+**Case files:** `cases/polishing.yaml` (Execution Project: ubuntu-polishing)
+
+**Case files:** `cases/onboarding.yaml`, `cases/onboarding-regressions.yaml`, `cases/runtime.yaml` (Execution Project: ubuntu)
 
 **Case files:** `cases/onboarding.yaml` (Execution Project: omarchy-onboarding)
 
@@ -721,6 +724,39 @@ Locate and tap an element with a Midscene UI Agent.
   },
   "required": [
     "prompt"
+  ],
+  "type": "object"
+}
+```
+
+### `fixture.prepare`
+
+Select deterministic synthetic state for this test case.
+
+**String shorthand:** Not supported by this Node.
+
+#### Input Schema
+
+```json
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "additionalProperties": false,
+  "properties": {
+    "mode": {
+      "enum": [
+        "microphone-gate",
+        "voice-test",
+        "volcengine",
+        "microphone-change",
+        "shortcut-capture",
+        "runtime-delivery",
+        "runtime-cancel"
+      ],
+      "type": "string"
+    }
+  },
+  "required": [
+    "mode"
   ],
   "type": "object"
 }

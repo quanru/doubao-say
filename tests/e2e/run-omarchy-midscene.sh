@@ -113,7 +113,8 @@ ssh_guest true
 echo "Creating the Omarchy plugin test payload."
 tar -C "$ROOT_DIR" --exclude='__pycache__' -cf "$PLUGIN_ARCHIVE" \
   LICENSE README.md manifest.json install.sh setup-omarchy.sh start.sh \
-  omarchy src tests/e2e/gtk_fixture.py
+  omarchy src tests/e2e/gtk_fixture.py tests/e2e/gtk_onboarding_fixture.py \
+  tests/e2e/gtk_runtime_fixture.py
 
 for _copy_attempt in 1 2 3 4 5; do
   if scp -i "$SSH_KEY" -P "$SSH_PORT" \
