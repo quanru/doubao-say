@@ -75,13 +75,41 @@ Doubao Say selects a prompt from each transcript's dominant language. The bundle
 filler words and false starts, improves punctuation and organization, preserves
 meaning, and can be edited or restored to its default.
 
-Disable deep thinking/reasoning for this latency-sensitive task. **DeepSeek Flash
-(`deepseek-v4-flash`) is recommended.** Doubao Say requests non-thinking mode when
-using the official DeepSeek or Zhipu (`open.bigmodel.cn`) endpoint, including
-Zhipu's standard and Coding Plan APIs. GLM-5.3 and GLM-5.3-Flash cannot disable
-thinking, so Doubao Say requests low reasoning effort instead; this does not
-guarantee completion within the five-second budget. With a gateway or another provider, confirm
-that thinking is disabled or select a non-reasoning model.
+### Choose a fast polishing model
+
+**Prefer a small, low-latency model with thinking disabled.** Polishing only needs
+light text correction, not deep reasoning. Large reasoning models are a poor
+default for this task: polishing has a five-second total budget, after which
+Doubao Say uses your original text. Small models can still think, and a
+Flash/Lite name does not guarantee that thinking is off or can be disabled.
+
+Start with one of these options on its official endpoint:
+
+| Model | Base URL | Automatic thinking control |
+| --- | --- | --- |
+| DeepSeek Flash (`deepseek-flash`) | `https://api.deepseek.com` | Requests `thinking: {"type": "disabled"}` |
+| Gemini 2.5 Flash-Lite (`gemini-2.5-flash-lite`) | `https://generativelanguage.googleapis.com/v1beta/openai` | Requests `reasoning_effort: "none"` |
+
+Gemini 2.5 Flash also has automatic thinking-off support. See the official
+[DeepSeek thinking guide](https://api-docs.deepseek.com/guides/thinking_mode/) and
+[Gemini OpenAI compatibility guide](https://ai.google.dev/gemini-api/docs/openai)
+for the provider parameters. These are configuration suggestions, not measured
+latency guarantees; network, service load, and text length also affect speed.
+Use **Test endpoint** to check connectivity, then try a short recording to assess
+actual polishing latency and quality.
+
+The settings page shows the thinking policy for your endpoint and model.
+Automatic control depends on the official hostname, not just the model name.
+For gateways or providers without a verified policy (including OpenAI, Claude,
+and Grok), confirm thinking is disabled in the provider configuration or choose
+a non-reasoning model; Doubao Say otherwise leaves provider defaults in place.
+Claude's native API is not supported by this OpenAI-compatible client.
+
+Zhipu (`open.bigmodel.cn`) standard and Coding Plan APIs request thinking-off,
+except for GLM-5.3 and GLM-5.3-Flash: these cannot disable thinking and request
+`reasoning_effort: "low"` instead. Low effort is still thinking, so these are not
+the preferred choices for this five-second workflow. See the
+[Zhipu thinking guide](https://docs.bigmodel.cn/cn/guide/capabilities/thinking).
 
 When enabled, 1.2 seconds of silence with stable recognized text starts provisional
 polishing. A separate status line stays visible while the overlay streams the result.

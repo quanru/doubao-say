@@ -56,11 +56,34 @@ API Key 保存在 `~/.config/doubao-say/volcengine_api_key`（或对应的
 中文与英文 Prompt；应用会根据每次转写的主要语言自动选择。内置 Prompt 会去除口水词、重复和口误，改善标点与结构，同时保留原意；用户可
 自行修改，也可一键恢复默认内容。
 
-这类低延迟任务应关闭深度思考／推理模式，**推荐使用 DeepSeek Flash
-（`deepseek-v4-flash`）**。使用 DeepSeek 或智谱（`open.bigmodel.cn`）官方接口时，豆包说会请求非思考模式，
-包括智谱标准 API 和 Coding Plan 接口。GLM-5.3 和 GLM-5.3-Flash 无法关闭思考，
-因此改为请求最低推理强度 `low`，但不保证能在五秒内完成。使用中转接口
-或其他服务商时，请确认已经关闭思考，或选择非推理模型。
+### 选择低延迟润色模型
+
+**优先选择小型、低延迟模型，并关闭思考。** 润色只需要轻量文字修正，不需要深度推理。
+不建议默认使用大型推理模型：润色总共只有五秒，超过上限就会使用原文。
+小模型也可能开启思考，名称带 Flash/Lite 不代表思考已经关闭，也不代表支持关闭。
+
+建议从以下官方接口配置开始：
+
+| 模型 | Base URL | 自动思考控制 |
+| --- | --- | --- |
+| DeepSeek Flash（`deepseek-flash`） | `https://api.deepseek.com` | 请求 `thinking: {"type": "disabled"}` |
+| Gemini 2.5 Flash-Lite（`gemini-2.5-flash-lite`） | `https://generativelanguage.googleapis.com/v1beta/openai` | 请求 `reasoning_effort: "none"` |
+
+Gemini 2.5 Flash 也已适配自动关闭思考。参数说明见
+[DeepSeek 思考模式文档](https://api-docs.deepseek.com/guides/thinking_mode/)和
+[Gemini OpenAI 兼容文档](https://ai.google.dev/gemini-api/docs/openai)。
+以上是配置建议，不是实测延迟保证；网络、服务负载和文本长度都会影响速度。
+先用“测试接口”检查连通性，再通过一段简短录音判断实际润色速度和质量。
+
+设置页会显示当前接口和模型的思考策略。自动适配依赖官方域名，而不只是模型名称。
+使用中转接口或尚未适配思考控制的服务商（包括 OpenAI、Claude、Grok）时，
+请在服务商配置中确认关闭思考，或选择非推理模型；否则应用会沿用服务商默认值。
+当前 OpenAI 兼容客户端不支持 Claude 原生 API。
+
+智谱（`open.bigmodel.cn`）标准 API 和 Coding Plan 接口会请求关闭思考，
+但 GLM-5.3 和 GLM-5.3-Flash 不允许关闭，因此改为请求 `reasoning_effort: "low"`。
+低推理强度仍然是思考模式，不作为五秒润色场景的首选。详情见
+[智谱深度思考文档](https://docs.bigmodel.cn/cn/guide/capabilities/thinking)。
 
 开启后，识别文本稳定且静音 1.2 秒会启动预润色；再次说话会立即让旧请求失效并回到聆听状态。
 悬浮窗独立显示润色状态和流式文字。润色结合本次整段上下文，只修明显口误与识别错误，
