@@ -282,5 +282,3 @@ def build_onboarding_fixture(mode):
         control.destroy()
 
     return cleanup
-
-
