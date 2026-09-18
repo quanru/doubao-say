@@ -156,7 +156,7 @@ cases:
       - computer.inputText:
           target: API Key field
           value: synthetic-ci-key
-      - aiAssert: The API Key field contains synthetic-ci-key and the interface says it was saved automatically.
+      - aiAssert: The API Key field visibly contains a non-empty masked value and the Test API key button is enabled.
       - aiTap: Test API key button below the API Key field
       - wait: { duration: 750 }
       - aiAssert: The result says API key accepted by synthetic endpoint, the page reports that the official API is ready, and right-arrow Next is enabled.

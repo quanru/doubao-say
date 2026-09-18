@@ -540,6 +540,61 @@ test('restores retained history before adding the new run', async (context) => {
   );
 });
 
+test('restores version 4 history created before node text evidence', async (context) => {
+  const root = await mkdtemp(path.join(os.tmpdir(), 'pages-v4-history-'));
+  const reportDirectory = await fixtureDirectory(root);
+  const siteDirectory = path.join(root, 'site');
+  const files = [
+    'reports/100/index.html',
+    'reports/100/report-preview.png',
+    'reports/100/case-preview-ubuntu-old-case.jpg',
+  ];
+  const oldEntry = {
+    runId: '100',
+    generatedAt: '2026-09-14T12:00:00.000Z',
+    label: 'Ubuntu 22.04',
+    successRate: 100,
+    testCount: 1,
+    modelCallCount: 1,
+    averageDurationMs: 4000,
+    tokenUsage: 100,
+    workflowUrl: 'https://github.com/quanru/doubao-say/actions/runs/100',
+    reportPath: files[0],
+    files,
+    entries: [{
+      role: 'primary', project: 'ubuntu', label: 'Doubao Say',
+      status: 'success', previewStep: 'last', reportPath: files[0],
+      previewPath: files[1], scenarios: { passed: 1, total: 1 },
+      assertions: { passed: 1, total: 1 },
+      cases: [{
+        caseId: 'old-case', name: 'Old visual case', status: 'success',
+        stepId: 'old-step', selection: 'last-screenshot', previewPath: files[2],
+      }],
+    }],
+  };
+  const server = await startServer((request, response) => {
+    if (request.url === '/reports/manifest.json') {
+      response.setHeader('content-type', 'application/json');
+      response.end(JSON.stringify({ version: 4, reports: [oldEntry] }));
+      return;
+    }
+    const file = files.find((candidate) => `/${candidate}` === request.url);
+    if (!file) return response.writeHead(404).end();
+    response.setHeader(
+      'content-type',
+      file.endsWith('.html') ? 'text/html; charset=utf-8' : 'image/png',
+    );
+    response.end(file);
+  });
+  context.after(server.close);
+
+  const manifest = await buildPagesReport(
+    options(reportDirectory, siteDirectory, server.url),
+  );
+  assert.deepEqual(manifest.reports.map((report) => report.runId), ['200', '100']);
+  assert.equal(manifest.reports[1].entries[0].cases[0].description, undefined);
+});
+
 test('stops when a manifest exists but an old report cannot be restored', async (context) => {
   const root = await mkdtemp(path.join(os.tmpdir(), 'pages-failure-'));
   const reportDirectory = await fixtureDirectory(root);

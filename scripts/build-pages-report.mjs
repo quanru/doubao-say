@@ -183,7 +183,6 @@ function validateHistoryManifest(manifest) {
   ) {
     throw new Error('Existing Pages manifest has an unsupported shape');
   }
-  const requiresCaseText = manifest.version >= 4;
   for (const report of manifest.reports) {
     if (
       typeof report.runId !== 'string' ||
@@ -224,13 +223,6 @@ function validateHistoryManifest(manifest) {
                       !['last-screenshot', 'first-failing-screenshot'].includes(
                         testCase.selection,
                       ) ||
-                      (requiresCaseText &&
-                        (typeof testCase.description !== 'string' ||
-                          testCase.description.length === 0)) ||
-                      (requiresCaseText &&
-                        !['ai', 'error', 'result'].includes(
-                          testCase.descriptionKind,
-                        )) ||
                       (testCase.description !== undefined &&
                         (typeof testCase.description !== 'string' ||
                           testCase.description.length === 0)) ||
@@ -238,6 +230,8 @@ function validateHistoryManifest(manifest) {
                         !['ai', 'error', 'result'].includes(
                           testCase.descriptionKind,
                         )) ||
+                      ((testCase.description === undefined) !==
+                        (testCase.descriptionKind === undefined)) ||
                       !report.files?.includes(testCase.previewPath),
                   ))),
           )))

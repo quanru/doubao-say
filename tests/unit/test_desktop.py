@@ -109,6 +109,7 @@ class DesktopTest(TestCase):
             win.get_display.return_value.__gtype__ = SimpleNamespace(name="GdkX11Display")
             with self.assertRaises(StopBeforeWidgets):
                 overlay.Overlay._ensure_window(owner)
+            win.set_focusable.assert_called_once_with(False)
             signal, callback = win.connect.call_args.args
             self.assertEqual(signal, "realize")
             callback(win)
