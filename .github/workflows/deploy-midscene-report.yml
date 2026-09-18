@@ -106,6 +106,7 @@ jobs:
             --run-id "$GITHUB_RUN_ID"
 
       - name: Add report links to the run summary
+        if: always() && steps.deployment.outcome == 'success'
         env:
           PAGES_BASE_URL: ${{ steps.pages.outputs.base_url }}
           PRODUCER_RESULT: ${{ inputs.run-result }}

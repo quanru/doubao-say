@@ -58,8 +58,9 @@ Projects use Midscene Test's case-level `retry` setting, so a failed model
 attempt is rerun with a fresh fixture while successful cases are kept. Every
 attempt remains visible in the generated report.
 Each invocation writes a unified Midscene Test HTML report under
-`midscene_run/report/`; CI publishes those reports and renders the final shell
-report node as its entrance image, including the node's pass or error status.
+`midscene_run/report/`; CI publishes those reports and renders each project's
+final node as its entrance image. A failed project instead opens and captures
+its most recent error node, so the summary shows the relevant failure detail.
 
 The Ubuntu stage maps the real GTK onboarding window inside the
 headless Midscene desktop. Its synthetic fixture starts signed out, opens an

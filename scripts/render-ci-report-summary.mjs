@@ -83,7 +83,7 @@ export function renderReportSummary({
     .map(
       (entry) => `### ${entry.label}
 
-[![Final node from ${entry.label}, with its pass or error status](${reportUrl(
+[![${entry.previewStep === 'last-error' ? 'Most recent error' : 'Final node'} from ${entry.label}](${reportUrl(
         pagesUrl,
         entry.previewPath,
       )})](${reportUrl(pagesUrl, entry.reportPath)})`,
@@ -99,7 +99,7 @@ ${links}
 
 ${previews}
 
-Click the final-node ${noun} to inspect the complete Midscene Test ${
+Click the result ${noun} to inspect the complete Midscene Test ${
     report.entries.length === 1 ? 'report' : 'reports'
   }, screenshots, and Agent replay.
 `;

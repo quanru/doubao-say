@@ -10,7 +10,18 @@ import { findShellReport } from '../../scripts/omarchy-shell-evidence.mjs';
 import { renderReportSummary } from '../../scripts/render-ci-report-summary.mjs';
 import { verifyPublishedReport } from '../../scripts/verify-pages-report.mjs';
 
-function runnerScript({ project, status = 'success', startedAt }) {
+function runnerScript({
+  assertionCount = 0,
+  assertionAttempts,
+  project,
+  status = 'success',
+  startedAt,
+}) {
+  const attempts =
+    assertionAttempts ??
+    (assertionCount
+      ? [Array.from({ length: assertionCount }, () => 'success')]
+      : []);
   return `<script type="midscene_test_run_dump">${JSON.stringify({
     startedAt,
     status,
@@ -19,7 +30,28 @@ function runnerScript({ project, status = 'success', startedAt }) {
       passed: status === 'success' ? 1 : 0,
       failed: status === 'success' ? 0 : 1,
     },
-    projects: [{ name: project }],
+    projects: [
+      {
+        name: project,
+        documents: attempts.length
+          ? [
+              {
+                cases: [
+                  {
+                    attempts: attempts.map((statuses, attemptIndex) => ({
+                      steps: statuses.map((stepStatus, stepIndex) => ({
+                        id: `assert-${attemptIndex}-${stepIndex}`,
+                        node: 'aiAssert',
+                        status: stepStatus,
+                      })),
+                    })),
+                  },
+                ],
+              },
+            ]
+          : [],
+      },
+    ],
   })}</script>`;
 }
 
@@ -55,7 +87,7 @@ const shellFixtureHtml = `<!doctype html><html><body>${shellPrompts
     })}</script>
 <script type="midscene-image" data-id="image-${index}">data:image/jpeg;base64,/9j/2Q==</script>`,
   )
-  .join('')}${runnerScript({ project: 'omarchy-shell', startedAt: '2026-09-15T12:05:00Z' })}</body></html>`;
+  .join('')}${runnerScript({ assertionCount: 3, project: 'omarchy-shell', startedAt: '2026-09-15T12:05:00Z' })}</body></html>`;
 
 async function fixtureDirectory(root) {
   const reportDirectory = path.join(root, 'artifact', 'report');
@@ -171,6 +203,8 @@ test('publishes the Doubao Say report as the primary CI entrance', async (contex
       role: 'primary',
       project: 'ubuntu',
       label: 'Doubao Say',
+      status: 'success',
+      previewStep: 'last',
       reportPath: 'reports/200/index.html',
       previewPath: 'reports/200/report-preview.png',
       scenarios: { passed: 1, total: 1 },
@@ -180,6 +214,8 @@ test('publishes the Doubao Say report as the primary CI entrance', async (contex
       role: 'auxiliary',
       project: 'omarchy-shell',
       label: 'Omarchy visual checks',
+      status: 'success',
+      previewStep: 'last',
       reportPath: 'reports/200/auxiliary-report.html',
       previewPath: 'reports/200/auxiliary-report-preview.png',
       scenarios: { passed: 1, total: 1 },
@@ -223,6 +259,39 @@ test('publishes the Doubao Say report as the primary CI entrance', async (contex
     ),
     'auxiliary preview',
   );
+});
+
+test('reports visual assertions from the final retry attempt only', async (context) => {
+  const root = await mkdtemp(path.join(os.tmpdir(), 'pages-retry-'));
+  const reportDirectory = path.join(root, 'artifact', 'report');
+  await mkdir(reportDirectory, { recursive: true });
+  const retriedReport = `<!doctype html><html><body>${runnerScript({
+    assertionAttempts: [['failed'], ['success', 'success']],
+    project: 'ubuntu',
+    startedAt: '2026-09-15T12:00:00Z',
+  })}</body></html>`;
+  await writeFile(
+    path.join(reportDirectory, 'test-run-retried.html'),
+    retriedReport,
+  );
+  await writeFile(
+    path.join(path.dirname(reportDirectory), 'report-preview.png'),
+    'preview',
+  );
+  const siteDirectory = path.join(root, 'site');
+  const server = await startServer((_request, response) =>
+    response.writeHead(404).end(),
+  );
+  context.after(server.close);
+
+  const manifest = await buildPagesReport(
+    options(path.dirname(reportDirectory), siteDirectory, server.url),
+  );
+
+  assert.deepEqual(manifest.reports[0].entries[0].assertions, {
+    passed: 2,
+    total: 2,
+  });
 });
 
 test('publishes a failed shell report with its result in history', async (context) => {
@@ -437,6 +506,8 @@ test('renders one full-width section per structured report entry', () => {
             role: 'primary',
             project: 'ubuntu',
             label: 'Doubao Say',
+            status: 'success',
+            previewStep: 'last',
             reportPath: 'reports/200/index.html',
             previewPath: 'reports/200/report-preview.png',
             scenarios: { passed: 6, total: 6 },
@@ -446,6 +517,8 @@ test('renders one full-width section per structured report entry', () => {
             role: 'auxiliary',
             project: 'ubuntu-polishing',
             label: 'Polishing overlay report',
+            status: 'success',
+            previewStep: 'last',
             reportPath: 'reports/200/auxiliary-report.html',
             previewPath: 'reports/200/auxiliary-report-preview.png',
             scenarios: { passed: 1, total: 1 },
@@ -468,7 +541,7 @@ test('renders one full-width section per structured report entry', () => {
   assert.match(summary, /Polishing overlay report: 1\/1 scenarios passed/);
   assert.doesNotMatch(summary, /\|:--\|/);
   assert.doesNotMatch(summary, /report report/);
-  assert.match(summary, /Click the final-node previews/);
+  assert.match(summary, /Click the result previews/);
 });
 
 test('renders singular failure copy for one available report', () => {
@@ -481,6 +554,8 @@ test('renders singular failure copy for one available report', () => {
             role: 'primary',
             project: 'ubuntu',
             label: 'Doubao Say',
+            status: 'failed',
+            previewStep: 'last-error',
             reportPath: 'reports/200/index.html',
             previewPath: 'reports/200/report-preview.png',
             scenarios: { passed: 0, total: 1 },
@@ -499,8 +574,9 @@ test('renders singular failure copy for one available report', () => {
   });
 
   assert.match(summary, /Ubuntu × Midscene · failure captured/);
-  assert.match(summary, /Click the final-node preview to inspect/);
-  assert.doesNotMatch(summary, /Click the final-node previews/);
+  assert.match(summary, /Most recent error from Doubao Say/);
+  assert.match(summary, /Click the result preview to inspect/);
+  assert.doesNotMatch(summary, /Click the result previews/);
 });
 
 test('finds Omarchy evidence by project instead of assertion wording', async () => {

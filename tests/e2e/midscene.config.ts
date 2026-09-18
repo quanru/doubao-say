@@ -197,11 +197,35 @@ const moveBarLeft = defineNode<typeof empty, void, DesktopContext>({
 
 export default defineTestProject<DesktopContext>({
   test: { maxConcurrency: 1, testTimeout: 8 * 60_000 },
+  // Retries are scoped to failed cases. Every attempt stays visible in the
+  // official Midscene report, and agent acquisition resets its fixture.
   projects: [
-    { name: 'ubuntu-polishing', retry: 2, setup, files: { include: ['cases/polishing.yaml'] } },
-    { name: 'ubuntu', retry: 2, setup, files: { include: ['cases/onboarding.yaml', 'cases/onboarding-regressions.yaml'] } },
-    { name: 'omarchy-onboarding', retry: 2, setup, files: { include: ['cases/onboarding.yaml'] } },
-    { name: 'omarchy-shell', retry: 2, setup, files: { include: ['cases/omarchy-shell.yaml'] } },
+    {
+      name: 'ubuntu-polishing',
+      retry: 2,
+      setup,
+      files: { include: ['cases/polishing.yaml'] },
+    },
+    {
+      name: 'ubuntu',
+      retry: 2,
+      setup,
+      files: {
+        include: ['cases/onboarding.yaml', 'cases/onboarding-regressions.yaml'],
+      },
+    },
+    {
+      name: 'omarchy-onboarding',
+      retry: 2,
+      setup,
+      files: { include: ['cases/onboarding.yaml'] },
+    },
+    {
+      name: 'omarchy-shell',
+      retry: 2,
+      setup,
+      files: { include: ['cases/omarchy-shell.yaml'] },
+    },
   ],
   nodes: [
     ...createMidsceneNodes<DesktopContext>({

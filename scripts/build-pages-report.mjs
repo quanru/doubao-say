@@ -113,19 +113,52 @@ function collectModelUsage(reportHtml) {
   };
 }
 
-function collectAssertionResults(reportHtml) {
+function collectAssertionResults(run) {
   let passed = 0;
   let total = 0;
-  for (const dump of reportDumps(reportHtml)) {
-    for (const execution of dump.executions ?? []) {
-      for (const task of execution.tasks ?? []) {
-        if (task.status !== 'finished' || task.subType !== 'Assert') continue;
-        total += 1;
-        if (task.output === true) passed += 1;
+  for (const project of run?.projects ?? []) {
+    for (const document of project.documents ?? []) {
+      for (const testCase of document.cases ?? []) {
+        const attempt = testCase.attempts?.at(-1);
+        if (!attempt) continue;
+        for (const step of [
+          ...(attempt.beforeEach ?? []),
+          ...(attempt.steps ?? []),
+          ...(attempt.afterEach ?? []),
+        ]) {
+          if (step.node !== 'aiAssert') continue;
+          total += 1;
+          if (step.status === 'success') passed += 1;
+        }
       }
     }
   }
   return { passed, total };
+}
+
+function buildReportEntry({
+  label,
+  previewPath,
+  project,
+  report,
+  reportPath,
+  role,
+}) {
+  const status = report.run?.status ?? 'unknown';
+  return {
+    role,
+    project,
+    label,
+    status,
+    previewStep: status === 'success' ? 'last' : 'last-error',
+    reportPath,
+    previewPath,
+    scenarios: {
+      passed: report.run?.summary?.passed ?? 0,
+      total: report.run?.summary?.total ?? 0,
+    },
+    assertions: collectAssertionResults(report.run),
+  };
 }
 
 function validateHistoryManifest(manifest) {
@@ -157,6 +190,8 @@ function validateHistoryManifest(manifest) {
               !['primary', 'auxiliary'].includes(entry.role) ||
               typeof entry.project !== 'string' ||
               typeof entry.label !== 'string' ||
+              typeof entry.status !== 'string' ||
+              !['last', 'last-error'].includes(entry.previewStep) ||
               !report.files?.includes(entry.reportPath) ||
               !report.files?.includes(entry.previewPath) ||
               !Number.isInteger(entry.scenarios?.passed) ||
@@ -381,32 +416,24 @@ export async function buildPagesReport(options) {
         `${reportPrefix}/report-preview.png`,
       ];
   const entries = [
-    {
+    buildReportEntry({
       role: 'primary',
       project: primaryProject,
       label: primaryReportLabel,
+      report: primaryReport,
       reportPath: `${reportPrefix}/index.html`,
       previewPath: `${reportPrefix}/report-preview.png`,
-      scenarios: {
-        passed: primaryReport.run?.summary?.passed ?? 0,
-        total: primaryReport.run?.summary?.total ?? 0,
-      },
-      assertions: collectAssertionResults(primaryReport.html),
-    },
+    }),
     ...(auxiliaryReport
       ? [
-          {
+          buildReportEntry({
             role: 'auxiliary',
             project: auxiliaryProject,
             label: auxiliaryReportLabel,
+            report: auxiliaryReport,
             reportPath: `${reportPrefix}/auxiliary-report.html`,
             previewPath: `${reportPrefix}/auxiliary-report-preview.png`,
-            scenarios: {
-              passed: auxiliaryReport.run?.summary?.passed ?? 0,
-              total: auxiliaryReport.run?.summary?.total ?? 0,
-            },
-            assertions: collectAssertionResults(auxiliaryReport.html),
-          },
+          }),
         ]
       : []),
   ];

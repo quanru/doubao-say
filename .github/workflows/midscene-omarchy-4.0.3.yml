@@ -64,7 +64,9 @@ concurrency:
   # Keep only one pending run for this workflow and ref. Ubuntu, Omarchy, main,
   # and unrelated PRs must not replace one another in GitHub's concurrency queue.
   group: midscene-model-e2e-${{ github.workflow }}-${{ github.ref }}
-  cancel-in-progress: false
+  # A newer PR commit supersedes its predecessor. Main runs remain serialized
+  # so report publication always follows commit order.
+  cancel-in-progress: ${{ github.event_name == 'pull_request' }}
 
 jobs:
   omarchy-vm:
@@ -146,7 +148,7 @@ jobs:
       - name: Run real Omarchy Midscene E2E
         run: tests/e2e/run-omarchy-midscene.sh
 
-      - name: Capture the final report node for the CI summary
+      - name: Capture the report result for the CI summary
         if: always()
         run: |
           node tests/e2e/capture-report-preview.mjs \

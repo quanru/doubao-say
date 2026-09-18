@@ -73,8 +73,11 @@ try {
     }
     const runnerDump = report.run;
     if (!runnerDump) throw new Error('Midscene Test runner dump was not found');
+    const previewStep = runnerDump.status === 'success' ? 'last' : 'last-error';
     const previewUrl = new URL(pathToFileURL(report.file));
-    previewUrl.hash = new URLSearchParams({ 'runner-step': 'last' }).toString();
+    previewUrl.hash = new URLSearchParams({
+      'runner-step': previewStep,
+    }).toString();
     const outputFile = path.join(reportDirectory, outputName);
     await mkdir(path.dirname(outputFile), { recursive: true });
 
@@ -85,7 +88,7 @@ try {
       '[aria-label="Execution steps"] button.is-selected .runner-step-status',
     );
     await page.waitForSelector('.runner-detail-evidence-panel');
-    await page.waitForFunction(() => {
+    await page.waitForFunction((expectedStep) => {
       const buttons = [
         ...document.querySelectorAll(
           '[aria-label="Execution steps"] .runner-detail-step-group > button',
@@ -102,16 +105,18 @@ try {
       )?.textContent;
       return (
         buttons.length > 0 &&
-        selected === buttons.at(-1) &&
+        (expectedStep === 'last'
+          ? selected === buttons.at(-1)
+          : Boolean(selected?.querySelector('.runner-step-status.is-failed'))) &&
         Boolean(selectedName) &&
         selectedName === detailName
       );
-    });
+    }, {}, previewStep);
     await page.evaluate(() => window.scrollTo(0, 0));
     await page.screenshot({ path: outputFile, type: 'png' });
     await page.close();
     console.log(
-      `Captured final Midscene report node (${runnerDump.status}): ${outputFile}`,
+      `Captured Midscene report node ${previewStep} (${runnerDump.status}): ${outputFile}`,
     );
   }
 } finally {
