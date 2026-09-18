@@ -8,6 +8,7 @@ cases:
       - aiAct: In the Synthetic Doubao sign-in window, click Simulate successful sign-in exactly once, then stop immediately.
       - aiAssert: The synthetic sign-in window closed and Doubao Say automatically advanced to the Microphone step with a right-arrow Next button in the fixed top navigation.
       - aiAct: On the Microphone step, click Check microphone · 3 seconds exactly once and wait for the result.
+      - aiAct: Scroll down inside the light-gray central content panel until the microphone check result below the button is visible.
       - aiAssert: A visible message says Microphone is working and instructs the user to continue to the trigger key step.
       - aiAct: Click the right-arrow Next button in the Doubao Say fixed top navigation exactly once. Do not click it a second time.
       - aiAssert: The current Doubao Say step is Trigger key.
