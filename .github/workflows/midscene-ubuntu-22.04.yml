@@ -199,6 +199,10 @@ jobs:
           tests/e2e/midscene_run
           tests/e2e/midscene_run/report-preview.png
           ubuntu
+          && node tests/e2e/capture-report-preview.mjs
+          tests/e2e/midscene_run
+          tests/e2e/midscene_run/auxiliary-report-preview.png
+          ubuntu-polishing
 
       - name: Upload Midscene report
         id: report

@@ -326,7 +326,12 @@ export async function buildPagesReport(options) {
   );
   const reportPrefix = `reports/${runId}`;
   const files = auxiliaryReport
-    ? ['index.html', 'auxiliary-report.html', 'report-preview.png'].map((name) => `${reportPrefix}/${name}`)
+    ? [
+        'index.html',
+        'auxiliary-report.html',
+        'report-preview.png',
+        'auxiliary-report-preview.png',
+      ].map((name) => `${reportPrefix}/${name}`)
     : [
         `${reportPrefix}/index.html`,
         `${reportPrefix}/report-preview.png`,
@@ -365,6 +370,10 @@ export async function buildPagesReport(options) {
     await copyFile(primaryReport.file, path.join(currentDirectory, 'index.html'));
     await copyFile(auxiliaryReport.file, path.join(currentDirectory, 'auxiliary-report.html'));
     await copyFile(path.join(reportDirectory, 'report-preview.png'), path.join(currentDirectory, 'report-preview.png'));
+    await copyFile(
+      path.join(reportDirectory, 'auxiliary-report-preview.png'),
+      path.join(currentDirectory, 'auxiliary-report-preview.png'),
+    );
   } else {
     await copyFile(primaryReport.file, path.join(currentDirectory, 'index.html'));
     await copyFile(

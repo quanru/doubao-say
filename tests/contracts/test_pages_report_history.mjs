@@ -142,6 +142,10 @@ test('publishes the Doubao Say report as the primary CI entrance', async (contex
     shellFixtureHtml,
   );
   await writeFile(path.join(reportDirectory, 'report-preview.png'), 'preview');
+  await writeFile(
+    path.join(reportDirectory, 'auxiliary-report-preview.png'),
+    'auxiliary preview',
+  );
   const siteDirectory = path.join(root, 'site');
   const server = await startServer((_request, response) =>
     response.writeHead(404).end(),
@@ -154,7 +158,12 @@ test('publishes the Doubao Say report as the primary CI entrance', async (contex
 
   assert.equal(manifest.reports[0].testCount, 2);
   assert.equal(manifest.reports[0].successRate, 100);
-  assert.equal(manifest.reports[0].files.length, 3);
+  assert.deepEqual(manifest.reports[0].files, [
+    'reports/200/index.html',
+    'reports/200/auxiliary-report.html',
+    'reports/200/report-preview.png',
+    'reports/200/auxiliary-report-preview.png',
+  ]);
   const publishedReport = await readFile(
     path.join(siteDirectory, 'reports', '200', 'index.html'),
     'utf8',
@@ -174,6 +183,18 @@ test('publishes the Doubao Say report as the primary CI entrance', async (contex
     ),
     'preview',
   );
+  assert.equal(
+    await readFile(
+      path.join(
+        siteDirectory,
+        'reports',
+        '200',
+        'auxiliary-report-preview.png',
+      ),
+      'utf8',
+    ),
+    'auxiliary preview',
+  );
 });
 
 test('publishes a failed shell report with its result in history', async (context) => {
@@ -189,6 +210,10 @@ test('publishes a failed shell report with its result in history', async (contex
       ),
   );
   await writeFile(path.join(reportDirectory, 'report-preview.png'), 'failed');
+  await writeFile(
+    path.join(reportDirectory, 'auxiliary-report-preview.png'),
+    'auxiliary failed',
+  );
   const siteDirectory = path.join(root, 'site');
   const server = await startServer((_request, response) =>
     response.writeHead(404).end(),
