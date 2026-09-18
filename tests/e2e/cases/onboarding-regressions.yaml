@@ -75,7 +75,8 @@ cases:
       - fixture.prepare: { mode: microphone-gate }
       - aiAssert: The visible Doubao Say window starts on the Microphone step, shows Synthetic microphone one, and offers Check microphone · 3 seconds.
       - aiAct: Click right-arrow Next once to open Trigger key, then click right-arrow Next once more to open Voice test.
-      - aiAssert: The current step is Voice test and Finish setup is disabled because the microphone check has not passed.
+      - aiAct: Scroll down inside the Voice test content panel until the Finish setup button is fully visible.
+      - aiAssert: The current step is Voice test and the Finish setup button is visibly disabled.
       - aiAct: Click left-arrow Previous once to open Trigger key, then click left-arrow Previous once more to return to Microphone.
       - aiAct: Click Check microphone · 3 seconds exactly once and wait for the result.
       - aiAssert: A visible message says Microphone is working and instructs the user to continue to the trigger key step.
@@ -118,6 +119,7 @@ cases:
       - aiAct: In the microphone dropdown, select Synthetic microphone two exactly once.
       - aiAssert: A visible message says Microphone saved and requires a new three-second check.
       - aiAct: Click right-arrow Next once to open Trigger key, then click right-arrow Next once more to open Voice test.
+      - aiAct: Scroll down inside the Voice test content panel until the Finish setup button is fully visible.
       - aiAssert: The Finish setup button is visibly disabled.
       - aiAct: Click left-arrow Previous once to open Trigger key, then click left-arrow Previous once more to return to Microphone.
       - aiAct: Click Check microphone · 3 seconds exactly once and wait for the result.
