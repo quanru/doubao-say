@@ -29,6 +29,7 @@ jobs:
       - name: Statically check and test Pages history builder
         run: |
           node --check scripts/build-pages-report.mjs
+          node --check scripts/report-cases.mjs
           node --check scripts/render-ci-report-summary.mjs
           node --check scripts/verify-pages-report.mjs
           node --check tests/contracts/test_pages_report_history.mjs

@@ -7,6 +7,7 @@ import test from 'node:test';
 
 import { buildPagesReport } from '../../scripts/build-pages-report.mjs';
 import { findShellReport } from '../../scripts/omarchy-shell-evidence.mjs';
+import { reportCases } from '../../scripts/report-cases.mjs';
 import { renderReportSummary } from '../../scripts/render-ci-report-summary.mjs';
 import { verifyPublishedReport } from '../../scripts/verify-pages-report.mjs';
 
@@ -21,7 +22,7 @@ function runnerScript({
     assertionAttempts ??
     (assertionCount
       ? [Array.from({ length: assertionCount }, () => 'success')]
-      : []);
+      : [[status === 'success' ? 'success' : 'failed']]);
   return `<script type="midscene_test_run_dump">${JSON.stringify({
     startedAt,
     status,
@@ -33,23 +34,29 @@ function runnerScript({
     projects: [
       {
         name: project,
-        documents: attempts.length
-          ? [
+        documents: [
               {
                 cases: [
                   {
+                    caseId: `case-${project}`,
+                    name: `${project} visual case`,
+                    status,
                     attempts: attempts.map((statuses, attemptIndex) => ({
+                      status: statuses.every((item) => item === 'success')
+                        ? 'success'
+                        : 'failed',
                       steps: statuses.map((stepStatus, stepIndex) => ({
                         id: `assert-${attemptIndex}-${stepIndex}`,
-                        node: 'aiAssert',
+                        node: assertionCount || assertionAttempts ? 'aiAssert' : 'aiAct',
+                        title: `Evidence ${attemptIndex}-${stepIndex}`,
                         status: stepStatus,
+                        agentDetails: [{ reportId: 'runner-report-1', executionId: `execution-${attemptIndex}-${stepIndex}` }],
                       })),
                     })),
                   },
                 ],
               },
-            ]
-          : [],
+            ],
       },
     ],
   })}</script>`;
@@ -95,6 +102,10 @@ async function fixtureDirectory(root) {
   await writeFile(path.join(reportDirectory, 'test-run-ubuntu.html'), fixtureHtml);
   await writeFile(path.join(reportDirectory, 'agent-detail.html'), '<html>intermediate Agent report</html>');
   await writeFile(path.join(path.dirname(reportDirectory), 'report-preview.png'), 'preview');
+  await writeFile(
+    path.join(path.dirname(reportDirectory), 'case-preview-ubuntu-case-ubuntu.jpg'),
+    'ubuntu case preview',
+  );
   return path.dirname(reportDirectory);
 }
 
@@ -161,6 +172,7 @@ test('simulates a first deployment when Pages returns 404', async (context) => {
   assert.deepEqual(manifest.reports[0].files, [
     'reports/200/index.html',
     'reports/200/report-preview.png',
+    'reports/200/case-preview-ubuntu-case-ubuntu.jpg',
   ]);
   assert.equal(manifest.reports[0].entries.length, 1);
   assert.equal(
@@ -183,6 +195,10 @@ test('publishes the Doubao Say report as the primary CI entrance', async (contex
   await writeFile(
     path.join(reportDirectory, 'auxiliary-report-preview.png'),
     'auxiliary preview',
+  );
+  await writeFile(
+    path.join(reportDirectory, 'case-preview-omarchy-shell-case-omarchy-shell.jpg'),
+    'shell case preview',
   );
   const siteDirectory = path.join(root, 'site');
   const server = await startServer((_request, response) =>
@@ -209,6 +225,16 @@ test('publishes the Doubao Say report as the primary CI entrance', async (contex
       previewPath: 'reports/200/report-preview.png',
       scenarios: { passed: 1, total: 1 },
       assertions: { passed: 0, total: 0 },
+      cases: [
+        {
+          caseId: 'case-ubuntu',
+          name: 'ubuntu visual case',
+          status: 'success',
+          stepId: 'assert-0-0',
+          selection: 'last-screenshot',
+          previewPath: 'reports/200/case-preview-ubuntu-case-ubuntu.jpg',
+        },
+      ],
     },
     {
       role: 'auxiliary',
@@ -220,6 +246,17 @@ test('publishes the Doubao Say report as the primary CI entrance', async (contex
       previewPath: 'reports/200/auxiliary-report-preview.png',
       scenarios: { passed: 1, total: 1 },
       assertions: { passed: 3, total: 3 },
+      cases: [
+        {
+          caseId: 'case-omarchy-shell',
+          name: 'omarchy-shell visual case',
+          status: 'success',
+          stepId: 'assert-0-2',
+          selection: 'last-screenshot',
+          previewPath:
+            'reports/200/case-preview-omarchy-shell-case-omarchy-shell.jpg',
+        },
+      ],
     },
   ]);
   assert.deepEqual(manifest.reports[0].files, [
@@ -227,6 +264,8 @@ test('publishes the Doubao Say report as the primary CI entrance', async (contex
     'reports/200/auxiliary-report.html',
     'reports/200/report-preview.png',
     'reports/200/auxiliary-report-preview.png',
+    'reports/200/case-preview-ubuntu-case-ubuntu.jpg',
+    'reports/200/case-preview-omarchy-shell-case-omarchy-shell.jpg',
   ]);
   const publishedReport = await readFile(
     path.join(siteDirectory, 'reports', '200', 'index.html'),
@@ -278,6 +317,13 @@ test('reports visual assertions from the final retry attempt only', async (conte
     path.join(path.dirname(reportDirectory), 'report-preview.png'),
     'preview',
   );
+  await writeFile(
+    path.join(
+      path.dirname(reportDirectory),
+      'case-preview-ubuntu-case-ubuntu.jpg',
+    ),
+    'retry preview',
+  );
   const siteDirectory = path.join(root, 'site');
   const server = await startServer((_request, response) =>
     response.writeHead(404).end(),
@@ -310,6 +356,13 @@ test('publishes a failed shell report with its result in history', async (contex
   await writeFile(
     path.join(reportDirectory, 'auxiliary-report-preview.png'),
     'auxiliary failed',
+  );
+  await writeFile(
+    path.join(
+      reportDirectory,
+      'case-preview-omarchy-shell-case-omarchy-shell.jpg',
+    ),
+    'shell failure preview',
   );
   const siteDirectory = path.join(root, 'site');
   const server = await startServer((_request, response) =>
@@ -345,6 +398,13 @@ test('keeps only the latest failed retry for an Omarchy project', async (context
   await writeFile(path.join(reportPath, 'test-run-retry-1.html'), firstFailure);
   await writeFile(path.join(reportPath, 'test-run-retry-2.html'), finalFailure);
   await writeFile(path.join(reportDirectory, 'report-preview.png'), 'failed');
+  await writeFile(
+    path.join(
+      reportDirectory,
+      'case-preview-omarchy-onboarding-case-omarchy-onboarding.jpg',
+    ),
+    'failure preview',
+  );
   const siteDirectory = path.join(root, 'site');
   const server = await startServer((_request, response) =>
     response.writeHead(404).end(),
@@ -362,6 +422,7 @@ test('keeps only the latest failed retry for an Omarchy project', async (context
   assert.deepEqual(manifest.reports[0].files, [
     'reports/200/index.html',
     'reports/200/report-preview.png',
+    'reports/200/case-preview-omarchy-onboarding-case-omarchy-onboarding.jpg',
   ]);
   assert.equal(
     await readFile(
@@ -423,7 +484,7 @@ test('restores retained history before adding the new run', async (context) => {
       'utf8',
     ),
   );
-  assert.equal(writtenManifest.version, 2);
+  assert.equal(writtenManifest.version, 3);
   assert.equal(writtenManifest.reports[0].reportPath, 'reports/200/index.html');
   assert.equal(
     writtenManifest.reports[0].workflowUrl,
@@ -512,6 +573,17 @@ test('renders one full-width section per structured report entry', () => {
             previewPath: 'reports/200/report-preview.png',
             scenarios: { passed: 6, total: 6 },
             assertions: { passed: 5, total: 5 },
+            cases: [
+              {
+                caseId: 'case-ubuntu',
+                name: 'Launch and finish onboarding',
+                status: 'success',
+                stepId: 'case-ubuntu:steps:8',
+                selection: 'last-screenshot',
+                previewPath:
+                  'reports/200/case-preview-ubuntu-case-ubuntu.jpg',
+              },
+            ],
           },
           {
             role: 'auxiliary',
@@ -523,6 +595,17 @@ test('renders one full-width section per structured report entry', () => {
             previewPath: 'reports/200/auxiliary-report-preview.png',
             scenarios: { passed: 1, total: 1 },
             assertions: { passed: 8, total: 8 },
+            cases: [
+              {
+                caseId: 'case-polishing',
+                name: 'Polish selected text',
+                status: 'success',
+                stepId: 'case-polishing:steps:5',
+                selection: 'last-screenshot',
+                previewPath:
+                  'reports/200/case-preview-ubuntu-polishing-case-polishing.jpg',
+              },
+            ],
           },
         ],
       },
@@ -539,9 +622,15 @@ test('renders one full-width section per structured report entry', () => {
   assert.match(summary, /Ubuntu × Midscene · passed/);
   assert.match(summary, /Doubao Say: 6\/6 scenarios passed/);
   assert.match(summary, /Polishing overlay report: 1\/1 scenarios passed/);
-  assert.doesNotMatch(summary, /\|:--\|/);
+  assert.match(summary, /\| Result \| Case \| Evidence \|/);
+  assert.match(summary, /✅ Passed/);
+  assert.match(
+    summary,
+    /index\.html#runner-step=case-ubuntu%3Asteps%3A8/,
+  );
+  assert.match(summary, /Last screenshot: Launch and finish onboarding/);
   assert.doesNotMatch(summary, /report report/);
-  assert.match(summary, /Click the result previews/);
+  assert.match(summary, /Click a case name or evidence image/);
 });
 
 test('renders singular failure copy for one available report', () => {
@@ -560,6 +649,17 @@ test('renders singular failure copy for one available report', () => {
             previewPath: 'reports/200/report-preview.png',
             scenarios: { passed: 0, total: 1 },
             assertions: { passed: 1, total: 2 },
+            cases: [
+              {
+                caseId: 'case-fail',
+                name: 'Broken flow',
+                status: 'failed',
+                stepId: 'case-fail:steps:2',
+          selection: 'first-failing-screenshot',
+                previewPath:
+                  'reports/200/case-preview-ubuntu-case-fail.jpg',
+              },
+            ],
           },
         ],
       },
@@ -574,9 +674,77 @@ test('renders singular failure copy for one available report', () => {
   });
 
   assert.match(summary, /Ubuntu × Midscene · failure captured/);
-  assert.match(summary, /Most recent error from Doubao Say/);
-  assert.match(summary, /Click the result preview to inspect/);
-  assert.doesNotMatch(summary, /Click the result previews/);
+  assert.match(summary, /❌ Failed/);
+  assert.match(summary, /First failing screenshot: Broken flow/);
+  assert.match(
+    summary,
+    /index\.html#runner-step=case-fail%3Asteps%3A2/,
+  );
+  assert.match(summary, /Click a case name or evidence image/);
+});
+
+test('selects the last screenshot for success and first failed screenshot for failure', () => {
+  const run = {
+    projects: [
+      {
+        name: 'ubuntu',
+        documents: [
+          {
+            cases: [
+              {
+                caseId: 'passed-case',
+                name: 'Passed case',
+                status: 'success',
+                attempts: [
+                  {
+                    status: 'success',
+                    steps: [
+                      { id: 'pass-1', status: 'success', agentDetails: [{}] },
+                      { id: 'pass-2', status: 'success' },
+                    ],
+                  },
+                ],
+              },
+              {
+                caseId: 'failed-case',
+                name: 'Failed case',
+                status: 'failed',
+                attempts: [
+                  {
+                    status: 'failed',
+                    steps: [
+                      { id: 'fail-1', status: 'failed', agentDetails: [{}] },
+                      { id: 'fail-2', status: 'failed', agentDetails: [{}] },
+                    ],
+                  },
+                ],
+              },
+            ],
+          },
+        ],
+      },
+    ],
+  };
+
+  assert.deepEqual(
+    reportCases(run, 'ubuntu').map(({ caseId, stepId, selection }) => ({
+      caseId,
+      stepId,
+      selection,
+    })),
+    [
+      {
+        caseId: 'passed-case',
+        stepId: 'pass-1',
+        selection: 'last-screenshot',
+      },
+      {
+        caseId: 'failed-case',
+        stepId: 'fail-1',
+        selection: 'first-failing-screenshot',
+      },
+    ],
+  );
 });
 
 test('finds Omarchy evidence by project instead of assertion wording', async () => {
@@ -613,6 +781,7 @@ test('verifies every file and its expected content type', async () => {
           'reports/200/auxiliary-report.html',
           'reports/200/report-preview.png',
           'reports/200/auxiliary-report-preview.png',
+          'reports/200/case-preview-ubuntu-case-ubuntu.jpg',
         ],
       },
     ],
@@ -628,7 +797,9 @@ test('verifies every file and its expected content type', async () => {
         headers: {
           'content-type': url.pathname.endsWith('.png')
             ? 'image/png'
-            : 'text/html; charset=utf-8',
+            : url.pathname.endsWith('.jpg')
+              ? 'image/jpeg'
+              : 'text/html; charset=utf-8',
         },
       });
     },
@@ -640,5 +811,6 @@ test('verifies every file and its expected content type', async () => {
     'https://example.test/doubao-say/reports/200/auxiliary-report.html',
     'https://example.test/doubao-say/reports/200/report-preview.png',
     'https://example.test/doubao-say/reports/200/auxiliary-report-preview.png',
+    'https://example.test/doubao-say/reports/200/case-preview-ubuntu-case-ubuntu.jpg',
   ]);
 });

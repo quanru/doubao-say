@@ -32,6 +32,21 @@ function reportUrl(baseUrl, reportPath) {
   return new URL(reportPath, normalizedBaseUrl(baseUrl)).href;
 }
 
+function stepUrl(baseUrl, reportPath, stepId) {
+  const url = new URL(reportPath, normalizedBaseUrl(baseUrl));
+  url.hash = new URLSearchParams({ 'runner-step': stepId }).toString();
+  return url.href;
+}
+
+function markdownCell(value) {
+  return String(value)
+    .replaceAll('\\', '\\\\')
+    .replaceAll('|', '\\|')
+    .replaceAll('[', '\\[')
+    .replaceAll(']', '\\]')
+    .replaceAll('\n', ' ');
+}
+
 function entryResult(entry) {
   const parts = [];
   if (entry.scenarios.total > 0) {
@@ -79,17 +94,27 @@ export function renderReportSummary({
     ),
     `[Report history](${historyUrl})`,
   ].join(' · ');
-  const previews = report.entries
-    .map(
-      (entry) => `### ${entry.label}
+  const caseTables = report.entries.map((entry) => {
+    if (!Array.isArray(entry.cases) || entry.cases.length === 0) {
+      throw new Error(`${entry.label} does not contain case evidence`);
+    }
+    const rows = entry.cases.map((testCase) => {
+      const target = stepUrl(pagesUrl, entry.reportPath, testCase.stepId);
+      const image = reportUrl(pagesUrl, testCase.previewPath);
+      const status = testCase.status === 'success' ? '✅ Passed' : '❌ Failed';
+      const evidence =
+        testCase.status === 'success'
+          ? 'Last screenshot'
+          : 'First failing screenshot';
+      return `| ${status} | [${markdownCell(testCase.name)}](${target}) | [![${evidence}: ${markdownCell(testCase.name)}](${image})](${target}) |`;
+    });
+    return `### ${entry.label}
 
-[![${entry.previewStep === 'last-error' ? 'Most recent error' : 'Final node'} from ${entry.label}](${reportUrl(
-        pagesUrl,
-        entry.previewPath,
-      )})](${reportUrl(pagesUrl, entry.reportPath)})`,
-    )
+| Result | Case | Evidence |
+|:--|:--|:--|
+${rows.join('\n')}`;
+  })
     .join('\n\n');
-  const noun = report.entries.length === 1 ? 'preview' : 'previews';
 
   return `## ${title}
 
@@ -97,11 +122,9 @@ ${report.entries.map(entryResult).join('\n\n')}
 
 ${links}
 
-${previews}
+${caseTables}
 
-Click the result ${noun} to inspect the complete Midscene Test ${
-    report.entries.length === 1 ? 'report' : 'reports'
-  }, screenshots, and Agent replay.
+Click a case name or evidence image to open that exact Midscene Test node, with its screenshots and Agent replay.
 `;
 }
 

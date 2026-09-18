@@ -14,9 +14,10 @@ import {
   reportDumps,
   testRunDump,
 } from './omarchy-shell-evidence.mjs';
+import { reportCases } from './report-cases.mjs';
 
-const MANIFEST_VERSION = 2;
-const SUPPORTED_MANIFEST_VERSIONS = new Set([1, MANIFEST_VERSION]);
+const MANIFEST_VERSION = 3;
+const SUPPORTED_MANIFEST_VERSIONS = new Set([1, 2, MANIFEST_VERSION]);
 
 function parseArguments(argv) {
   const options = {};
@@ -145,6 +146,14 @@ function buildReportEntry({
   role,
 }) {
   const status = report.run?.status ?? 'unknown';
+  const cases = reportCases(report.run, project).map((testCase) => ({
+    caseId: testCase.caseId,
+    name: testCase.name,
+    status: testCase.status,
+    stepId: testCase.stepId,
+    selection: testCase.selection,
+    previewPath: `${path.posix.dirname(reportPath)}/${testCase.previewFile}`,
+  }));
   return {
     role,
     project,
@@ -158,6 +167,7 @@ function buildReportEntry({
       total: report.run?.summary?.total ?? 0,
     },
     assertions: collectAssertionResults(report.run),
+    cases,
   };
 }
 
@@ -197,7 +207,20 @@ function validateHistoryManifest(manifest) {
               !Number.isInteger(entry.scenarios?.passed) ||
               !Number.isInteger(entry.scenarios?.total) ||
               !Number.isInteger(entry.assertions?.passed) ||
-              !Number.isInteger(entry.assertions?.total),
+              !Number.isInteger(entry.assertions?.total) ||
+              (entry.cases !== undefined &&
+                (!Array.isArray(entry.cases) ||
+                  entry.cases.some(
+                    (testCase) =>
+                      typeof testCase.caseId !== 'string' ||
+                      typeof testCase.name !== 'string' ||
+                      !['success', 'failed'].includes(testCase.status) ||
+                      typeof testCase.stepId !== 'string' ||
+                      !['last-screenshot', 'first-failing-screenshot'].includes(
+                        testCase.selection,
+                      ) ||
+                      !report.files?.includes(testCase.previewPath),
+                  ))),
           )))
     ) {
       throw new Error(
@@ -404,7 +427,7 @@ export async function buildPagesReport(options) {
     { passed: 0, tests: 0 },
   );
   const reportPrefix = `reports/${runId}`;
-  const files = auxiliaryReport
+  const baseFiles = auxiliaryReport
     ? [
         'index.html',
         'auxiliary-report.html',
@@ -437,6 +460,10 @@ export async function buildPagesReport(options) {
         ]
       : []),
   ];
+  const casePreviewFiles = entries.flatMap((entry) =>
+    entry.cases.map((testCase) => testCase.previewPath),
+  );
+  const files = [...baseFiles, ...casePreviewFiles];
   const current = {
     runId,
     generatedAt,
@@ -477,6 +504,14 @@ export async function buildPagesReport(options) {
       path.join(reportDirectory, 'report-preview.png'),
       path.join(currentDirectory, 'report-preview.png'),
     );
+  }
+  for (const entry of entries) {
+    for (const testCase of entry.cases) {
+      await copyFile(
+        path.join(reportDirectory, path.basename(testCase.previewPath)),
+        path.join(currentDirectory, path.basename(testCase.previewPath)),
+      );
+    }
   }
 
   const reports = [current, ...history];

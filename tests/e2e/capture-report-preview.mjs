@@ -7,6 +7,7 @@ import puppeteer from 'puppeteer-core';
 import {
   findLatestTestReport,
 } from '../../scripts/omarchy-shell-evidence.mjs';
+import { reportCases } from '../../scripts/report-cases.mjs';
 
 function parseArguments(argv) {
   const options = {};
@@ -118,6 +119,46 @@ try {
     console.log(
       `Captured Midscene report node ${previewStep} (${runnerDump.status}): ${outputFile}`,
     );
+
+    for (const testCase of reportCases(runnerDump, projectName)) {
+      const caseUrl = new URL(pathToFileURL(report.file));
+      caseUrl.hash = new URLSearchParams({
+        'runner-step': testCase.stepId,
+      }).toString();
+      const caseOutput = path.join(reportDirectory, testCase.previewFile);
+      const casePage = await browser.newPage();
+      await casePage.setViewport({
+        width: 1600,
+        height: 1000,
+        deviceScaleFactor: 1,
+      });
+      await casePage.goto(caseUrl.href, { waitUntil: 'networkidle0' });
+      await casePage.waitForSelector(
+        '[aria-label="Execution steps"] button.is-selected',
+      );
+      await casePage.waitForSelector('.runner-detail-evidence-panel');
+      await casePage.waitForFunction((expectedTitle) => {
+        const selected = document.querySelector(
+          '[aria-label="Execution steps"] button.is-selected',
+        );
+        const selectedTitle =
+          selected?.querySelector('.runner-detail-step-copy small')
+            ?.textContent ??
+          selected?.querySelector('.runner-detail-step-copy strong')
+            ?.textContent;
+        return selectedTitle === expectedTitle;
+      }, {}, testCase.stepTitle);
+      await casePage.evaluate(() => window.scrollTo(0, 0));
+      await casePage.screenshot({
+        path: caseOutput,
+        type: 'jpeg',
+        quality: 78,
+      });
+      await casePage.close();
+      console.log(
+        `Captured ${testCase.status} case ${testCase.name} at ${testCase.stepId}: ${caseOutput}`,
+      );
+    }
   }
 } finally {
   await browser.close();
