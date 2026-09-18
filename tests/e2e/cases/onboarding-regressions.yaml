@@ -6,7 +6,7 @@ cases:
       - aiTap: Open Doubao sign-in button in the Sign in content panel
       - wait: { duration: 500 }
       - aiAssert: The CI-only Synthetic Doubao sign-in window is visible.
-      - aiAct: Close only the Synthetic Doubao sign-in window using its title-bar close button. Do not click Simulate successful sign-in.
+      - computer.keyPress: { keyName: Escape }
       - wait: { duration: 500 }
       - aiAssert: The synthetic sign-in window is gone, Doubao Say remains on Sign in, and right-arrow Next remains disabled.
       - aiAct: Scroll inside the Sign in content panel until Open Doubao sign-in is fully visible.
@@ -95,9 +95,9 @@ cases:
       - aiTap: Test endpoint button in the Voice polishing section
       - wait: { duration: 750 }
       - aiAssert: "The visible endpoint feedback says Endpoint test failed: Synthetic endpoint unavailable, and the enabled retry button says Test failed — try again."
-      - aiAct: Scroll inside the central content panel until the Voice polishing Model input is fully visible. Do not click the retry button.
+      - aiAct: Scroll upward inside the central content panel until the Model input under Voice polishing is fully visible. Do not click the retry button.
       - computer.inputText:
-          target: Voice polishing Model input
+          target: Model input under Voice polishing
           value: synthetic-model
       - aiAssert: The Voice polishing Model input contains exactly synthetic-model, without the word failing.
       - aiAct: Scroll inside the central content panel until the Test failed — try again button is fully visible.
@@ -153,7 +153,7 @@ cases:
       - aiAct: In Recognition service, select Volcengine API exactly once.
       - aiAct: Scroll down inside the central content panel until the API Key field and Test API key button are both visible.
       - aiAssert: The page is now Recognition, shows an API Key field and Test API key button, hides Open Doubao sign-in, and keeps right-arrow Next disabled.
-      - aiTap: Center of the rectangular Test API key button directly below the empty API Key field; do not tap the input field.
+      - aiTap: Test API key button below the empty API Key field
       - wait: { duration: 500 }
       - aiAssert: A visible validation message says Enter an API key first and right-arrow Next remains disabled.
       - computer.inputText:

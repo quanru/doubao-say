@@ -3,7 +3,8 @@
 import gi
 
 gi.require_version("Gtk", "4.0")
-from gi.repository import GLib, Gtk
+gi.require_version("Gdk", "4.0")
+from gi.repository import Gdk, GLib, Gtk
 
 from doubao_input.doubao.app_state import AppState, LoginStatus, RecordingState
 from doubao_input.settings import Settings, trigger_shortcut_display
@@ -108,6 +109,18 @@ def build_onboarding_fixture(mode):
             return False
 
         login.connect("close-request", closed)
+        keys = Gtk.EventControllerKey()
+        keys.set_propagation_phase(Gtk.PropagationPhase.CAPTURE)
+
+        def key_pressed(_controller, keyval, _keycode, _modifiers):
+            if keyval != Gdk.KEY_Escape:
+                return False
+            holder["login"] = None
+            login.destroy()
+            return True
+
+        keys.connect("key-pressed", key_pressed)
+        login.add_controller(keys)
         holder["login"] = login
         login.present()
 
