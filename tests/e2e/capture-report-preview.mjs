@@ -57,11 +57,20 @@ const browser = await puppeteer.launch({
 });
 
 try {
-  for (const [projectName, outputName] of [
-    [primaryProject, 'report-preview.png'],
-    [auxiliaryProject, 'auxiliary-report-preview.png'],
+  for (const [projectName, outputName, required] of [
+    [primaryProject, 'report-preview.png', true],
+    [auxiliaryProject, 'auxiliary-report-preview.png', false],
   ]) {
-    const report = await findLatestTestReport(reportDirectory, { projectName });
+    const report = await findLatestTestReport(reportDirectory, {
+      projectName,
+      required,
+    });
+    if (!report) {
+      console.log(
+        `Skipped ${projectName} preview because that project did not produce a report.`,
+      );
+      continue;
+    }
     const runnerDump = report.run;
     if (!runnerDump) throw new Error('Midscene Test runner dump was not found');
     const previewUrl = new URL(pathToFileURL(report.file));

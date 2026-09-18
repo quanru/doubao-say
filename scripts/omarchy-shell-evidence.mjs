@@ -80,7 +80,10 @@ export function testRunDump(html) {
     : null;
 }
 
-export async function findLatestTestReport(directory, { projectName } = {}) {
+export async function findLatestTestReport(
+  directory,
+  { projectName, required = true } = {},
+) {
   const reports = await Promise.all(
     (await findHtmlFiles(directory)).map(async (file) => {
       const html = await readFile(file, 'utf8');
@@ -102,6 +105,7 @@ export async function findLatestTestReport(directory, { projectName } = {}) {
     .sort((left, right) => left.startedAt - right.startedAt)
     .at(-1);
   if (!latest) {
+    if (!required) return null;
     throw new Error(
       projectName
         ? `No Midscene Test HTML report found for project ${projectName}`

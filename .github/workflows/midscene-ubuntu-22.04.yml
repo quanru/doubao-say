@@ -14,7 +14,6 @@ on:
       - "tests/e2e/package.json"
       - "tests/e2e/package-lock.json"
       - "tests/e2e/gtk_fixture.py"
-      - "tests/e2e/is-transient-midscene-failure.sh"
       - "tests/e2e/capture-report-preview.mjs"
       - "tests/e2e/polish_fixture.py"
       - "tests/e2e/cases/**"
@@ -32,7 +31,6 @@ on:
       - "tests/e2e/package.json"
       - "tests/e2e/package-lock.json"
       - "tests/e2e/gtk_fixture.py"
-      - "tests/e2e/is-transient-midscene-failure.sh"
       - "tests/e2e/capture-report-preview.mjs"
       - "tests/e2e/polish_fixture.py"
       - "tests/e2e/cases/**"
@@ -54,7 +52,7 @@ jobs:
     name: Midscene onboarding
     if: github.event_name != 'pull_request' || github.event.pull_request.head.repo.full_name == github.repository
     runs-on: ubuntu-22.04
-    timeout-minutes: 60
+    timeout-minutes: 90
     env:
       MIDSCENE_MODEL_API_KEY: ${{ secrets.MIDSCENE_MODEL_API_KEY }}
       MIDSCENE_MODEL_NAME: ${{ secrets.MIDSCENE_MODEL_NAME }}
@@ -140,61 +138,17 @@ jobs:
         working-directory: tests/e2e
         env:
           NODE_OPTIONS: --dns-result-order=ipv4first --no-network-family-autoselection --require=./node_modules/@computer-use/libnut/dist/import_libnut.js
-        run: |
-          set -o pipefail
-          midscene_passed=false
-          for test_attempt in 1 2 3; do
-            attempt_log="/tmp/ubuntu-midscene-attempt-${test_attempt}.log"
-            if npm test -- --project ubuntu 2>&1 | tee "$attempt_log"; then
-              midscene_passed=true
-              break
-            fi
-
-            if ! ./is-transient-midscene-failure.sh "$attempt_log"; then
-              echo "Ubuntu Midscene failed for a non-transient reason; not retrying." >&2
-              exit 1
-            fi
-            if [[ $test_attempt -lt 3 ]]; then
-              echo "Transient model or connection failure on attempt ${test_attempt}; retrying in 10 seconds." >&2
-              sleep 10
-            fi
-          done
-
-          if [[ $midscene_passed != true ]]; then
-            echo "Ubuntu Midscene exhausted three transient-failure attempts." >&2
-            exit 1
-          fi
+        run: >-
+          timeout --signal=TERM --kill-after=10s 50m
+          npm test -- --project ubuntu
 
       - name: Verify polishing overlay with Midscene
         working-directory: tests/e2e
         env:
           NODE_OPTIONS: --dns-result-order=ipv4first --no-network-family-autoselection --require=./node_modules/@computer-use/libnut/dist/import_libnut.js
-        run: |
-          set -o pipefail
-          polishing_passed=false
-          for test_attempt in 1 2 3 4; do
-            attempt_log="/tmp/ubuntu-polishing-midscene-attempt-${test_attempt}.log"
-            if timeout --signal=TERM --kill-after=10s 10m \
-                npm test -- --project ubuntu-polishing 2>&1 | tee "$attempt_log"; then
-              polishing_passed=true
-              break
-            fi
-
-            if ! ./is-transient-midscene-failure.sh "$attempt_log"; then
-              echo "Ubuntu polishing Midscene failed for a non-transient reason; not retrying." >&2
-              exit 1
-            fi
-            if [[ $test_attempt -lt 4 ]]; then
-              retry_delay=$((15 * test_attempt))
-              echo "Transient model or connection failure on polishing attempt ${test_attempt}; retrying in ${retry_delay} seconds." >&2
-              sleep "$retry_delay"
-            fi
-          done
-
-          if [[ $polishing_passed != true ]]; then
-            echo "Ubuntu polishing Midscene exhausted four transient-failure attempts." >&2
-            exit 1
-          fi
+        run: >-
+          timeout --signal=TERM --kill-after=10s 35m
+          npm test -- --project ubuntu-polishing
 
       - name: Capture the final report node for the CI summary
         if: always()

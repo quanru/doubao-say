@@ -54,6 +54,9 @@ GTK fixture or Omarchy VNC viewer. Custom `shell.*` Nodes prepare the real
 Omarchy menu and bar; `cases/omarchy-shell.yaml` keeps the three pixel-level
 assertions explicit. Run `npm run nodes` in this directory to regenerate the
 Node reference, or `npm test -- --project ubuntu` on a prepared Linux desktop.
+Projects use Midscene Test's case-level `retry` setting, so a failed model
+attempt is rerun with a fresh fixture while successful cases are kept. Every
+attempt remains visible in the generated report.
 Each invocation writes a unified Midscene Test HTML report under
 `midscene_run/report/`; CI publishes those reports and renders the final shell
 report node as its entrance image, including the node's pass or error status.

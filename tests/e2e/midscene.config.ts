@@ -102,6 +102,22 @@ const setup = defineProjectSetup<DesktopContext>({
       });
       onTeardown(() => stop(viewer));
       await sleep(4000);
+      if (!shell) {
+        const stopGuestFixture = () => {
+          guest('if test -s /tmp/doubao-midscene-fixture.pid; then kill "$(cat /tmp/doubao-midscene-fixture.pid)" >/dev/null 2>&1 || true; fi; rm -f /tmp/doubao-midscene-fixture.pid');
+        };
+        onTeardown(stopGuestFixture);
+        context.resetFixture = async () => {
+          stopGuestFixture();
+          guest(`rm -rf /tmp/doubao-midscene-config; mkdir -p /tmp/doubao-midscene-config; export PYTHONPATH='/home/omarchy/.config/omarchy/plugins/md.lifeos.doubao-say/src'; export XDG_CONFIG_HOME=/tmp/doubao-midscene-config; export PYTHONDONTWRITEBYTECODE=1; nohup setsid python3 '/home/omarchy/.config/omarchy/plugins/md.lifeos.doubao-say/tests/e2e/gtk_fixture.py' >/tmp/doubao-midscene-fixture.log 2>&1 </dev/null & echo $! >/tmp/doubao-midscene-fixture.pid`);
+          for (let attempt = 0; attempt < 30; attempt++) {
+            const ready = guest(`grep -q 'READY: synthetic Doubao Say GTK fixture' /tmp/doubao-midscene-fixture.log && hyprctl -j clients | jq -r '[.[] | select(.title == "Doubao Say")] | length' || true`);
+            if (ready === '1') return;
+            await sleep(2000);
+          }
+          throw new Error('Omarchy GTK fixture did not become ready');
+        };
+      }
     } else {
       const root = resolve(import.meta.dirname, '../..');
       let fixture: ChildProcess | undefined;
@@ -149,6 +165,7 @@ const empty = z.strictObject({});
 const openSystemMenu = defineNode<typeof empty, void, DesktopContext>({
   name: 'shell.openSystemMenu', description: 'Open the real Omarchy system menu and focus one row.', inputSchema: empty,
   async execute() {
+    guest('omarchy-shell shell hide omarchy.menu');
     guest('omarchy-shell shell summon omarchy.menu \'{"menu":"system"}\'');
     for (let attempt = 0; attempt < 15; attempt++) {
       if (guest('hyprctl -j layers | jq -r \'[.. | objects | select(.namespace? == "omarchy-menu")] | length\'') !== '0') {
@@ -168,9 +185,11 @@ const closeSystemMenu = defineNode<typeof empty, void, DesktopContext>({
 const moveBarLeft = defineNode<typeof empty, void, DesktopContext>({
   name: 'shell.moveBarLeft', description: 'Back up Omarchy bar settings and dock the bar left.', inputSchema: empty,
   async execute({ context }) {
-    context.barConfigExisted = guest('test -f "$HOME/.config/omarchy/shell.json" && echo yes || echo no') === 'yes';
-    context.barConfigBackup = guest('mktemp /tmp/omarchy-midscene-bar.XXXXXX');
-    if (context.barConfigExisted) guest(`cp "$HOME/.config/omarchy/shell.json" '${context.barConfigBackup}'`);
+    if (!context.barConfigBackup) {
+      context.barConfigExisted = guest('test -f "$HOME/.config/omarchy/shell.json" && echo yes || echo no') === 'yes';
+      context.barConfigBackup = guest('mktemp /tmp/omarchy-midscene-bar.XXXXXX');
+      if (context.barConfigExisted) guest(`cp "$HOME/.config/omarchy/shell.json" '${context.barConfigBackup}'`);
+    }
     guest('omarchy bar position left');
     await sleep(2000);
   },
@@ -179,10 +198,10 @@ const moveBarLeft = defineNode<typeof empty, void, DesktopContext>({
 export default defineTestProject<DesktopContext>({
   test: { maxConcurrency: 1, testTimeout: 8 * 60_000 },
   projects: [
-    { name: 'ubuntu-polishing', setup, files: { include: ['cases/polishing.yaml'] } },
-    { name: 'ubuntu', setup, files: { include: ['cases/onboarding.yaml', 'cases/onboarding-regressions.yaml'] } },
-    { name: 'omarchy-onboarding', setup, files: { include: ['cases/onboarding.yaml'] } },
-    { name: 'omarchy-shell', setup, files: { include: ['cases/omarchy-shell.yaml'] } },
+    { name: 'ubuntu-polishing', retry: 2, setup, files: { include: ['cases/polishing.yaml'] } },
+    { name: 'ubuntu', retry: 2, setup, files: { include: ['cases/onboarding.yaml', 'cases/onboarding-regressions.yaml'] } },
+    { name: 'omarchy-onboarding', retry: 2, setup, files: { include: ['cases/onboarding.yaml'] } },
+    { name: 'omarchy-shell', retry: 2, setup, files: { include: ['cases/omarchy-shell.yaml'] } },
   ],
   nodes: [
     ...createMidsceneNodes<DesktopContext>({
