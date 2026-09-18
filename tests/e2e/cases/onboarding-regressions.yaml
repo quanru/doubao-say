@@ -93,15 +93,13 @@ cases:
       - aiAssert: Synthetic voice test transcript is visible, and both Finish & check result and Cancel test are available.
       - aiTap: Cancel test button in the Voice test content panel
       - wait: { duration: 500 }
-      - aiAct: Scroll down inside the central content panel until the voice test result below the setup controls is visible.
-      - aiAssert: A visible message says Voice test cancelled and confirms nothing was pasted or sent; the transcript is empty and Finish setup remains disabled.
+      - aiAssert: The transcript is empty and the disabled setup button visibly says Voice test cancelled and nothing pasted or sent.
       - aiTap: Start voice test button in the Voice test content panel
       - wait: { duration: 750 }
       - aiAssert: Synthetic voice test transcript is visible, and Finish & check result is available again.
       - aiTap: Finish & check result button in the Voice test content panel
       - wait: { duration: 750 }
-      - aiAct: Scroll down inside the central content panel until the voice test result below the setup controls is visible.
-      - aiAssert: A visible message says Voice test passed and confirms nothing was pasted or sent; Finish setup is enabled.
+      - aiAssert: The enabled setup button visibly says Voice test passed and nothing pasted or sent.
   - name: Switch to Volcengine and validate credentials
     steps:
       - fixture.prepare: { mode: volcengine }

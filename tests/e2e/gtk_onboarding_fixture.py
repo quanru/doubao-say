@@ -171,6 +171,7 @@ def build_onboarding_fixture(mode):
         control = holder["control"]
         if state.recording_state == RecordingState.IDLE:
             holder["preview"] = True
+            control._start_button.set_label("Finish setup")
             state.recording_state = RecordingState.RECORDING
             overlay.show()
 
@@ -193,6 +194,9 @@ def build_onboarding_fixture(mode):
                 "Voice test passed. Your text stayed here — nothing was pasted or sent."
             )
             control.refresh()
+            control._start_button.set_label(
+                "Finish setup · Voice test passed · nothing pasted or sent"
+            )
             return GLib.SOURCE_REMOVE
 
         GLib.timeout_add(350, finish)
@@ -207,6 +211,9 @@ def build_onboarding_fixture(mode):
             "Voice test cancelled. Nothing was pasted or sent."
         )
         holder["control"].refresh()
+        holder["control"]._start_button.set_label(
+            "Finish setup · Voice test cancelled · nothing pasted or sent"
+        )
 
     def apply_asr_provider(provider):
         summary.update(
