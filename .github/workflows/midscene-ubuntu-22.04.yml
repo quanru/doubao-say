@@ -7,6 +7,7 @@ on:
     paths:
       - ".github/workflows/midscene-ubuntu-22.04.yml"
       - ".github/workflows/deploy-midscene-report.yml"
+      - ".github/workflows/preview-midscene-summary.yml"
       - "scripts/build-pages-report.mjs"
       - "tests/contracts/test_pages_report_history.mjs"
       - "tests/e2e/package.json"
@@ -23,6 +24,7 @@ on:
     paths:
       - ".github/workflows/midscene-ubuntu-22.04.yml"
       - ".github/workflows/deploy-midscene-report.yml"
+      - ".github/workflows/preview-midscene-summary.yml"
       - "scripts/build-pages-report.mjs"
       - "tests/contracts/test_pages_report_history.mjs"
       - "tests/e2e/package.json"
@@ -46,6 +48,15 @@ concurrency:
   cancel-in-progress: false
 
 jobs:
+  report-summary-preview:
+    name: CI report layout preview
+    if: github.event_name == 'pull_request'
+    uses: ./.github/workflows/preview-midscene-summary.yml
+    with:
+      report-label: Ubuntu 22.04
+      summary-title: Ubuntu
+      auxiliary-report-label: Polishing overlay report
+
   ubuntu-gtk:
     name: Midscene onboarding
     if: github.event_name != 'pull_request' || github.event.pull_request.head.repo.full_name == github.repository

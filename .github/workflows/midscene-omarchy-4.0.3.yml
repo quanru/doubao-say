@@ -7,6 +7,7 @@ on:
     paths:
       - ".github/workflows/midscene-omarchy-4.0.3.yml"
       - ".github/workflows/deploy-midscene-report.yml"
+      - ".github/workflows/preview-midscene-summary.yml"
       - "scripts/build-pages-report.mjs"
       - "scripts/verify-omarchy-evidence.mjs"
       - "scripts/omarchy-shell-evidence.mjs"
@@ -32,6 +33,7 @@ on:
     paths:
       - ".github/workflows/midscene-omarchy-4.0.3.yml"
       - ".github/workflows/deploy-midscene-report.yml"
+      - ".github/workflows/preview-midscene-summary.yml"
       - "scripts/build-pages-report.mjs"
       - "scripts/verify-omarchy-evidence.mjs"
       - "scripts/omarchy-shell-evidence.mjs"
@@ -65,6 +67,15 @@ concurrency:
   cancel-in-progress: false
 
 jobs:
+  report-summary-preview:
+    name: CI report layout preview
+    if: github.event_name == 'pull_request'
+    uses: ./.github/workflows/preview-midscene-summary.yml
+    with:
+      report-label: Omarchy 4.0.3
+      summary-title: Omarchy
+      auxiliary-report-label: Omarchy visual checks
+
   omarchy-vm:
     name: Midscene onboarding and shell visuals
     if: github.event_name != 'pull_request' || github.event.pull_request.head.repo.full_name == github.repository
