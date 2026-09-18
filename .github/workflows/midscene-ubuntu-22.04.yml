@@ -128,6 +128,7 @@ jobs:
             x11-xserver-utils xdg-utils xvfb
 
       - name: Install pinned Midscene dependencies
+        id: test-dependencies
         working-directory: tests/e2e
         # sharp's platform packages are pinned explicitly. Skipping lifecycle
         # scripts avoids an npm ordering bug that tries to build sharp before
@@ -159,7 +160,7 @@ jobs:
           npm test -- --project ubuntu-polishing
 
       - name: Capture the report result for the CI summary
-        if: always()
+        if: always() && steps.test-dependencies.outcome == 'success'
         run: |
           node tests/e2e/capture-report-preview.mjs \
             --report-dir tests/e2e/midscene_run \

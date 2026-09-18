@@ -139,6 +139,7 @@ jobs:
           cache-dependency-path: tests/e2e/package-lock.json
 
       - name: Install Midscene and VNC bridge
+        id: test-dependencies
         run: |
           sudo apt-get install -y --no-install-recommends \
             fluxbox tigervnc-viewer x11-xserver-utils xvfb
@@ -155,7 +156,7 @@ jobs:
         run: tests/e2e/run-omarchy-midscene.sh
 
       - name: Capture the report result for the CI summary
-        if: always()
+        if: always() && steps.test-dependencies.outcome == 'success'
         run: |
           node tests/e2e/capture-report-preview.mjs \
             --report-dir tests/e2e/midscene_run \
