@@ -152,10 +152,7 @@ cases:
       - aiAssert: The visible Doubao Say window starts on Sign in with Doubao account selected and right-arrow Next disabled.
       - aiAct: In Recognition service, select Volcengine API exactly once.
       - aiAct: Scroll down inside the central content panel until the API Key field and Test API key button are both visible.
-      - aiAssert: The page is now Recognition, shows an API Key field and Test API key button, hides Open Doubao sign-in, and keeps right-arrow Next disabled.
-      - aiTap: Test API key button below the empty API Key field
-      - wait: { duration: 500 }
-      - aiAssert: A visible validation message says Enter an API key first and right-arrow Next remains disabled.
+      - aiAssert: The page is now Recognition, shows an empty API Key field, hides Open Doubao sign-in, and both Test API key and right-arrow Next are visibly disabled.
       - computer.inputText:
           target: API Key field
           value: synthetic-ci-key

@@ -113,14 +113,19 @@ def build_runtime_fixture():
             return True
         return False
 
-    # Listen during the window capture phase so the real F8/Escape interaction
-    # remains reliable when the non-focusable recording overlay is visible.
-    # Attaching the controller to the entry made the second shortcut dependent
-    # on which child GTK considered focused after the overlay transition.
-    keys = Gtk.EventControllerKey()
-    keys.set_propagation_phase(Gtk.PropagationPhase.CAPTURE)
-    keys.connect("key-pressed", key_pressed)
-    window.add_controller(keys)
+    def listen_for_shortcuts(owner):
+        keys = Gtk.EventControllerKey()
+        keys.set_propagation_phase(Gtk.PropagationPhase.CAPTURE)
+        keys.connect("key-pressed", key_pressed)
+        owner.add_controller(keys)
+
+    # The production app receives F8/Escape from its global trigger monitor.
+    # This isolated fixture has no monitor, so listen from both of its windows:
+    # some X11 window managers activate the overlay while it is visible even
+    # though GTK marks it non-focusable.
+    overlay._ensure_window()
+    listen_for_shortcuts(window)
+    listen_for_shortcuts(overlay._window)
     window.present()
     GLib.idle_add(target.grab_focus)
 
