@@ -81,19 +81,24 @@ cases:
       - aiAct: Click Check microphone · 3 seconds exactly once and wait for the result.
       - aiAssert: A visible message says Microphone is working and instructs the user to continue to the trigger key step.
       - aiAct: Click right-arrow Next once to open Trigger key, then click right-arrow Next once more to return to Voice test.
-      - aiAssert: Finish setup is now enabled because both the synthetic microphone check and the preconfigured voice test have passed.
+      - aiAct: Scroll down inside the Voice test content panel until the Finish setup button is fully visible.
+      - aiAssert: The Finish setup button is visibly enabled.
   - name: Complete and cancel a voice test safely
     steps:
       - fixture.prepare: { mode: voice-test }
       - aiAssert: The visible Doubao Say window starts on the Microphone step and the microphone is already configured.
       - aiAct: Click right-arrow Next once to open Trigger key, then click right-arrow Next once more to open Voice test.
-      - aiAssert: The current step is Voice test, Start voice test is available, and Finish setup is disabled.
+      - aiAssert: The current step is Voice test and Start voice test is available.
+      - aiAct: Scroll down inside the Voice test content panel until the Finish setup button is fully visible.
+      - aiAssert: The Finish setup button is visibly disabled.
       - aiTap: Start voice test button in the Voice test content panel
       - wait: { duration: 750 }
       - aiAssert: Synthetic voice test transcript is visible, and both Finish & check result and Cancel test are available.
       - aiTap: Cancel test button in the Voice test content panel
       - wait: { duration: 500 }
-      - aiAssert: The transcript is empty and the disabled setup button visibly says Voice test cancelled and nothing pasted or sent.
+      - aiAssert: The voice-test transcript is empty after cancellation.
+      - aiAct: Scroll down inside the Voice test content panel until the setup button is fully visible.
+      - aiAssert: The disabled setup button visibly says Voice test cancelled and nothing pasted or sent.
       - aiTap: Start voice test button in the Voice test content panel
       - wait: { duration: 750 }
       - aiAssert: Synthetic voice test transcript is visible, and Finish & check result is available again.
@@ -125,7 +130,8 @@ cases:
       - aiAct: Click Check microphone · 3 seconds exactly once and wait for the result.
       - aiAssert: The result says Microphone is working and Synthetic microphone two remains selected.
       - aiAct: Click right-arrow Next once to open Trigger key, then click right-arrow Next once more to return to Voice test.
-      - aiAssert: Finish setup is enabled again after the replacement microphone passes its check.
+      - aiAct: Scroll down inside the Voice test content panel until the Finish setup button is fully visible.
+      - aiAssert: The Finish setup button is visibly enabled.
   - name: Capture and retain a custom trigger shortcut
     steps:
       - fixture.prepare: { mode: shortcut-capture }
