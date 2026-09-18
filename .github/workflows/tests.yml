@@ -26,6 +26,46 @@ jobs:
           node --check scripts/build-pages-report.mjs
           node --check tests/contracts/test_pages_report_history.mjs
           node --test tests/contracts/test_pages_report_history.mjs
+      - name: Preview the current CI report summary layout
+        if: github.event_name == 'pull_request'
+        env:
+          PAGES_BASE_URL: https://quanru.github.io/doubao-say
+        run: |
+          manifest=$(curl --fail --silent --show-error --location \
+            "$PAGES_BASE_URL/reports/manifest.json")
+
+          append_distribution() {
+            local report_label="$1"
+            local summary_title="$2"
+            local auxiliary_label="$3"
+            local run_id
+            run_id=$(jq -r --arg label "$report_label" \
+              '.reports | map(select(.label == $label)) | first | .runId // empty' \
+              <<<"$manifest")
+            test -n "$run_id"
+            local report_url="$PAGES_BASE_URL/reports/$run_id/index.html"
+            local auxiliary_url="$PAGES_BASE_URL/reports/$run_id/auxiliary-report.html"
+
+            cat >> "$GITHUB_STEP_SUMMARY" <<EOF
+          ## $summary_title × Midscene
+
+          ### Doubao Say
+
+          [![Final Doubao Say report node]($PAGES_BASE_URL/reports/$run_id/report-preview.png)]($report_url)
+
+          ### $auxiliary_label
+
+          [![Final $auxiliary_label node]($PAGES_BASE_URL/reports/$run_id/auxiliary-report-preview.png)]($auxiliary_url)
+          EOF
+          }
+
+          cat >> "$GITHUB_STEP_SUMMARY" <<'EOF'
+          # CI report layout preview
+
+          This preview uses the current branch's summary layout with the latest published report screenshots. It does not deploy or modify GitHub Pages.
+          EOF
+          append_distribution "Ubuntu 22.04" "Ubuntu" "Polishing overlay report"
+          append_distribution "Omarchy 4.0.3" "Omarchy" "Omarchy visual checks"
 
   core-compatibility:
     name: Core / Python ${{ matrix.python }}
