@@ -49,24 +49,38 @@ and `@midscene/computer`. Pull requests from forks are skipped because GitHub
 does not expose the required model secret to untrusted workflow code.
 
 Both distributions execute the same declarative onboarding scenario in
-`cases/onboarding.yaml`. `midscene.config.ts` prepares the local Xvfb desktop,
-GTK fixture or Omarchy VNC viewer. Custom `shell.*` Nodes prepare the real
-Omarchy menu and bar; `cases/omarchy-shell.yaml` keeps the three pixel-level
-assertions explicit. Run `npm run nodes` in this directory to regenerate the
-Node reference, or `npm test -- --project ubuntu` on a prepared Linux desktop.
+`cases/onboarding.yaml`, including synthetic microphone and voice checks.
+Ubuntu also runs focused onboarding regressions and the synthetic post-setup
+dictation flows in `cases/runtime.yaml`. `midscene.config.ts` passes each case
+identity to a fresh fixture, prepares the local Xvfb desktop, GTK fixture or
+Omarchy VNC viewer, and resets that state for every retry. Custom `shell.*`
+Nodes prepare the real Omarchy menu and bar; `cases/omarchy-shell.yaml` keeps
+the three pixel-level assertions explicit. Run `npm run nodes` in this
+directory to regenerate the Node reference, or
+`npm test -- --project ubuntu` on a prepared Linux desktop.
+Projects use Midscene Test's case-level `retry` setting, so a failed model
+attempt is rerun with a fresh fixture while successful cases are kept. Every
+attempt remains visible in the generated report.
 Each invocation writes a unified Midscene Test HTML report under
-`midscene_run/report/`; CI publishes those reports and renders the final shell
-report node as its entrance image, including the node's pass or error status.
+`midscene_run/report/`; CI publishes those reports and renders each project's
+final node as its entrance image. A failed project instead opens and captures
+its most recent error node, so the summary shows the relevant failure detail.
 
 The Ubuntu stage maps the real GTK onboarding window inside the
 headless Midscene desktop. Its synthetic fixture starts signed out, opens an
 explicitly labelled CI-only sign-in window, and simulates a successful return
 without a network request or real credentials. It also performs no recording,
-paste, or user-settings read. Midscene verifies the automatic transition to the
+system clipboard access, global paste, or user-settings read. Midscene verifies
+the automatic transition to the
 microphone step, visually navigates to the shortcut page, runs the fake endpoint
 check, verifies its visible feedback, continues to the voice page, checks that
-navigation reset the scroll position, and completes setup. The HTML replay is
-uploaded as a private workflow artifact for every run.
+navigation reset the scroll position, completes a synthetic microphone check
+and voice test, and finishes setup. Focused cases cover cancellation, device
+changes, official API configuration, custom shortcut capture, and a synthetic
+F8/Escape dictation target. The runtime target uses the real Delivery state
+machine but writes only to its own GTK field, so CI never records audio or reads
+or changes the runner clipboard. The HTML replay is uploaded as a private
+workflow artifact for every run.
 
 The AI stage needs a multimodal model credential. Its `MIDSCENE_MODEL_*`
 configuration is stored only as GitHub Actions Secrets; tests contain only
@@ -97,17 +111,21 @@ This demonstrates visual testing of a Wayland desktop through a VM bridge.
 
 ## Ubuntu regression cases
 
-`cases/onboarding-regressions.yaml` adds five cases: cancelling and retrying
-sign-in, returning to the signed-in account page, blocking a disabled trigger
-and retaining F8, toggling polishing, and correcting a failed endpoint model.
-The Ubuntu project runs these alongside the successful onboarding case.
+`cases/onboarding-regressions.yaml` covers ten focused cases: sign-in
+cancellation and persistence, disabled and custom triggers, polishing state,
+endpoint recovery, microphone checks and device changes, voice-test
+cancellation, and official Volcengine API configuration. `cases/runtime.yaml`
+adds successful and cancelled F8 dictation delivery. The Ubuntu project runs
+these alongside the successful onboarding case.
 
 Each case receives a fresh computer agent, GTK fixture, and temporary config
 directory. Fixture cleanup completes before the next case starts. Shortcut and
 polishing changes stay in memory; `synthetic-failing-model` produces a synthetic
 endpoint error, while `synthetic-model` succeeds without network traffic.
-These cases exercise production GTK widgets with synthetic callbacks, not live
-ASR, recording, credential persistence, or global shortcut delivery.
+These cases exercise production GTK widgets and the Delivery state machine with
+synthetic callbacks. They do not establish live ASR, recording, durable
+credential persistence, system-wide shortcut capture, clipboard paste, or
+delivery into an unrelated application.
 
 Run `npm test -- --project ubuntu` with the system dependencies and model
 configuration from the Ubuntu workflow. The Omarchy projects retain their shared

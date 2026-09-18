@@ -10,13 +10,14 @@ import {
 import path from 'node:path';
 import process from 'node:process';
 import {
-  extractShellEvidence,
   findHtmlFiles,
   reportDumps,
   testRunDump,
 } from './omarchy-shell-evidence.mjs';
+import { reportCases } from './report-cases.mjs';
 
-const MANIFEST_VERSION = 1;
+const MANIFEST_VERSION = 4;
+const SUPPORTED_MANIFEST_VERSIONS = new Set([1, 2, 3, MANIFEST_VERSION]);
 
 function parseArguments(argv) {
   const options = {};
@@ -113,10 +114,71 @@ function collectModelUsage(reportHtml) {
   };
 }
 
+function collectAssertionResults(run) {
+  let passed = 0;
+  let total = 0;
+  for (const project of run?.projects ?? []) {
+    for (const document of project.documents ?? []) {
+      for (const testCase of document.cases ?? []) {
+        const attempt = testCase.attempts?.at(-1);
+        if (!attempt) continue;
+        for (const step of [
+          ...(attempt.beforeEach ?? []),
+          ...(attempt.steps ?? []),
+          ...(attempt.afterEach ?? []),
+        ]) {
+          if (step.node !== 'aiAssert') continue;
+          total += 1;
+          if (step.status === 'success') passed += 1;
+        }
+      }
+    }
+  }
+  return { passed, total };
+}
+
+function buildReportEntry({
+  label,
+  previewPath,
+  project,
+  report,
+  reportPath,
+  role,
+}) {
+  const status = report.run?.status ?? 'unknown';
+  const cases = reportCases(report.run, project, {
+    reportHtml: report.html,
+  }).map((testCase) => ({
+    caseId: testCase.caseId,
+    name: testCase.name,
+    status: testCase.status,
+    stepId: testCase.stepId,
+    selection: testCase.selection,
+    description: testCase.description,
+    descriptionKind: testCase.descriptionKind,
+    previewPath: `${path.posix.dirname(reportPath)}/${testCase.previewFile}`,
+  }));
+  return {
+    role,
+    project,
+    label,
+    status,
+    previewStep: status === 'success' ? 'last' : 'last-error',
+    reportPath,
+    previewPath,
+    scenarios: {
+      passed: report.run?.summary?.passed ?? 0,
+      total: report.run?.summary?.total ?? 0,
+    },
+    assertions: collectAssertionResults(report.run),
+    cases,
+  };
+}
+
 function validateHistoryManifest(manifest) {
   if (
     !manifest ||
-    manifest.version !== MANIFEST_VERSION ||
+    !SUPPORTED_MANIFEST_VERSIONS.has(manifest.version) ||
     !Array.isArray(manifest.reports)
   ) {
     throw new Error('Existing Pages manifest has an unsupported shape');
@@ -134,6 +196,44 @@ function validateHistoryManifest(manifest) {
               typeof file !== 'string' ||
               !/^reports\/\d+\/[a-z0-9.-]+$/.test(file) ||
               !file.startsWith(`reports/${report.runId}/`),
+          ))) ||
+      (report.entries !== undefined &&
+        (!Array.isArray(report.entries) ||
+          report.entries.some(
+            (entry) =>
+              !['primary', 'auxiliary'].includes(entry.role) ||
+              typeof entry.project !== 'string' ||
+              typeof entry.label !== 'string' ||
+              typeof entry.status !== 'string' ||
+              !['last', 'last-error'].includes(entry.previewStep) ||
+              !report.files?.includes(entry.reportPath) ||
+              !report.files?.includes(entry.previewPath) ||
+              !Number.isInteger(entry.scenarios?.passed) ||
+              !Number.isInteger(entry.scenarios?.total) ||
+              !Number.isInteger(entry.assertions?.passed) ||
+              !Number.isInteger(entry.assertions?.total) ||
+              (entry.cases !== undefined &&
+                (!Array.isArray(entry.cases) ||
+                  entry.cases.some(
+                    (testCase) =>
+                      typeof testCase.caseId !== 'string' ||
+                      typeof testCase.name !== 'string' ||
+                      !['success', 'failed'].includes(testCase.status) ||
+                      typeof testCase.stepId !== 'string' ||
+                      !['last-screenshot', 'first-failing-screenshot'].includes(
+                        testCase.selection,
+                      ) ||
+                      (testCase.description !== undefined &&
+                        (typeof testCase.description !== 'string' ||
+                          testCase.description.length === 0)) ||
+                      (testCase.descriptionKind !== undefined &&
+                        !['ai', 'error', 'result'].includes(
+                          testCase.descriptionKind,
+                        )) ||
+                      ((testCase.description === undefined) !==
+                        (testCase.descriptionKind === undefined)) ||
+                      !report.files?.includes(testCase.previewPath),
+                  ))),
           )))
     ) {
       throw new Error(
@@ -242,7 +342,7 @@ function buildIndex(reports) {
   <body>
     <main>
       <h1>Doubao Say test report history</h1>
-      <p>Successful Midscene CI reports, newest first.</p>
+      <p>Midscene CI reports, newest first.</p>
       <div class="table-wrap">
         <table>
           <thead><tr><th>Run ID</th><th>Distribution</th><th>Generated (UTC)</th><th>Success rate</th><th>Avg. model call</th><th>Model calls</th><th>Tokens</th><th>Workflow</th><th>Report</th></tr></thead>
@@ -266,6 +366,14 @@ export async function buildPagesReport(options) {
   const baseUrl = normalizeBaseUrl(required(options, 'pages-url'));
   const label = options.label || 'Midscene E2E';
   const primaryProject = required(options, 'primary-project');
+  const primaryReportLabel = options['primary-report-label'] || 'Doubao Say';
+  const auxiliaryProject = options['auxiliary-project'];
+  const auxiliaryReportLabel = options['auxiliary-report-label'];
+  if (Boolean(auxiliaryProject) !== Boolean(auxiliaryReportLabel)) {
+    throw new Error(
+      '--auxiliary-project and --auxiliary-report-label must be provided together',
+    );
+  }
 
   const existingItems = await readdir(siteDirectory).catch((error) => {
     if (error.code === 'ENOENT') return null;
@@ -296,28 +404,35 @@ export async function buildPagesReport(options) {
   const htmlReports = [...latestByProject.values()].sort(
     (left, right) => left.startedAt - right.startedAt,
   );
-  if (htmlReports.length < 1 || htmlReports.length > 2) {
-    throw new Error(
-      `Expected reports for one or two projects, found ${htmlReports.length}`,
+  const reportForProject = (projectName) =>
+    htmlReports.find(
+      (report) =>
+        report.run?.projects?.length === 1 &&
+        report.run.projects[0].name === projectName,
     );
-  }
-  const primaryReport = htmlReports.find((report) =>
-    report.run?.projects?.some((project) => project.name === primaryProject),
-  );
+  const primaryReport = reportForProject(primaryProject);
   if (!primaryReport) {
     throw new Error(`No Midscene Test report found for project ${primaryProject}`);
   }
-  const auxiliaryReport = htmlReports.find((report) => report !== primaryReport);
-  const shellReport = htmlReports.find((report) =>
-    report.html.includes('The Omarchy system menu is open'),
-  );
-  const checks = shellReport
-    ? extractShellEvidence(shellReport.html, { allowIncomplete: true })
+  const auxiliaryReport = auxiliaryProject
+    ? reportForProject(auxiliaryProject)
     : null;
+  const selectedReports = [primaryReport, auxiliaryReport].filter(Boolean);
+  const selectedFiles = new Set(selectedReports.map((report) => report.file));
+  const unexpectedProjects = htmlReports
+    .filter((report) => !selectedFiles.has(report.file))
+    .flatMap((report) =>
+      report.run?.projects?.map((project) => project.name) ?? [path.basename(report.file)],
+    );
+  if (unexpectedProjects.length) {
+    throw new Error(
+      `Unexpected Midscene Test project(s): ${unexpectedProjects.join(', ')}`,
+    );
+  }
   const usage = collectModelUsage(
-    htmlReports.map((report) => report.html).join('\n'),
+    selectedReports.map((report) => report.html).join('\n'),
   );
-  const result = htmlReports.reduce(
+  const result = selectedReports.reduce(
     (total, report) => ({
       passed: total.passed + (report.run?.summary?.passed ?? 0),
       tests: total.tests + (report.run?.summary?.total ?? 0),
@@ -325,7 +440,7 @@ export async function buildPagesReport(options) {
     { passed: 0, tests: 0 },
   );
   const reportPrefix = `reports/${runId}`;
-  const files = auxiliaryReport
+  const baseFiles = auxiliaryReport
     ? [
         'index.html',
         'auxiliary-report.html',
@@ -336,23 +451,45 @@ export async function buildPagesReport(options) {
         `${reportPrefix}/index.html`,
         `${reportPrefix}/report-preview.png`,
       ];
+  const entries = [
+    buildReportEntry({
+      role: 'primary',
+      project: primaryProject,
+      label: primaryReportLabel,
+      report: primaryReport,
+      reportPath: `${reportPrefix}/index.html`,
+      previewPath: `${reportPrefix}/report-preview.png`,
+    }),
+    ...(auxiliaryReport
+      ? [
+          buildReportEntry({
+            role: 'auxiliary',
+            project: auxiliaryProject,
+            label: auxiliaryReportLabel,
+            report: auxiliaryReport,
+            reportPath: `${reportPrefix}/auxiliary-report.html`,
+            previewPath: `${reportPrefix}/auxiliary-report-preview.png`,
+          }),
+        ]
+      : []),
+  ];
+  const casePreviewFiles = entries.flatMap((entry) =>
+    entry.cases.map((testCase) => testCase.previewPath),
+  );
+  const files = [...baseFiles, ...casePreviewFiles];
   const current = {
     runId,
     generatedAt,
     label,
     successRate: result.tests
       ? Math.round((result.passed / result.tests) * 100)
-      : checks
-        ? Math.round(
-            (checks.filter((check) => check.passed).length / checks.length) *
-              100,
-          )
-        : 0,
-    testCount: result.tests || htmlReports.length,
+      : 0,
+    testCount: result.tests,
     ...usage,
     workflowUrl,
     reportPath: `reports/${runId}/index.html`,
     files,
+    entries,
   };
 
   const history = (await fetchHistory(baseUrl))
@@ -380,6 +517,14 @@ export async function buildPagesReport(options) {
       path.join(reportDirectory, 'report-preview.png'),
       path.join(currentDirectory, 'report-preview.png'),
     );
+  }
+  for (const entry of entries) {
+    for (const testCase of entry.cases) {
+      await copyFile(
+        path.join(reportDirectory, path.basename(testCase.previewPath)),
+        path.join(currentDirectory, path.basename(testCase.previewPath)),
+      );
+    }
   }
 
   const reports = [current, ...history];

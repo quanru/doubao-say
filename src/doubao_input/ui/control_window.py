@@ -415,7 +415,10 @@ class ControlWindow:
             self._actions.complete_setup, True)
         self._feedback = Gtk.Label(xalign=0, wrap=True, selectable=True)
         self._feedback.add_css_class("window-feedback")
-        content.append(self._feedback)
+        # Action feedback must stay visible while a page's controls scroll.
+        # Microphone checks and other async actions finish after the user's
+        # click, so placing this label in the scroller can hide their result.
+        outer.append(self._feedback)
         button(content, tr("Quit application", "退出应用"), self._on_quit)
         if self._actions.summary().get("onboarding_complete"):
             self._stack.set_visible_child_name("voice")

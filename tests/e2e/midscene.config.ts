@@ -10,7 +10,8 @@ import { createMidsceneNodes } from '@midscene/test/midscene';
 interface DesktopContext {
   agent?: ComputerAgent;
   createAgent: () => Promise<ComputerAgent>;
-  resetFixture?: () => Promise<void>;
+  fixtureMode?: string;
+  resetFixture?: (mode: string) => Promise<void>;
   barConfigBackup?: string;
   barConfigExisted?: boolean;
 }
@@ -102,6 +103,23 @@ const setup = defineProjectSetup<DesktopContext>({
       });
       onTeardown(() => stop(viewer));
       await sleep(4000);
+      if (!shell) {
+        const stopGuestFixture = () => {
+          guest('if test -s /tmp/doubao-midscene-fixture.pid; then kill "$(cat /tmp/doubao-midscene-fixture.pid)" >/dev/null 2>&1 || true; fi; rm -f /tmp/doubao-midscene-fixture.pid');
+        };
+        onTeardown(stopGuestFixture);
+        context.resetFixture = async (mode) => {
+          const encodedMode = Buffer.from(mode).toString('base64');
+          stopGuestFixture();
+          guest(`rm -rf /tmp/doubao-midscene-config; mkdir -p /tmp/doubao-midscene-config; export PYTHONPATH='/home/omarchy/.config/omarchy/plugins/md.lifeos.doubao-say/src'; export XDG_CONFIG_HOME=/tmp/doubao-midscene-config; export PYTHONDONTWRITEBYTECODE=1; export DOUBAO_E2E_MODE_B64='${encodedMode}'; nohup setsid python3 '/home/omarchy/.config/omarchy/plugins/md.lifeos.doubao-say/tests/e2e/gtk_fixture.py' >/tmp/doubao-midscene-fixture.log 2>&1 </dev/null & echo $! >/tmp/doubao-midscene-fixture.pid`);
+          for (let attempt = 0; attempt < 30; attempt++) {
+            const ready = guest(`grep -q 'READY: synthetic Doubao Say GTK fixture' /tmp/doubao-midscene-fixture.log && hyprctl -j clients | jq -r '[.[] | select(.title == "Doubao Say")] | length' || true`);
+            if (ready === '1') return;
+            await sleep(2000);
+          }
+          throw new Error('Omarchy GTK fixture did not become ready');
+        };
+      }
     } else {
       const root = resolve(import.meta.dirname, '../..');
       let fixture: ChildProcess | undefined;
@@ -115,7 +133,7 @@ const setup = defineProjectSetup<DesktopContext>({
         }
       };
       onTeardown(cleanup);
-      context.resetFixture = async () => {
+      context.resetFixture = async (mode) => {
         await cleanup();
         configDirectory = await mkdtemp(resolve(tmpdir(), 'doubao-midscene-'));
         fixture = spawn('/usr/bin/python3', [polishing ? 'tests/e2e/polish_fixture.py' : 'tests/e2e/gtk_fixture.py'], {
@@ -123,6 +141,7 @@ const setup = defineProjectSetup<DesktopContext>({
           env: {
             ...process.env, GDK_BACKEND: 'x11', GSK_RENDERER: 'cairo', GTK_A11Y: 'none',
             PYTHONPATH: resolve(root, 'src'), XDG_CONFIG_HOME: configDirectory,
+            DOUBAO_E2E_MODE_B64: Buffer.from(mode).toString('base64'),
           },
         });
         await waitForFixture(fixture);
@@ -146,9 +165,58 @@ const setup = defineProjectSetup<DesktopContext>({
 });
 
 const empty = z.strictObject({});
+const fixtureMode = z.strictObject({
+  mode: z.enum([
+    'microphone-gate',
+    'voice-test',
+    'volcengine',
+    'microphone-change',
+    'shortcut-capture',
+    'runtime-delivery',
+    'runtime-cancel',
+  ]),
+});
+const keyboardKey = z.strictObject({
+  keyName: z.enum(['F8', 'Escape']),
+});
+const inputText = z.strictObject({
+  target: z.string().min(1),
+  value: z.string(),
+});
+const prepareFixture = defineNode<typeof fixtureMode, void, DesktopContext>({
+  name: 'fixture.prepare',
+  description: 'Select deterministic synthetic state for this test case.',
+  inputSchema: fixtureMode,
+  execute({ context, input }) {
+    context.fixtureMode = input.mode;
+  },
+});
+const pressKeyboardKey = defineNode<typeof keyboardKey, void, DesktopContext>({
+  name: 'computer.keyPress',
+  description: 'Press a desktop shortcut through the active Midscene Computer Agent.',
+  inputSchema: keyboardKey,
+  async execute({ context, input }) {
+    if (!context.agent) throw new Error('Midscene Computer Agent is not active');
+    await context.agent.aiKeyboardPress(input.keyName);
+  },
+});
+const inputTextField = defineNode<typeof inputText, void, DesktopContext>({
+  name: 'computer.inputText',
+  description:
+    'Replace text in a visually located input through the active Midscene Computer Agent.',
+  inputSchema: inputText,
+  async execute({ context, input }) {
+    if (!context.agent) throw new Error('Midscene Computer Agent is not active');
+    await context.agent.aiInput(input.target, {
+      value: input.value,
+      mode: 'replace',
+    });
+  },
+});
 const openSystemMenu = defineNode<typeof empty, void, DesktopContext>({
   name: 'shell.openSystemMenu', description: 'Open the real Omarchy system menu and focus one row.', inputSchema: empty,
   async execute() {
+    guest('omarchy-shell shell hide omarchy.menu');
     guest('omarchy-shell shell summon omarchy.menu \'{"menu":"system"}\'');
     for (let attempt = 0; attempt < 15; attempt++) {
       if (guest('hyprctl -j layers | jq -r \'[.. | objects | select(.namespace? == "omarchy-menu")] | length\'') !== '0') {
@@ -168,9 +236,11 @@ const closeSystemMenu = defineNode<typeof empty, void, DesktopContext>({
 const moveBarLeft = defineNode<typeof empty, void, DesktopContext>({
   name: 'shell.moveBarLeft', description: 'Back up Omarchy bar settings and dock the bar left.', inputSchema: empty,
   async execute({ context }) {
-    context.barConfigExisted = guest('test -f "$HOME/.config/omarchy/shell.json" && echo yes || echo no') === 'yes';
-    context.barConfigBackup = guest('mktemp /tmp/omarchy-midscene-bar.XXXXXX');
-    if (context.barConfigExisted) guest(`cp "$HOME/.config/omarchy/shell.json" '${context.barConfigBackup}'`);
+    if (!context.barConfigBackup) {
+      context.barConfigExisted = guest('test -f "$HOME/.config/omarchy/shell.json" && echo yes || echo no') === 'yes';
+      context.barConfigBackup = guest('mktemp /tmp/omarchy-midscene-bar.XXXXXX');
+      if (context.barConfigExisted) guest(`cp "$HOME/.config/omarchy/shell.json" '${context.barConfigBackup}'`);
+    }
     guest('omarchy bar position left');
     await sleep(2000);
   },
@@ -178,11 +248,39 @@ const moveBarLeft = defineNode<typeof empty, void, DesktopContext>({
 
 export default defineTestProject<DesktopContext>({
   test: { maxConcurrency: 1, testTimeout: 8 * 60_000 },
+  // Retries are scoped to failed cases. Every attempt stays visible in the
+  // official Midscene report, and agent acquisition resets its fixture.
   projects: [
-    { name: 'ubuntu-polishing', setup, files: { include: ['cases/polishing.yaml'] } },
-    { name: 'ubuntu', setup, files: { include: ['cases/onboarding.yaml', 'cases/onboarding-regressions.yaml'] } },
-    { name: 'omarchy-onboarding', setup, files: { include: ['cases/onboarding.yaml'] } },
-    { name: 'omarchy-shell', setup, files: { include: ['cases/omarchy-shell.yaml'] } },
+    {
+      name: 'ubuntu-polishing',
+      retry: 2,
+      setup,
+      files: { include: ['cases/polishing.yaml'] },
+    },
+    {
+      name: 'ubuntu',
+      retry: 2,
+      setup,
+      files: {
+        include: [
+          'cases/onboarding.yaml',
+          'cases/onboarding-regressions.yaml',
+          'cases/runtime.yaml',
+        ],
+      },
+    },
+    {
+      name: 'omarchy-onboarding',
+      retry: 2,
+      setup,
+      files: { include: ['cases/onboarding.yaml'] },
+    },
+    {
+      name: 'omarchy-shell',
+      retry: 2,
+      setup,
+      files: { include: ['cases/omarchy-shell.yaml'] },
+    },
   ],
   nodes: [
     ...createMidsceneNodes<DesktopContext>({
@@ -190,11 +288,12 @@ export default defineTestProject<DesktopContext>({
       agentProvider: (() => {
         const active = new Map<string, { agent: ComputerAgent; context: DesktopContext }>();
         return {
-          async getAgent(runId: string, { context }: { context: DesktopContext }) {
+          async getAgent(runId: string, execution) {
+            const { context } = execution;
             const existing = active.get(runId);
             if (existing) return existing.agent;
             context.agent ??= await context.createAgent();
-            await context.resetFixture?.();
+            await context.resetFixture?.(context.fixtureMode ?? '');
             active.set(runId, { agent: context.agent, context });
             return context.agent;
           },
@@ -205,12 +304,18 @@ export default defineTestProject<DesktopContext>({
             const { agent, context } = entry;
             await agent.destroy();
             context.agent = undefined;
+            context.fixtureMode = undefined;
             if (!agent.reportFile) throw new Error(`No Agent report for Midscene case ${runId}`);
             return { reportPath: agent.reportFile };
           },
         };
       })(),
     }),
-    openSystemMenu, closeSystemMenu, moveBarLeft,
+    prepareFixture,
+    pressKeyboardKey,
+    inputTextField,
+    openSystemMenu,
+    closeSystemMenu,
+    moveBarLeft,
   ],
 });
