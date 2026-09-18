@@ -244,10 +244,10 @@ def build_onboarding_fixture(mode):
         if not key.strip():
             raise ValueError("Enter an API key first.")
         holder["asr_key"] = True
-        state.login_status = LoginStatus.LOGGED_IN
 
     def test_asr(_key, done):
         def finish():
+            state.login_status = LoginStatus.LOGGED_IN
             done("API key accepted by synthetic endpoint.", None)
             return GLib.SOURCE_REMOVE
 
