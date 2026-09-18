@@ -17,6 +17,7 @@ This table lists all available Nodes. See [Node Details](#node-details) below fo
 | aiNumber | Run aiNumber with a Midscene UI Agent and store its value. |
 | aiString | Run aiString with a Midscene UI Agent and store its value. |
 | aiTap | Locate and tap an element with a Midscene UI Agent. |
+| computer.inputText | Replace text in a visually located input through the active Midscene Computer Agent. |
 | computer.keyPress | Press a desktop shortcut through the active Midscene Computer Agent. |
 | fixture.prepare | Select deterministic synthetic state for this test case. |
 | recordToReport | Add text or screenshots to the current Midscene report. |
@@ -725,6 +726,35 @@ Locate and tap an element with a Midscene UI Agent.
   },
   "required": [
     "prompt"
+  ],
+  "type": "object"
+}
+```
+
+### `computer.inputText`
+
+Replace text in a visually located input through the active Midscene Computer Agent.
+
+**String shorthand:** Not supported by this Node.
+
+#### Input Schema
+
+```json
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "additionalProperties": false,
+  "properties": {
+    "target": {
+      "minLength": 1,
+      "type": "string"
+    },
+    "value": {
+      "type": "string"
+    }
+  },
+  "required": [
+    "target",
+    "value"
   ],
   "type": "object"
 }

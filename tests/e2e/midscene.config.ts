@@ -179,6 +179,10 @@ const fixtureMode = z.strictObject({
 const keyboardKey = z.strictObject({
   keyName: z.enum(['F8', 'Escape']),
 });
+const inputText = z.strictObject({
+  target: z.string().min(1),
+  value: z.string(),
+});
 const prepareFixture = defineNode<typeof fixtureMode, void, DesktopContext>({
   name: 'fixture.prepare',
   description: 'Select deterministic synthetic state for this test case.',
@@ -194,6 +198,19 @@ const pressKeyboardKey = defineNode<typeof keyboardKey, void, DesktopContext>({
   async execute({ context, input }) {
     if (!context.agent) throw new Error('Midscene Computer Agent is not active');
     await context.agent.aiKeyboardPress(input.keyName);
+  },
+});
+const inputTextField = defineNode<typeof inputText, void, DesktopContext>({
+  name: 'computer.inputText',
+  description:
+    'Replace text in a visually located input through the active Midscene Computer Agent.',
+  inputSchema: inputText,
+  async execute({ context, input }) {
+    if (!context.agent) throw new Error('Midscene Computer Agent is not active');
+    await context.agent.aiInput(input.target, {
+      value: input.value,
+      mode: 'replace',
+    });
   },
 });
 const openSystemMenu = defineNode<typeof empty, void, DesktopContext>({
@@ -294,6 +311,11 @@ export default defineTestProject<DesktopContext>({
         };
       })(),
     }),
-    prepareFixture, pressKeyboardKey, openSystemMenu, closeSystemMenu, moveBarLeft,
+    prepareFixture,
+    pressKeyboardKey,
+    inputTextField,
+    openSystemMenu,
+    closeSystemMenu,
+    moveBarLeft,
   ],
 });

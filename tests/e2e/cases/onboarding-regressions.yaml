@@ -85,14 +85,20 @@ cases:
       - aiAssert: The synthetic sign-in window closed and Doubao Say automatically advanced to the Microphone step.
       - aiTap: Right-arrow Next button in the fixed top navigation
       - aiAssert: The current step is Trigger key and the heading Choose how to start speaking is visible.
-      - aiAct: Scroll inside the central content panel until the Voice polishing Model input is fully visible, then replace its value with exactly synthetic-failing-model. Do not click Test endpoint.
+      - aiAct: Scroll inside the central content panel until the Voice polishing Model input is fully visible. Do not click Test endpoint.
+      - computer.inputText:
+          target: Voice polishing Model input
+          value: synthetic-failing-model
       - aiAssert: The Voice polishing Model input contains exactly synthetic-failing-model.
       - aiAct: Scroll downward inside the central content panel until the Test endpoint button is fully visible.
       - aiAssert: The Test endpoint button in Voice polishing is fully visible.
       - aiTap: Test endpoint button in the Voice polishing section
       - wait: { duration: 750 }
       - aiAssert: "The visible endpoint feedback says Endpoint test failed: Synthetic endpoint unavailable, and the enabled retry button says Test failed — try again."
-      - aiAct: Scroll inside the central content panel until the Voice polishing Model input is fully visible, then replace its value with exactly synthetic-model. Do not click the retry button.
+      - aiAct: Scroll inside the central content panel until the Voice polishing Model input is fully visible. Do not click the retry button.
+      - computer.inputText:
+          target: Voice polishing Model input
+          value: synthetic-model
       - aiAssert: The Voice polishing Model input contains exactly synthetic-model, without the word failing.
       - aiAct: Scroll inside the central content panel until the Test failed — try again button is fully visible.
       - aiTap: Test failed — try again button in the Voice polishing section
@@ -150,7 +156,9 @@ cases:
       - aiTap: Center of the rectangular Test API key button directly below the empty API Key field; do not tap the input field.
       - wait: { duration: 500 }
       - aiAssert: A visible validation message says Enter an API key first and right-arrow Next remains disabled.
-      - aiAct: Enter exactly synthetic-ci-key in the API Key field and wait until the interface says the key was saved automatically. Do not click Test API key.
+      - computer.inputText:
+          target: API Key field
+          value: synthetic-ci-key
       - aiAssert: The API Key field contains synthetic-ci-key and the interface says it was saved automatically.
       - aiTap: Test API key button below the API Key field
       - wait: { duration: 750 }
