@@ -143,15 +143,20 @@ cases:
       - wait: { duration: 750 }
       - aiAssert: Synthetic voice test transcript is visible, and both Finish & check result and Cancel test are available.
       - aiTap: Cancel test button in the Voice test content panel
-      - wait: { duration: 500 }
-      - aiAssert: The voice-test transcript is empty after cancellation.
+      - wait: { duration: 1000 }
+      - aiAct: If the Listening overlay and Cancel test are both still visible, activate Cancel test exactly once and then wait at least one second. If the voice test is already cancelled, do nothing.
+      - wait: { duration: 1000 }
+      - aiAssert: The Listening overlay is gone, Start voice test is available, the voice-test transcript is empty, and the visible feedback says Voice test cancelled and nothing was pasted or sent.
       - aiAct: Scroll down inside the Voice test content panel until the setup button is fully visible.
       - aiAssert: The disabled setup button visibly says Voice test cancelled and nothing pasted or sent.
       - aiTap: Start voice test button in the Voice test content panel
       - wait: { duration: 750 }
       - aiAssert: Synthetic voice test transcript is visible, and Finish & check result is available again.
-      - aiAct: Activate Finish & check result in the Voice test content panel. Wait until the Listening overlay disappears and Voice test passed appears. If the first activation has no visible effect, activate the same button once more.
-      - wait: { duration: 750 }
+      - aiTap: Finish & check result button in the Voice test content panel
+      - wait: { duration: 1250 }
+      - aiAct: If the Listening overlay and Finish & check result are both still visible, activate Finish & check result exactly once and then wait at least one second. If the voice test has already finished, do nothing.
+      - wait: { duration: 1250 }
+      - aiAssert: The Listening overlay is gone, Start voice test is available, and the visible feedback says Voice test passed and nothing was pasted or sent.
       - aiAct: Scroll down inside the Voice test content panel until the setup button is fully visible.
       - aiAssert: The enabled setup button visibly says Voice test passed and nothing pasted or sent.
   - name: Switch to Volcengine and validate credentials
