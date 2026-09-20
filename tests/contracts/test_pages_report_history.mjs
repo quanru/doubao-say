@@ -206,15 +206,27 @@ test('simulates a first deployment when Pages returns 404', async (context) => {
   assert.match(indexHtml, /Run ID/);
   assert.match(indexHtml, /Distribution/);
   assert.match(indexHtml, /Ubuntu 22\.04/);
+  const runIndex = await readFile(
+    path.join(siteDirectory, 'reports', '200', 'index.html'),
+    'utf8',
+  );
+  assert.match(runIndex, /Node screenshot/);
+  assert.match(runIndex, /AI response \/ error/);
+  assert.match(runIndex, /ubuntu visual case/);
+  assert.match(
+    runIndex,
+    /native-report\.html#runner-step=assert-0-0/,
+  );
   assert.equal(
     await readFile(
-      path.join(siteDirectory, 'reports', '200', 'index.html'),
+      path.join(siteDirectory, 'reports', '200', 'native-report.html'),
       'utf8',
     ),
     fixtureHtml,
   );
   assert.deepEqual(manifest.reports[0].files, [
     'reports/200/index.html',
+    'reports/200/native-report.html',
     'reports/200/report-preview.png',
     'reports/200/case-preview-ubuntu-case-ubuntu.jpg',
   ]);
@@ -265,7 +277,7 @@ test('publishes the Doubao Say report as the primary CI entrance', async (contex
       label: 'Doubao Say',
       status: 'success',
       previewStep: 'last',
-      reportPath: 'reports/200/index.html',
+      reportPath: 'reports/200/native-report.html',
       previewPath: 'reports/200/report-preview.png',
       scenarios: { passed: 1, total: 1 },
       assertions: { passed: 0, total: 0 },
@@ -309,17 +321,27 @@ test('publishes the Doubao Say report as the primary CI entrance', async (contex
   ]);
   assert.deepEqual(manifest.reports[0].files, [
     'reports/200/index.html',
+    'reports/200/native-report.html',
     'reports/200/auxiliary-report.html',
     'reports/200/report-preview.png',
     'reports/200/auxiliary-report-preview.png',
     'reports/200/case-preview-ubuntu-case-ubuntu.jpg',
     'reports/200/case-preview-omarchy-shell-case-omarchy-shell.jpg',
   ]);
-  const publishedReport = await readFile(
+  const publishedIndex = await readFile(
     path.join(siteDirectory, 'reports', '200', 'index.html'),
     'utf8',
   );
-  assert.equal(publishedReport, fixtureHtml);
+  assert.match(publishedIndex, /Doubao Say/);
+  assert.match(publishedIndex, /Omarchy visual checks/);
+  assert.match(publishedIndex, /AI response \/ error/);
+  assert.equal(
+    await readFile(
+      path.join(siteDirectory, 'reports', '200', 'native-report.html'),
+      'utf8',
+    ),
+    fixtureHtml,
+  );
   assert.equal(
     await readFile(
       path.join(siteDirectory, 'reports', '200', 'auxiliary-report.html'),
@@ -469,12 +491,19 @@ test('keeps only the latest failed retry for an Omarchy project', async (context
   assert.equal(manifest.reports[0].testCount, 1);
   assert.deepEqual(manifest.reports[0].files, [
     'reports/200/index.html',
+    'reports/200/native-report.html',
     'reports/200/report-preview.png',
     'reports/200/case-preview-omarchy-onboarding-case-omarchy-onboarding.jpg',
   ]);
+  const failedRunIndex = await readFile(
+    path.join(siteDirectory, 'reports', '200', 'index.html'),
+    'utf8',
+  );
+  assert.match(failedRunIndex, /❌ Failed/);
+  assert.match(failedRunIndex, /Error:/);
   assert.equal(
     await readFile(
-      path.join(siteDirectory, 'reports', '200', 'index.html'),
+      path.join(siteDirectory, 'reports', '200', 'native-report.html'),
       'utf8',
     ),
     finalFailure,

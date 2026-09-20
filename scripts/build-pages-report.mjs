@@ -303,6 +303,99 @@ function formatDuration(durationMs) {
   return `${(durationMs / 1000).toFixed(2)} s`;
 }
 
+function runStepHref(entry, testCase) {
+  return `${path.basename(entry.reportPath)}#${new URLSearchParams({
+    'runner-step': testCase.stepId,
+  })}`;
+}
+
+function buildRunIndex(report) {
+  const sections = report.entries
+    .map((entry) => {
+      const rows = entry.cases
+        .map((testCase) => {
+          const target = runStepHref(entry, testCase);
+          const image = path.basename(testCase.previewPath);
+          const status = testCase.status === 'success' ? '✅ Passed' : '❌ Failed';
+          const descriptionLabel = {
+            ai: 'AI',
+            error: 'Error',
+            result: 'Result',
+          }[testCase.descriptionKind];
+          return `
+            <tr>
+              <td class="status">${status}</td>
+              <td><a href="${escapeHtml(target)}">${escapeHtml(testCase.name)}</a></td>
+              <td><a href="${escapeHtml(target)}"><img src="${escapeHtml(image)}" alt="${escapeHtml(testCase.name)} node screenshot" loading="lazy"></a></td>
+              <td><strong>${escapeHtml(descriptionLabel)}:</strong> ${escapeHtml(testCase.description)}</td>
+            </tr>`;
+        })
+        .join('');
+      return `
+        <section>
+          <div class="section-heading">
+            <div>
+              <h2>${escapeHtml(entry.label)}</h2>
+              <p>${entry.scenarios.passed}/${entry.scenarios.total} cases passed</p>
+            </div>
+            <a class="native-report" href="${escapeHtml(path.basename(entry.reportPath))}">Open native Midscene report →</a>
+          </div>
+          <div class="table-wrap">
+            <table>
+              <thead><tr><th>Result</th><th>Case</th><th>Node screenshot</th><th>AI response / error</th></tr></thead>
+              <tbody>${rows}
+              </tbody>
+            </table>
+          </div>
+        </section>`;
+    })
+    .join('');
+
+  return `<!doctype html>
+<html lang="en">
+  <head>
+    <meta charset="utf-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1">
+    <title>${escapeHtml(report.label)} · Midscene E2E evidence</title>
+    <style>
+      :root { color-scheme: light dark; font-family: ui-sans-serif, system-ui, sans-serif; }
+      body { margin: 0 auto; max-width: 1500px; padding: 2rem 1rem 4rem; }
+      header { margin-bottom: 2rem; }
+      h1, h2 { margin: 0; }
+      p { color: #777; margin: .35rem 0 0; }
+      section { margin-top: 2rem; }
+      .section-heading { align-items: end; display: flex; gap: 1rem; justify-content: space-between; margin-bottom: .75rem; }
+      .native-report, a { color: #2878d0; }
+      .table-wrap { overflow-x: auto; }
+      table { border-collapse: collapse; table-layout: fixed; width: 100%; }
+      th, td { border-bottom: 1px solid #8885; padding: .8rem; text-align: left; vertical-align: top; }
+      th { font-size: .78rem; text-transform: uppercase; }
+      th:nth-child(1) { width: 7rem; }
+      th:nth-child(2) { width: 17rem; }
+      th:nth-child(3) { width: 34%; }
+      td { line-height: 1.45; }
+      td.status { white-space: nowrap; }
+      img { border: 1px solid #8885; border-radius: .5rem; display: block; height: auto; width: 100%; }
+      @media (max-width: 900px) {
+        body { padding: 1rem .6rem 3rem; }
+        .section-heading { align-items: start; flex-direction: column; }
+        table { min-width: 980px; }
+      }
+    </style>
+  </head>
+  <body>
+    <header>
+      <h1>${escapeHtml(report.label)} × Midscene</h1>
+      <p>Run ${escapeHtml(report.runId)} · ${escapeHtml(report.successRate.toFixed(1))}% passed · <a href="${escapeHtml(report.workflowUrl)}">GitHub Actions</a> · <a href="../../">Report history</a></p>
+      <p>Each image is the original page screenshot used by that node. Click a case or image to open the exact Midscene step and Agent replay.</p>
+    </header>
+    <main>${sections}
+    </main>
+  </body>
+</html>
+`;
+}
+
 function buildIndex(reports) {
   const rows = reports
     .map(
@@ -440,15 +533,19 @@ export async function buildPagesReport(options) {
     { passed: 0, tests: 0 },
   );
   const reportPrefix = `reports/${runId}`;
+  const primaryNativeReport = `${reportPrefix}/native-report.html`;
+  const auxiliaryNativeReport = `${reportPrefix}/auxiliary-report.html`;
   const baseFiles = auxiliaryReport
     ? [
         'index.html',
+        'native-report.html',
         'auxiliary-report.html',
         'report-preview.png',
         'auxiliary-report-preview.png',
       ].map((name) => `${reportPrefix}/${name}`)
     : [
         `${reportPrefix}/index.html`,
+        primaryNativeReport,
         `${reportPrefix}/report-preview.png`,
       ];
   const entries = [
@@ -457,7 +554,7 @@ export async function buildPagesReport(options) {
       project: primaryProject,
       label: primaryReportLabel,
       report: primaryReport,
-      reportPath: `${reportPrefix}/index.html`,
+      reportPath: primaryNativeReport,
       previewPath: `${reportPrefix}/report-preview.png`,
     }),
     ...(auxiliaryReport
@@ -467,7 +564,7 @@ export async function buildPagesReport(options) {
             project: auxiliaryProject,
             label: auxiliaryReportLabel,
             report: auxiliaryReport,
-            reportPath: `${reportPrefix}/auxiliary-report.html`,
+            reportPath: auxiliaryNativeReport,
             previewPath: `${reportPrefix}/auxiliary-report-preview.png`,
           }),
         ]
@@ -504,7 +601,7 @@ export async function buildPagesReport(options) {
   const currentDirectory = path.join(siteDirectory, reportPrefix);
   await mkdir(currentDirectory, { recursive: true });
   if (auxiliaryReport) {
-    await copyFile(primaryReport.file, path.join(currentDirectory, 'index.html'));
+    await copyFile(primaryReport.file, path.join(currentDirectory, 'native-report.html'));
     await copyFile(auxiliaryReport.file, path.join(currentDirectory, 'auxiliary-report.html'));
     await copyFile(path.join(reportDirectory, 'report-preview.png'), path.join(currentDirectory, 'report-preview.png'));
     await copyFile(
@@ -512,7 +609,7 @@ export async function buildPagesReport(options) {
       path.join(currentDirectory, 'auxiliary-report-preview.png'),
     );
   } else {
-    await copyFile(primaryReport.file, path.join(currentDirectory, 'index.html'));
+    await copyFile(primaryReport.file, path.join(currentDirectory, 'native-report.html'));
     await copyFile(
       path.join(reportDirectory, 'report-preview.png'),
       path.join(currentDirectory, 'report-preview.png'),
@@ -526,6 +623,7 @@ export async function buildPagesReport(options) {
       );
     }
   }
+  await writeFile(path.join(currentDirectory, 'index.html'), buildRunIndex(current));
 
   const reports = [current, ...history];
   const manifest = {
