@@ -34,6 +34,7 @@ function reportUrl(baseUrl, reportPath) {
 
 function stepUrl(baseUrl, reportPath, stepId) {
   const url = new URL(reportPath, normalizedBaseUrl(baseUrl));
+  if (!stepId) return url.href;
   url.hash = new URLSearchParams({ 'runner-step': stepId }).toString();
   return url.href;
 }
@@ -115,7 +116,9 @@ export function renderReportSummary({
       const evidence =
         testCase.status === 'success'
           ? 'Last screenshot'
-          : 'First failing screenshot';
+          : testCase.selection === 'workflow-failure'
+            ? 'CI failure before node capture'
+            : 'First failing screenshot';
       const descriptionLabel = {
         ai: '**AI:** ',
         error: '**Error:** ',
@@ -139,7 +142,7 @@ ${links}
 
 ${caseTables}
 
-Each image is the original page screenshot used by that node. Click a case name or image to open the exact Midscene Test node and Agent replay.
+Each image is the original page screenshot used by that node. A CI failure card is shown only when a shard stops before Midscene can capture a node. Click a case name or image to open its evidence.
 `;
 }
 

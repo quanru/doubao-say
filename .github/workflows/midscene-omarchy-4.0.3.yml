@@ -10,6 +10,7 @@ on:
       - "scripts/build-pages-report.mjs"
       - "scripts/report-cases.mjs"
       - "scripts/render-ci-report-summary.mjs"
+      - "scripts/write-ci-shard-status.mjs"
       - "scripts/verify-pages-report.mjs"
       - "scripts/verify-omarchy-evidence.mjs"
       - "scripts/omarchy-shell-evidence.mjs"
@@ -133,11 +134,13 @@ jobs:
           exit 1
 
       - name: Run real Omarchy Midscene project
+        id: midscene-test
         env:
           PROJECT: ${{ matrix.project }}
         run: tests/e2e/run-omarchy-midscene.sh "$PROJECT"
 
       - name: Capture report evidence
+        id: capture-report
         if: always() && steps.test-dependencies.outcome == 'success'
         env:
           PROJECT: ${{ matrix.project }}
@@ -145,6 +148,19 @@ jobs:
           node tests/e2e/capture-report-preview.mjs \
             --report-dir tests/e2e/midscene_run \
             --projects "$PROJECT"
+
+      - name: Record shard result for report aggregation
+        if: always()
+        env:
+          PROJECT: ${{ matrix.project }}
+          TEST_OUTCOME: ${{ steps.midscene-test.outcome }}
+          CAPTURE_OUTCOME: ${{ steps.capture-report.outcome }}
+        run: |
+          node scripts/write-ci-shard-status.mjs \
+            --output "tests/e2e/midscene_run/ci-shard-status-$PROJECT.json" \
+            --project "$PROJECT" \
+            --test-outcome "${TEST_OUTCOME:-skipped}" \
+            --capture-outcome "${CAPTURE_OUTCOME:-skipped}"
 
       - name: Upload installer evidence
         if: always()
@@ -161,7 +177,7 @@ jobs:
         with:
           name: omarchy-midscene-${{ matrix.project }}
           path: tests/e2e/midscene_run/
-          if-no-files-found: warn
+          if-no-files-found: error
           retention-days: 7
 
       - name: Verify Omarchy shell visual evidence
@@ -176,6 +192,11 @@ jobs:
     outputs:
       report-artifact-id: ${{ steps.report.outputs.artifact-id }}
     steps:
+      - name: Create bundle even when every shard failed early
+        run: |
+          mkdir -p "$RUNNER_TEMP/midscene-report-shards"
+          printf '%s\n' '{"bundle":"omarchy-4.0.3"}' > "$RUNNER_TEMP/midscene-report-shards/ci-bundle-status.json"
+
       # Keep shard directories separate. Native report filenames can share a
       # timestamp, while the Pages builder locates reports by project identity.
       - name: Download every shard report
@@ -183,6 +204,7 @@ jobs:
         with:
           pattern: omarchy-midscene-*
           path: ${{ runner.temp }}/midscene-report-shards
+          merge-multiple: false
 
       - name: Upload combined report bundle
         id: report

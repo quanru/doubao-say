@@ -10,6 +10,7 @@ on:
       - "scripts/build-pages-report.mjs"
       - "scripts/report-cases.mjs"
       - "scripts/render-ci-report-summary.mjs"
+      - "scripts/write-ci-shard-status.mjs"
       - "scripts/verify-pages-report.mjs"
       - "tests/contracts/test_pages_report_history.mjs"
       - "tests/e2e/package.json"
@@ -133,6 +134,7 @@ jobs:
           exit 1
 
       - name: Run Midscene project
+        id: midscene-test
         working-directory: tests/e2e
         env:
           PROJECT: ${{ matrix.project }}
@@ -142,6 +144,7 @@ jobs:
           npm test -- --project "$PROJECT"
 
       - name: Capture report evidence
+        id: capture-report
         if: always() && steps.test-dependencies.outcome == 'success'
         env:
           PROJECT: ${{ matrix.project }}
@@ -150,13 +153,26 @@ jobs:
             --report-dir tests/e2e/midscene_run \
             --projects "$PROJECT"
 
+      - name: Record shard result for report aggregation
+        if: always()
+        env:
+          PROJECT: ${{ matrix.project }}
+          TEST_OUTCOME: ${{ steps.midscene-test.outcome }}
+          CAPTURE_OUTCOME: ${{ steps.capture-report.outcome }}
+        run: |
+          node scripts/write-ci-shard-status.mjs \
+            --output "tests/e2e/midscene_run/ci-shard-status-$PROJECT.json" \
+            --project "$PROJECT" \
+            --test-outcome "${TEST_OUTCOME:-skipped}" \
+            --capture-outcome "${CAPTURE_OUTCOME:-skipped}"
+
       - name: Upload Midscene shard report
         if: always()
         uses: actions/upload-artifact@043fb46d1a93c77aae656e7c1c64a875d1fc6a0a # v7.0.1
         with:
           name: midscene-ubuntu-22.04-${{ matrix.project }}
           path: tests/e2e/midscene_run/
-          if-no-files-found: warn
+          if-no-files-found: error
           retention-days: 7
 
   report-bundle:
@@ -167,6 +183,11 @@ jobs:
     outputs:
       report-artifact-id: ${{ steps.report.outputs.artifact-id }}
     steps:
+      - name: Create bundle even when every shard failed early
+        run: |
+          mkdir -p "$RUNNER_TEMP/midscene-report-shards"
+          printf '%s\n' '{"bundle":"ubuntu-22.04"}' > "$RUNNER_TEMP/midscene-report-shards/ci-bundle-status.json"
+
       # Keep shard directories separate. Native report filenames can share a
       # timestamp, while the Pages builder locates reports by project identity.
       - name: Download every shard report
@@ -174,6 +195,7 @@ jobs:
         with:
           pattern: midscene-ubuntu-22.04-*
           path: ${{ runner.temp }}/midscene-report-shards
+          merge-multiple: false
 
       - name: Upload combined report bundle
         id: report

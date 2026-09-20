@@ -37,6 +37,36 @@ test('publishes the Markdown evidence table for same-repository pull requests', 
   }
 });
 
+test('records every shard and renders the Summary before Pages deployment', async () => {
+  for (const workflow of [
+    'midscene-ubuntu-22.04.yml',
+    'midscene-omarchy-4.0.3.yml',
+  ]) {
+    const source = await readFile(
+      new URL(`../../.github/workflows/${workflow}`, import.meta.url),
+      'utf8',
+    );
+    assert.match(source, /Record shard result for report aggregation/);
+    assert.match(source, /if-no-files-found: error/);
+    assert.match(source, /Create bundle even when every shard failed early/);
+  }
+
+  const deploy = await readFile(
+    new URL('../../.github/workflows/deploy-midscene-report.yml', import.meta.url),
+    'utf8',
+  );
+  const summary = deploy.indexOf('Add complete evidence table');
+  const deployment = deploy.indexOf('Deploy report history to GitHub Pages');
+  const deployJob = deploy.indexOf('\n  deploy:');
+  assert.ok(summary > 0 && summary < deployment);
+  assert.match(
+    deploy.slice(summary, deployment),
+    /steps\.build-report\.outcome == 'success'/,
+  );
+  assert.ok(deployJob > summary);
+  assert.doesNotMatch(deploy.slice(0, deployJob), /environment:/);
+});
+
 test('assigns every product case to exactly one balanced shard', async () => {
   const shardCounts = new Map();
   let caseCount = 0;
@@ -366,6 +396,110 @@ test('combines independently executed shards into one report table', async (cont
     summary,
     /native-report-ubuntu-shard-2\.html#runner-step=assert-0-0/,
   );
+});
+
+test('keeps a complete Markdown table when a shard produces no native report', async (context) => {
+  const root = await mkdtemp(path.join(os.tmpdir(), 'pages-partial-shards-'));
+  const reportDirectory = path.join(root, 'reports');
+  const shardDirectory = path.join(reportDirectory, 'ubuntu-shard-1');
+  await mkdir(path.join(shardDirectory, 'report'), { recursive: true });
+  await writeFile(
+    path.join(shardDirectory, 'report', 'test-run-ubuntu-shard-1.html'),
+    runnerScript({
+      project: 'ubuntu-shard-1',
+      startedAt: '2026-09-15T12:00:00Z',
+    }),
+  );
+  await writeFile(
+    path.join(shardDirectory, 'report-preview-ubuntu-shard-1.png'),
+    'preview',
+  );
+  await writeFile(
+    path.join(
+      shardDirectory,
+      'case-preview-ubuntu-shard-1-case-ubuntu-shard-1.jpg',
+    ),
+    'case preview',
+  );
+  await writeFile(
+    path.join(shardDirectory, 'ci-shard-status-ubuntu-shard-2.json'),
+    JSON.stringify({
+      project: 'ubuntu-shard-2',
+      result: 'failure',
+      stage: 'workflow setup before test execution',
+    }),
+  );
+  const siteDirectory = path.join(root, 'site');
+  const server = await startServer((_request, response) =>
+    response.writeHead(404).end(),
+  );
+  context.after(server.close);
+
+  const manifest = await buildPagesReport({
+    ...options(reportDirectory, siteDirectory, server.url),
+    'report-groups': JSON.stringify([
+      {
+        role: 'primary',
+        label: 'Doubao Say',
+        projects: ['ubuntu-shard-1', 'ubuntu-shard-2'],
+      },
+    ]),
+  });
+  const [entry] = manifest.reports[0].entries;
+  assert.equal(entry.cases.length, 2);
+  assert.equal(entry.cases[1].selection, 'workflow-failure');
+  assert.match(entry.cases[1].description, /workflow setup/);
+  await readFile(
+    path.join(
+      siteDirectory,
+      'reports',
+      '200',
+      'shard-failure-ubuntu-shard-2.svg',
+    ),
+  );
+
+  const summary = renderReportSummary({
+    manifest,
+    pagesUrl: 'https://example.test/doubao-say/',
+    producerResult: 'failure',
+    runId: '200',
+    summaryTitle: 'Ubuntu',
+  });
+  assert.match(summary, /ubuntu-shard-1 visual case/);
+  assert.match(summary, /ubuntu-shard-2 CI shard/);
+  assert.match(summary, /CI failure before node capture/);
+  assert.match(summary, /workflow setup before test execution/);
+  assert.doesNotMatch(summary, /runner-step=.*infrastructure-ubuntu-shard-2/);
+});
+
+test('uses a failure row when node evidence extraction fails', async (context) => {
+  const root = await mkdtemp(path.join(os.tmpdir(), 'pages-capture-failed-'));
+  const reportDirectory = await fixtureDirectory(root);
+  await writeFile(
+    path.join(reportDirectory, 'ci-shard-status-ubuntu.json'),
+    JSON.stringify({
+      project: 'ubuntu',
+      result: 'failure',
+      stage: 'report evidence capture',
+      testOutcome: 'success',
+      captureOutcome: 'failure',
+    }),
+  );
+  const siteDirectory = path.join(root, 'site');
+  const server = await startServer((_request, response) =>
+    response.writeHead(404).end(),
+  );
+  context.after(server.close);
+
+  const manifest = await buildPagesReport({
+    ...options(reportDirectory, siteDirectory, server.url),
+    'report-groups': JSON.stringify([
+      { role: 'primary', label: 'Doubao Say', projects: ['ubuntu'] },
+    ]),
+  });
+  const [testCase] = manifest.reports[0].entries[0].cases;
+  assert.equal(testCase.selection, 'workflow-failure');
+  assert.match(testCase.description, /report evidence capture/);
 });
 
 test('publishes the Doubao Say report as the primary CI entrance', async (context) => {

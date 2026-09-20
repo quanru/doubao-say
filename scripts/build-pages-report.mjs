@@ -238,6 +238,7 @@ function buildReportEntry({
 
 function buildReportGroup({ label, reports, role }) {
   const reportEntries = reports.map((item) =>
+    item.fallbackEntry ??
     buildReportEntry({
       ...item,
       includeCaseReportPath: true,
@@ -273,6 +274,78 @@ function buildReportGroup({ label, reports, role }) {
     },
     cases: reportEntries.flatMap((entry) => entry.cases),
   };
+}
+
+function fallbackDescription(project, status) {
+  const result = status?.result;
+  const stage = status?.stage;
+  if (result && stage) {
+    return `${project} stopped during ${stage} (${result}) before Midscene produced a native report.`;
+  }
+  return `${project} did not produce a native Midscene report. Open the Actions run for the failing setup or test step.`;
+}
+
+function buildFallbackEntry({ label, project, reportPrefix, role, status }) {
+  const slug = projectSlug(project);
+  const reportPath = `${reportPrefix}/shard-failure-${slug}.html`;
+  const previewPath = `${reportPrefix}/shard-failure-${slug}.svg`;
+  const description = fallbackDescription(project, status);
+  return {
+    role,
+    project,
+    label,
+    status: 'failed',
+    previewStep: 'last-error',
+    reportPath,
+    previewPath,
+    scenarios: { passed: 0, total: 1 },
+    assertions: { passed: 0, total: 0 },
+    cases: [
+      {
+        caseId: `infrastructure-${slug}`,
+        name: `${project} CI shard`,
+        status: 'failed',
+        selection: 'workflow-failure',
+        description,
+        descriptionKind: 'error',
+        previewPath,
+        reportPath,
+      },
+    ],
+  };
+}
+
+function fallbackSvg(project, description) {
+  return `<svg xmlns="http://www.w3.org/2000/svg" width="1200" height="675" viewBox="0 0 1200 675">
+  <rect width="1200" height="675" fill="#160d12"/>
+  <rect x="70" y="70" width="1060" height="535" rx="28" fill="#26151d" stroke="#ef4444" stroke-width="4"/>
+  <text x="120" y="175" fill="#fca5a5" font-family="system-ui,sans-serif" font-size="34" font-weight="700">CI shard failed before report capture</text>
+  <text x="120" y="255" fill="#ffffff" font-family="system-ui,sans-serif" font-size="30">${escapeHtml(project)}</text>
+  <foreignObject x="120" y="305" width="960" height="210"><div xmlns="http://www.w3.org/1999/xhtml" style="color:#d1d5db;font:26px/1.5 system-ui,sans-serif">${escapeHtml(description)}</div></foreignObject>
+</svg>\n`;
+}
+
+function fallbackHtml(project, description, workflowUrl) {
+  return `<!doctype html><html><head><meta charset="utf-8"><meta name="viewport" content="width=device-width"><title>${escapeHtml(project)} · CI failure</title></head><body style="font-family:system-ui,sans-serif;max-width:850px;margin:4rem auto;padding:0 1rem"><h1>CI shard failed before report capture</h1><h2>${escapeHtml(project)}</h2><p>${escapeHtml(description)}</p><p><a href="${escapeHtml(workflowUrl)}">Open the GitHub Actions run</a></p></body></html>\n`;
+}
+
+async function shardStatuses(directory) {
+  const statuses = new Map();
+  async function visit(current) {
+    for (const entry of await readdir(current, { withFileTypes: true })) {
+      const item = path.join(current, entry.name);
+      if (entry.isDirectory()) await visit(item);
+      else if (entry.isFile() && /^ci-shard-status-.+\.json$/.test(entry.name)) {
+        const status = JSON.parse(await readFile(item, 'utf8'));
+        if (typeof status.project !== 'string') {
+          throw new Error(`${item} does not identify a project`);
+        }
+        statuses.set(status.project, status);
+      }
+    }
+  }
+  await visit(directory);
+  return statuses;
 }
 
 function validReportEntry(entry, files) {
@@ -313,8 +386,9 @@ function validReportEntry(entry, files) {
             typeof testCase.caseId === 'string' &&
             typeof testCase.name === 'string' &&
             ['success', 'failed'].includes(testCase.status) &&
-            typeof testCase.stepId === 'string' &&
-            ['last-screenshot', 'first-failing-screenshot'].includes(
+            (typeof testCase.stepId === 'string' ||
+              testCase.selection === 'workflow-failure') &&
+            ['last-screenshot', 'first-failing-screenshot', 'workflow-failure'].includes(
               testCase.selection,
             ) &&
             (testCase.description === undefined ||
@@ -426,6 +500,7 @@ function formatDuration(durationMs) {
 
 function runStepHref(entry, testCase) {
   const reportPath = testCase.reportPath ?? entry.reportPath;
+  if (!testCase.stepId) return path.basename(reportPath);
   return `${path.basename(reportPath)}#${new URLSearchParams({
     'runner-step': testCase.stepId,
   })}`;
@@ -644,6 +719,8 @@ export async function buildPagesReport(options) {
         report.run.projects[0].name === projectName,
     );
   const reportPrefix = `reports/${runId}`;
+  const statuses = await shardStatuses(reportDirectory);
+  const generatedFallbacks = [];
   let selectedReports;
   let entries;
   let baseFiles;
@@ -653,8 +730,20 @@ export async function buildPagesReport(options) {
       ...group,
       reports: group.projects.map((project) => {
         const report = reportForProject(project);
-        if (!report) {
-          throw new Error(`No Midscene Test report found for project ${project}`);
+        const status = statuses.get(project);
+        if (
+          !report ||
+          (status?.captureOutcome && status.captureOutcome !== 'success')
+        ) {
+          const fallbackEntry = buildFallbackEntry({
+            label: group.label,
+            project,
+            reportPrefix,
+            role: group.role,
+            status,
+          });
+          generatedFallbacks.push({ project, entry: fallbackEntry });
+          return { project, fallbackEntry };
         }
         const slug = projectSlug(project);
         return {
@@ -666,11 +755,11 @@ export async function buildPagesReport(options) {
       }),
     }));
     selectedReports = groupedReports.flatMap((group) =>
-      group.reports.map((item) => item.report),
+      group.reports.map((item) => item.report).filter(Boolean),
     );
     entries = groupedReports.map((group) => buildReportGroup(group));
     reportCopies = groupedReports.flatMap((group) =>
-      group.reports.flatMap((item) => [
+      group.reports.filter((item) => item.report).flatMap((item) => [
         {
           source: item.report.file,
           destination: path.basename(item.reportPath),
@@ -762,8 +851,17 @@ export async function buildPagesReport(options) {
     ];
   }
   const selectedFiles = new Set(selectedReports.map((report) => report.file));
+  const declaredProjects = new Set(
+    reportGroups ? reportGroups.flatMap((group) => group.projects) : [],
+  );
   const unexpectedProjects = htmlReports
-    .filter((report) => !selectedFiles.has(report.file))
+    .filter(
+      (report) =>
+        !selectedFiles.has(report.file) &&
+        !report.run?.projects?.every((project) =>
+          declaredProjects.has(project.name),
+        ),
+    )
     .flatMap((report) =>
       report.run?.projects?.map((project) => project.name) ?? [path.basename(report.file)],
     );
@@ -785,7 +883,7 @@ export async function buildPagesReport(options) {
   const casePreviewFiles = entries.flatMap((entry) =>
     entry.cases.map((testCase) => testCase.previewPath),
   );
-  const files = [...baseFiles, ...casePreviewFiles];
+  const files = [...new Set([...baseFiles, ...casePreviewFiles])];
   const current = {
     runId,
     generatedAt,
@@ -818,8 +916,20 @@ export async function buildPagesReport(options) {
       (await findUniqueFile(reportDirectory, reportCopy.sourceName));
     await copyFile(source, path.join(currentDirectory, reportCopy.destination));
   }
+  for (const fallback of generatedFallbacks) {
+    const [testCase] = fallback.entry.cases;
+    await writeFile(
+      path.join(currentDirectory, path.basename(fallback.entry.previewPath)),
+      fallbackSvg(fallback.project, testCase.description),
+    );
+    await writeFile(
+      path.join(currentDirectory, path.basename(fallback.entry.reportPath)),
+      fallbackHtml(fallback.project, testCase.description, workflowUrl),
+    );
+  }
   for (const entry of entries) {
     for (const testCase of entry.cases) {
+      if (testCase.selection === 'workflow-failure') continue;
       await copyFile(
         await findUniqueFile(
           reportDirectory,
