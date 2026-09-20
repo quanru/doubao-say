@@ -60,6 +60,10 @@ def build_runtime_fixture():
         if cancelled():
             return False
         target.set_text(text)
+        # A successful real paste is delivered to the focused target. Mirror
+        # that contract in the synthetic adapter instead of leaving focus on
+        # whichever X11 surface happened to receive the global shortcut.
+        target.grab_focus()
         state["deliveries"] += 1
         return True
 

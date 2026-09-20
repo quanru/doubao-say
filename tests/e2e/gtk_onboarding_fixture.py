@@ -248,6 +248,7 @@ def build_onboarding_fixture(mode):
     def test_asr(_key, done):
         def finish():
             state.login_status = LoginStatus.LOGGED_IN
+            refresh()
             done("API key accepted by synthetic endpoint.", None)
             return GLib.SOURCE_REMOVE
 
