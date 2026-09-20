@@ -164,7 +164,18 @@ ssh_session "omarchy-shell notifications dismissAll"
 # Start the host display ourselves and verify it before libnut connects. The
 # ComputerAgent's built-in Xvfb launcher only waits a fixed 500 ms, which can
 # race on busy Actions runners and crash before a report can be written.
-export DISPLAY=:99
+export DISPLAY=
+for _display_number in {99..198}; do
+  if [[ ! -e /tmp/.X"$_display_number"-lock && ! -S /tmp/.X11-unix/X"$_display_number" ]]; then
+    export DISPLAY=:"$_display_number"
+    break
+  fi
+done
+if [[ -z ${DISPLAY:-} ]]; then
+  echo "No free host X11 display found." >&2
+  exit 1
+fi
+echo "Starting host Xvfb on $DISPLAY."
 Xvfb "$DISPLAY" -screen 0 1280x800x24 -ac -nolisten tcp \
   >"$WORK_DIR/xvfb.log" 2>&1 &
 XVFB_PID=$!
