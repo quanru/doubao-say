@@ -8,13 +8,17 @@ on:
       - ".github/workflows/midscene-omarchy-4.0.3.yml"
       - ".github/workflows/deploy-midscene-report.yml"
       - "scripts/build-pages-report.mjs"
+      - "scripts/report-cases.mjs"
+      - "scripts/render-ci-report-summary.mjs"
+      - "scripts/verify-pages-report.mjs"
       - "scripts/verify-omarchy-evidence.mjs"
       - "scripts/omarchy-shell-evidence.mjs"
       - "tests/contracts/test_pages_report_history.mjs"
       - "tests/e2e/package.json"
       - "tests/e2e/package-lock.json"
       - "tests/e2e/gtk_fixture.py"
-      - "tests/e2e/is-transient-midscene-failure.sh"
+      - "tests/e2e/gtk_onboarding_fixture.py"
+      - "tests/e2e/gtk_runtime_fixture.py"
       - "tests/e2e/capture-report-preview.mjs"
       - "tests/e2e/cases/**"
       - "tests/e2e/midscene.config.ts"
@@ -33,13 +37,17 @@ on:
       - ".github/workflows/midscene-omarchy-4.0.3.yml"
       - ".github/workflows/deploy-midscene-report.yml"
       - "scripts/build-pages-report.mjs"
+      - "scripts/report-cases.mjs"
+      - "scripts/render-ci-report-summary.mjs"
+      - "scripts/verify-pages-report.mjs"
       - "scripts/verify-omarchy-evidence.mjs"
       - "scripts/omarchy-shell-evidence.mjs"
       - "tests/contracts/test_pages_report_history.mjs"
       - "tests/e2e/package.json"
       - "tests/e2e/package-lock.json"
       - "tests/e2e/gtk_fixture.py"
-      - "tests/e2e/is-transient-midscene-failure.sh"
+      - "tests/e2e/gtk_onboarding_fixture.py"
+      - "tests/e2e/gtk_runtime_fixture.py"
       - "tests/e2e/capture-report-preview.mjs"
       - "tests/e2e/cases/**"
       - "tests/e2e/midscene.config.ts"
@@ -62,7 +70,9 @@ concurrency:
   # Keep only one pending run for this workflow and ref. Ubuntu, Omarchy, main,
   # and unrelated PRs must not replace one another in GitHub's concurrency queue.
   group: midscene-model-e2e-${{ github.workflow }}-${{ github.ref }}
-  cancel-in-progress: false
+  # A newer PR commit supersedes its predecessor. Main runs remain serialized
+  # so report publication always follows commit order.
+  cancel-in-progress: ${{ github.event_name == 'pull_request' }}
 
 jobs:
   omarchy-vm:
@@ -104,7 +114,7 @@ jobs:
           }')
           curl --fail --silent --show-error \
             --connect-timeout 15 --max-time 90 \
-            --retry 4 --retry-all-errors --retry-delay 5 \
+            --retry 4 --retry-all-errors --retry-delay 5 --retry-max-time 90 \
             -H "Authorization: Bearer $MIDSCENE_MODEL_API_KEY" \
             -H "Content-Type: application/json" \
             --data "$payload" \
@@ -129,6 +139,7 @@ jobs:
           cache-dependency-path: tests/e2e/package-lock.json
 
       - name: Install Midscene and VNC bridge
+        id: test-dependencies
         run: |
           sudo apt-get install -y --no-install-recommends \
             fluxbox tigervnc-viewer x11-xserver-utils xvfb
@@ -144,17 +155,13 @@ jobs:
       - name: Run real Omarchy Midscene E2E
         run: tests/e2e/run-omarchy-midscene.sh
 
-      - name: Capture the final report node for the CI summary
-        if: always()
-        run: >-
-          node tests/e2e/capture-report-preview.mjs
-          tests/e2e/midscene_run
-          tests/e2e/midscene_run/report-preview.png
-          omarchy-onboarding
-          && node tests/e2e/capture-report-preview.mjs
-          tests/e2e/midscene_run
-          tests/e2e/midscene_run/auxiliary-report-preview.png
-          omarchy-shell
+      - name: Capture the report result for the CI summary
+        if: always() && steps.test-dependencies.outcome == 'success'
+        run: |
+          node tests/e2e/capture-report-preview.mjs \
+            --report-dir tests/e2e/midscene_run \
+            --primary-project omarchy-onboarding \
+            --auxiliary-project omarchy-shell
 
       - name: Upload installer evidence
         if: always()
@@ -198,5 +205,6 @@ jobs:
       report-label: Omarchy 4.0.3
       summary-title: Omarchy
       primary-project: omarchy-onboarding
+      auxiliary-project: omarchy-shell
       auxiliary-report-label: Omarchy visual checks
       run-result: ${{ needs.omarchy-vm.result }}
