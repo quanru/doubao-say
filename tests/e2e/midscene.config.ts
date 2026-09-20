@@ -221,7 +221,11 @@ const pressKeyboardKey = defineNode<typeof keyboardKey, void, DesktopContext>({
   inputSchema: keyboardKey,
   async execute({ context, input }) {
     if (!context.agent) throw new Error('Midscene Computer Agent is not active');
-    await context.agent.aiKeyboardPress(input.keyName);
+    if (context.environment === 'omarchy') {
+      guest(`wtype -k ${input.keyName}`);
+    } else {
+      await context.agent.aiKeyboardPress(input.keyName);
+    }
   },
 });
 const inputTextField = defineNode<typeof inputText, void, DesktopContext>({

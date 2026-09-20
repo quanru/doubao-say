@@ -153,13 +153,15 @@ ssh_session_tty "printf '%s\\n' omarchy | sudo -S -v && \
 ssh_guest "test -f /home/omarchy/.local/share/applications/doubao-say.desktop && \
   grep -Fq '$PLUGIN_DIR/start.sh' /home/omarchy/.local/share/applications/doubao-say.desktop"
 
+# First-run Omarchy notifications are unrelated to the plugin and visually
+# overlap the product's own recording overlay in VNC screenshots.
+ssh_session "omarchy-shell notifications dismissAll"
+
 case "$MIDSCENE_PROJECT" in
   omarchy-shard-[1-4])
     npm --prefix tests/e2e test -- --project "$MIDSCENE_PROJECT"
     ;;
   omarchy-shell)
-    # Dismiss first-run notifications before inspecting Omarchy itself.
-    ssh_session "omarchy-shell notifications dismissAll"
     npm --prefix tests/e2e test -- --project "$MIDSCENE_PROJECT"
     ;;
   *)
