@@ -18,8 +18,12 @@ export NODE_OPTIONS="${NODE_OPTIONS:-} --require=$ROOT_DIR/tests/e2e/node_module
 export OMARCHY_SSH_KEY="$SSH_KEY"
 
 VM_PID=""
+XVFB_PID=""
 
 cleanup() {
+  if [[ -n $XVFB_PID ]]; then
+    kill "$XVFB_PID" 2>/dev/null || true
+  fi
   if [[ -n $VM_PID ]]; then
     kill "$VM_PID" 2>/dev/null || true
   fi
@@ -156,6 +160,30 @@ ssh_guest "test -f /home/omarchy/.local/share/applications/doubao-say.desktop &&
 # First-run Omarchy notifications are unrelated to the plugin and visually
 # overlap the product's own recording overlay in VNC screenshots.
 ssh_session "omarchy-shell notifications dismissAll"
+
+# Start the host display ourselves and verify it before libnut connects. The
+# ComputerAgent's built-in Xvfb launcher only waits a fixed 500 ms, which can
+# race on busy Actions runners and crash before a report can be written.
+export DISPLAY=:99
+Xvfb "$DISPLAY" -screen 0 1280x800x24 -ac -nolisten tcp \
+  >"$WORK_DIR/xvfb.log" 2>&1 &
+XVFB_PID=$!
+for _xvfb_attempt in {1..50}; do
+  if xdpyinfo -display "$DISPLAY" >/dev/null 2>&1; then
+    break
+  fi
+  if ! kill -0 "$XVFB_PID" 2>/dev/null; then
+    cat "$WORK_DIR/xvfb.log" >&2
+    echo "Host Xvfb exited before becoming ready." >&2
+    exit 1
+  fi
+  if ((_xvfb_attempt == 50)); then
+    cat "$WORK_DIR/xvfb.log" >&2
+    echo "Host Xvfb did not become ready." >&2
+    exit 1
+  fi
+  sleep 0.2
+done
 
 case "$MIDSCENE_PROJECT" in
   omarchy-shard-[1-4])

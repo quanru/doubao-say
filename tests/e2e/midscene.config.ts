@@ -81,7 +81,10 @@ const setup = defineProjectSetup<DesktopContext>({
     const createAgent = async () => {
       const agent = await agentForComputer({
         // Later case agents share the Xvfb display hosting Fluxbox and libnut.
-        headless: desktopReady ? false : undefined,
+        // The Omarchy harness owns a readiness-checked Xvfb process. Avoid the
+        // ComputerAgent's fixed 500 ms Xvfb startup delay, which can race with
+        // libnut initialization and terminate the whole Node process.
+        headless: desktopReady || omarchy ? false : undefined,
         xvfbResolution: omarchy ? '1280x800x24' : '1280x960x24',
         // libnut and the VNC viewer may still hold X11 connections while the
         // Agent finalizes its report. Stop Xvfb only after this process exits.
