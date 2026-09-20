@@ -141,7 +141,6 @@ cases:
       - aiAssert: The Finish setup button is visibly disabled.
       - aiTap: Start voice test button in the Voice test content panel
       - wait: { duration: 750 }
-      - aiAct: Scroll inside the Voice test content panel until both Finish & check result and Cancel test are fully visible.
       - aiAssert: Synthetic voice test transcript is visible, and both Finish & check result and Cancel test are available.
       - aiTap: Cancel test button in the Voice test content panel
       - wait: { duration: 500 }
