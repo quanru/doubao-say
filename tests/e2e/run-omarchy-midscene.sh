@@ -168,7 +168,7 @@ export DISPLAY=:99
 Xvfb "$DISPLAY" -screen 0 1280x800x24 -ac -nolisten tcp \
   >"$WORK_DIR/xvfb.log" 2>&1 &
 XVFB_PID=$!
-for _xvfb_attempt in {1..50}; do
+for _xvfb_attempt in {1..200}; do
   if xdpyinfo -display "$DISPLAY" >/dev/null 2>&1; then
     break
   fi
@@ -177,7 +177,7 @@ for _xvfb_attempt in {1..50}; do
     echo "Host Xvfb exited before becoming ready." >&2
     exit 1
   fi
-  if ((_xvfb_attempt == 50)); then
+  if ((_xvfb_attempt == 200)); then
     cat "$WORK_DIR/xvfb.log" >&2
     echo "Host Xvfb did not become ready." >&2
     exit 1
