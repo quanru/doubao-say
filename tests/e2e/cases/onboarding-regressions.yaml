@@ -94,6 +94,7 @@ cases:
       - aiAssert: The Test endpoint button in Voice polishing is fully visible.
       - aiTap: Test endpoint button in the Voice polishing section
       - wait: { duration: 750 }
+      - aiAct: Scroll downward inside the central content panel until both the endpoint failure text and the retry button are fully visible.
       - aiAssert: "The visible endpoint feedback says Endpoint test failed: Synthetic endpoint unavailable, and the enabled retry button says Test failed — try again."
       - aiAct: Scroll upward inside the central content panel until the Model input under Voice polishing is fully visible. Do not click the retry button.
       - computer.inputText:
