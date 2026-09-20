@@ -180,7 +180,7 @@ Xvfb "$DISPLAY" -screen 0 1280x800x24 -ac -nolisten tcp \
   >"$WORK_DIR/xvfb.log" 2>&1 &
 XVFB_PID=$!
 for _xvfb_attempt in {1..200}; do
-  if xdpyinfo -display "$DISPLAY" >/dev/null 2>&1; then
+  if xset -display "$DISPLAY" q >/dev/null 2>&1; then
     break
   fi
   if ! kill -0 "$XVFB_PID" 2>/dev/null; then
