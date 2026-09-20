@@ -93,8 +93,8 @@ cases:
       - aiAct: Scroll inside the central content panel until the Voice polishing Model input is fully visible. Do not click Test endpoint.
       - computer.inputText:
           target: Voice polishing Model input
-          value: synthetic-failing-model
-      - aiAssert: The Voice polishing Model input contains exactly synthetic-failing-model.
+          value: ci-fail-model
+      - aiAssert: The Voice polishing Model input contains exactly ci-fail-model.
       - aiAct: Scroll downward inside the central content panel until the Test endpoint button is fully visible.
       - aiAssert: The Test endpoint button in Voice polishing is fully visible.
       - aiTap: Test endpoint button in the Voice polishing section
@@ -104,8 +104,8 @@ cases:
       - aiAct: Scroll upward inside the central content panel until the Model input under Voice polishing is fully visible. Do not click the retry button.
       - computer.inputText:
           target: Model input under Voice polishing
-          value: synthetic-model
-      - aiAssert: The Voice polishing Model input contains exactly synthetic-model, without the word failing.
+          value: ci-ok-model
+      - aiAssert: The Voice polishing Model input contains exactly ci-ok-model, without the word fail.
       - aiAct: Scroll inside the central content panel until the Test failed — try again button is fully visible.
       - aiTap: Test failed — try again button in the Voice polishing section
       - wait: { duration: 750 }

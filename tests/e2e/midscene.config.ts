@@ -126,10 +126,13 @@ const setup = defineProjectSetup<DesktopContext>({
         onTeardown(stopGuestFixture);
         context.resetFixture = async (mode) => {
           const encodedMode = Buffer.from(mode).toString('base64');
+          const expectedTitle = mode.startsWith('runtime-')
+            ? 'Synthetic dictation target'
+            : 'Doubao Say';
           stopGuestFixture();
           guest(`rm -rf /tmp/doubao-midscene-config; mkdir -p /tmp/doubao-midscene-config; export PYTHONPATH='/home/omarchy/.config/omarchy/plugins/md.lifeos.doubao-say/src'; export XDG_CONFIG_HOME=/tmp/doubao-midscene-config; export PYTHONDONTWRITEBYTECODE=1; export DOUBAO_E2E_MODE_B64='${encodedMode}'; nohup setsid python3 '/home/omarchy/.config/omarchy/plugins/md.lifeos.doubao-say/tests/e2e/gtk_fixture.py' >/tmp/doubao-midscene-fixture.log 2>&1 </dev/null & echo $! >/tmp/doubao-midscene-fixture.pid`);
           for (let attempt = 0; attempt < 30; attempt++) {
-            const ready = guest(`grep -q 'READY: synthetic Doubao Say GTK fixture' /tmp/doubao-midscene-fixture.log && hyprctl -j clients | jq -r '[.[] | select(.title == "Doubao Say")] | length' || true`);
+            const ready = guest(`grep -q 'READY: synthetic Doubao Say GTK fixture' /tmp/doubao-midscene-fixture.log && hyprctl -j clients | jq -r --arg title ${shellQuote(expectedTitle)} '[.[] | select(.title == $title)] | length' || true`);
             if (ready === '1') return;
             await sleep(2000);
           }
@@ -235,7 +238,7 @@ const inputTextField = defineNode<typeof inputText, void, DesktopContext>({
       await context.agent.aiTap(input.target);
       await sleep(250);
       guest(
-        `wtype -M ctrl -k a -m ctrl; wtype ${shellQuote(input.value)}`,
+        `wtype -M ctrl -k a -m ctrl; wtype -d 35 ${shellQuote(input.value)}`,
       );
     } else {
       await context.agent.aiInput(input.target, {

@@ -123,8 +123,8 @@ these alongside the successful onboarding case.
 
 Each case receives a fresh computer agent, GTK fixture, and temporary config
 directory. Fixture cleanup completes before the next case starts. Shortcut and
-polishing changes stay in memory; `synthetic-failing-model` produces a synthetic
-endpoint error, while `synthetic-model` succeeds without network traffic.
+polishing changes stay in memory; `ci-fail-model` produces a synthetic endpoint
+error, while `ci-ok-model` succeeds without network traffic.
 These cases exercise production GTK widgets and the Delivery state machine with
 synthetic callbacks. They do not establish live ASR, recording, durable
 credential persistence, system-wide shortcut capture, clipboard paste, or

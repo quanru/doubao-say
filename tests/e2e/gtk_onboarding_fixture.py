@@ -126,7 +126,7 @@ def build_onboarding_fixture(mode):
 
     def test_endpoint(endpoint_settings, _key, done):
         def finish():
-            if endpoint_settings.polish_model == "synthetic-failing-model":
+            if endpoint_settings.polish_model == "ci-fail-model":
                 done(None, "Synthetic endpoint unavailable")
             else:
                 done("Synthetic endpoint response", None)
