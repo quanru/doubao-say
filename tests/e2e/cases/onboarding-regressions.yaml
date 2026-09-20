@@ -159,7 +159,10 @@ cases:
       - aiAssert: The API Key field visibly contains a non-empty masked value and the Test API key button is enabled.
       - aiTap: Test API key button below the API Key field
       - wait: { duration: 750 }
-      - aiAssert: The result says API key accepted by synthetic endpoint, the page reports that the official API is ready, and right-arrow Next is enabled.
+      - aiAct: Scroll downward exactly once inside the central content panel so the API key test result is visible, then stop.
+      - aiAssert: The result says API key accepted by synthetic endpoint and the page reports that the official API is ready.
+      - aiTap: Right-arrow Next button in the fixed top navigation
+      - aiAssert: The current step is Microphone and the heading Let's make sure we can hear you is visible.
   - name: Changing microphone requires another check
     steps:
       - fixture.prepare: { mode: microphone-change }

@@ -103,7 +103,12 @@ def build_runtime_fixture():
                     "Synthetic dictation delivered exactly once.",
                     "synthetic-target",
                 )
-                schedule(500, overlay.hide)
+
+                def close_overlay_and_restore_target():
+                    overlay.hide()
+                    target.grab_focus()
+
+                schedule(500, close_overlay_and_restore_target)
             else:
                 state["recording"] = True
                 overlay.show("Listening to synthetic speech…")

@@ -28,7 +28,7 @@ cases:
       - aiAssert: The Voice test shows Synthetic voice test transcript and offers both Finish & check result and Cancel test.
       - aiTap: Finish & check result button in the Voice test content panel
       - wait: { duration: 750 }
-      - aiAct: Scroll to the bottom of the Voice test content panel, then stop as soon as the setup button is visible.
+      - aiAct: Scroll downward exactly once inside the Voice test content panel, then stop.
       - aiAssert: The enabled setup button visibly says Finish setup, Voice test passed, and nothing pasted or sent.
       - aiTap: Enabled setup button that says Voice test passed in the Voice test content panel
       - wait: { duration: 500 }
