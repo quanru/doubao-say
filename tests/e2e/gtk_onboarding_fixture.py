@@ -188,6 +188,8 @@ def build_onboarding_fixture(mode):
             state.recording_state = RecordingState.RECORDING
             overlay.show()
             control.refresh()
+            control._voice_button.set_label("Finish & check result")
+            control._cancel_button.set_visible(True)
 
             def transcript():
                 state.transcription_text = "Synthetic voice test transcript."
