@@ -189,9 +189,7 @@ def build_onboarding_fixture(mode):
             overlay.show()
             control.refresh()
             control._voice_button.set_label("Finish & check result")
-            control._cancel_button.set_label("Cancel test")
-            control._cancel_button.get_child().set_text("Cancel test")
-            control._cancel_button.get_child().set_visible(True)
+            control._cancel_button.set_child(Gtk.Label(label="Cancel test"))
             control._cancel_button.set_visible(True)
 
             def transcript():
