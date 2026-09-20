@@ -14,6 +14,29 @@ import { reportCases } from '../../scripts/report-cases.mjs';
 import { renderReportSummary } from '../../scripts/render-ci-report-summary.mjs';
 import { verifyPublishedReport } from '../../scripts/verify-pages-report.mjs';
 
+test('publishes the Markdown evidence table for same-repository pull requests', async () => {
+  for (const workflow of [
+    'midscene-ubuntu-22.04.yml',
+    'midscene-omarchy-4.0.3.yml',
+  ]) {
+    const source = await readFile(
+      new URL(`../../.github/workflows/${workflow}`, import.meta.url),
+      'utf8',
+    );
+    const pagesJob = source.slice(source.indexOf('  pages-report:'));
+    assert.match(
+      pagesJob,
+      /github\.event\.pull_request\.head\.repo\.full_name == github\.repository/,
+      `${workflow} must publish its report and Summary table for trusted PRs`,
+    );
+    assert.doesNotMatch(
+      pagesJob,
+      /github\.ref_name == vars\.PAGES_REPORT_BRANCH/,
+      `${workflow} must not suppress the PR Summary table behind a branch check`,
+    );
+  }
+});
+
 test('assigns every product case to exactly one balanced shard', async () => {
   const shardCounts = new Map();
   let caseCount = 0;
