@@ -28,9 +28,10 @@ The maintained Midscene suite lives in [`e2e/`](e2e/README.md), using
 - **Ubuntu:** runs the real GTK onboarding UI with a synthetic fixture on an
   isolated Xvfb desktop. Sign-in and endpoint responses are simulated. The
   separate `ubuntu-polishing` project covers the native polishing overlay.
-- **Omarchy:** runs onboarding and shell visual checks through VNC in a disposable
-  Omarchy/Hyprland VM. Follow the existing VM workflow and setup guide; do not run
-  shell-changing scenarios against your personal desktop.
+- **Omarchy:** runs the same onboarding, regression, and runtime product cases
+  as Ubuntu, plus shell visual checks through VNC in a disposable
+  Omarchy/Hyprland VM. Follow the existing VM workflow and setup guide; do not
+  run shell-changing scenarios against your personal desktop.
 
 For local Ubuntu execution, first prepare the system dependencies listed in the
 [Ubuntu workflow](../.github/workflows/midscene-ubuntu-22.04.yml), including the

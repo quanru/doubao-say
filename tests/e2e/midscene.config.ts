@@ -273,7 +273,13 @@ export default defineTestProject<DesktopContext>({
       name: 'omarchy-onboarding',
       retry: 2,
       setup,
-      files: { include: ['cases/onboarding.yaml'] },
+      files: {
+        include: [
+          'cases/onboarding.yaml',
+          'cases/onboarding-regressions.yaml',
+          'cases/runtime.yaml',
+        ],
+      },
     },
     {
       name: 'omarchy-shell',

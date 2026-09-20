@@ -79,7 +79,7 @@ jobs:
     name: Midscene onboarding and shell visuals
     if: github.event_name != 'pull_request' || github.event.pull_request.head.repo.full_name == github.repository
     runs-on: ubuntu-latest
-    timeout-minutes: 70
+    timeout-minutes: 90
     env:
       MIDSCENE_MODEL_API_KEY: ${{ secrets.MIDSCENE_MODEL_API_KEY }}
       MIDSCENE_MODEL_NAME: ${{ secrets.MIDSCENE_MODEL_NAME }}

@@ -38,7 +38,7 @@ Projects created by `midscene-test create` select `cases/**/*.{yaml,yml}` by def
 
 **Case files:** `cases/onboarding.yaml`, `cases/onboarding-regressions.yaml`, `cases/runtime.yaml` (Execution Project: ubuntu)
 
-**Case files:** `cases/onboarding.yaml` (Execution Project: omarchy-onboarding)
+**Case files:** `cases/onboarding.yaml`, `cases/onboarding-regressions.yaml`, `cases/runtime.yaml` (Execution Project: omarchy-onboarding)
 
 **Case files:** `cases/omarchy-shell.yaml` (Execution Project: omarchy-shell)
 

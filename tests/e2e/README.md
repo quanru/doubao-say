@@ -40,7 +40,7 @@ The Omarchy workflow continues from that installed base image:
 1. Boot a throwaway overlay from the installed base image.
 2. Copy this checkout to `md.lifeos.doubao-say` in the guest and run Omarchy's
    plugin validator.
-3. Run the focused Midscene onboarding suite through VNC in the real
+3. Run the complete Midscene product suite through VNC in the real
    Omarchy/Hyprland guest session.
 
 The Ubuntu workflow runs the deterministic GTK fixture through
@@ -48,10 +48,10 @@ The Ubuntu workflow runs the deterministic GTK fixture through
 and `@midscene/computer`. Pull requests from forks are skipped because GitHub
 does not expose the required model secret to untrusted workflow code.
 
-Both distributions execute the same declarative onboarding scenario in
-`cases/onboarding.yaml`, including synthetic microphone and voice checks.
-Ubuntu also runs focused onboarding regressions and the synthetic post-setup
-dictation flows in `cases/runtime.yaml`. `midscene.config.ts` passes each case
+Both distributions execute the same 13 declarative product cases from
+`cases/onboarding.yaml`, `cases/onboarding-regressions.yaml`, and
+`cases/runtime.yaml`, including synthetic microphone, voice, regression, and
+post-setup dictation checks. `midscene.config.ts` passes each case
 identity to a fresh fixture, prepares the local Xvfb desktop, GTK fixture or
 Omarchy VNC viewer, and resets that state for every retry. Custom `shell.*`
 Nodes prepare the real Omarchy menu and bar; `cases/omarchy-shell.yaml` keeps
