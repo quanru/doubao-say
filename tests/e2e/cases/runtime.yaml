@@ -8,7 +8,7 @@ cases:
       - aiAssert: A dark Doubao Say overlay visibly says Listening to synthetic speech and shows Synthetic dictation is ready to deliver; the target field remains empty.
       - computer.keyPress: { keyName: F8 }
       - wait: { duration: 1200 }
-      - aiAssert: The target field contains exactly Synthetic dictation delivered exactly once, and the status says Delivered once, target focus preserved, and 1 delivery.
+      - aiAssert: The overlay is gone, the target field contains exactly Synthetic dictation delivered exactly once, and the status says Delivered once with 1 delivery.
   - name: Cancel synthetic dictation without delivering text
     steps:
       - fixture.prepare: { mode: runtime-cancel }

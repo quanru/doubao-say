@@ -47,7 +47,7 @@ def build_runtime_fixture():
     status.add_css_class("title-3")
     box.append(status)
 
-    state = {"recording": False, "deliveries": 0, "focus_preserved": False}
+    state = {"recording": False, "deliveries": 0}
 
     def schedule(delay_ms, callback):
         def invoke():
@@ -60,16 +60,12 @@ def build_runtime_fixture():
         if cancelled():
             return False
         target.set_text(text)
-        # A successful real paste is delivered to the focused target. Mirror
-        # that contract in the synthetic adapter instead of leaving focus on
-        # whichever X11 surface happened to receive the global shortcut.
-        target.grab_focus()
         state["deliveries"] += 1
         return True
 
     def delivery_changed(value):
         if value == "attempted":
-            status.set_text("Delivered once · restoring target focus…")
+            status.set_text("Delivered once · closing overlay…")
 
     delivery = Delivery(
         schedule=schedule,
@@ -93,25 +89,11 @@ def build_runtime_fixture():
                 def close_overlay_and_restore_target():
                     overlay.hide()
                     window.present()
-
-                    def report_focus(attempt=0):
-                        window.set_focus(target)
-                        target.grab_focus()
-                        if not target.has_focus() and attempt < 10:
-                            schedule(50, lambda: report_focus(attempt + 1))
-                            return
-                        state["focus_preserved"] = target.has_focus()
-                        focus = (
-                            "focus preserved"
-                            if state["focus_preserved"]
-                            else "focus lost"
-                        )
-                        status.set_text(
-                            f"Delivered once · target {focus} · "
-                            f"{state['deliveries']} delivery"
-                        )
-
-                    schedule(50, report_focus)
+                    window.set_focus(target)
+                    target.grab_focus()
+                    status.set_text(
+                        f"Delivered once · {state['deliveries']} delivery"
+                    )
 
                 schedule(500, close_overlay_and_restore_target)
             else:

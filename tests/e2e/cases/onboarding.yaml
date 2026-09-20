@@ -15,8 +15,9 @@ cases:
       - aiAssert: The current Doubao Say step is Trigger key.
       - aiAct: Stay on Trigger key. Scroll downward exactly once inside the light-gray central content panel, then stop.
       - aiAct: Scroll downward exactly once more inside the same central content panel, then stop.
-      - aiAct: Scroll downward one final time inside the same central content panel, then stop.
+      - aiAct: Scroll inside the central content panel until the full model guidance, from Choose a small, fast model through fall back to your original text, is visible.
       - aiAssert: The model guidance is readable and recommends a small, fast model with thinking off, names DeepSeek Flash and Gemini 2.5 Flash-Lite, and warns that large reasoning models may exceed five seconds and fall back to the original text.
+      - aiAct: Scroll downward inside the central content panel until the Test endpoint button is fully visible.
       - aiAssert: The Test endpoint button in the Voice polishing section is fully visible.
       - aiTap: Test endpoint button in the visible Voice polishing section
       - wait: { duration: 750 }
