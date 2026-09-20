@@ -45,8 +45,8 @@ class PolishSettings(Gtk.Box):
         self.details.append(self._row("Base URL", self.base_url))
         self.details.append(self._row("Model", self.model))
         self.latency_guidance = Gtk.Label(xalign=0, wrap=True, label=tr(
-            "For faster results, use a non-reasoning model. Recommended: DeepSeek Flash (deepseek-flash).",
-            "为了更快返回，请选择非推理模型。推荐：DeepSeek Flash（deepseek-flash）。"))
+            "Choose a small, fast model and turn thinking off, even for Flash/Lite models. Try DeepSeek Flash (deepseek-flash) or Gemini 2.5 Flash-Lite (gemini-2.5-flash-lite) on their official endpoints; thinking-off is requested automatically. Large reasoning models may exceed the 5-second limit and fall back to your original text.",
+            "优先选择小型、低延迟模型，并关闭思考，Flash/Lite 模型也不例外。建议使用 DeepSeek Flash（deepseek-flash）或 Gemini 2.5 Flash-Lite（gemini-2.5-flash-lite）的官方接口，应用会自动请求关闭思考。大型推理模型可能超过五秒上限，导致回退原文。"))
         self.latency_guidance.add_css_class("dim-label")
         self.details.append(self.latency_guidance)
         self.reasoning_notice = Gtk.Label(xalign=0, wrap=True)

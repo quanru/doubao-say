@@ -10,6 +10,14 @@ def reasoning_policy(base_url, model):
     if host == "api.deepseek.com":
         return {"thinking": {"type": "disabled"}}, tr(
             "Thinking-off requested via DeepSeek.", "通过 DeepSeek 接口请求关闭思考。")
+    if host == "open.bigmodel.cn":
+        # GLM-5.3 models reject thinking.type=disabled, including on Coding Plan.
+        if name in {"glm-5.3", "glm-5.3-flash"}:
+            return {"reasoning_effort": "low"}, tr(
+                "This Zhipu model cannot disable thinking; low reasoning effort requested.",
+                "此智谱模型无法关闭思考；已请求最低推理强度。")
+        return {"thinking": {"type": "disabled"}}, tr(
+            "Thinking-off requested via Zhipu.", "通过智谱接口请求关闭思考。")
     if host in {"dashscope.aliyuncs.com", "dashscope-intl.aliyuncs.com",
                 "dashscope-us.aliyuncs.com"}:
         if "thinking" not in name and name.startswith((

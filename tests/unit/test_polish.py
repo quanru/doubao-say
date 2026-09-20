@@ -29,11 +29,35 @@ class StreamResponse(Response):
 
 
 class PolishTest(TestCase):
+    def test_zhipu_low_latency_parameters_in_streaming_and_non_streaming_requests(self):
+        for path in ("/api/paas/v4", "/api/coding/paas/v4"):
+            for model, expected in (
+                    ("glm-4.7", {"thinking": {"type": "disabled"}}),
+                    ("glm-5.3-flash", {"reasoning_effort": "low"})):
+                for streaming in (False, True):
+                    with self.subTest(path=path, model=model, streaming=streaming):
+                        response = (StreamResponse(
+                            b'data: {"choices":[{"delta":{"content":"polished"}}]}\n\n'
+                            b'data: [DONE]\n\n') if streaming else Response(
+                                b'{"choices":[{"message":{"content":"polished"}}]}'))
+                        seen = []
+                        with patch("doubao_input.polish.request.urlopen", return_value=response) as call:
+                            result = PolishClient().polish(
+                                "synthetic text", base_url="https://open.bigmodel.cn" + path,
+                                api_key="fake-key", model=model, prompt="Polish text",
+                                on_progress=seen.append if streaming else None)
+                        payload = json.loads(call.call_args.args[0].data)
+                        self.assertEqual({key: payload[key] for key in
+                                          ("thinking", "reasoning_effort") if key in payload}, expected)
+                        self.assertEqual(payload["stream"], streaming)
+                        self.assertEqual(result, "polished")
+                        self.assertEqual(seen, ["polished"] if streaming else [])
+
     def test_endpoint_join(self):
         self.assertEqual(chat_completions_url("https://example.test/v1/"),
                          "https://example.test/v1/chat/completions")
 
-    def test_fast_mode_extension_is_only_sent_to_official_deepseek(self):
+    def test_deepseek_fast_mode_extension_is_not_sent_to_unknown_providers(self):
         for base, expected in (("https://api.deepseek.com/v1", True),
                                ("https://example.test/v1", False)):
             response = Response(b'{"choices":[{"message":{"content":"ok"}}]}')
