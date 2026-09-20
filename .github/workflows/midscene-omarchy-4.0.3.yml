@@ -55,7 +55,7 @@ jobs:
       # Each shard restores an independent disposable VM. Sharing one Hyprland
       # session would make fixture resets, focus and screenshots race.
       fail-fast: false
-      max-parallel: 4
+      max-parallel: 5
       matrix:
         project:
           - omarchy-shard-1

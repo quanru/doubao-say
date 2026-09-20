@@ -47,6 +47,11 @@ test('records every shard and renders the Summary before Pages deployment', asyn
       'utf8',
     );
     assert.match(source, /Record shard result for report aggregation/);
+    assert.match(
+      source,
+      /max-parallel: 5/,
+      `${workflow} must start all four product shards and its auxiliary project together`,
+    );
     assert.match(source, /if-no-files-found: error/);
     assert.match(source, /Create bundle even when every shard failed early/);
   }

@@ -46,7 +46,7 @@ jobs:
       # concurrency at the Actions layer because ComputerAgent sets DISPLAY
       # process-wide and cannot safely isolate concurrent projects in one job.
       fail-fast: false
-      max-parallel: 4
+      max-parallel: 5
       matrix:
         project:
           - ubuntu-shard-1
