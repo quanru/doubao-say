@@ -170,6 +170,7 @@ jobs:
           path: .midscene-omarchy/omarchy-iso/test-runs/**/runs/**
           if-no-files-found: warn
           retention-days: 3
+          overwrite: true
 
       - name: Upload Omarchy Midscene shard report
         if: always() && !cancelled()
@@ -179,6 +180,7 @@ jobs:
           path: tests/e2e/midscene_run/
           if-no-files-found: error
           retention-days: 7
+          overwrite: true
 
       - name: Verify Omarchy shell visual evidence
         if: success() && matrix.project == 'omarchy-shell'
@@ -214,6 +216,7 @@ jobs:
           path: ${{ runner.temp }}/midscene-report-shards/
           if-no-files-found: error
           retention-days: 7
+          overwrite: true
 
   pages-report:
     name: GitHub Pages report

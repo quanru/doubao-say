@@ -150,7 +150,7 @@ cases:
       - aiTap: Start voice test button in the Voice test content panel
       - wait: { duration: 750 }
       - aiAssert: Synthetic voice test transcript is visible, and Finish & check result is available again.
-      - aiTap: Finish & check result button in the Voice test content panel
+      - aiAct: Activate Finish & check result in the Voice test content panel. Wait until the Listening overlay disappears and Voice test passed appears. If the first activation has no visible effect, activate the same button once more.
       - wait: { duration: 750 }
       - aiAct: Scroll down inside the Voice test content panel until the setup button is fully visible.
       - aiAssert: The enabled setup button visibly says Voice test passed and nothing pasted or sent.

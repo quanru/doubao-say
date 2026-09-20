@@ -59,6 +59,16 @@ test('records every shard and renders the Summary before Pages deployment', asyn
     );
     assert.match(source, /if-no-files-found: error/);
     assert.match(source, /Create bundle even when every shard failed early/);
+    assert.match(
+      source,
+      /Upload .*shard report[\s\S]*?overwrite: true/,
+      `${workflow} must replace a rerun shard artifact instead of keeping duplicate names`,
+    );
+    assert.match(
+      source,
+      /Upload combined report bundle[\s\S]*?overwrite: true/,
+      `${workflow} must replace the previous attempt's combined bundle`,
+    );
   }
 
   const deploy = await readFile(
@@ -75,6 +85,18 @@ test('records every shard and renders the Summary before Pages deployment', asyn
   );
   assert.ok(deployJob > summary);
   assert.doesNotMatch(deploy.slice(0, deployJob), /environment:/);
+  assert.match(
+    deploy,
+    /name: \$\{\{ inputs\.artifact-name \}\}-pages-\$\{\{ github\.run_attempt \}\}/,
+  );
+  assert.match(
+    deploy,
+    /artifact_name: \$\{\{ inputs\.artifact-name \}\}-pages-\$\{\{ github\.run_attempt \}\}/,
+  );
+  assert.match(
+    deploy,
+    /name: \$\{\{ inputs\.artifact-name \}\}-manifest-\$\{\{ github\.run_attempt \}\}/,
+  );
 });
 
 test('assigns every product case to exactly one balanced shard', async () => {
