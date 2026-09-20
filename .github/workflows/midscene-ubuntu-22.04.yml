@@ -145,7 +145,7 @@ jobs:
 
       - name: Capture report evidence
         id: capture-report
-        if: always() && steps.test-dependencies.outcome == 'success'
+        if: always() && !cancelled() && steps.test-dependencies.outcome == 'success'
         env:
           PROJECT: ${{ matrix.project }}
         run: |
@@ -154,7 +154,7 @@ jobs:
             --projects "$PROJECT"
 
       - name: Record shard result for report aggregation
-        if: always()
+        if: always() && !cancelled()
         env:
           PROJECT: ${{ matrix.project }}
           TEST_OUTCOME: ${{ steps.midscene-test.outcome }}
@@ -167,7 +167,7 @@ jobs:
             --capture-outcome "${CAPTURE_OUTCOME:-skipped}"
 
       - name: Upload Midscene shard report
-        if: always()
+        if: always() && !cancelled()
         uses: actions/upload-artifact@043fb46d1a93c77aae656e7c1c64a875d1fc6a0a # v7.0.1
         with:
           name: midscene-ubuntu-22.04-${{ matrix.project }}
@@ -178,7 +178,7 @@ jobs:
   report-bundle:
     name: Assemble Midscene report bundle
     needs: ubuntu-e2e
-    if: always()
+    if: always() && !cancelled()
     runs-on: ubuntu-latest
     outputs:
       report-artifact-id: ${{ steps.report.outputs.artifact-id }}
@@ -211,6 +211,7 @@ jobs:
     needs: [ubuntu-e2e, report-bundle]
     if: >-
       always() &&
+      !cancelled() &&
       needs.report-bundle.outputs.report-artifact-id != '' &&
       (github.event_name != 'pull_request' ||
       github.event.pull_request.head.repo.full_name == github.repository)

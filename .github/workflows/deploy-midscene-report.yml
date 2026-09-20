@@ -97,7 +97,7 @@ jobs:
           node scripts/build-pages-report.mjs "${arguments[@]}"
 
       - name: Add complete evidence table to the run summary
-        if: always() && steps.build-report.outcome == 'success'
+        if: always() && !cancelled() && steps.build-report.outcome == 'success'
         env:
           PAGES_BASE_URL: ${{ steps.pages.outputs.base_url }}
           PRODUCER_RESULT: ${{ inputs.run-result }}

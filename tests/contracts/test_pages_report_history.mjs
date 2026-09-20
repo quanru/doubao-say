@@ -49,6 +49,11 @@ test('records every shard and renders the Summary before Pages deployment', asyn
     assert.match(source, /Record shard result for report aggregation/);
     assert.match(
       source,
+      /if: always\(\) && !cancelled\(\)/,
+      `${workflow} must preserve failure evidence without extending manually cancelled runs`,
+    );
+    assert.match(
+      source,
       /max-parallel: 5/,
       `${workflow} must start all four product shards and its auxiliary project together`,
     );
