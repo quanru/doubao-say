@@ -4,12 +4,13 @@ run-name: Ubuntu 22.04
 on:
   push:
     branches: [main]
-    paths:
+    paths: &e2e-paths
       - ".github/workflows/midscene-ubuntu-22.04.yml"
       - ".github/workflows/deploy-midscene-report.yml"
       - "scripts/build-pages-report.mjs"
       - "scripts/report-cases.mjs"
       - "scripts/render-ci-report-summary.mjs"
+      - "scripts/write-ci-shard-status.mjs"
       - "scripts/verify-pages-report.mjs"
       - "tests/contracts/test_pages_report_history.mjs"
       - "tests/e2e/package.json"
@@ -24,43 +25,35 @@ on:
       - "src/**"
   pull_request:
     branches: [main]
-    paths:
-      - ".github/workflows/midscene-ubuntu-22.04.yml"
-      - ".github/workflows/deploy-midscene-report.yml"
-      - "scripts/build-pages-report.mjs"
-      - "scripts/report-cases.mjs"
-      - "scripts/render-ci-report-summary.mjs"
-      - "scripts/verify-pages-report.mjs"
-      - "tests/contracts/test_pages_report_history.mjs"
-      - "tests/e2e/package.json"
-      - "tests/e2e/package-lock.json"
-      - "tests/e2e/gtk_fixture.py"
-      - "tests/e2e/gtk_onboarding_fixture.py"
-      - "tests/e2e/gtk_runtime_fixture.py"
-      - "tests/e2e/capture-report-preview.mjs"
-      - "tests/e2e/polish_fixture.py"
-      - "tests/e2e/cases/**"
-      - "tests/e2e/midscene.config.ts"
-      - "src/**"
+    paths: *e2e-paths
   workflow_dispatch:
 
 permissions:
   contents: read
 
 concurrency:
-  # Keep only one pending run for this workflow and ref. Ubuntu, Omarchy, main,
-  # and unrelated PRs must not replace one another in GitHub's concurrency queue.
   group: midscene-model-e2e-${{ github.workflow }}-${{ github.ref }}
-  # A newer PR commit supersedes its predecessor. Main runs remain serialized
-  # so report publication always follows commit order.
   cancel-in-progress: ${{ github.event_name == 'pull_request' }}
 
 jobs:
-  ubuntu-gtk:
-    name: Midscene onboarding and polishing visuals
+  ubuntu-e2e:
+    name: Midscene visual (${{ matrix.project }})
     if: github.event_name != 'pull_request' || github.event.pull_request.head.repo.full_name == github.repository
     runs-on: ubuntu-22.04
-    timeout-minutes: 90
+    timeout-minutes: 45
+    strategy:
+      # Every matrix child owns its Xvfb display and fixture process. Keep
+      # concurrency at the Actions layer because ComputerAgent sets DISPLAY
+      # process-wide and cannot safely isolate concurrent projects in one job.
+      fail-fast: false
+      max-parallel: 5
+      matrix:
+        project:
+          - ubuntu-shard-1
+          - ubuntu-shard-2
+          - ubuntu-shard-3
+          - ubuntu-shard-4
+          - ubuntu-polishing
     env:
       MIDSCENE_MODEL_API_KEY: ${{ secrets.MIDSCENE_MODEL_API_KEY }}
       MIDSCENE_MODEL_NAME: ${{ secrets.MIDSCENE_MODEL_NAME }}
@@ -69,11 +62,9 @@ jobs:
       MIDSCENE_MODEL_REASONING_ENABLED: ${{ secrets.MIDSCENE_MODEL_REASONING_ENABLED }}
       MIDSCENE_COMPUTER_HEADLESS_LINUX: "true"
       MIDSCENE_REPLANNING_CYCLE_LIMIT: "40"
-      # GitHub's Ubuntu 22.04 runner intermittently times out while Node races
-      # IPv4 and IPv6 addresses. The model endpoint is reachable over IPv4.
+      # The configured model endpoint is reachable over IPv4; disabling Node's
+      # family race avoids intermittent runner-side IPv6 connection timeouts.
       NODE_OPTIONS: "--dns-result-order=ipv4first --no-network-family-autoselection"
-    outputs:
-      report-artifact-id: ${{ steps.report.outputs.artifact-id }}
     steps:
       - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
         with:
@@ -131,8 +122,7 @@ jobs:
         id: test-dependencies
         working-directory: tests/e2e
         # sharp's platform packages are pinned explicitly. Skipping lifecycle
-        # scripts avoids an npm ordering bug that tries to build sharp before
-        # those prebuilt packages are linked.
+        # scripts avoids npm trying to build sharp before those packages link.
         run: |
           for attempt in 1 2 3; do
             if npm ci --include=optional --ignore-scripts; then
@@ -143,48 +133,88 @@ jobs:
           done
           exit 1
 
-      - name: Run Ubuntu 22.04 Midscene E2E
+      - name: Run Midscene project
+        id: midscene-test
         working-directory: tests/e2e
         env:
-          NODE_OPTIONS: --dns-result-order=ipv4first --no-network-family-autoselection --require=./node_modules/@computer-use/libnut/dist/import_libnut.js
-        run: >-
-          timeout --signal=TERM --kill-after=10s 50m
-          npm test -- --project ubuntu
-
-      - name: Verify polishing overlay with Midscene
-        working-directory: tests/e2e
-        env:
+          PROJECT: ${{ matrix.project }}
           NODE_OPTIONS: --dns-result-order=ipv4first --no-network-family-autoselection --require=./node_modules/@computer-use/libnut/dist/import_libnut.js
         run: >-
           timeout --signal=TERM --kill-after=10s 35m
-          npm test -- --project ubuntu-polishing
+          npm test -- --project "$PROJECT"
 
-      - name: Capture the report result for the CI summary
-        if: always() && steps.test-dependencies.outcome == 'success'
+      - name: Capture report evidence
+        id: capture-report
+        if: always() && !cancelled() && steps.test-dependencies.outcome == 'success'
+        env:
+          PROJECT: ${{ matrix.project }}
         run: |
           node tests/e2e/capture-report-preview.mjs \
             --report-dir tests/e2e/midscene_run \
-            --primary-project ubuntu \
-            --auxiliary-project ubuntu-polishing
+            --projects "$PROJECT"
 
-      - name: Upload Midscene report
+      - name: Record shard result for report aggregation
+        if: always() && !cancelled()
+        env:
+          PROJECT: ${{ matrix.project }}
+          TEST_OUTCOME: ${{ steps.midscene-test.outcome }}
+          CAPTURE_OUTCOME: ${{ steps.capture-report.outcome }}
+        run: |
+          node scripts/write-ci-shard-status.mjs \
+            --output "tests/e2e/midscene_run/ci-shard-status-$PROJECT.json" \
+            --project "$PROJECT" \
+            --test-outcome "${TEST_OUTCOME:-skipped}" \
+            --capture-outcome "${CAPTURE_OUTCOME:-skipped}"
+
+      - name: Upload Midscene shard report
+        if: always() && !cancelled()
+        uses: actions/upload-artifact@043fb46d1a93c77aae656e7c1c64a875d1fc6a0a # v7.0.1
+        with:
+          name: midscene-ubuntu-22.04-${{ matrix.project }}
+          path: tests/e2e/midscene_run/
+          if-no-files-found: error
+          retention-days: 7
+
+  report-bundle:
+    name: Assemble Midscene report bundle
+    needs: ubuntu-e2e
+    if: always() && !cancelled()
+    runs-on: ubuntu-latest
+    outputs:
+      report-artifact-id: ${{ steps.report.outputs.artifact-id }}
+    steps:
+      - name: Create bundle even when every shard failed early
+        run: |
+          mkdir -p "$RUNNER_TEMP/midscene-report-shards"
+          printf '%s\n' '{"bundle":"ubuntu-22.04"}' > "$RUNNER_TEMP/midscene-report-shards/ci-bundle-status.json"
+
+      # Keep shard directories separate. Native report filenames can share a
+      # timestamp, while the Pages builder locates reports by project identity.
+      - name: Download every shard report
+        uses: actions/download-artifact@3e5f45b2cfb9172054b4087a40e8e0b5a5461e7c # v8.0.1
+        with:
+          pattern: midscene-ubuntu-22.04-*
+          path: ${{ runner.temp }}/midscene-report-shards
+          merge-multiple: false
+
+      - name: Upload combined report bundle
         id: report
-        if: always()
         uses: actions/upload-artifact@043fb46d1a93c77aae656e7c1c64a875d1fc6a0a # v7.0.1
         with:
           name: midscene-ubuntu-22.04-e2e-report
-          path: tests/e2e/midscene_run/
-          if-no-files-found: warn
+          path: ${{ runner.temp }}/midscene-report-shards/
+          if-no-files-found: error
           retention-days: 7
 
   pages-report:
     name: GitHub Pages report
-    needs: ubuntu-gtk
+    needs: [ubuntu-e2e, report-bundle]
     if: >-
       always() &&
-      needs.ubuntu-gtk.outputs.report-artifact-id != '' &&
-      github.event_name != 'pull_request' &&
-      github.ref_name == vars.PAGES_REPORT_BRANCH
+      !cancelled() &&
+      needs.report-bundle.outputs.report-artifact-id != '' &&
+      (github.event_name != 'pull_request' ||
+      github.event.pull_request.head.repo.full_name == github.repository)
     permissions:
       actions: read
       contents: read
@@ -195,7 +225,6 @@ jobs:
       artifact-name: midscene-ubuntu-22.04-e2e-report
       report-label: Ubuntu 22.04
       summary-title: Ubuntu
-      primary-project: ubuntu
-      auxiliary-project: ubuntu-polishing
-      auxiliary-report-label: Polishing overlay report
-      run-result: ${{ needs.ubuntu-gtk.result }}
+      report-groups: >-
+        [{"role":"primary","label":"Doubao Say","projects":["ubuntu-shard-1","ubuntu-shard-2","ubuntu-shard-3","ubuntu-shard-4"]},{"role":"auxiliary","label":"Polishing overlay report","projects":["ubuntu-polishing"]}]
+      run-result: ${{ needs.ubuntu-e2e.result }}

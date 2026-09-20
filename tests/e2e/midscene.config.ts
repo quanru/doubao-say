@@ -10,6 +10,7 @@ import { createMidsceneNodes } from '@midscene/test/midscene';
 interface DesktopContext {
   agent?: ComputerAgent;
   createAgent: () => Promise<ComputerAgent>;
+  environment: 'ubuntu' | 'omarchy';
   fixtureMode?: string;
   resetFixture?: (mode: string) => Promise<void>;
   barConfigBackup?: string;
@@ -17,6 +18,7 @@ interface DesktopContext {
 }
 
 const sleep = (ms: number) => new Promise((done) => setTimeout(done, ms));
+const shellQuote = (value: string) => `'${value.replaceAll("'", `'"'"'`)}'`;
 const stop = async (child?: ChildProcess) => {
   if (!child?.pid || child.exitCode !== null || child.signalCode !== null) return;
   await new Promise<void>((done) => {
@@ -79,7 +81,10 @@ const setup = defineProjectSetup<DesktopContext>({
     const createAgent = async () => {
       const agent = await agentForComputer({
         // Later case agents share the Xvfb display hosting Fluxbox and libnut.
-        headless: desktopReady ? false : undefined,
+        // The Omarchy harness owns a readiness-checked Xvfb process. Avoid the
+        // ComputerAgent's fixed 500 ms Xvfb startup delay, which can race with
+        // libnut initialization and terminate the whole Node process.
+        headless: desktopReady || omarchy ? false : undefined,
         xvfbResolution: omarchy ? '1280x800x24' : '1280x960x24',
         // libnut and the VNC viewer may still hold X11 connections while the
         // Agent finalizes its report. Stop Xvfb only after this process exits.
@@ -92,7 +97,11 @@ const setup = defineProjectSetup<DesktopContext>({
       desktopReady = true;
       return agent;
     };
-    const context: DesktopContext = { agent: await createAgent(), createAgent };
+    const context: DesktopContext = {
+      agent: await createAgent(),
+      createAgent,
+      environment: omarchy ? 'omarchy' : 'ubuntu',
+    };
     onTeardown(() => context.agent?.destroy());
     const fluxbox = spawn('fluxbox', [], { detached: true, stdio: 'ignore', env: process.env });
     onTeardown(() => stop(fluxbox));
@@ -105,19 +114,37 @@ const setup = defineProjectSetup<DesktopContext>({
       await sleep(4000);
       if (!shell) {
         const stopGuestFixture = () => {
-          guest('if test -s /tmp/doubao-midscene-fixture.pid; then kill "$(cat /tmp/doubao-midscene-fixture.pid)" >/dev/null 2>&1 || true; fi; rm -f /tmp/doubao-midscene-fixture.pid');
+          guest([
+            'if test -s /tmp/doubao-midscene-fixture.pid; then',
+            'pid="$(cat /tmp/doubao-midscene-fixture.pid)";',
+            'kill "$pid" >/dev/null 2>&1 || true;',
+            'for wait_step in 1 2 3 4 5; do',
+            'kill -0 "$pid" >/dev/null 2>&1 || break; sleep 0.2;',
+            'done;',
+            'kill -KILL "$pid" >/dev/null 2>&1 || true;',
+            'fi;',
+            'rm -f /tmp/doubao-midscene-fixture.pid',
+          ].join(' '));
         };
         onTeardown(stopGuestFixture);
         context.resetFixture = async (mode) => {
           const encodedMode = Buffer.from(mode).toString('base64');
+          const expectedTitle = mode.startsWith('runtime-')
+            ? 'Synthetic dictation target'
+            : 'Doubao Say';
           stopGuestFixture();
           guest(`rm -rf /tmp/doubao-midscene-config; mkdir -p /tmp/doubao-midscene-config; export PYTHONPATH='/home/omarchy/.config/omarchy/plugins/md.lifeos.doubao-say/src'; export XDG_CONFIG_HOME=/tmp/doubao-midscene-config; export PYTHONDONTWRITEBYTECODE=1; export DOUBAO_E2E_MODE_B64='${encodedMode}'; nohup setsid python3 '/home/omarchy/.config/omarchy/plugins/md.lifeos.doubao-say/tests/e2e/gtk_fixture.py' >/tmp/doubao-midscene-fixture.log 2>&1 </dev/null & echo $! >/tmp/doubao-midscene-fixture.pid`);
           for (let attempt = 0; attempt < 30; attempt++) {
-            const ready = guest(`grep -q 'READY: synthetic Doubao Say GTK fixture' /tmp/doubao-midscene-fixture.log && hyprctl -j clients | jq -r '[.[] | select(.title == "Doubao Say")] | length' || true`);
+            const ready = guest(`grep -q 'READY: synthetic Doubao Say GTK fixture' /tmp/doubao-midscene-fixture.log && hyprctl -j clients | jq -r --arg title ${shellQuote(expectedTitle)} '[.[] | select(.title == $title)] | length' || true`);
             if (ready === '1') return;
             await sleep(2000);
           }
-          throw new Error('Omarchy GTK fixture did not become ready');
+          const fixtureLog = guest(
+            'tail -n 80 /tmp/doubao-midscene-fixture.log 2>/dev/null || true',
+          );
+          throw new Error(
+            `Omarchy GTK fixture did not become ready:\n${fixtureLog || '<empty fixture log>'}`,
+          );
         };
       }
     } else {
@@ -197,7 +224,11 @@ const pressKeyboardKey = defineNode<typeof keyboardKey, void, DesktopContext>({
   inputSchema: keyboardKey,
   async execute({ context, input }) {
     if (!context.agent) throw new Error('Midscene Computer Agent is not active');
-    await context.agent.aiKeyboardPress(input.keyName);
+    if (context.environment === 'omarchy') {
+      guest(`wtype -k ${input.keyName}`);
+    } else {
+      await context.agent.aiKeyboardPress(input.keyName);
+    }
   },
 });
 const inputTextField = defineNode<typeof inputText, void, DesktopContext>({
@@ -207,10 +238,21 @@ const inputTextField = defineNode<typeof inputText, void, DesktopContext>({
   inputSchema: inputText,
   async execute({ context, input }) {
     if (!context.agent) throw new Error('Midscene Computer Agent is not active');
-    await context.agent.aiInput(input.target, {
-      value: input.value,
-      mode: 'replace',
-    });
+    if (context.environment === 'omarchy') {
+      // Midscene still finds and focuses the visual target. Send the text from
+      // inside the Wayland guest because X11 clipboard typing stops at the VNC
+      // boundary on some TigerVNC/GitHub runner combinations.
+      await context.agent.aiTap(input.target);
+      await sleep(250);
+      guest(
+        `wtype -M ctrl -k a -m ctrl; wtype -d 35 ${shellQuote(input.value)}`,
+      );
+    } else {
+      await context.agent.aiInput(input.target, {
+        value: input.value,
+        mode: 'replace',
+      });
+    }
   },
 });
 const openSystemMenu = defineNode<typeof empty, void, DesktopContext>({
@@ -246,6 +288,21 @@ const moveBarLeft = defineNode<typeof empty, void, DesktopContext>({
   },
 });
 
+const productCaseFiles = [
+  'cases/onboarding.yaml',
+  'cases/onboarding-regressions.yaml',
+  'cases/runtime.yaml',
+] as const;
+
+const productShardProjects = (environment: 'ubuntu' | 'omarchy') =>
+  [1, 2, 3, 4].map((shard) => ({
+    name: `${environment}-shard-${shard}`,
+    retry: 2,
+    setup,
+    files: { include: productCaseFiles },
+    tags: { include: [`shard-${shard}`] },
+  }));
+
 export default defineTestProject<DesktopContext>({
   test: { maxConcurrency: 1, testTimeout: 8 * 60_000 },
   // Retries are scoped to failed cases. Every attempt stays visible in the
@@ -257,24 +314,8 @@ export default defineTestProject<DesktopContext>({
       setup,
       files: { include: ['cases/polishing.yaml'] },
     },
-    {
-      name: 'ubuntu',
-      retry: 2,
-      setup,
-      files: {
-        include: [
-          'cases/onboarding.yaml',
-          'cases/onboarding-regressions.yaml',
-          'cases/runtime.yaml',
-        ],
-      },
-    },
-    {
-      name: 'omarchy-onboarding',
-      retry: 2,
-      setup,
-      files: { include: ['cases/onboarding.yaml'] },
-    },
+    ...productShardProjects('ubuntu'),
+    ...productShardProjects('omarchy'),
     {
       name: 'omarchy-shell',
       retry: 2,

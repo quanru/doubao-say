@@ -34,6 +34,7 @@ function reportUrl(baseUrl, reportPath) {
 
 function stepUrl(baseUrl, reportPath, stepId) {
   const url = new URL(reportPath, normalizedBaseUrl(baseUrl));
+  if (!stepId) return url.href;
   url.hash = new URLSearchParams({ 'runner-step': stepId }).toString();
   return url.href;
 }
@@ -88,10 +89,13 @@ export function renderReportSummary({
   }`;
   const historyUrl = normalizedBaseUrl(pagesUrl).href;
   const links = [
-    ...report.entries.map(
-      (entry) =>
-        `[Open ${entry.label}](${reportUrl(pagesUrl, entry.reportPath)})`,
-    ),
+    ...report.entries.flatMap((entry) => {
+      const reports = entry.reports ?? [entry];
+      return reports.map((nativeReport, index) => {
+        const suffix = reports.length > 1 ? ` ${index + 1}` : '';
+        return `[Open ${entry.label}${suffix}](${reportUrl(pagesUrl, nativeReport.reportPath)})`;
+      });
+    }),
     `[Report history](${historyUrl})`,
   ].join(' · ');
   const caseTables = report.entries.map((entry) => {
@@ -102,13 +106,19 @@ export function renderReportSummary({
       if (!testCase.description || !testCase.descriptionKind) {
         throw new Error(`${testCase.name} does not contain node text evidence`);
       }
-      const target = stepUrl(pagesUrl, entry.reportPath, testCase.stepId);
+      const target = stepUrl(
+        pagesUrl,
+        testCase.reportPath ?? entry.reportPath,
+        testCase.stepId,
+      );
       const image = reportUrl(pagesUrl, testCase.previewPath);
       const status = testCase.status === 'success' ? '✅ Passed' : '❌ Failed';
       const evidence =
         testCase.status === 'success'
           ? 'Last screenshot'
-          : 'First failing screenshot';
+          : testCase.selection === 'workflow-failure'
+            ? 'CI failure before node capture'
+            : 'First failing screenshot';
       const descriptionLabel = {
         ai: '**AI:** ',
         error: '**Error:** ',
@@ -132,7 +142,7 @@ ${links}
 
 ${caseTables}
 
-Each image is the original page screenshot used by that node. Click a case name or image to open the exact Midscene Test node and Agent replay.
+Each image is the original page screenshot used by that node. A CI failure card is shown only when a shard stops before Midscene can capture a node. Click a case name or image to open its evidence.
 `;
 }
 

@@ -28,8 +28,20 @@ const reportDirectory = path.resolve(
 );
 const primaryProject = options['primary-project'];
 const auxiliaryProject = options['auxiliary-project'];
-if (!primaryProject) throw new Error('Missing --primary-project');
-if (!auxiliaryProject) throw new Error('Missing --auxiliary-project');
+const projects = options.projects
+  ? options.projects.split(',').map((value) => value.trim()).filter(Boolean)
+  : [primaryProject, auxiliaryProject].filter(Boolean);
+if (projects.length === 0) {
+  throw new Error('Missing --projects or --primary-project');
+}
+const projectSlug = (projectName) => {
+  const slug = projectName
+    .toLowerCase()
+    .replace(/[^a-z0-9]+/g, '-')
+    .replace(/^-|-$/g, '');
+  if (!slug) throw new Error(`Cannot build a preview filename for ${projectName}`);
+  return slug;
+};
 
 const candidates = [
   process.env.CHROME_BIN,
@@ -58,13 +70,17 @@ const browser = await puppeteer.launch({
 });
 
 try {
-  for (const [projectName, outputName, required] of [
-    [primaryProject, 'report-preview.png', true],
-    [auxiliaryProject, 'auxiliary-report-preview.png', false],
-  ]) {
+  for (const [index, projectName] of projects.entries()) {
+    const legacyOutputName = options.projects
+      ? null
+      : index === 0
+        ? 'report-preview.png'
+        : 'auxiliary-report-preview.png';
+    const outputName =
+      legacyOutputName ?? `report-preview-${projectSlug(projectName)}.png`;
     const report = await findLatestTestReport(reportDirectory, {
       projectName,
-      required,
+      required: options.projects ? true : index === 0,
     });
     if (!report) {
       console.log(

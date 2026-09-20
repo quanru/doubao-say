@@ -126,7 +126,7 @@ def build_onboarding_fixture(mode):
 
     def test_endpoint(endpoint_settings, _key, done):
         def finish():
-            if endpoint_settings.polish_model == "synthetic-failing-model":
+            if endpoint_settings.polish_model == "ci-fail-model":
                 done(None, "Synthetic endpoint unavailable")
             else:
                 done("Synthetic endpoint response", None)
@@ -187,6 +187,12 @@ def build_onboarding_fixture(mode):
             control._start_button.set_label("Finish setup")
             state.recording_state = RecordingState.RECORDING
             overlay.show()
+            control.refresh()
+            control._voice_button.set_label("Finish & check result")
+            control._cancel_button.set_child(
+                Gtk.Label(label="Cancel test", xalign=0.08)
+            )
+            control._cancel_button.set_visible(True)
 
             def transcript():
                 state.transcription_text = "Synthetic voice test transcript."

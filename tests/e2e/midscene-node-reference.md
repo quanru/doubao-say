@@ -36,9 +36,21 @@ Projects created by `midscene-test create` select `cases/**/*.{yaml,yml}` by def
 
 **Case files:** `cases/polishing.yaml` (Execution Project: ubuntu-polishing)
 
-**Case files:** `cases/onboarding.yaml`, `cases/onboarding-regressions.yaml`, `cases/runtime.yaml` (Execution Project: ubuntu)
+**Case files:** `cases/onboarding.yaml`, `cases/onboarding-regressions.yaml`, `cases/runtime.yaml` (Execution Project: ubuntu-shard-1)
 
-**Case files:** `cases/onboarding.yaml` (Execution Project: omarchy-onboarding)
+**Case files:** `cases/onboarding.yaml`, `cases/onboarding-regressions.yaml`, `cases/runtime.yaml` (Execution Project: ubuntu-shard-2)
+
+**Case files:** `cases/onboarding.yaml`, `cases/onboarding-regressions.yaml`, `cases/runtime.yaml` (Execution Project: ubuntu-shard-3)
+
+**Case files:** `cases/onboarding.yaml`, `cases/onboarding-regressions.yaml`, `cases/runtime.yaml` (Execution Project: ubuntu-shard-4)
+
+**Case files:** `cases/onboarding.yaml`, `cases/onboarding-regressions.yaml`, `cases/runtime.yaml` (Execution Project: omarchy-shard-1)
+
+**Case files:** `cases/onboarding.yaml`, `cases/onboarding-regressions.yaml`, `cases/runtime.yaml` (Execution Project: omarchy-shard-2)
+
+**Case files:** `cases/onboarding.yaml`, `cases/onboarding-regressions.yaml`, `cases/runtime.yaml` (Execution Project: omarchy-shard-3)
+
+**Case files:** `cases/onboarding.yaml`, `cases/onboarding-regressions.yaml`, `cases/runtime.yaml` (Execution Project: omarchy-shard-4)
 
 **Case files:** `cases/omarchy-shell.yaml` (Execution Project: omarchy-shell)
 

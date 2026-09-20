@@ -40,7 +40,7 @@ The Omarchy workflow continues from that installed base image:
 1. Boot a throwaway overlay from the installed base image.
 2. Copy this checkout to `md.lifeos.doubao-say` in the guest and run Omarchy's
    plugin validator.
-3. Run the focused Midscene onboarding suite through VNC in the real
+3. Run the complete Midscene product suite through VNC in the real
    Omarchy/Hyprland guest session.
 
 The Ubuntu workflow runs the deterministic GTK fixture through
@@ -48,23 +48,26 @@ The Ubuntu workflow runs the deterministic GTK fixture through
 and `@midscene/computer`. Pull requests from forks are skipped because GitHub
 does not expose the required model secret to untrusted workflow code.
 
-Both distributions execute the same declarative onboarding scenario in
-`cases/onboarding.yaml`, including synthetic microphone and voice checks.
-Ubuntu also runs focused onboarding regressions and the synthetic post-setup
-dictation flows in `cases/runtime.yaml`. `midscene.config.ts` passes each case
-identity to a fresh fixture, prepares the local Xvfb desktop, GTK fixture or
+Both distributions execute the same 13 declarative product cases from
+`cases/onboarding.yaml`, `cases/onboarding-regressions.yaml`, and
+`cases/runtime.yaml`, including synthetic microphone, voice, regression, and
+post-setup dictation checks. `midscene.config.ts` passes each case
+identity to a fresh fixture. Four duration-balanced shards run in isolated
+Actions jobs, each with its own Xvfb desktop or Omarchy VM, while cases inside
+one shard remain serial so window focus cannot leak between tests. The config prepares the GTK fixture or
 Omarchy VNC viewer, and resets that state for every retry. Custom `shell.*`
 Nodes prepare the real Omarchy menu and bar; `cases/omarchy-shell.yaml` keeps
 the three pixel-level assertions explicit. Run `npm run nodes` in this
 directory to regenerate the Node reference, or
-`npm test -- --project ubuntu` on a prepared Linux desktop.
+`npm test -- --project ubuntu-shard-1` on a prepared Linux desktop.
 Projects use Midscene Test's case-level `retry` setting, so a failed model
 attempt is rerun with a fresh fixture while successful cases are kept. Every
 attempt remains visible in the generated report.
-Each invocation writes a unified Midscene Test HTML report under
-`midscene_run/report/`; CI publishes those reports and renders each project's
-final node as its entrance image. A failed project instead opens and captures
-its most recent error node, so the summary shows the relevant failure detail.
+Each shard writes a Midscene Test HTML report under `midscene_run/report/`.
+CI keeps the native reports separate, then aggregates their cases into one
+evidence table. Every row links to its exact native report node. A failed
+project captures its first failing screenshot, so the summary shows the
+relevant failure detail.
 
 The Ubuntu stage maps the real GTK onboarding window inside the
 headless Midscene desktop. Its synthetic fixture starts signed out, opens an
@@ -120,16 +123,17 @@ these alongside the successful onboarding case.
 
 Each case receives a fresh computer agent, GTK fixture, and temporary config
 directory. Fixture cleanup completes before the next case starts. Shortcut and
-polishing changes stay in memory; `synthetic-failing-model` produces a synthetic
-endpoint error, while `synthetic-model` succeeds without network traffic.
+polishing changes stay in memory; `ci-fail-model` produces a synthetic endpoint
+error, while `ci-ok-model` succeeds without network traffic.
 These cases exercise production GTK widgets and the Delivery state machine with
 synthetic callbacks. They do not establish live ASR, recording, durable
 credential persistence, system-wide shortcut capture, clipboard paste, or
 delivery into an unrelated application.
 
-Run `npm test -- --project ubuntu` with the system dependencies and model
-configuration from the Ubuntu workflow. The Omarchy projects retain their shared
-onboarding and shell cases.
+Run `npm test -- --project ubuntu-shard-1` with the system dependencies and
+model configuration from the Ubuntu workflow. Replace the final number with
+`2`, `3`, or `4` to run another duration-balanced shard. Omarchy uses the
+matching `omarchy-shard-*` projects and a separate shell project.
 
 ## Polishing overlay regression
 

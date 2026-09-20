@@ -27,6 +27,7 @@ function expectedContentType(file) {
   if (file.endsWith('.png')) return 'image/png';
   if (file.endsWith('.jpg')) return 'image/jpeg';
   if (file.endsWith('.webp')) return 'image/webp';
+  if (file.endsWith('.svg')) return 'image/svg+xml';
   throw new Error(`No expected Content-Type is defined for ${file}`);
 }
 

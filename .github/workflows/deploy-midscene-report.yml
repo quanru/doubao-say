@@ -17,15 +17,19 @@ on:
         type: string
       primary-project:
         description: Midscene Test project used for the main report and preview
-        required: true
+        required: false
         type: string
       auxiliary-project:
         description: Midscene Test project used for the second report and preview
-        required: true
+        required: false
         type: string
       auxiliary-report-label:
         description: Label for the second project report
-        required: true
+        required: false
+        type: string
+      report-groups:
+        description: JSON groups used to combine independently executed projects
+        required: false
         type: string
       run-result:
         description: Result of the job that produced the report artifact
@@ -34,8 +38,95 @@ on:
         type: string
 
 jobs:
+  prepare:
+    name: Build report and Markdown summary
+    runs-on: ubuntu-latest
+    timeout-minutes: 10
+    permissions:
+      actions: read
+      contents: read
+      pages: write
+    outputs:
+      pages-base-url: ${{ steps.pages.outputs.base_url }}
+    steps:
+      - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
+        with:
+          persist-credentials: false
+
+      - name: Download the run's HTML report artifact
+        uses: actions/download-artifact@3e5f45b2cfb9172054b4087a40e8e0b5a5461e7c # v8.0.1
+        with:
+          name: ${{ inputs.artifact-name }}
+          path: ${{ runner.temp }}/midscene-report
+
+      - name: Configure GitHub Pages
+        id: pages
+        uses: actions/configure-pages@45bfe0192ca1faeb007ade9deae92b16b8254a0d # v6.0.0
+
+      - name: Restore history and prepare the Pages site
+        id: build-report
+        env:
+          REPORT_RETENTION: ${{ vars.REPORT_RETENTION || '30' }}
+          PAGES_BASE_URL: ${{ steps.pages.outputs.base_url }}
+          REPORT_LABEL: ${{ inputs.report-label }}
+          PRIMARY_PROJECT: ${{ inputs.primary-project }}
+          AUXILIARY_PROJECT: ${{ inputs.auxiliary-project }}
+          AUXILIARY_REPORT_LABEL: ${{ inputs.auxiliary-report-label }}
+          REPORT_GROUPS: ${{ inputs.report-groups }}
+        run: |
+          arguments=(
+            --report-dir "$RUNNER_TEMP/midscene-report"
+            --site-dir "$RUNNER_TEMP/pages-site"
+            --run-id "$GITHUB_RUN_ID"
+            --workflow-url "$GITHUB_SERVER_URL/$GITHUB_REPOSITORY/actions/runs/$GITHUB_RUN_ID"
+            --generated-at "$(date -u +%Y-%m-%dT%H:%M:%SZ)"
+            --retention "$REPORT_RETENTION"
+            --pages-url "$PAGES_BASE_URL"
+            --label "$REPORT_LABEL"
+          )
+          if [[ -n $REPORT_GROUPS ]]; then
+            arguments+=(--report-groups "$REPORT_GROUPS")
+          else
+            arguments+=(
+              --primary-project "$PRIMARY_PROJECT"
+              --primary-report-label "Doubao Say"
+              --auxiliary-project "$AUXILIARY_PROJECT"
+              --auxiliary-report-label "$AUXILIARY_REPORT_LABEL"
+            )
+          fi
+          node scripts/build-pages-report.mjs "${arguments[@]}"
+
+      - name: Add complete evidence table to the run summary
+        if: always() && !cancelled() && steps.build-report.outcome == 'success'
+        env:
+          PAGES_BASE_URL: ${{ steps.pages.outputs.base_url }}
+          PRODUCER_RESULT: ${{ inputs.run-result }}
+          SUMMARY_TITLE: ${{ inputs.summary-title }}
+        run: |
+          node scripts/render-ci-report-summary.mjs \
+            --manifest "$RUNNER_TEMP/pages-site/reports/manifest.json" \
+            --pages-url "$PAGES_BASE_URL" \
+            --producer-result "$PRODUCER_RESULT" \
+            --run-id "$GITHUB_RUN_ID" \
+            --summary-title "$SUMMARY_TITLE" \
+            --output "$GITHUB_STEP_SUMMARY"
+
+      - name: Upload the restricted Pages payload
+        uses: actions/upload-pages-artifact@fc324d3547104276b827a68afc52ff2a11cc49c9 # v5.0.0
+        with:
+          path: ${{ runner.temp }}/pages-site
+
+      - name: Upload the manifest for deployment verification
+        uses: actions/upload-artifact@043fb46d1a93c77aae656e7c1c64a875d1fc6a0a # v7.0.1
+        with:
+          name: ${{ inputs.artifact-name }}-manifest
+          path: ${{ runner.temp }}/pages-site/reports/manifest.json
+          if-no-files-found: error
+          retention-days: 1
+
   deploy:
     name: Publish HTML report history
+    needs: prepare
     runs-on: ubuntu-latest
     timeout-minutes: 10
     concurrency:
@@ -54,68 +145,21 @@ jobs:
         with:
           persist-credentials: false
 
-      - name: Download the run's HTML report artifact
-        uses: actions/download-artifact@3e5f45b2cfb9172054b4087a40e8e0b5a5461e7c # v8.0.1
-        with:
-          name: ${{ inputs.artifact-name }}
-          path: ${{ runner.temp }}/midscene-report
-
-      - name: Configure GitHub Pages
-        id: pages
-        uses: actions/configure-pages@45bfe0192ca1faeb007ade9deae92b16b8254a0d # v6.0.0
-
-      - name: Restore history and prepare the Pages site
-        env:
-          REPORT_RETENTION: ${{ vars.REPORT_RETENTION || '30' }}
-          PAGES_BASE_URL: ${{ steps.pages.outputs.base_url }}
-          REPORT_LABEL: ${{ inputs.report-label }}
-          PRIMARY_PROJECT: ${{ inputs.primary-project }}
-          AUXILIARY_PROJECT: ${{ inputs.auxiliary-project }}
-          AUXILIARY_REPORT_LABEL: ${{ inputs.auxiliary-report-label }}
-        run: |
-          node scripts/build-pages-report.mjs \
-            --report-dir "$RUNNER_TEMP/midscene-report" \
-            --site-dir "$RUNNER_TEMP/pages-site" \
-            --run-id "$GITHUB_RUN_ID" \
-            --workflow-url "$GITHUB_SERVER_URL/$GITHUB_REPOSITORY/actions/runs/$GITHUB_RUN_ID" \
-            --generated-at "$(date -u +%Y-%m-%dT%H:%M:%SZ)" \
-            --retention "$REPORT_RETENTION" \
-            --pages-url "$PAGES_BASE_URL" \
-            --label "$REPORT_LABEL" \
-            --primary-project "$PRIMARY_PROJECT" \
-            --primary-report-label "Doubao Say" \
-            --auxiliary-project "$AUXILIARY_PROJECT" \
-            --auxiliary-report-label "$AUXILIARY_REPORT_LABEL"
-
-      - name: Upload the restricted Pages payload
-        uses: actions/upload-pages-artifact@fc324d3547104276b827a68afc52ff2a11cc49c9 # v5.0.0
-        with:
-          path: ${{ runner.temp }}/pages-site
-
       - name: Deploy report history to GitHub Pages
         id: deployment
         uses: actions/deploy-pages@368f82528645a54fb793d4d04e342629a3f51346 # v5.0.1
 
+      - name: Download the manifest for deployment verification
+        uses: actions/download-artifact@3e5f45b2cfb9172054b4087a40e8e0b5a5461e7c # v8.0.1
+        with:
+          name: ${{ inputs.artifact-name }}-manifest
+          path: ${{ runner.temp }}/pages-site/reports
+
       - name: Verify every published report endpoint
         env:
-          PAGES_BASE_URL: ${{ steps.pages.outputs.base_url }}
+          PAGES_BASE_URL: ${{ needs.prepare.outputs.pages-base-url }}
         run: |
           node scripts/verify-pages-report.mjs \
             --manifest "$RUNNER_TEMP/pages-site/reports/manifest.json" \
             --pages-url "$PAGES_BASE_URL" \
             --run-id "$GITHUB_RUN_ID"
-
-      - name: Add report links to the run summary
-        if: always() && steps.deployment.outcome == 'success'
-        env:
-          PAGES_BASE_URL: ${{ steps.pages.outputs.base_url }}
-          PRODUCER_RESULT: ${{ inputs.run-result }}
-          SUMMARY_TITLE: ${{ inputs.summary-title }}
-        run: |
-          node scripts/render-ci-report-summary.mjs \
-            --manifest "$RUNNER_TEMP/pages-site/reports/manifest.json" \
-            --pages-url "$PAGES_BASE_URL" \
-            --producer-result "$PRODUCER_RESULT" \
-            --run-id "$GITHUB_RUN_ID" \
-            --summary-title "$SUMMARY_TITLE" \
-            --output "$GITHUB_STEP_SUMMARY"

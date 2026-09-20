@@ -2,6 +2,7 @@
 set -euo pipefail
 
 readonly ROOT_DIR="$PWD"
+readonly MIDSCENE_PROJECT="${1:?Usage: run-omarchy-midscene.sh PROJECT}"
 readonly WORK_DIR="$ROOT_DIR/.midscene-omarchy"
 readonly HARNESS_DIR="$WORK_DIR/omarchy-iso"
 # shellcheck source=omarchy-vm.env
@@ -17,8 +18,12 @@ export NODE_OPTIONS="${NODE_OPTIONS:-} --require=$ROOT_DIR/tests/e2e/node_module
 export OMARCHY_SSH_KEY="$SSH_KEY"
 
 VM_PID=""
+XVFB_PID=""
 
 cleanup() {
+  if [[ -n $XVFB_PID ]]; then
+    kill "$XVFB_PID" 2>/dev/null || true
+  fi
   if [[ -n $VM_PID ]]; then
     kill "$VM_PID" 2>/dev/null || true
   fi
@@ -152,12 +157,54 @@ ssh_session_tty "printf '%s\\n' omarchy | sudo -S -v && \
 ssh_guest "test -f /home/omarchy/.local/share/applications/doubao-say.desktop && \
   grep -Fq '$PLUGIN_DIR/start.sh' /home/omarchy/.local/share/applications/doubao-say.desktop"
 
-npm --prefix tests/e2e test -- --project omarchy-onboarding
-
-# The Midscene project teardown has stopped its onboarding fixture. Dismiss
-# first-run notifications before the shell project inspects Omarchy itself.
+# First-run Omarchy notifications are unrelated to the plugin and visually
+# overlap the product's own recording overlay in VNC screenshots.
 ssh_session "omarchy-shell notifications dismissAll"
 
-# Reuse the same live Hyprland session for a visual comparison against
-# Omarchy's OCR and hyprctl-based acceptance checks.
-npm --prefix tests/e2e test -- --project omarchy-shell
+# Start the host display ourselves and verify it before libnut connects. The
+# ComputerAgent's built-in Xvfb launcher only waits a fixed 500 ms, which can
+# race on busy Actions runners and crash before a report can be written.
+export DISPLAY=
+for _display_number in {99..198}; do
+  if [[ ! -e /tmp/.X"$_display_number"-lock && ! -S /tmp/.X11-unix/X"$_display_number" ]]; then
+    export DISPLAY=:"$_display_number"
+    break
+  fi
+done
+if [[ -z ${DISPLAY:-} ]]; then
+  echo "No free host X11 display found." >&2
+  exit 1
+fi
+echo "Starting host Xvfb on $DISPLAY."
+Xvfb "$DISPLAY" -screen 0 1280x800x24 -ac -nolisten tcp \
+  >"$WORK_DIR/xvfb.log" 2>&1 &
+XVFB_PID=$!
+for _xvfb_attempt in {1..200}; do
+  if xset -display "$DISPLAY" q >/dev/null 2>&1; then
+    break
+  fi
+  if ! kill -0 "$XVFB_PID" 2>/dev/null; then
+    cat "$WORK_DIR/xvfb.log" >&2
+    echo "Host Xvfb exited before becoming ready." >&2
+    exit 1
+  fi
+  if ((_xvfb_attempt == 200)); then
+    cat "$WORK_DIR/xvfb.log" >&2
+    echo "Host Xvfb did not become ready." >&2
+    exit 1
+  fi
+  sleep 0.2
+done
+
+case "$MIDSCENE_PROJECT" in
+  omarchy-shard-[1-4])
+    npm --prefix tests/e2e test -- --project "$MIDSCENE_PROJECT"
+    ;;
+  omarchy-shell)
+    npm --prefix tests/e2e test -- --project "$MIDSCENE_PROJECT"
+    ;;
+  *)
+    echo "Unsupported Omarchy Midscene project: $MIDSCENE_PROJECT" >&2
+    exit 2
+    ;;
+esac
