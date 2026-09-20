@@ -88,10 +88,13 @@ export function renderReportSummary({
   }`;
   const historyUrl = normalizedBaseUrl(pagesUrl).href;
   const links = [
-    ...report.entries.map(
-      (entry) =>
-        `[Open ${entry.label}](${reportUrl(pagesUrl, entry.reportPath)})`,
-    ),
+    ...report.entries.flatMap((entry) => {
+      const reports = entry.reports ?? [entry];
+      return reports.map((nativeReport, index) => {
+        const suffix = reports.length > 1 ? ` ${index + 1}` : '';
+        return `[Open ${entry.label}${suffix}](${reportUrl(pagesUrl, nativeReport.reportPath)})`;
+      });
+    }),
     `[Report history](${historyUrl})`,
   ].join(' · ');
   const caseTables = report.entries.map((entry) => {
@@ -102,7 +105,11 @@ export function renderReportSummary({
       if (!testCase.description || !testCase.descriptionKind) {
         throw new Error(`${testCase.name} does not contain node text evidence`);
       }
-      const target = stepUrl(pagesUrl, entry.reportPath, testCase.stepId);
+      const target = stepUrl(
+        pagesUrl,
+        testCase.reportPath ?? entry.reportPath,
+        testCase.stepId,
+      );
       const image = reportUrl(pagesUrl, testCase.previewPath);
       const status = testCase.status === 'success' ? '✅ Passed' : '❌ Failed';
       const evidence =

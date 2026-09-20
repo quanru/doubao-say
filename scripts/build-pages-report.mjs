@@ -16,8 +16,8 @@ import {
 } from './omarchy-shell-evidence.mjs';
 import { reportCases } from './report-cases.mjs';
 
-const MANIFEST_VERSION = 4;
-const SUPPORTED_MANIFEST_VERSIONS = new Set([1, 2, 3, MANIFEST_VERSION]);
+const MANIFEST_VERSION = 5;
+const SUPPORTED_MANIFEST_VERSIONS = new Set([1, 2, 3, 4, MANIFEST_VERSION]);
 
 function parseArguments(argv) {
   const options = {};
@@ -38,6 +38,65 @@ function required(options, name) {
     throw new Error(`Missing --${name}`);
   }
   return value;
+}
+
+function parseReportGroups(options) {
+  if (!options['report-groups']) return null;
+  let groups;
+  try {
+    groups = JSON.parse(options['report-groups']);
+  } catch (error) {
+    throw new Error(`Invalid --report-groups JSON: ${error.message}`);
+  }
+  if (
+    !Array.isArray(groups) ||
+    groups.length === 0 ||
+    groups.some(
+      (group) =>
+        !['primary', 'auxiliary'].includes(group.role) ||
+        typeof group.label !== 'string' ||
+        !Array.isArray(group.projects) ||
+        group.projects.length === 0 ||
+        group.projects.some(
+          (project) =>
+            typeof project !== 'string' || !/^[a-z0-9-]+$/.test(project),
+        ),
+    )
+  ) {
+    throw new Error('--report-groups must describe labeled project groups');
+  }
+  const projects = groups.flatMap((group) => group.projects);
+  if (new Set(projects).size !== projects.length) {
+    throw new Error('--report-groups cannot contain duplicate projects');
+  }
+  return groups;
+}
+
+function projectSlug(project) {
+  const slug = project
+    .toLowerCase()
+    .replace(/[^a-z0-9]+/g, '-')
+    .replace(/^-|-$/g, '');
+  if (!slug) throw new Error(`Cannot build a filename for project ${project}`);
+  return slug;
+}
+
+async function findUniqueFile(directory, basename) {
+  const matches = [];
+  async function visit(current) {
+    for (const entry of await readdir(current, { withFileTypes: true })) {
+      const item = path.join(current, entry.name);
+      if (entry.isDirectory()) await visit(item);
+      else if (entry.isFile() && entry.name === basename) matches.push(item);
+    }
+  }
+  await visit(directory);
+  if (matches.length !== 1) {
+    throw new Error(
+      `Expected one ${basename} in the report bundle, found ${matches.length}`,
+    );
+  }
+  return matches[0];
 }
 
 function validateRunId(value) {
@@ -138,6 +197,7 @@ function collectAssertionResults(run) {
 }
 
 function buildReportEntry({
+  includeCaseReportPath = false,
   label,
   previewPath,
   project,
@@ -157,6 +217,7 @@ function buildReportEntry({
     description: testCase.description,
     descriptionKind: testCase.descriptionKind,
     previewPath: `${path.posix.dirname(reportPath)}/${testCase.previewFile}`,
+    ...(includeCaseReportPath ? { reportPath } : {}),
   }));
   return {
     role,
@@ -173,6 +234,101 @@ function buildReportEntry({
     assertions: collectAssertionResults(report.run),
     cases,
   };
+}
+
+function buildReportGroup({ label, reports, role }) {
+  const reportEntries = reports.map((item) =>
+    buildReportEntry({
+      ...item,
+      includeCaseReportPath: true,
+      label,
+      role,
+    }),
+  );
+  const sum = (field, nested) =>
+    reportEntries.reduce((total, entry) => total + entry[field][nested], 0);
+  const status = reportEntries.every((entry) => entry.status === 'success')
+    ? 'success'
+    : 'failed';
+  return {
+    role,
+    projects: reportEntries.map((entry) => entry.project),
+    label,
+    status,
+    previewStep: status === 'success' ? 'last' : 'last-error',
+    reports: reportEntries.map((entry) => ({
+      project: entry.project,
+      status: entry.status,
+      previewStep: entry.previewStep,
+      reportPath: entry.reportPath,
+      previewPath: entry.previewPath,
+    })),
+    scenarios: {
+      passed: sum('scenarios', 'passed'),
+      total: sum('scenarios', 'total'),
+    },
+    assertions: {
+      passed: sum('assertions', 'passed'),
+      total: sum('assertions', 'total'),
+    },
+    cases: reportEntries.flatMap((entry) => entry.cases),
+  };
+}
+
+function validReportEntry(entry, files) {
+  const legacyReport =
+    typeof entry.project === 'string' &&
+    typeof entry.reportPath === 'string' &&
+    typeof entry.previewPath === 'string' &&
+    files?.includes(entry.reportPath) &&
+    files?.includes(entry.previewPath);
+  const shardedReport =
+    Array.isArray(entry.projects) &&
+    entry.projects.length > 0 &&
+    entry.projects.every((project) => typeof project === 'string') &&
+    Array.isArray(entry.reports) &&
+    entry.reports.length === entry.projects.length &&
+    entry.reports.every(
+      (report) =>
+        typeof report.project === 'string' &&
+        typeof report.status === 'string' &&
+        ['last', 'last-error'].includes(report.previewStep) &&
+        files?.includes(report.reportPath) &&
+        files?.includes(report.previewPath),
+    );
+  return (
+    ['primary', 'auxiliary'].includes(entry.role) &&
+    typeof entry.label === 'string' &&
+    typeof entry.status === 'string' &&
+    ['last', 'last-error'].includes(entry.previewStep) &&
+    (legacyReport || shardedReport) &&
+    Number.isInteger(entry.scenarios?.passed) &&
+    Number.isInteger(entry.scenarios?.total) &&
+    Number.isInteger(entry.assertions?.passed) &&
+    Number.isInteger(entry.assertions?.total) &&
+    (entry.cases === undefined ||
+      (Array.isArray(entry.cases) &&
+        entry.cases.every(
+          (testCase) =>
+            typeof testCase.caseId === 'string' &&
+            typeof testCase.name === 'string' &&
+            ['success', 'failed'].includes(testCase.status) &&
+            typeof testCase.stepId === 'string' &&
+            ['last-screenshot', 'first-failing-screenshot'].includes(
+              testCase.selection,
+            ) &&
+            (testCase.description === undefined ||
+              (typeof testCase.description === 'string' &&
+                testCase.description.length > 0)) &&
+            (testCase.descriptionKind === undefined ||
+              ['ai', 'error', 'result'].includes(testCase.descriptionKind)) &&
+            (testCase.description === undefined) ===
+              (testCase.descriptionKind === undefined) &&
+            files?.includes(testCase.previewPath) &&
+            (testCase.reportPath === undefined ||
+              files?.includes(testCase.reportPath)),
+        )))
+  );
 }
 
 function validateHistoryManifest(manifest) {
@@ -199,42 +355,7 @@ function validateHistoryManifest(manifest) {
           ))) ||
       (report.entries !== undefined &&
         (!Array.isArray(report.entries) ||
-          report.entries.some(
-            (entry) =>
-              !['primary', 'auxiliary'].includes(entry.role) ||
-              typeof entry.project !== 'string' ||
-              typeof entry.label !== 'string' ||
-              typeof entry.status !== 'string' ||
-              !['last', 'last-error'].includes(entry.previewStep) ||
-              !report.files?.includes(entry.reportPath) ||
-              !report.files?.includes(entry.previewPath) ||
-              !Number.isInteger(entry.scenarios?.passed) ||
-              !Number.isInteger(entry.scenarios?.total) ||
-              !Number.isInteger(entry.assertions?.passed) ||
-              !Number.isInteger(entry.assertions?.total) ||
-              (entry.cases !== undefined &&
-                (!Array.isArray(entry.cases) ||
-                  entry.cases.some(
-                    (testCase) =>
-                      typeof testCase.caseId !== 'string' ||
-                      typeof testCase.name !== 'string' ||
-                      !['success', 'failed'].includes(testCase.status) ||
-                      typeof testCase.stepId !== 'string' ||
-                      !['last-screenshot', 'first-failing-screenshot'].includes(
-                        testCase.selection,
-                      ) ||
-                      (testCase.description !== undefined &&
-                        (typeof testCase.description !== 'string' ||
-                          testCase.description.length === 0)) ||
-                      (testCase.descriptionKind !== undefined &&
-                        !['ai', 'error', 'result'].includes(
-                          testCase.descriptionKind,
-                        )) ||
-                      ((testCase.description === undefined) !==
-                        (testCase.descriptionKind === undefined)) ||
-                      !report.files?.includes(testCase.previewPath),
-                  ))),
-          )))
+          report.entries.some((entry) => !validReportEntry(entry, report.files))))
     ) {
       throw new Error(
         'Existing Pages manifest contains an invalid report entry',
@@ -304,9 +425,20 @@ function formatDuration(durationMs) {
 }
 
 function runStepHref(entry, testCase) {
-  return `${path.basename(entry.reportPath)}#${new URLSearchParams({
+  const reportPath = testCase.reportPath ?? entry.reportPath;
+  return `${path.basename(reportPath)}#${new URLSearchParams({
     'runner-step': testCase.stepId,
   })}`;
+}
+
+function nativeReportLinks(entry) {
+  const reports = entry.reports ?? [entry];
+  return reports
+    .map((report, index) => {
+      const suffix = reports.length > 1 ? ` ${index + 1}` : '';
+      return `<a class="native-report" href="${escapeHtml(path.basename(report.reportPath))}">Open native Midscene report${suffix} →</a>`;
+    })
+    .join(' ');
 }
 
 function buildRunIndex(report) {
@@ -338,7 +470,7 @@ function buildRunIndex(report) {
               <h2>${escapeHtml(entry.label)}</h2>
               <p>${entry.scenarios.passed}/${entry.scenarios.total} cases passed</p>
             </div>
-            <a class="native-report" href="${escapeHtml(path.basename(entry.reportPath))}">Open native Midscene report →</a>
+            <div>${nativeReportLinks(entry)}</div>
           </div>
           <div class="table-wrap">
             <table>
@@ -458,11 +590,19 @@ export async function buildPagesReport(options) {
   const retention = validateRetention(required(options, 'retention'));
   const baseUrl = normalizeBaseUrl(required(options, 'pages-url'));
   const label = options.label || 'Midscene E2E';
-  const primaryProject = required(options, 'primary-project');
+  const reportGroups = parseReportGroups(options);
+  const primaryProject = reportGroups
+    ? null
+    : required(options, 'primary-project');
   const primaryReportLabel = options['primary-report-label'] || 'Doubao Say';
-  const auxiliaryProject = options['auxiliary-project'];
-  const auxiliaryReportLabel = options['auxiliary-report-label'];
-  if (Boolean(auxiliaryProject) !== Boolean(auxiliaryReportLabel)) {
+  const auxiliaryProject = reportGroups ? null : options['auxiliary-project'];
+  const auxiliaryReportLabel = reportGroups
+    ? null
+    : options['auxiliary-report-label'];
+  if (
+    !reportGroups &&
+    Boolean(auxiliaryProject) !== Boolean(auxiliaryReportLabel)
+  ) {
     throw new Error(
       '--auxiliary-project and --auxiliary-report-label must be provided together',
     );
@@ -503,14 +643,124 @@ export async function buildPagesReport(options) {
         report.run?.projects?.length === 1 &&
         report.run.projects[0].name === projectName,
     );
-  const primaryReport = reportForProject(primaryProject);
-  if (!primaryReport) {
-    throw new Error(`No Midscene Test report found for project ${primaryProject}`);
+  const reportPrefix = `reports/${runId}`;
+  let selectedReports;
+  let entries;
+  let baseFiles;
+  let reportCopies;
+  if (reportGroups) {
+    const groupedReports = reportGroups.map((group) => ({
+      ...group,
+      reports: group.projects.map((project) => {
+        const report = reportForProject(project);
+        if (!report) {
+          throw new Error(`No Midscene Test report found for project ${project}`);
+        }
+        const slug = projectSlug(project);
+        return {
+          project,
+          report,
+          reportPath: `${reportPrefix}/native-report-${slug}.html`,
+          previewPath: `${reportPrefix}/report-preview-${slug}.png`,
+        };
+      }),
+    }));
+    selectedReports = groupedReports.flatMap((group) =>
+      group.reports.map((item) => item.report),
+    );
+    entries = groupedReports.map((group) => buildReportGroup(group));
+    reportCopies = groupedReports.flatMap((group) =>
+      group.reports.flatMap((item) => [
+        {
+          source: item.report.file,
+          destination: path.basename(item.reportPath),
+        },
+        {
+          sourceName: path.basename(item.previewPath),
+          destination: path.basename(item.previewPath),
+        },
+      ]),
+    );
+    baseFiles = [
+      `${reportPrefix}/index.html`,
+      ...entries.flatMap((entry) =>
+        entry.reports.flatMap((report) => [
+          report.reportPath,
+          report.previewPath,
+        ]),
+      ),
+    ];
+  } else {
+    const primaryReport = reportForProject(primaryProject);
+    if (!primaryReport) {
+      throw new Error(
+        `No Midscene Test report found for project ${primaryProject}`,
+      );
+    }
+    const auxiliaryReport = auxiliaryProject
+      ? reportForProject(auxiliaryProject)
+      : null;
+    selectedReports = [primaryReport, auxiliaryReport].filter(Boolean);
+    const primaryNativeReport = `${reportPrefix}/native-report.html`;
+    const auxiliaryNativeReport = `${reportPrefix}/auxiliary-report.html`;
+    baseFiles = auxiliaryReport
+      ? [
+          'index.html',
+          'native-report.html',
+          'auxiliary-report.html',
+          'report-preview.png',
+          'auxiliary-report-preview.png',
+        ].map((name) => `${reportPrefix}/${name}`)
+      : [
+          `${reportPrefix}/index.html`,
+          primaryNativeReport,
+          `${reportPrefix}/report-preview.png`,
+        ];
+    entries = [
+      buildReportEntry({
+        role: 'primary',
+        project: primaryProject,
+        label: primaryReportLabel,
+        report: primaryReport,
+        reportPath: primaryNativeReport,
+        previewPath: `${reportPrefix}/report-preview.png`,
+      }),
+      ...(auxiliaryReport
+        ? [
+            buildReportEntry({
+              role: 'auxiliary',
+              project: auxiliaryProject,
+              label: auxiliaryReportLabel,
+              report: auxiliaryReport,
+              reportPath: auxiliaryNativeReport,
+              previewPath: `${reportPrefix}/auxiliary-report-preview.png`,
+            }),
+          ]
+        : []),
+    ];
+    reportCopies = [
+      {
+        source: primaryReport.file,
+        destination: 'native-report.html',
+      },
+      {
+        sourceName: 'report-preview.png',
+        destination: 'report-preview.png',
+      },
+      ...(auxiliaryReport
+        ? [
+            {
+              source: auxiliaryReport.file,
+              destination: 'auxiliary-report.html',
+            },
+            {
+              sourceName: 'auxiliary-report-preview.png',
+              destination: 'auxiliary-report-preview.png',
+            },
+          ]
+        : []),
+    ];
   }
-  const auxiliaryReport = auxiliaryProject
-    ? reportForProject(auxiliaryProject)
-    : null;
-  const selectedReports = [primaryReport, auxiliaryReport].filter(Boolean);
   const selectedFiles = new Set(selectedReports.map((report) => report.file));
   const unexpectedProjects = htmlReports
     .filter((report) => !selectedFiles.has(report.file))
@@ -532,44 +782,6 @@ export async function buildPagesReport(options) {
     }),
     { passed: 0, tests: 0 },
   );
-  const reportPrefix = `reports/${runId}`;
-  const primaryNativeReport = `${reportPrefix}/native-report.html`;
-  const auxiliaryNativeReport = `${reportPrefix}/auxiliary-report.html`;
-  const baseFiles = auxiliaryReport
-    ? [
-        'index.html',
-        'native-report.html',
-        'auxiliary-report.html',
-        'report-preview.png',
-        'auxiliary-report-preview.png',
-      ].map((name) => `${reportPrefix}/${name}`)
-    : [
-        `${reportPrefix}/index.html`,
-        primaryNativeReport,
-        `${reportPrefix}/report-preview.png`,
-      ];
-  const entries = [
-    buildReportEntry({
-      role: 'primary',
-      project: primaryProject,
-      label: primaryReportLabel,
-      report: primaryReport,
-      reportPath: primaryNativeReport,
-      previewPath: `${reportPrefix}/report-preview.png`,
-    }),
-    ...(auxiliaryReport
-      ? [
-          buildReportEntry({
-            role: 'auxiliary',
-            project: auxiliaryProject,
-            label: auxiliaryReportLabel,
-            report: auxiliaryReport,
-            reportPath: auxiliaryNativeReport,
-            previewPath: `${reportPrefix}/auxiliary-report-preview.png`,
-          }),
-        ]
-      : []),
-  ];
   const casePreviewFiles = entries.flatMap((entry) =>
     entry.cases.map((testCase) => testCase.previewPath),
   );
@@ -600,25 +812,19 @@ export async function buildPagesReport(options) {
 
   const currentDirectory = path.join(siteDirectory, reportPrefix);
   await mkdir(currentDirectory, { recursive: true });
-  if (auxiliaryReport) {
-    await copyFile(primaryReport.file, path.join(currentDirectory, 'native-report.html'));
-    await copyFile(auxiliaryReport.file, path.join(currentDirectory, 'auxiliary-report.html'));
-    await copyFile(path.join(reportDirectory, 'report-preview.png'), path.join(currentDirectory, 'report-preview.png'));
-    await copyFile(
-      path.join(reportDirectory, 'auxiliary-report-preview.png'),
-      path.join(currentDirectory, 'auxiliary-report-preview.png'),
-    );
-  } else {
-    await copyFile(primaryReport.file, path.join(currentDirectory, 'native-report.html'));
-    await copyFile(
-      path.join(reportDirectory, 'report-preview.png'),
-      path.join(currentDirectory, 'report-preview.png'),
-    );
+  for (const reportCopy of reportCopies) {
+    const source =
+      reportCopy.source ??
+      (await findUniqueFile(reportDirectory, reportCopy.sourceName));
+    await copyFile(source, path.join(currentDirectory, reportCopy.destination));
   }
   for (const entry of entries) {
     for (const testCase of entry.cases) {
       await copyFile(
-        path.join(reportDirectory, path.basename(testCase.previewPath)),
+        await findUniqueFile(
+          reportDirectory,
+          path.basename(testCase.previewPath),
+        ),
         path.join(currentDirectory, path.basename(testCase.previewPath)),
       );
     }

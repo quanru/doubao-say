@@ -1,5 +1,6 @@
 cases:
   - name: Cancel sign-in and retry
+    tags: [shard-1]
     steps:
       - aiAssert: The current step is Sign in and both left-arrow Previous and right-arrow Next in the fixed top navigation are disabled.
       - aiAct: Scroll inside the Sign in content panel until Open Doubao sign-in is fully visible.
@@ -17,6 +18,7 @@ cases:
       - wait: { duration: 500 }
       - aiAssert: The synthetic sign-in window closed and Doubao Say automatically advanced to the Microphone step.
   - name: Preserve signed-in account across backward navigation
+    tags: [shard-4]
     steps:
       - aiAssert: The visible Doubao Say window starts on the Sign in step and says the user is not signed in.
       - aiAct: Scroll inside the Sign in content panel until Open Doubao sign-in is fully visible.
@@ -34,6 +36,7 @@ cases:
       - aiTap: Right-arrow Next button in the fixed top navigation
       - aiAssert: The Microphone step shows Let's make sure we can hear you, and no synthetic sign-in window is open.
   - name: Require an enabled trigger and retain the replacement
+    tags: [shard-4]
     steps:
       - aiAssert: The visible Doubao Say window starts on the Sign in step and says the user is not signed in.
       - aiAct: Scroll inside the Sign in content panel until Open Doubao sign-in is fully visible.
@@ -55,6 +58,7 @@ cases:
       - aiTap: Left-arrow Previous button in the fixed top navigation
       - aiAssert: The Trigger key step still shows Active trigger F8 and F8 is selected in the trigger dropdown.
   - name: Toggle polishing without losing configuration
+    tags: [shard-3]
     steps:
       - aiAssert: The visible Doubao Say window starts on the Sign in step and says the user is not signed in.
       - aiAct: Scroll inside the Sign in content panel until Open Doubao sign-in is fully visible.
@@ -74,6 +78,7 @@ cases:
       - aiAct: Scroll downward inside the central content panel until the Voice polishing Model input and its complete value are fully visible.
       - aiAssert: The Voice polishing Model input contains exactly synthetic-model.
   - name: Recover from an endpoint failure
+    tags: [shard-1]
     steps:
       - aiAssert: The visible Doubao Say window starts on the Sign in step and says the user is not signed in.
       - aiAct: Scroll inside the Sign in content panel until Open Doubao sign-in is fully visible.
@@ -107,6 +112,7 @@ cases:
       - aiAct: Scroll inside the central content panel until the endpoint result text below the retry button is fully visible.
       - aiAssert: "The endpoint result says Endpoint works: Synthetic endpoint response, the enabled button says Endpoint works, and the previous Synthetic endpoint unavailable error is no longer visible."
   - name: Microphone check gates setup completion
+    tags: [shard-4]
     steps:
       - fixture.prepare: { mode: microphone-gate }
       - aiAssert: The visible Doubao Say window starts on the Microphone step, shows Synthetic microphone one, and offers Check microphone · 3 seconds.
@@ -124,6 +130,7 @@ cases:
       - aiAct: Scroll down inside the Voice test content panel until the Finish setup button is fully visible.
       - aiAssert: The Finish setup button is visibly enabled.
   - name: Complete and cancel a voice test safely
+    tags: [shard-3]
     steps:
       - fixture.prepare: { mode: voice-test }
       - aiAssert: The visible Doubao Say window starts on the Microphone step and the microphone is already configured.
@@ -148,6 +155,7 @@ cases:
       - aiAct: Scroll down inside the Voice test content panel until the setup button is fully visible.
       - aiAssert: The enabled setup button visibly says Voice test passed and nothing pasted or sent.
   - name: Switch to Volcengine and validate credentials
+    tags: [shard-3]
     steps:
       - fixture.prepare: { mode: volcengine }
       - aiAssert: The visible Doubao Say window starts on Sign in with Doubao account selected and right-arrow Next disabled.
@@ -165,6 +173,7 @@ cases:
       - aiTap: Right-arrow Next button in the fixed top navigation
       - aiAssert: The current step is Microphone and the heading Let's make sure we can hear you is visible.
   - name: Changing microphone requires another check
+    tags: [shard-2]
     steps:
       - fixture.prepare: { mode: microphone-change }
       - aiAssert: The visible Doubao Say window starts on the Microphone step with Synthetic microphone one selected.
@@ -184,6 +193,7 @@ cases:
       - aiAct: Scroll down inside the Voice test content panel until the Finish setup button is fully visible.
       - aiAssert: The Finish setup button is visibly enabled.
   - name: Capture and retain a custom trigger shortcut
+    tags: [shard-2]
     steps:
       - fixture.prepare: { mode: shortcut-capture }
       - aiTap: Right-arrow Next button in the fixed top navigation

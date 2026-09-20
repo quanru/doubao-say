@@ -2,6 +2,7 @@
 set -euo pipefail
 
 readonly ROOT_DIR="$PWD"
+readonly MIDSCENE_PROJECT="${1:?Usage: run-omarchy-midscene.sh PROJECT}"
 readonly WORK_DIR="$ROOT_DIR/.midscene-omarchy"
 readonly HARNESS_DIR="$WORK_DIR/omarchy-iso"
 # shellcheck source=omarchy-vm.env
@@ -152,12 +153,17 @@ ssh_session_tty "printf '%s\\n' omarchy | sudo -S -v && \
 ssh_guest "test -f /home/omarchy/.local/share/applications/doubao-say.desktop && \
   grep -Fq '$PLUGIN_DIR/start.sh' /home/omarchy/.local/share/applications/doubao-say.desktop"
 
-npm --prefix tests/e2e test -- --project omarchy-onboarding
-
-# The Midscene project teardown has stopped its onboarding fixture. Dismiss
-# first-run notifications before the shell project inspects Omarchy itself.
-ssh_session "omarchy-shell notifications dismissAll"
-
-# Reuse the same live Hyprland session for a visual comparison against
-# Omarchy's OCR and hyprctl-based acceptance checks.
-npm --prefix tests/e2e test -- --project omarchy-shell
+case "$MIDSCENE_PROJECT" in
+  omarchy-shard-[1-4])
+    npm --prefix tests/e2e test -- --project "$MIDSCENE_PROJECT"
+    ;;
+  omarchy-shell)
+    # Dismiss first-run notifications before inspecting Omarchy itself.
+    ssh_session "omarchy-shell notifications dismissAll"
+    npm --prefix tests/e2e test -- --project "$MIDSCENE_PROJECT"
+    ;;
+  *)
+    echo "Unsupported Omarchy Midscene project: $MIDSCENE_PROJECT" >&2
+    exit 2
+    ;;
+esac

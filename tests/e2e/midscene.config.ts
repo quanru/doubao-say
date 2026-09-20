@@ -246,6 +246,21 @@ const moveBarLeft = defineNode<typeof empty, void, DesktopContext>({
   },
 });
 
+const productCaseFiles = [
+  'cases/onboarding.yaml',
+  'cases/onboarding-regressions.yaml',
+  'cases/runtime.yaml',
+] as const;
+
+const productShardProjects = (environment: 'ubuntu' | 'omarchy') =>
+  [1, 2, 3, 4].map((shard) => ({
+    name: `${environment}-shard-${shard}`,
+    retry: 2,
+    setup,
+    files: { include: productCaseFiles },
+    tags: { include: [`shard-${shard}`] },
+  }));
+
 export default defineTestProject<DesktopContext>({
   test: { maxConcurrency: 1, testTimeout: 8 * 60_000 },
   // Retries are scoped to failed cases. Every attempt stays visible in the
@@ -257,30 +272,8 @@ export default defineTestProject<DesktopContext>({
       setup,
       files: { include: ['cases/polishing.yaml'] },
     },
-    {
-      name: 'ubuntu',
-      retry: 2,
-      setup,
-      files: {
-        include: [
-          'cases/onboarding.yaml',
-          'cases/onboarding-regressions.yaml',
-          'cases/runtime.yaml',
-        ],
-      },
-    },
-    {
-      name: 'omarchy-onboarding',
-      retry: 2,
-      setup,
-      files: {
-        include: [
-          'cases/onboarding.yaml',
-          'cases/onboarding-regressions.yaml',
-          'cases/runtime.yaml',
-        ],
-      },
-    },
+    ...productShardProjects('ubuntu'),
+    ...productShardProjects('omarchy'),
     {
       name: 'omarchy-shell',
       retry: 2,

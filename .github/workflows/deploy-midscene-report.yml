@@ -17,15 +17,19 @@ on:
         type: string
       primary-project:
         description: Midscene Test project used for the main report and preview
-        required: true
+        required: false
         type: string
       auxiliary-project:
         description: Midscene Test project used for the second report and preview
-        required: true
+        required: false
         type: string
       auxiliary-report-label:
         description: Label for the second project report
-        required: true
+        required: false
+        type: string
+      report-groups:
+        description: JSON groups used to combine independently executed projects
+        required: false
         type: string
       run-result:
         description: Result of the job that produced the report artifact
@@ -72,20 +76,29 @@ jobs:
           PRIMARY_PROJECT: ${{ inputs.primary-project }}
           AUXILIARY_PROJECT: ${{ inputs.auxiliary-project }}
           AUXILIARY_REPORT_LABEL: ${{ inputs.auxiliary-report-label }}
+          REPORT_GROUPS: ${{ inputs.report-groups }}
         run: |
-          node scripts/build-pages-report.mjs \
-            --report-dir "$RUNNER_TEMP/midscene-report" \
-            --site-dir "$RUNNER_TEMP/pages-site" \
-            --run-id "$GITHUB_RUN_ID" \
-            --workflow-url "$GITHUB_SERVER_URL/$GITHUB_REPOSITORY/actions/runs/$GITHUB_RUN_ID" \
-            --generated-at "$(date -u +%Y-%m-%dT%H:%M:%SZ)" \
-            --retention "$REPORT_RETENTION" \
-            --pages-url "$PAGES_BASE_URL" \
-            --label "$REPORT_LABEL" \
-            --primary-project "$PRIMARY_PROJECT" \
-            --primary-report-label "Doubao Say" \
-            --auxiliary-project "$AUXILIARY_PROJECT" \
-            --auxiliary-report-label "$AUXILIARY_REPORT_LABEL"
+          arguments=(
+            --report-dir "$RUNNER_TEMP/midscene-report"
+            --site-dir "$RUNNER_TEMP/pages-site"
+            --run-id "$GITHUB_RUN_ID"
+            --workflow-url "$GITHUB_SERVER_URL/$GITHUB_REPOSITORY/actions/runs/$GITHUB_RUN_ID"
+            --generated-at "$(date -u +%Y-%m-%dT%H:%M:%SZ)"
+            --retention "$REPORT_RETENTION"
+            --pages-url "$PAGES_BASE_URL"
+            --label "$REPORT_LABEL"
+          )
+          if [[ -n $REPORT_GROUPS ]]; then
+            arguments+=(--report-groups "$REPORT_GROUPS")
+          else
+            arguments+=(
+              --primary-project "$PRIMARY_PROJECT"
+              --primary-report-label "Doubao Say"
+              --auxiliary-project "$AUXILIARY_PROJECT"
+              --auxiliary-report-label "$AUXILIARY_REPORT_LABEL"
+            )
+          fi
+          node scripts/build-pages-report.mjs "${arguments[@]}"
 
       - name: Upload the restricted Pages payload
         uses: actions/upload-pages-artifact@fc324d3547104276b827a68afc52ff2a11cc49c9 # v5.0.0

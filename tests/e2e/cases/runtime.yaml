@@ -1,5 +1,6 @@
 cases:
   - name: Deliver one synthetic dictation to the focused target
+    tags: [shard-3]
     steps:
       - fixture.prepare: { mode: runtime-delivery }
       - aiAssert: A Synthetic dictation target window is focused, its text field is empty, and the status says Idle with 0 deliveries.
@@ -10,6 +11,7 @@ cases:
       - wait: { duration: 1200 }
       - aiAssert: The overlay is gone, the target field contains exactly Synthetic dictation delivered exactly once, and the status says Delivered once with 1 delivery.
   - name: Cancel synthetic dictation without delivering text
+    tags: [shard-4]
     steps:
       - fixture.prepare: { mode: runtime-cancel }
       - aiAssert: A Synthetic dictation target window is focused, its text field is empty, and the status says Idle with 0 deliveries.

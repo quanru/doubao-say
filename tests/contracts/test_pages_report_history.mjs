@@ -14,6 +14,37 @@ import { reportCases } from '../../scripts/report-cases.mjs';
 import { renderReportSummary } from '../../scripts/render-ci-report-summary.mjs';
 import { verifyPublishedReport } from '../../scripts/verify-pages-report.mjs';
 
+test('assigns every product case to exactly one balanced shard', async () => {
+  const shardCounts = new Map();
+  let caseCount = 0;
+  for (const file of [
+    'onboarding.yaml',
+    'onboarding-regressions.yaml',
+    'runtime.yaml',
+  ]) {
+    const source = await readFile(
+      new URL(`../e2e/cases/${file}`, import.meta.url),
+      'utf8',
+    );
+    const cases = source
+      .split(/(?=^  - name:)/m)
+      .filter((section) => section.startsWith('  - name:'));
+    for (const testCase of cases) {
+      const tags = [...testCase.matchAll(/^    tags: \[(shard-[1-4])\]$/gm)];
+      assert.equal(tags.length, 1, testCase.split('\n')[0]);
+      shardCounts.set(tags[0][1], (shardCounts.get(tags[0][1]) ?? 0) + 1);
+      caseCount += 1;
+    }
+  }
+  assert.equal(caseCount, 13);
+  assert.deepEqual(Object.fromEntries(shardCounts), {
+    'shard-1': 2,
+    'shard-2': 3,
+    'shard-3': 4,
+    'shard-4': 4,
+  });
+});
+
 function runnerScript({
   assertionCount = 0,
   assertionAttempts,
@@ -237,6 +268,80 @@ test('simulates a first deployment when Pages returns 404', async (context) => {
       'utf8',
     ),
     'preview',
+  );
+});
+
+test('combines independently executed shards into one report table', async (context) => {
+  const root = await mkdtemp(path.join(os.tmpdir(), 'pages-shards-'));
+  const reportDirectory = path.join(root, 'bundle');
+  for (const project of ['ubuntu-shard-1', 'ubuntu-shard-2']) {
+    const shardDirectory = path.join(reportDirectory, project);
+    const htmlDirectory = path.join(shardDirectory, 'report');
+    await mkdir(htmlDirectory, { recursive: true });
+    await writeFile(
+      path.join(htmlDirectory, `test-run-${project}.html`),
+      runnerScript({ project, startedAt: '2026-09-15T12:00:00Z' }),
+    );
+    await writeFile(
+      path.join(shardDirectory, `report-preview-${project}.png`),
+      `${project} preview`,
+    );
+    await writeFile(
+      path.join(
+        shardDirectory,
+        `case-preview-${project}-case-${project}.jpg`,
+      ),
+      `${project} case preview`,
+    );
+  }
+  const siteDirectory = path.join(root, 'site');
+  const server = await startServer((_request, response) =>
+    response.writeHead(404).end(),
+  );
+  context.after(server.close);
+
+  const manifest = await buildPagesReport({
+    ...options(reportDirectory, siteDirectory, server.url),
+    'report-groups': JSON.stringify([
+      {
+        role: 'primary',
+        label: 'Doubao Say',
+        projects: ['ubuntu-shard-1', 'ubuntu-shard-2'],
+      },
+    ]),
+  });
+
+  const [entry] = manifest.reports[0].entries;
+  assert.deepEqual(entry.projects, ['ubuntu-shard-1', 'ubuntu-shard-2']);
+  assert.equal(entry.cases.length, 2);
+  assert.equal(entry.scenarios.total, 2);
+  assert.notEqual(entry.cases[0].reportPath, entry.cases[1].reportPath);
+  const runIndex = await readFile(
+    path.join(siteDirectory, 'reports', '200', 'index.html'),
+    'utf8',
+  );
+  assert.match(
+    runIndex,
+    /native-report-ubuntu-shard-1\.html#runner-step=assert-0-0/,
+  );
+  assert.match(
+    runIndex,
+    /native-report-ubuntu-shard-2\.html#runner-step=assert-0-0/,
+  );
+  const summary = renderReportSummary({
+    manifest,
+    pagesUrl: 'https://example.test/doubao-say/',
+    producerResult: 'success',
+    runId: '200',
+    summaryTitle: 'Ubuntu',
+  });
+  assert.match(
+    summary,
+    /native-report-ubuntu-shard-1\.html#runner-step=assert-0-0/,
+  );
+  assert.match(
+    summary,
+    /native-report-ubuntu-shard-2\.html#runner-step=assert-0-0/,
   );
 });
 
@@ -561,7 +666,7 @@ test('restores retained history before adding the new run', async (context) => {
       'utf8',
     ),
   );
-  assert.equal(writtenManifest.version, 4);
+  assert.equal(writtenManifest.version, 5);
   assert.equal(writtenManifest.reports[0].reportPath, 'reports/200/index.html');
   assert.equal(
     writtenManifest.reports[0].workflowUrl,

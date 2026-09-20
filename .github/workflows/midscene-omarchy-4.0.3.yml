@@ -4,7 +4,7 @@ run-name: Omarchy 4.0.3
 on:
   push:
     branches: [main]
-    paths:
+    paths: &e2e-paths
       - ".github/workflows/midscene-omarchy-4.0.3.yml"
       - ".github/workflows/deploy-midscene-report.yml"
       - "scripts/build-pages-report.mjs"
@@ -33,33 +33,7 @@ on:
       - "omarchy/**"
   pull_request:
     branches: [main]
-    paths:
-      - ".github/workflows/midscene-omarchy-4.0.3.yml"
-      - ".github/workflows/deploy-midscene-report.yml"
-      - "scripts/build-pages-report.mjs"
-      - "scripts/report-cases.mjs"
-      - "scripts/render-ci-report-summary.mjs"
-      - "scripts/verify-pages-report.mjs"
-      - "scripts/verify-omarchy-evidence.mjs"
-      - "scripts/omarchy-shell-evidence.mjs"
-      - "tests/contracts/test_pages_report_history.mjs"
-      - "tests/e2e/package.json"
-      - "tests/e2e/package-lock.json"
-      - "tests/e2e/gtk_fixture.py"
-      - "tests/e2e/gtk_onboarding_fixture.py"
-      - "tests/e2e/gtk_runtime_fixture.py"
-      - "tests/e2e/capture-report-preview.mjs"
-      - "tests/e2e/cases/**"
-      - "tests/e2e/midscene.config.ts"
-      - "tests/e2e/run-omarchy-midscene.sh"
-      - "tests/e2e/restore-omarchy-vm.sh"
-      - "tests/e2e/omarchy-vm.env"
-      - "src/**"
-      - "manifest.json"
-      - "install.sh"
-      - "setup-omarchy.sh"
-      - "start.sh"
-      - "omarchy/**"
+    paths: *e2e-paths
   workflow_dispatch:
 
 permissions:
@@ -67,19 +41,27 @@ permissions:
   packages: read
 
 concurrency:
-  # Keep only one pending run for this workflow and ref. Ubuntu, Omarchy, main,
-  # and unrelated PRs must not replace one another in GitHub's concurrency queue.
   group: midscene-model-e2e-${{ github.workflow }}-${{ github.ref }}
-  # A newer PR commit supersedes its predecessor. Main runs remain serialized
-  # so report publication always follows commit order.
   cancel-in-progress: ${{ github.event_name == 'pull_request' }}
 
 jobs:
-  omarchy-vm:
-    name: Midscene onboarding and shell visuals
+  omarchy-e2e:
+    name: Midscene visual (${{ matrix.project }})
     if: github.event_name != 'pull_request' || github.event.pull_request.head.repo.full_name == github.repository
     runs-on: ubuntu-latest
-    timeout-minutes: 90
+    timeout-minutes: 60
+    strategy:
+      # Each shard restores an independent disposable VM. Sharing one Hyprland
+      # session would make fixture resets, focus and screenshots race.
+      fail-fast: false
+      max-parallel: 4
+      matrix:
+        project:
+          - omarchy-shard-1
+          - omarchy-shard-2
+          - omarchy-shard-3
+          - omarchy-shard-4
+          - omarchy-shell
     env:
       MIDSCENE_MODEL_API_KEY: ${{ secrets.MIDSCENE_MODEL_API_KEY }}
       MIDSCENE_MODEL_NAME: ${{ secrets.MIDSCENE_MODEL_NAME }}
@@ -88,11 +70,9 @@ jobs:
       MIDSCENE_MODEL_REASONING_ENABLED: ${{ secrets.MIDSCENE_MODEL_REASONING_ENABLED }}
       MIDSCENE_COMPUTER_HEADLESS_LINUX: "true"
       MIDSCENE_REPLANNING_CYCLE_LIMIT: "40"
-      # GitHub runners intermittently time out while Node races IPv4 and IPv6
-      # addresses. The configured model endpoint is reachable over IPv4.
+      # The configured model endpoint is reachable over IPv4; disabling Node's
+      # family race avoids intermittent runner-side IPv6 connection timeouts.
       NODE_OPTIONS: "--dns-result-order=ipv4first --no-network-family-autoselection"
-    outputs:
-      report-artifact-id: ${{ steps.report.outputs.artifact-id }}
     steps:
       - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
         with:
@@ -152,46 +132,73 @@ jobs:
           done
           exit 1
 
-      - name: Run real Omarchy Midscene E2E
-        run: tests/e2e/run-omarchy-midscene.sh
+      - name: Run real Omarchy Midscene project
+        env:
+          PROJECT: ${{ matrix.project }}
+        run: tests/e2e/run-omarchy-midscene.sh "$PROJECT"
 
-      - name: Capture the report result for the CI summary
+      - name: Capture report evidence
         if: always() && steps.test-dependencies.outcome == 'success'
+        env:
+          PROJECT: ${{ matrix.project }}
         run: |
           node tests/e2e/capture-report-preview.mjs \
             --report-dir tests/e2e/midscene_run \
-            --primary-project omarchy-onboarding \
-            --auxiliary-project omarchy-shell
+            --projects "$PROJECT"
 
       - name: Upload installer evidence
         if: always()
         uses: actions/upload-artifact@043fb46d1a93c77aae656e7c1c64a875d1fc6a0a # v7.0.1
         with:
-          name: omarchy-vm-installer-evidence
+          name: omarchy-vm-installer-evidence-${{ matrix.project }}
           path: .midscene-omarchy/omarchy-iso/test-runs/**/runs/**
           if-no-files-found: warn
           retention-days: 3
 
-      - name: Upload Omarchy Midscene report
-        id: report
+      - name: Upload Omarchy Midscene shard report
         if: always()
         uses: actions/upload-artifact@043fb46d1a93c77aae656e7c1c64a875d1fc6a0a # v7.0.1
         with:
-          name: omarchy-midscene-e2e-report
+          name: omarchy-midscene-${{ matrix.project }}
           path: tests/e2e/midscene_run/
           if-no-files-found: warn
           retention-days: 7
 
-      - name: Verify visual evidence before publishing
-        if: success()
+      - name: Verify Omarchy shell visual evidence
+        if: success() && matrix.project == 'omarchy-shell'
         run: node scripts/verify-omarchy-evidence.mjs tests/e2e/midscene_run
+
+  report-bundle:
+    name: Assemble Midscene report bundle
+    needs: omarchy-e2e
+    if: always()
+    runs-on: ubuntu-latest
+    outputs:
+      report-artifact-id: ${{ steps.report.outputs.artifact-id }}
+    steps:
+      # Keep shard directories separate. Native report filenames can share a
+      # timestamp, while the Pages builder locates reports by project identity.
+      - name: Download every shard report
+        uses: actions/download-artifact@3e5f45b2cfb9172054b4087a40e8e0b5a5461e7c # v8.0.1
+        with:
+          pattern: omarchy-midscene-*
+          path: ${{ runner.temp }}/midscene-report-shards
+
+      - name: Upload combined report bundle
+        id: report
+        uses: actions/upload-artifact@043fb46d1a93c77aae656e7c1c64a875d1fc6a0a # v7.0.1
+        with:
+          name: omarchy-midscene-e2e-report
+          path: ${{ runner.temp }}/midscene-report-shards/
+          if-no-files-found: error
+          retention-days: 7
 
   pages-report:
     name: GitHub Pages report
-    needs: omarchy-vm
+    needs: [omarchy-e2e, report-bundle]
     if: >-
       always() &&
-      needs.omarchy-vm.outputs.report-artifact-id != '' &&
+      needs.report-bundle.outputs.report-artifact-id != '' &&
       github.event_name != 'pull_request' &&
       github.ref_name == vars.PAGES_REPORT_BRANCH
     permissions:
@@ -204,7 +211,6 @@ jobs:
       artifact-name: omarchy-midscene-e2e-report
       report-label: Omarchy 4.0.3
       summary-title: Omarchy
-      primary-project: omarchy-onboarding
-      auxiliary-project: omarchy-shell
-      auxiliary-report-label: Omarchy visual checks
-      run-result: ${{ needs.omarchy-vm.result }}
+      report-groups: >-
+        [{"role":"primary","label":"Doubao Say","projects":["omarchy-shard-1","omarchy-shard-2","omarchy-shard-3","omarchy-shard-4"]},{"role":"auxiliary","label":"Omarchy visual checks","projects":["omarchy-shell"]}]
+      run-result: ${{ needs.omarchy-e2e.result }}

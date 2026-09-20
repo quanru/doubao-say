@@ -1,5 +1,6 @@
 cases:
   - name: Complete Doubao Say onboarding on a real desktop
+    tags: [shard-2]
     steps:
       - aiAssert: The visible Doubao Say window is on Sign in and says the user is not signed in.
       - aiAct: Scroll inside the Sign in content panel until Open Doubao sign-in is fully visible.

@@ -52,19 +52,22 @@ Both distributions execute the same 13 declarative product cases from
 `cases/onboarding.yaml`, `cases/onboarding-regressions.yaml`, and
 `cases/runtime.yaml`, including synthetic microphone, voice, regression, and
 post-setup dictation checks. `midscene.config.ts` passes each case
-identity to a fresh fixture, prepares the local Xvfb desktop, GTK fixture or
+identity to a fresh fixture. Four duration-balanced shards run in isolated
+Actions jobs, each with its own Xvfb desktop or Omarchy VM, while cases inside
+one shard remain serial so window focus cannot leak between tests. The config prepares the GTK fixture or
 Omarchy VNC viewer, and resets that state for every retry. Custom `shell.*`
 Nodes prepare the real Omarchy menu and bar; `cases/omarchy-shell.yaml` keeps
 the three pixel-level assertions explicit. Run `npm run nodes` in this
 directory to regenerate the Node reference, or
-`npm test -- --project ubuntu` on a prepared Linux desktop.
+`npm test -- --project ubuntu-shard-1` on a prepared Linux desktop.
 Projects use Midscene Test's case-level `retry` setting, so a failed model
 attempt is rerun with a fresh fixture while successful cases are kept. Every
 attempt remains visible in the generated report.
-Each invocation writes a unified Midscene Test HTML report under
-`midscene_run/report/`; CI publishes those reports and renders each project's
-final node as its entrance image. A failed project instead opens and captures
-its most recent error node, so the summary shows the relevant failure detail.
+Each shard writes a Midscene Test HTML report under `midscene_run/report/`.
+CI keeps the native reports separate, then aggregates their cases into one
+evidence table. Every row links to its exact native report node. A failed
+project captures its first failing screenshot, so the summary shows the
+relevant failure detail.
 
 The Ubuntu stage maps the real GTK onboarding window inside the
 headless Midscene desktop. Its synthetic fixture starts signed out, opens an
@@ -127,9 +130,10 @@ synthetic callbacks. They do not establish live ASR, recording, durable
 credential persistence, system-wide shortcut capture, clipboard paste, or
 delivery into an unrelated application.
 
-Run `npm test -- --project ubuntu` with the system dependencies and model
-configuration from the Ubuntu workflow. The Omarchy projects retain their shared
-onboarding and shell cases.
+Run `npm test -- --project ubuntu-shard-1` with the system dependencies and
+model configuration from the Ubuntu workflow. Replace the final number with
+`2`, `3`, or `4` to run another duration-balanced shard. Omarchy uses the
+matching `omarchy-shard-*` projects and a separate shell project.
 
 ## Polishing overlay regression
 
