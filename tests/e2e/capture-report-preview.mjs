@@ -1,4 +1,4 @@
-import { access, mkdir } from 'node:fs/promises';
+import { access, mkdir, writeFile } from 'node:fs/promises';
 import path from 'node:path';
 import { pathToFileURL } from 'node:url';
 
@@ -7,14 +7,29 @@ import puppeteer from 'puppeteer-core';
 import {
   findLatestTestReport,
 } from '../../scripts/omarchy-shell-evidence.mjs';
+import { reportCases } from '../../scripts/report-cases.mjs';
 
+function parseArguments(argv) {
+  const options = {};
+  for (let index = 0; index < argv.length; index += 2) {
+    const key = argv[index];
+    const value = argv[index + 1];
+    if (!key?.startsWith('--') || value === undefined) {
+      throw new Error(`Invalid argument near ${key ?? '<end>'}`);
+    }
+    options[key.slice(2)] = value;
+  }
+  return options;
+}
+
+const options = parseArguments(process.argv.slice(2));
 const reportDirectory = path.resolve(
-  process.argv[2] || 'tests/e2e/midscene_run',
+  options['report-dir'] || 'tests/e2e/midscene_run',
 );
-const outputFile = path.resolve(
-  process.argv[3] || path.join(reportDirectory, 'report-preview.png'),
-);
-const projectName = process.argv[4];
+const primaryProject = options['primary-project'];
+const auxiliaryProject = options['auxiliary-project'];
+if (!primaryProject) throw new Error('Missing --primary-project');
+if (!auxiliaryProject) throw new Error('Missing --auxiliary-project');
 
 const candidates = [
   process.env.CHROME_BIN,
@@ -36,13 +51,6 @@ if (!executablePath) {
   throw new Error('Chrome executable was not found');
 }
 
-const report = await findLatestTestReport(reportDirectory, { projectName });
-const runnerDump = report.run;
-if (!runnerDump) throw new Error('Midscene Test runner dump was not found');
-const previewUrl = new URL(pathToFileURL(report.file));
-previewUrl.hash = new URLSearchParams({ 'runner-step': 'last' }).toString();
-await mkdir(path.dirname(outputFile), { recursive: true });
-
 const browser = await puppeteer.launch({
   executablePath,
   headless: true,
@@ -50,23 +58,78 @@ const browser = await puppeteer.launch({
 });
 
 try {
-  const page = await browser.newPage();
-  await page.setViewport({ width: 1600, height: 1000, deviceScaleFactor: 1 });
-  await page.goto(previewUrl.href, {
-    waitUntil: 'networkidle0',
-  });
-  await page.waitForSelector('[aria-label="Execution steps"]');
-  await page.waitForFunction(() =>
-    /STEPS\s*\xb7\s*STEP\s+\d+/i.test(document.body.innerText),
-  );
-  await page.evaluate(() => window.scrollTo(0, 0));
-  await page.waitForFunction(() =>
-    /Passed|Failed|Error/.test(document.body.innerText),
-  );
-  await page.screenshot({ path: outputFile, type: 'png' });
-  console.log(
-    `Captured final Midscene report node (${runnerDump.status}): ${outputFile}`,
-  );
+  for (const [projectName, outputName, required] of [
+    [primaryProject, 'report-preview.png', true],
+    [auxiliaryProject, 'auxiliary-report-preview.png', false],
+  ]) {
+    const report = await findLatestTestReport(reportDirectory, {
+      projectName,
+      required,
+    });
+    if (!report) {
+      console.log(
+        `Skipped ${projectName} preview because that project did not produce a report.`,
+      );
+      continue;
+    }
+    const runnerDump = report.run;
+    if (!runnerDump) throw new Error('Midscene Test runner dump was not found');
+    const previewStep = runnerDump.status === 'success' ? 'last' : 'last-error';
+    const previewUrl = new URL(pathToFileURL(report.file));
+    previewUrl.hash = new URLSearchParams({
+      'runner-step': previewStep,
+    }).toString();
+    const outputFile = path.join(reportDirectory, outputName);
+    await mkdir(path.dirname(outputFile), { recursive: true });
+
+    const page = await browser.newPage();
+    await page.setViewport({ width: 1600, height: 1000, deviceScaleFactor: 1 });
+    await page.goto(previewUrl.href, { waitUntil: 'networkidle0' });
+    await page.waitForSelector(
+      '[aria-label="Execution steps"] button.is-selected .runner-step-status',
+    );
+    await page.waitForSelector('.runner-detail-evidence-panel');
+    await page.waitForFunction((expectedStep) => {
+      const buttons = [
+        ...document.querySelectorAll(
+          '[aria-label="Execution steps"] .runner-detail-step-group > button',
+        ),
+      ];
+      const selected = document.querySelector(
+        '[aria-label="Execution steps"] button.is-selected',
+      );
+      const selectedName = selected?.querySelector(
+        '.runner-detail-step-copy strong',
+      )?.textContent;
+      const detailName = document.querySelector(
+        '.runner-detail-evidence-heading h2',
+      )?.textContent;
+      return (
+        buttons.length > 0 &&
+        (expectedStep === 'last'
+          ? selected === buttons.at(-1)
+          : Boolean(selected?.querySelector('.runner-step-status.is-failed'))) &&
+        Boolean(selectedName) &&
+        selectedName === detailName
+      );
+    }, {}, previewStep);
+    await page.evaluate(() => window.scrollTo(0, 0));
+    await page.screenshot({ path: outputFile, type: 'png' });
+    await page.close();
+    console.log(
+      `Captured Midscene report node ${previewStep} (${runnerDump.status}): ${outputFile}`,
+    );
+
+    for (const testCase of reportCases(runnerDump, projectName, {
+      reportHtml: report.html,
+    })) {
+      const caseOutput = path.join(reportDirectory, testCase.previewFile);
+      await writeFile(caseOutput, testCase.screenshot.bytes);
+      console.log(
+        `Extracted ${testCase.status} node screenshot for ${testCase.name} at ${testCase.stepId}: ${caseOutput}`,
+      );
+    }
+  }
 } finally {
   await browser.close();
 }

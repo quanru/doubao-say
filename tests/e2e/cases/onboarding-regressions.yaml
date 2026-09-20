@@ -1,72 +1,194 @@
 cases:
   - name: Cancel sign-in and retry
     steps:
-      - aiAct: "Verify the current step is Sign in, the account is not signed in, and both left-arrow Previous and right-arrow Next in the fixed top navigation are disabled."
-      - aiAct: "Click Open Doubao sign-in exactly once, then stop."
-      - aiAct: "Verify the CI-only Synthetic Doubao sign-in window is visible. Close only that synthetic window using its title-bar close button, without clicking Simulate successful sign-in."
-      - aiAct: "Verify the synthetic sign-in window is gone, Doubao Say still shows Sign in and Not signed in, right-arrow Next remains disabled, and Open Doubao sign-in is available."
-      - aiAct: "Verify the visible Doubao Say window starts on the Sign in step, says the user is not signed in, and shows an Open Doubao sign-in button. Do not click anything."
-      - aiAct: "Click Open Doubao sign-in exactly once, then stop immediately."
-      - aiAct: "Verify a Synthetic Doubao sign-in window is visible and explicitly says it is CI-only, makes no network request, and uses no real credentials. Do not click anything."
-      - aiAct: "In the Synthetic Doubao sign-in window, click Simulate successful sign-in exactly once, then stop immediately."
-      - aiAct: "Verify the synthetic sign-in window closed and the visible Doubao Say window automatically advanced to the Microphone step with a right-arrow Next button in the fixed top navigation."
+      - aiAssert: The current step is Sign in and both left-arrow Previous and right-arrow Next in the fixed top navigation are disabled.
+      - aiAct: Scroll inside the Sign in content panel until Open Doubao sign-in is fully visible.
+      - aiTap: Open Doubao sign-in button in the Sign in content panel
+      - wait: { duration: 500 }
+      - aiAssert: The CI-only Synthetic Doubao sign-in window is visible.
+      - computer.keyPress: { keyName: Escape }
+      - wait: { duration: 500 }
+      - aiAssert: The synthetic sign-in window is gone, Doubao Say remains on Sign in, and right-arrow Next remains disabled.
+      - aiAct: Scroll inside the Sign in content panel until Open Doubao sign-in is fully visible.
+      - aiTap: Open Doubao sign-in button in the Sign in content panel
+      - wait: { duration: 500 }
+      - aiAssert: A Synthetic Doubao sign-in window is visible and explicitly says it is CI-only, makes no network request, and uses no real credentials.
+      - aiTap: Simulate successful sign-in button in the Synthetic Doubao sign-in window
+      - wait: { duration: 500 }
+      - aiAssert: The synthetic sign-in window closed and Doubao Say automatically advanced to the Microphone step.
   - name: Preserve signed-in account across backward navigation
     steps:
-      - aiAct: "Verify the visible Doubao Say window starts on the Sign in step, says the user is not signed in, and shows an Open Doubao sign-in button. Do not click anything."
-      - aiAct: "Click Open Doubao sign-in exactly once, then stop immediately."
-      - aiAct: "Verify a Synthetic Doubao sign-in window is visible and explicitly says it is CI-only, makes no network request, and uses no real credentials. Do not click anything."
-      - aiAct: "In the Synthetic Doubao sign-in window, click Simulate successful sign-in exactly once, then stop immediately."
-      - aiAct: "Verify the synthetic sign-in window closed and the visible Doubao Say window automatically advanced to the Microphone step with a right-arrow Next button in the fixed top navigation."
-      - aiAct: "Scroll to the bottom of the Microphone central content panel, then click left-arrow Previous in the fixed top navigation exactly once and stop."
-      - aiAct: "Verify the Sign in step shows the heading Your voice, wherever you type near the top of the content without scrolling, and left-arrow Previous is disabled while right-arrow Next is enabled."
-      - aiAct: "Scroll within the Sign in content if needed. Verify it says Signed in and shows Sign in again / change account. Do not open sign-in."
-      - aiAct: "Click right-arrow Next in the fixed top navigation exactly once, then stop."
-      - aiAct: "Verify the Microphone step and its heading Let's make sure we can hear you are visible without scrolling, and no synthetic sign-in window is open."
+      - aiAssert: The visible Doubao Say window starts on the Sign in step and says the user is not signed in.
+      - aiAct: Scroll inside the Sign in content panel until Open Doubao sign-in is fully visible.
+      - aiTap: Open Doubao sign-in button in the Sign in content panel
+      - wait: { duration: 500 }
+      - aiAssert: A Synthetic Doubao sign-in window is visible and explicitly says it is CI-only, makes no network request, and uses no real credentials.
+      - aiTap: Simulate successful sign-in button in the Synthetic Doubao sign-in window
+      - wait: { duration: 500 }
+      - aiAssert: The synthetic sign-in window closed and Doubao Say automatically advanced to the Microphone step.
+      - aiAct: Scroll to the bottom of the Microphone central content panel.
+      - aiTap: Left-arrow Previous button in the fixed top navigation
+      - aiAssert: The Sign in step shows the heading Your voice, wherever you type; left-arrow Previous is disabled and right-arrow Next is enabled.
+      - aiAct: Scroll inside the Sign in content panel until the signed-in account status and Sign in again / change account are fully visible.
+      - aiAssert: The account status says Signed in and Sign in again / change account is available.
+      - aiTap: Right-arrow Next button in the fixed top navigation
+      - aiAssert: The Microphone step shows Let's make sure we can hear you, and no synthetic sign-in window is open.
   - name: Require an enabled trigger and retain the replacement
     steps:
-      - aiAct: "Verify the visible Doubao Say window starts on the Sign in step, says the user is not signed in, and shows an Open Doubao sign-in button. Do not click anything."
-      - aiAct: "Click Open Doubao sign-in exactly once, then stop immediately."
-      - aiAct: "Verify a Synthetic Doubao sign-in window is visible and explicitly says it is CI-only, makes no network request, and uses no real credentials. Do not click anything."
-      - aiAct: "In the Synthetic Doubao sign-in window, click Simulate successful sign-in exactly once, then stop immediately."
-      - aiAct: "Verify the synthetic sign-in window closed and the visible Doubao Say window automatically advanced to the Microphone step with a right-arrow Next button in the fixed top navigation."
-      - aiAct: "Click right-arrow Next in the fixed top navigation exactly once, then stop."
-      - aiAct: "Verify the current step is Trigger key and the heading Choose how to start speaking is visible. Do not navigate."
-      - aiAct: "In the trigger selection dropdown below Active trigger, select Disabled. Do not change Voice polishing."
-      - aiAct: "Click right-arrow Next in the fixed top navigation exactly once, then stop."
-      - aiAct: "Verify the current step is still Trigger key and the message Choose an enabled trigger to continue is visible."
-      - aiAct: "In the trigger selection dropdown select F8. Verify Active trigger: F8 is visible and F8 is selected in the trigger dropdown."
-      - aiAct: "Click right-arrow Next in the fixed top navigation exactly once, then stop."
-      - aiAct: "Verify the current step is Voice test, the heading Try a sentence. Nothing gets pasted is visible, and right-arrow Next is disabled."
-      - aiAct: "Click left-arrow Previous exactly once, then stop."
-      - aiAct: "Verify the Trigger key step still shows Active trigger: F8 and F8 is selected in the trigger dropdown."
+      - aiAssert: The visible Doubao Say window starts on the Sign in step and says the user is not signed in.
+      - aiAct: Scroll inside the Sign in content panel until Open Doubao sign-in is fully visible.
+      - aiTap: Open Doubao sign-in button in the Sign in content panel
+      - wait: { duration: 500 }
+      - aiAssert: A Synthetic Doubao sign-in window is visible and explicitly says it is CI-only, makes no network request, and uses no real credentials.
+      - aiTap: Simulate successful sign-in button in the Synthetic Doubao sign-in window
+      - wait: { duration: 500 }
+      - aiAssert: The synthetic sign-in window closed and Doubao Say automatically advanced to the Microphone step.
+      - aiTap: Right-arrow Next button in the fixed top navigation
+      - aiAssert: The current step is Trigger key and the heading Choose how to start speaking is visible.
+      - aiAct: In the trigger selection dropdown below Active trigger, select Disabled. Do not change Voice polishing.
+      - aiTap: Right-arrow Next button in the fixed top navigation
+      - aiAssert: The current step is still Trigger key and the message Choose an enabled trigger to continue is visible.
+      - aiAct: In the trigger selection dropdown select F8.
+      - aiAssert: Active trigger shows F8 and F8 is selected in the trigger dropdown.
+      - aiTap: Right-arrow Next button in the fixed top navigation
+      - aiAssert: The current step is Voice test, the heading Try a sentence. Nothing gets pasted is visible, and right-arrow Next is disabled.
+      - aiTap: Left-arrow Previous button in the fixed top navigation
+      - aiAssert: The Trigger key step still shows Active trigger F8 and F8 is selected in the trigger dropdown.
   - name: Toggle polishing without losing configuration
     steps:
-      - aiAct: "Verify the visible Doubao Say window starts on the Sign in step, says the user is not signed in, and shows an Open Doubao sign-in button. Do not click anything."
-      - aiAct: "Click Open Doubao sign-in exactly once, then stop immediately."
-      - aiAct: "Verify a Synthetic Doubao sign-in window is visible and explicitly says it is CI-only, makes no network request, and uses no real credentials. Do not click anything."
-      - aiAct: "In the Synthetic Doubao sign-in window, click Simulate successful sign-in exactly once, then stop immediately."
-      - aiAct: "Verify the synthetic sign-in window closed and the visible Doubao Say window automatically advanced to the Microphone step with a right-arrow Next button in the fixed top navigation."
-      - aiAct: "Click right-arrow Next in the fixed top navigation exactly once, then stop."
-      - aiAct: "Verify the current step is Trigger key and the heading Choose how to start speaking is visible. Do not navigate."
-      - aiAct: "Scroll inside the central content panel to Voice polishing. Turn off the switch beside that heading."
-      - aiAct: "Verify Voice polishing disabled is visible, the switch is off, and the polishing Base URL and Model fields are hidden."
-      - aiAct: "Turn on the switch beside Voice polishing."
-      - aiAct: "Verify Voice polishing enabled is visible, the switch is on, and the Base URL and Model fields have returned. Scroll within the content if needed and verify Model still contains synthetic-model."
+      - aiAssert: The visible Doubao Say window starts on the Sign in step and says the user is not signed in.
+      - aiAct: Scroll inside the Sign in content panel until Open Doubao sign-in is fully visible.
+      - aiTap: Open Doubao sign-in button in the Sign in content panel
+      - wait: { duration: 500 }
+      - aiAssert: A Synthetic Doubao sign-in window is visible and explicitly says it is CI-only, makes no network request, and uses no real credentials.
+      - aiTap: Simulate successful sign-in button in the Synthetic Doubao sign-in window
+      - wait: { duration: 500 }
+      - aiAssert: The synthetic sign-in window closed and Doubao Say automatically advanced to the Microphone step.
+      - aiTap: Right-arrow Next button in the fixed top navigation
+      - aiAssert: The current step is Trigger key and the heading Choose how to start speaking is visible.
+      - aiAct: Scroll inside the central content panel until the Voice polishing heading and switch are fully visible.
+      - aiTap: Enabled switch beside Voice polishing
+      - aiAssert: Voice polishing disabled is visible, the switch is off, and the polishing Base URL and Model fields are hidden.
+      - aiTap: Disabled switch beside Voice polishing
+      - aiAssert: Voice polishing enabled is visible and the switch is on.
+      - aiAct: Scroll downward inside the central content panel until the Voice polishing Model input and its complete value are fully visible.
+      - aiAssert: The Voice polishing Model input contains exactly synthetic-model.
   - name: Recover from an endpoint failure
     steps:
-      - aiAct: "Verify the visible Doubao Say window starts on the Sign in step, says the user is not signed in, and shows an Open Doubao sign-in button. Do not click anything."
-      - aiAct: "Click Open Doubao sign-in exactly once, then stop immediately."
-      - aiAct: "Verify a Synthetic Doubao sign-in window is visible and explicitly says it is CI-only, makes no network request, and uses no real credentials. Do not click anything."
-      - aiAct: "In the Synthetic Doubao sign-in window, click Simulate successful sign-in exactly once, then stop immediately."
-      - aiAct: "Verify the synthetic sign-in window closed and the visible Doubao Say window automatically advanced to the Microphone step with a right-arrow Next button in the fixed top navigation."
-      - aiAct: "Click right-arrow Next in the fixed top navigation exactly once, then stop."
-      - aiAct: "Verify the current step is Trigger key and the heading Choose how to start speaking is visible. Do not navigate."
-      - aiAct: "Scroll inside the central content panel to Voice polishing. Replace the Model field with synthetic-failing-model, then click Test endpoint exactly once, scrolling within the panel if needed."
-      - aiAct: "Verify the visible endpoint feedback says Endpoint test failed: Synthetic endpoint unavailable, and the enabled retry button says Test failed — try again."
-      - aiAct: "Scroll upward inside the central content panel until the Voice polishing Model input is visible. Stop with that input on screen."
-      - aiAct: "In the Model input, select all existing text and replace it with exactly synthetic-model. Do not change Base URL or API Key. Stop after entering the new value."
-      - aiAct: "Verify the Model input now contains exactly synthetic-model, without the word failing. Do not click or type anything."
-      - aiAct: "Scroll downward inside the central content panel until the Test failed — try again button is visible. Do not click it yet."
-      - aiAct: "Click the Test failed — try again button exactly once to run a new endpoint test. Stop immediately after the click."
-      - aiAct: "Scroll within the central content panel if needed until the endpoint result text below the retry button is fully visible."
-      - aiAct: "Verify the endpoint result says Endpoint works: Synthetic endpoint response, the enabled button says Endpoint works, and the previous Synthetic endpoint unavailable error is no longer visible."
+      - aiAssert: The visible Doubao Say window starts on the Sign in step and says the user is not signed in.
+      - aiAct: Scroll inside the Sign in content panel until Open Doubao sign-in is fully visible.
+      - aiTap: Open Doubao sign-in button in the Sign in content panel
+      - wait: { duration: 500 }
+      - aiAssert: A Synthetic Doubao sign-in window is visible and explicitly says it is CI-only, makes no network request, and uses no real credentials.
+      - aiTap: Simulate successful sign-in button in the Synthetic Doubao sign-in window
+      - wait: { duration: 500 }
+      - aiAssert: The synthetic sign-in window closed and Doubao Say automatically advanced to the Microphone step.
+      - aiTap: Right-arrow Next button in the fixed top navigation
+      - aiAssert: The current step is Trigger key and the heading Choose how to start speaking is visible.
+      - aiAct: Scroll inside the central content panel until the Voice polishing Model input is fully visible. Do not click Test endpoint.
+      - computer.inputText:
+          target: Voice polishing Model input
+          value: synthetic-failing-model
+      - aiAssert: The Voice polishing Model input contains exactly synthetic-failing-model.
+      - aiAct: Scroll downward inside the central content panel until the Test endpoint button is fully visible.
+      - aiAssert: The Test endpoint button in Voice polishing is fully visible.
+      - aiTap: Test endpoint button in the Voice polishing section
+      - wait: { duration: 750 }
+      - aiAssert: "The visible endpoint feedback says Endpoint test failed: Synthetic endpoint unavailable, and the enabled retry button says Test failed — try again."
+      - aiAct: Scroll upward inside the central content panel until the Model input under Voice polishing is fully visible. Do not click the retry button.
+      - computer.inputText:
+          target: Model input under Voice polishing
+          value: synthetic-model
+      - aiAssert: The Voice polishing Model input contains exactly synthetic-model, without the word failing.
+      - aiAct: Scroll inside the central content panel until the Test failed — try again button is fully visible.
+      - aiTap: Test failed — try again button in the Voice polishing section
+      - wait: { duration: 750 }
+      - aiAct: Scroll inside the central content panel until the endpoint result text below the retry button is fully visible.
+      - aiAssert: "The endpoint result says Endpoint works: Synthetic endpoint response, the enabled button says Endpoint works, and the previous Synthetic endpoint unavailable error is no longer visible."
+  - name: Microphone check gates setup completion
+    steps:
+      - fixture.prepare: { mode: microphone-gate }
+      - aiAssert: The visible Doubao Say window starts on the Microphone step, shows Synthetic microphone one, and offers Check microphone · 3 seconds.
+      - aiTap: Right-arrow Next button in the fixed top navigation
+      - aiTap: Right-arrow Next button in the fixed top navigation
+      - aiAct: Scroll down inside the Voice test content panel until the Finish setup button is fully visible.
+      - aiAssert: The current step is Voice test and the Finish setup button is visibly disabled.
+      - aiTap: Left-arrow Previous button in the fixed top navigation
+      - aiTap: Left-arrow Previous button in the fixed top navigation
+      - aiTap: Check microphone · 3 seconds button on the Microphone step
+      - wait: { duration: 750 }
+      - aiAssert: A visible message says Microphone is working and instructs the user to continue to the trigger key step.
+      - aiTap: Right-arrow Next button in the fixed top navigation
+      - aiTap: Right-arrow Next button in the fixed top navigation
+      - aiAct: Scroll down inside the Voice test content panel until the Finish setup button is fully visible.
+      - aiAssert: The Finish setup button is visibly enabled.
+  - name: Complete and cancel a voice test safely
+    steps:
+      - fixture.prepare: { mode: voice-test }
+      - aiAssert: The visible Doubao Say window starts on the Microphone step and the microphone is already configured.
+      - aiTap: Right-arrow Next button in the fixed top navigation
+      - aiTap: Right-arrow Next button in the fixed top navigation
+      - aiAssert: The current step is Voice test and Start voice test is available.
+      - aiAct: Scroll down inside the Voice test content panel until the Finish setup button is fully visible.
+      - aiAssert: The Finish setup button is visibly disabled.
+      - aiTap: Start voice test button in the Voice test content panel
+      - wait: { duration: 750 }
+      - aiAssert: Synthetic voice test transcript is visible, and both Finish & check result and Cancel test are available.
+      - aiTap: Cancel test button in the Voice test content panel
+      - wait: { duration: 500 }
+      - aiAssert: The voice-test transcript is empty after cancellation.
+      - aiAct: Scroll down inside the Voice test content panel until the setup button is fully visible.
+      - aiAssert: The disabled setup button visibly says Voice test cancelled and nothing pasted or sent.
+      - aiTap: Start voice test button in the Voice test content panel
+      - wait: { duration: 750 }
+      - aiAssert: Synthetic voice test transcript is visible, and Finish & check result is available again.
+      - aiTap: Finish & check result button in the Voice test content panel
+      - wait: { duration: 750 }
+      - aiAct: Scroll down inside the Voice test content panel until the setup button is fully visible.
+      - aiAssert: The enabled setup button visibly says Voice test passed and nothing pasted or sent.
+  - name: Switch to Volcengine and validate credentials
+    steps:
+      - fixture.prepare: { mode: volcengine }
+      - aiAssert: The visible Doubao Say window starts on Sign in with Doubao account selected and right-arrow Next disabled.
+      - aiAct: In Recognition service, select Volcengine API exactly once.
+      - aiAct: Scroll down inside the central content panel until the API Key field and Test API key button are both visible.
+      - aiAssert: The page is now Recognition, shows an empty API Key field, hides Open Doubao sign-in, and both Test API key and right-arrow Next are visibly disabled.
+      - computer.inputText:
+          target: API Key field
+          value: synthetic-ci-key
+      - aiAssert: The API Key field visibly contains a non-empty masked value and the Test API key button is enabled.
+      - aiTap: Test API key button below the API Key field
+      - wait: { duration: 750 }
+      - aiAct: Scroll downward exactly once inside the central content panel so the API key test result is visible, then stop.
+      - aiAssert: The result says API key accepted by synthetic endpoint and the page reports that the official API is ready.
+      - aiTap: Right-arrow Next button in the fixed top navigation
+      - aiAssert: The current step is Microphone and the heading Let's make sure we can hear you is visible.
+  - name: Changing microphone requires another check
+    steps:
+      - fixture.prepare: { mode: microphone-change }
+      - aiAssert: The visible Doubao Say window starts on the Microphone step with Synthetic microphone one selected.
+      - aiAct: In the microphone dropdown, select Synthetic microphone two exactly once.
+      - aiAssert: A visible message says Microphone saved and requires a new three-second check.
+      - aiTap: Right-arrow Next button in the fixed top navigation
+      - aiTap: Right-arrow Next button in the fixed top navigation
+      - aiAct: Scroll down inside the Voice test content panel until the Finish setup button is fully visible.
+      - aiAssert: The Finish setup button is visibly disabled.
+      - aiTap: Left-arrow Previous button in the fixed top navigation
+      - aiTap: Left-arrow Previous button in the fixed top navigation
+      - aiTap: Check microphone · 3 seconds button on the Microphone step
+      - wait: { duration: 750 }
+      - aiAssert: The result says Microphone is working and Synthetic microphone two remains selected.
+      - aiTap: Right-arrow Next button in the fixed top navigation
+      - aiTap: Right-arrow Next button in the fixed top navigation
+      - aiAct: Scroll down inside the Voice test content panel until the Finish setup button is fully visible.
+      - aiAssert: The Finish setup button is visibly enabled.
+  - name: Capture and retain a custom trigger shortcut
+    steps:
+      - fixture.prepare: { mode: shortcut-capture }
+      - aiTap: Right-arrow Next button in the fixed top navigation
+      - aiAssert: The Trigger key page shows Active trigger fn and a trigger selection dropdown.
+      - aiAct: In the trigger selection dropdown, select Record a shortcut… exactly once and wait for the synthetic shortcut capture to finish.
+      - aiAssert: The active trigger now shows the control symbol ⌃ plus F8, and the trigger dropdown displays that same custom shortcut.
+      - aiTap: Right-arrow Next button in the fixed top navigation
+      - aiTap: Left-arrow Previous button in the fixed top navigation
+      - aiAssert: The Trigger key page still shows the custom ⌃ plus F8 shortcut as the active and selected trigger.

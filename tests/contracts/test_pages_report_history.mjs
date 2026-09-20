@@ -6,9 +6,51 @@ import path from 'node:path';
 import test from 'node:test';
 
 import { buildPagesReport } from '../../scripts/build-pages-report.mjs';
+import {
+  findShellReport,
+  testRunDump,
+} from '../../scripts/omarchy-shell-evidence.mjs';
+import { reportCases } from '../../scripts/report-cases.mjs';
+import { renderReportSummary } from '../../scripts/render-ci-report-summary.mjs';
+import { verifyPublishedReport } from '../../scripts/verify-pages-report.mjs';
 
-function runnerScript({ project, status = 'success', startedAt }) {
-  return `<script type="midscene_test_run_dump">${JSON.stringify({
+function runnerScript({
+  assertionCount = 0,
+  assertionAttempts,
+  project,
+  status = 'success',
+  startedAt,
+}) {
+  const attempts =
+    assertionAttempts ??
+    (assertionCount
+      ? [Array.from({ length: assertionCount }, () => 'success')]
+      : [[status === 'success' ? 'success' : 'failed']]);
+  const reportId = 'runner-report-1';
+  const executions = attempts.flatMap((statuses, attemptIndex) =>
+    statuses.map((stepStatus, stepIndex) => ({
+      id: `execution-${attemptIndex}-${stepIndex}`,
+      tasks: [
+        {
+          status: stepStatus === 'success' ? 'finished' : 'failed',
+          type: 'Insight',
+          subType: 'Assert',
+          uiContext: {
+            screenshot: {
+              id: `screenshot-${attemptIndex}-${stepIndex}`,
+              mimeType: 'image/jpeg',
+              storage: 'inline',
+            },
+          },
+          thought:
+            stepStatus === 'success'
+              ? `AI explanation ${attemptIndex}-${stepIndex}`
+              : `AI failure explanation ${attemptIndex}-${stepIndex}`,
+        },
+      ],
+    })),
+  );
+  const run = {
     startedAt,
     status,
     summary: {
@@ -16,8 +58,52 @@ function runnerScript({ project, status = 'success', startedAt }) {
       passed: status === 'success' ? 1 : 0,
       failed: status === 'success' ? 0 : 1,
     },
-    projects: [{ name: project }],
-  })}</script>`;
+    projects: [
+      {
+        name: project,
+        documents: [
+              {
+                cases: [
+                  {
+                    caseId: `case-${project}`,
+                    name: `${project} visual case`,
+                    status,
+                    attempts: attempts.map((statuses, attemptIndex) => ({
+                      status: statuses.every((item) => item === 'success')
+                        ? 'success'
+                        : 'failed',
+                      steps: statuses.map((stepStatus, stepIndex) => ({
+                        id: `assert-${attemptIndex}-${stepIndex}`,
+                        node: assertionCount || assertionAttempts ? 'aiAssert' : 'aiAct',
+                        title: `Evidence ${attemptIndex}-${stepIndex}`,
+                        status: stepStatus,
+                        ...(stepStatus === 'failed'
+                          ? {
+                              error: {
+                                message: `Fixture error ${attemptIndex}-${stepIndex}`,
+                              },
+                            }
+                          : {}),
+                        agentDetails: [{ reportId, executionId: `execution-${attemptIndex}-${stepIndex}` }],
+                      })),
+                    })),
+                  },
+                ],
+              },
+            ],
+      },
+    ],
+  };
+  return `<script type="midscene_web_dump" data-report-id="${reportId}">${JSON.stringify({ executions })}</script>
+${attempts
+  .flatMap((statuses, attemptIndex) =>
+    statuses.map(
+      (_stepStatus, stepIndex) =>
+        `<script type="midscene-image" data-id="screenshot-${attemptIndex}-${stepIndex}">data:image/jpeg;base64,/9j/2Q==</script>`,
+    ),
+  )
+  .join('\n')}
+<script type="midscene_test_run_dump">${JSON.stringify(run)}</script>`;
 }
 
 const fixtureHtml = `<!doctype html><html><body>report
@@ -52,7 +138,7 @@ const shellFixtureHtml = `<!doctype html><html><body>${shellPrompts
     })}</script>
 <script type="midscene-image" data-id="image-${index}">data:image/jpeg;base64,/9j/2Q==</script>`,
   )
-  .join('')}${runnerScript({ project: 'omarchy-shell', startedAt: '2026-09-15T12:05:00Z' })}</body></html>`;
+  .join('')}${runnerScript({ assertionCount: 3, project: 'omarchy-shell', startedAt: '2026-09-15T12:05:00Z' })}</body></html>`;
 
 async function fixtureDirectory(root) {
   const reportDirectory = path.join(root, 'artifact', 'report');
@@ -60,6 +146,10 @@ async function fixtureDirectory(root) {
   await writeFile(path.join(reportDirectory, 'test-run-ubuntu.html'), fixtureHtml);
   await writeFile(path.join(reportDirectory, 'agent-detail.html'), '<html>intermediate Agent report</html>');
   await writeFile(path.join(path.dirname(reportDirectory), 'report-preview.png'), 'preview');
+  await writeFile(
+    path.join(path.dirname(reportDirectory), 'case-preview-ubuntu-case-ubuntu.jpg'),
+    'ubuntu case preview',
+  );
   return path.dirname(reportDirectory);
 }
 
@@ -96,9 +186,11 @@ test('simulates a first deployment when Pages returns 404', async (context) => {
   });
   context.after(server.close);
 
-  const manifest = await buildPagesReport(
-    options(reportDirectory, siteDirectory, server.url),
-  );
+  const manifest = await buildPagesReport({
+    ...options(reportDirectory, siteDirectory, server.url),
+    'auxiliary-project': 'ubuntu-polishing',
+    'auxiliary-report-label': 'Polishing overlay report',
+  });
 
   assert.equal(manifest.reports.length, 1);
   assert.equal(manifest.reports[0].runId, '200');
@@ -114,17 +206,31 @@ test('simulates a first deployment when Pages returns 404', async (context) => {
   assert.match(indexHtml, /Run ID/);
   assert.match(indexHtml, /Distribution/);
   assert.match(indexHtml, /Ubuntu 22\.04/);
+  const runIndex = await readFile(
+    path.join(siteDirectory, 'reports', '200', 'index.html'),
+    'utf8',
+  );
+  assert.match(runIndex, /Node screenshot/);
+  assert.match(runIndex, /AI response \/ error/);
+  assert.match(runIndex, /ubuntu visual case/);
+  assert.match(
+    runIndex,
+    /native-report\.html#runner-step=assert-0-0/,
+  );
   assert.equal(
     await readFile(
-      path.join(siteDirectory, 'reports', '200', 'index.html'),
+      path.join(siteDirectory, 'reports', '200', 'native-report.html'),
       'utf8',
     ),
     fixtureHtml,
   );
   assert.deepEqual(manifest.reports[0].files, [
     'reports/200/index.html',
+    'reports/200/native-report.html',
     'reports/200/report-preview.png',
+    'reports/200/case-preview-ubuntu-case-ubuntu.jpg',
   ]);
+  assert.equal(manifest.reports[0].entries.length, 1);
   assert.equal(
     await readFile(
       path.join(siteDirectory, 'reports', '200', 'report-preview.png'),
@@ -146,29 +252,96 @@ test('publishes the Doubao Say report as the primary CI entrance', async (contex
     path.join(reportDirectory, 'auxiliary-report-preview.png'),
     'auxiliary preview',
   );
+  await writeFile(
+    path.join(reportDirectory, 'case-preview-omarchy-shell-case-omarchy-shell.jpg'),
+    'shell case preview',
+  );
   const siteDirectory = path.join(root, 'site');
   const server = await startServer((_request, response) =>
     response.writeHead(404).end(),
   );
   context.after(server.close);
 
-  const manifest = await buildPagesReport(
-    options(reportDirectory, siteDirectory, server.url),
-  );
+  const manifest = await buildPagesReport({
+    ...options(reportDirectory, siteDirectory, server.url),
+    'auxiliary-project': 'omarchy-shell',
+    'auxiliary-report-label': 'Omarchy visual checks',
+  });
 
   assert.equal(manifest.reports[0].testCount, 2);
   assert.equal(manifest.reports[0].successRate, 100);
+  assert.deepEqual(manifest.reports[0].entries, [
+    {
+      role: 'primary',
+      project: 'ubuntu',
+      label: 'Doubao Say',
+      status: 'success',
+      previewStep: 'last',
+      reportPath: 'reports/200/native-report.html',
+      previewPath: 'reports/200/report-preview.png',
+      scenarios: { passed: 1, total: 1 },
+      assertions: { passed: 0, total: 0 },
+      cases: [
+        {
+          caseId: 'case-ubuntu',
+          name: 'ubuntu visual case',
+          status: 'success',
+          stepId: 'assert-0-0',
+          selection: 'last-screenshot',
+          description: 'AI explanation 0-0',
+          descriptionKind: 'ai',
+          previewPath: 'reports/200/case-preview-ubuntu-case-ubuntu.jpg',
+        },
+      ],
+    },
+    {
+      role: 'auxiliary',
+      project: 'omarchy-shell',
+      label: 'Omarchy visual checks',
+      status: 'success',
+      previewStep: 'last',
+      reportPath: 'reports/200/auxiliary-report.html',
+      previewPath: 'reports/200/auxiliary-report-preview.png',
+      scenarios: { passed: 1, total: 1 },
+      assertions: { passed: 3, total: 3 },
+      cases: [
+        {
+          caseId: 'case-omarchy-shell',
+          name: 'omarchy-shell visual case',
+          status: 'success',
+          stepId: 'assert-0-2',
+          selection: 'last-screenshot',
+          description: 'AI explanation 0-2',
+          descriptionKind: 'ai',
+          previewPath:
+            'reports/200/case-preview-omarchy-shell-case-omarchy-shell.jpg',
+        },
+      ],
+    },
+  ]);
   assert.deepEqual(manifest.reports[0].files, [
     'reports/200/index.html',
+    'reports/200/native-report.html',
     'reports/200/auxiliary-report.html',
     'reports/200/report-preview.png',
     'reports/200/auxiliary-report-preview.png',
+    'reports/200/case-preview-ubuntu-case-ubuntu.jpg',
+    'reports/200/case-preview-omarchy-shell-case-omarchy-shell.jpg',
   ]);
-  const publishedReport = await readFile(
+  const publishedIndex = await readFile(
     path.join(siteDirectory, 'reports', '200', 'index.html'),
     'utf8',
   );
-  assert.equal(publishedReport, fixtureHtml);
+  assert.match(publishedIndex, /Doubao Say/);
+  assert.match(publishedIndex, /Omarchy visual checks/);
+  assert.match(publishedIndex, /AI response \/ error/);
+  assert.equal(
+    await readFile(
+      path.join(siteDirectory, 'reports', '200', 'native-report.html'),
+      'utf8',
+    ),
+    fixtureHtml,
+  );
   assert.equal(
     await readFile(
       path.join(siteDirectory, 'reports', '200', 'auxiliary-report.html'),
@@ -197,6 +370,46 @@ test('publishes the Doubao Say report as the primary CI entrance', async (contex
   );
 });
 
+test('reports visual assertions from the final retry attempt only', async (context) => {
+  const root = await mkdtemp(path.join(os.tmpdir(), 'pages-retry-'));
+  const reportDirectory = path.join(root, 'artifact', 'report');
+  await mkdir(reportDirectory, { recursive: true });
+  const retriedReport = `<!doctype html><html><body>${runnerScript({
+    assertionAttempts: [['failed'], ['success', 'success']],
+    project: 'ubuntu',
+    startedAt: '2026-09-15T12:00:00Z',
+  })}</body></html>`;
+  await writeFile(
+    path.join(reportDirectory, 'test-run-retried.html'),
+    retriedReport,
+  );
+  await writeFile(
+    path.join(path.dirname(reportDirectory), 'report-preview.png'),
+    'preview',
+  );
+  await writeFile(
+    path.join(
+      path.dirname(reportDirectory),
+      'case-preview-ubuntu-case-ubuntu.jpg',
+    ),
+    'retry preview',
+  );
+  const siteDirectory = path.join(root, 'site');
+  const server = await startServer((_request, response) =>
+    response.writeHead(404).end(),
+  );
+  context.after(server.close);
+
+  const manifest = await buildPagesReport(
+    options(path.dirname(reportDirectory), siteDirectory, server.url),
+  );
+
+  assert.deepEqual(manifest.reports[0].entries[0].assertions, {
+    passed: 2,
+    total: 2,
+  });
+});
+
 test('publishes a failed shell report with its result in history', async (context) => {
   const root = await mkdtemp(path.join(os.tmpdir(), 'pages-failed-'));
   const reportDirectory = await fixtureDirectory(root);
@@ -214,6 +427,13 @@ test('publishes a failed shell report with its result in history', async (contex
     path.join(reportDirectory, 'auxiliary-report-preview.png'),
     'auxiliary failed',
   );
+  await writeFile(
+    path.join(
+      reportDirectory,
+      'case-preview-omarchy-shell-case-omarchy-shell.jpg',
+    ),
+    'shell failure preview',
+  );
   const siteDirectory = path.join(root, 'site');
   const server = await startServer((_request, response) =>
     response.writeHead(404).end(),
@@ -221,7 +441,11 @@ test('publishes a failed shell report with its result in history', async (contex
   context.after(server.close);
 
   const manifest = await buildPagesReport(
-    options(reportDirectory, siteDirectory, server.url),
+    {
+      ...options(reportDirectory, siteDirectory, server.url),
+      'auxiliary-project': 'omarchy-shell',
+      'auxiliary-report-label': 'Omarchy visual checks',
+    },
   );
 
   assert.equal(manifest.reports[0].successRate, 50);
@@ -244,6 +468,13 @@ test('keeps only the latest failed retry for an Omarchy project', async (context
   await writeFile(path.join(reportPath, 'test-run-retry-1.html'), firstFailure);
   await writeFile(path.join(reportPath, 'test-run-retry-2.html'), finalFailure);
   await writeFile(path.join(reportDirectory, 'report-preview.png'), 'failed');
+  await writeFile(
+    path.join(
+      reportDirectory,
+      'case-preview-omarchy-onboarding-case-omarchy-onboarding.jpg',
+    ),
+    'failure preview',
+  );
   const siteDirectory = path.join(root, 'site');
   const server = await startServer((_request, response) =>
     response.writeHead(404).end(),
@@ -260,11 +491,19 @@ test('keeps only the latest failed retry for an Omarchy project', async (context
   assert.equal(manifest.reports[0].testCount, 1);
   assert.deepEqual(manifest.reports[0].files, [
     'reports/200/index.html',
+    'reports/200/native-report.html',
     'reports/200/report-preview.png',
+    'reports/200/case-preview-omarchy-onboarding-case-omarchy-onboarding.jpg',
   ]);
+  const failedRunIndex = await readFile(
+    path.join(siteDirectory, 'reports', '200', 'index.html'),
+    'utf8',
+  );
+  assert.match(failedRunIndex, /❌ Failed/);
+  assert.match(failedRunIndex, /Error:/);
   assert.equal(
     await readFile(
-      path.join(siteDirectory, 'reports', '200', 'index.html'),
+      path.join(siteDirectory, 'reports', '200', 'native-report.html'),
       'utf8',
     ),
     finalFailure,
@@ -322,11 +561,67 @@ test('restores retained history before adding the new run', async (context) => {
       'utf8',
     ),
   );
+  assert.equal(writtenManifest.version, 4);
   assert.equal(writtenManifest.reports[0].reportPath, 'reports/200/index.html');
   assert.equal(
     writtenManifest.reports[0].workflowUrl,
     'https://github.com/quanru/doubao-say/actions/runs/200',
   );
+});
+
+test('restores version 4 history created before node text evidence', async (context) => {
+  const root = await mkdtemp(path.join(os.tmpdir(), 'pages-v4-history-'));
+  const reportDirectory = await fixtureDirectory(root);
+  const siteDirectory = path.join(root, 'site');
+  const files = [
+    'reports/100/index.html',
+    'reports/100/report-preview.png',
+    'reports/100/case-preview-ubuntu-old-case.jpg',
+  ];
+  const oldEntry = {
+    runId: '100',
+    generatedAt: '2026-09-14T12:00:00.000Z',
+    label: 'Ubuntu 22.04',
+    successRate: 100,
+    testCount: 1,
+    modelCallCount: 1,
+    averageDurationMs: 4000,
+    tokenUsage: 100,
+    workflowUrl: 'https://github.com/quanru/doubao-say/actions/runs/100',
+    reportPath: files[0],
+    files,
+    entries: [{
+      role: 'primary', project: 'ubuntu', label: 'Doubao Say',
+      status: 'success', previewStep: 'last', reportPath: files[0],
+      previewPath: files[1], scenarios: { passed: 1, total: 1 },
+      assertions: { passed: 1, total: 1 },
+      cases: [{
+        caseId: 'old-case', name: 'Old visual case', status: 'success',
+        stepId: 'old-step', selection: 'last-screenshot', previewPath: files[2],
+      }],
+    }],
+  };
+  const server = await startServer((request, response) => {
+    if (request.url === '/reports/manifest.json') {
+      response.setHeader('content-type', 'application/json');
+      response.end(JSON.stringify({ version: 4, reports: [oldEntry] }));
+      return;
+    }
+    const file = files.find((candidate) => `/${candidate}` === request.url);
+    if (!file) return response.writeHead(404).end();
+    response.setHeader(
+      'content-type',
+      file.endsWith('.html') ? 'text/html; charset=utf-8' : 'image/png',
+    );
+    response.end(file);
+  });
+  context.after(server.close);
+
+  const manifest = await buildPagesReport(
+    options(reportDirectory, siteDirectory, server.url),
+  );
+  assert.deepEqual(manifest.reports.map((report) => report.runId), ['200', '100']);
+  assert.equal(manifest.reports[1].entries[0].cases[0].description, undefined);
 });
 
 test('stops when a manifest exists but an old report cannot be restored', async (context) => {
@@ -372,4 +667,321 @@ test('rejects retention outside the supported range', async (context) => {
   invalid.retention = '51';
 
   await assert.rejects(buildPagesReport(invalid), /integer from 1 to 50/);
+});
+
+test('rejects an undeclared report project', async (context) => {
+  const root = await mkdtemp(path.join(os.tmpdir(), 'pages-project-'));
+  const reportDirectory = await fixtureDirectory(root);
+  await writeFile(
+    path.join(reportDirectory, 'report', 'test-run-shell.html'),
+    shellFixtureHtml,
+  );
+  const server = await startServer((_request, response) =>
+    response.writeHead(404).end(),
+  );
+  context.after(server.close);
+
+  await assert.rejects(
+    buildPagesReport(
+      options(reportDirectory, path.join(root, 'site'), server.url),
+    ),
+    /Unexpected Midscene Test project\(s\): omarchy-shell/,
+  );
+});
+
+test('renders one full-width section per structured report entry', () => {
+  const manifest = {
+    reports: [
+      {
+        runId: '200',
+        entries: [
+          {
+            role: 'primary',
+            project: 'ubuntu',
+            label: 'Doubao Say',
+            status: 'success',
+            previewStep: 'last',
+            reportPath: 'reports/200/index.html',
+            previewPath: 'reports/200/report-preview.png',
+            scenarios: { passed: 6, total: 6 },
+            assertions: { passed: 5, total: 5 },
+            cases: [
+              {
+                caseId: 'case-ubuntu',
+                name: 'Launch and finish onboarding',
+                status: 'success',
+                stepId: 'case-ubuntu:steps:8',
+                selection: 'last-screenshot',
+                description: 'The setup completion state is visible.',
+                descriptionKind: 'ai',
+                previewPath:
+                  'reports/200/case-preview-ubuntu-case-ubuntu.jpg',
+              },
+            ],
+          },
+          {
+            role: 'auxiliary',
+            project: 'ubuntu-polishing',
+            label: 'Polishing overlay report',
+            status: 'success',
+            previewStep: 'last',
+            reportPath: 'reports/200/auxiliary-report.html',
+            previewPath: 'reports/200/auxiliary-report-preview.png',
+            scenarios: { passed: 1, total: 1 },
+            assertions: { passed: 8, total: 8 },
+            cases: [
+              {
+                caseId: 'case-polishing',
+                name: 'Polish selected text',
+                status: 'success',
+                stepId: 'case-polishing:steps:5',
+                selection: 'last-screenshot',
+                description: 'The polished text is visible.',
+                descriptionKind: 'ai',
+                previewPath:
+                  'reports/200/case-preview-ubuntu-polishing-case-polishing.jpg',
+              },
+            ],
+          },
+        ],
+      },
+    ],
+  };
+  const summary = renderReportSummary({
+    manifest,
+    pagesUrl: 'https://example.test/doubao-say/',
+    producerResult: 'success',
+    runId: '200',
+    summaryTitle: 'Ubuntu',
+  });
+
+  assert.match(summary, /Ubuntu × Midscene · passed/);
+  assert.match(summary, /Doubao Say: 6\/6 scenarios passed/);
+  assert.match(summary, /Polishing overlay report: 1\/1 scenarios passed/);
+  assert.match(
+    summary,
+    /\| Result \| Case \| Node screenshot \| AI response \/ error \|/,
+  );
+  assert.match(summary, /✅ Passed/);
+  assert.match(
+    summary,
+    /index\.html#runner-step=case-ubuntu%3Asteps%3A8/,
+  );
+  assert.match(summary, /Last screenshot: Launch and finish onboarding/);
+  assert.match(summary, /\*\*AI:\*\* The setup completion state is visible\./);
+  assert.doesNotMatch(summary, /report report/);
+  assert.match(summary, /Each image is the original page screenshot/);
+});
+
+test('renders singular failure copy for one available report', () => {
+  const manifest = {
+    reports: [
+      {
+        runId: '200',
+        entries: [
+          {
+            role: 'primary',
+            project: 'ubuntu',
+            label: 'Doubao Say',
+            status: 'failed',
+            previewStep: 'last-error',
+            reportPath: 'reports/200/index.html',
+            previewPath: 'reports/200/report-preview.png',
+            scenarios: { passed: 0, total: 1 },
+            assertions: { passed: 1, total: 2 },
+            cases: [
+              {
+                caseId: 'case-fail',
+                name: 'Broken flow',
+                status: 'failed',
+                stepId: 'case-fail:steps:2',
+          selection: 'first-failing-screenshot',
+                description: 'Node "aiAssert" failed: expected state missing.',
+                descriptionKind: 'error',
+                previewPath:
+                  'reports/200/case-preview-ubuntu-case-fail.jpg',
+              },
+            ],
+          },
+        ],
+      },
+    ],
+  };
+  const summary = renderReportSummary({
+    manifest,
+    pagesUrl: 'https://example.test/doubao-say',
+    producerResult: 'failure',
+    runId: '200',
+    summaryTitle: 'Ubuntu',
+  });
+
+  assert.match(summary, /Ubuntu × Midscene · failure captured/);
+  assert.match(summary, /❌ Failed/);
+  assert.match(summary, /First failing screenshot: Broken flow/);
+  assert.match(
+    summary,
+    /\*\*Error:\*\* Node "aiAssert" failed: expected state missing\./,
+  );
+  assert.match(
+    summary,
+    /index\.html#runner-step=case-fail%3Asteps%3A2/,
+  );
+  assert.match(summary, /Each image is the original page screenshot/);
+});
+
+test('selects the last screenshot for success and first failed screenshot for failure', () => {
+  const run = {
+    projects: [
+      {
+        name: 'ubuntu',
+        documents: [
+          {
+            cases: [
+              {
+                caseId: 'passed-case',
+                name: 'Passed case',
+                status: 'success',
+                attempts: [
+                  {
+                    status: 'success',
+                    steps: [
+                      { id: 'pass-1', status: 'success', agentDetails: [{}] },
+                      { id: 'pass-2', status: 'success' },
+                    ],
+                  },
+                ],
+              },
+              {
+                caseId: 'failed-case',
+                name: 'Failed case',
+                status: 'failed',
+                attempts: [
+                  {
+                    status: 'failed',
+                    steps: [
+                      { id: 'fail-1', status: 'failed', agentDetails: [{}] },
+                      { id: 'fail-2', status: 'failed', agentDetails: [{}] },
+                    ],
+                  },
+                ],
+              },
+            ],
+          },
+        ],
+      },
+    ],
+  };
+
+  assert.deepEqual(
+    reportCases(run, 'ubuntu').map(({ caseId, stepId, selection }) => ({
+      caseId,
+      stepId,
+      selection,
+    })),
+    [
+      {
+        caseId: 'passed-case',
+        stepId: 'pass-1',
+        selection: 'last-screenshot',
+      },
+      {
+        caseId: 'failed-case',
+        stepId: 'fail-1',
+        selection: 'first-failing-screenshot',
+      },
+    ],
+  );
+});
+
+test('pairs an original node screenshot with its AI text or error', () => {
+  const successHtml = runnerScript({
+    project: 'ubuntu',
+    startedAt: '2026-09-15T12:00:00Z',
+  });
+  const success = reportCases(testRunDump(successHtml), 'ubuntu', {
+    reportHtml: successHtml,
+  })[0];
+  assert.equal(success.descriptionKind, 'ai');
+  assert.equal(success.description, 'AI explanation 0-0');
+  assert.deepEqual(success.screenshot.bytes, Buffer.from('/9j/2Q==', 'base64'));
+
+  const failureHtml = runnerScript({
+    project: 'ubuntu',
+    startedAt: '2026-09-15T12:00:00Z',
+    status: 'failed',
+  });
+  const failure = reportCases(testRunDump(failureHtml), 'ubuntu', {
+    reportHtml: failureHtml,
+  })[0];
+  assert.equal(failure.descriptionKind, 'error');
+  assert.equal(failure.description, 'Fixture error 0-0');
+  assert.deepEqual(failure.screenshot.bytes, Buffer.from('/9j/2Q==', 'base64'));
+});
+
+test('finds Omarchy evidence by project instead of assertion wording', async () => {
+  const root = await mkdtemp(path.join(os.tmpdir(), 'shell-project-'));
+  const reportDirectory = path.join(root, 'report');
+  await mkdir(reportDirectory, { recursive: true });
+  await writeFile(
+    path.join(reportDirectory, 'test-run-shell.html'),
+    shellFixtureHtml
+      .replace(shellPrompts[0], 'Renamed menu assertion.')
+      .replace(shellPrompts[1], 'Renamed focus assertion.')
+      .replace(shellPrompts[2], 'Renamed bar assertion.'),
+  );
+
+  const report = await findShellReport(root);
+  assert.deepEqual(
+    report.checks.map(({ key, passed }) => ({ key, passed })),
+    [
+      { key: 'shutdown', passed: true },
+      { key: 'focus', passed: true },
+      { key: 'bar', passed: true },
+    ],
+  );
+});
+
+test('verifies every file and its expected content type', async () => {
+  const requested = [];
+  const manifest = {
+    reports: [
+      {
+        runId: '200',
+        files: [
+          'reports/200/index.html',
+          'reports/200/auxiliary-report.html',
+          'reports/200/report-preview.png',
+          'reports/200/auxiliary-report-preview.png',
+          'reports/200/case-preview-ubuntu-case-ubuntu.jpg',
+        ],
+      },
+    ],
+  };
+  await verifyPublishedReport({
+    manifest,
+    pagesUrl: 'https://example.test/doubao-say/',
+    runId: '200',
+    fetchImpl: async (url) => {
+      requested.push(url.href);
+      return new Response(null, {
+        status: 200,
+        headers: {
+          'content-type': url.pathname.endsWith('.png')
+            ? 'image/png'
+            : url.pathname.endsWith('.jpg')
+              ? 'image/jpeg'
+              : 'text/html; charset=utf-8',
+        },
+      });
+    },
+  });
+
+  assert.deepEqual(requested, [
+    'https://example.test/doubao-say/',
+    'https://example.test/doubao-say/reports/200/index.html',
+    'https://example.test/doubao-say/reports/200/auxiliary-report.html',
+    'https://example.test/doubao-say/reports/200/report-preview.png',
+    'https://example.test/doubao-say/reports/200/auxiliary-report-preview.png',
+    'https://example.test/doubao-say/reports/200/case-preview-ubuntu-case-ubuntu.jpg',
+  ]);
 });

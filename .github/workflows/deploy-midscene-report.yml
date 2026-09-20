@@ -4,7 +4,7 @@ on:
   workflow_call:
     inputs:
       artifact-name:
-        description: Actions artifact containing one self-contained HTML report
+        description: Actions artifact containing the Midscene HTML reports and previews
         required: true
         type: string
       report-label:
@@ -19,8 +19,12 @@ on:
         description: Midscene Test project used for the main report and preview
         required: true
         type: string
+      auxiliary-project:
+        description: Midscene Test project used for the second report and preview
+        required: true
+        type: string
       auxiliary-report-label:
-        description: Label for the optional second project report
+        description: Label for the second project report
         required: true
         type: string
       run-result:
@@ -50,7 +54,7 @@ jobs:
         with:
           persist-credentials: false
 
-      - name: Download the successful run's HTML report artifact
+      - name: Download the run's HTML report artifact
         uses: actions/download-artifact@3e5f45b2cfb9172054b4087a40e8e0b5a5461e7c # v8.0.1
         with:
           name: ${{ inputs.artifact-name }}
@@ -62,10 +66,12 @@ jobs:
 
       - name: Restore history and prepare the Pages site
         env:
-          REPORT_RETENTION: ${{ vars.REPORT_RETENTION || '10' }}
+          REPORT_RETENTION: ${{ vars.REPORT_RETENTION || '30' }}
           PAGES_BASE_URL: ${{ steps.pages.outputs.base_url }}
           REPORT_LABEL: ${{ inputs.report-label }}
           PRIMARY_PROJECT: ${{ inputs.primary-project }}
+          AUXILIARY_PROJECT: ${{ inputs.auxiliary-project }}
+          AUXILIARY_REPORT_LABEL: ${{ inputs.auxiliary-report-label }}
         run: |
           node scripts/build-pages-report.mjs \
             --report-dir "$RUNNER_TEMP/midscene-report" \
@@ -76,7 +82,10 @@ jobs:
             --retention "$REPORT_RETENTION" \
             --pages-url "$PAGES_BASE_URL" \
             --label "$REPORT_LABEL" \
-            --primary-project "$PRIMARY_PROJECT"
+            --primary-project "$PRIMARY_PROJECT" \
+            --primary-report-label "Doubao Say" \
+            --auxiliary-project "$AUXILIARY_PROJECT" \
+            --auxiliary-report-label "$AUXILIARY_REPORT_LABEL"
 
       - name: Upload the restricted Pages payload
         uses: actions/upload-pages-artifact@fc324d3547104276b827a68afc52ff2a11cc49c9 # v5.0.0
@@ -87,84 +96,26 @@ jobs:
         id: deployment
         uses: actions/deploy-pages@368f82528645a54fb793d4d04e342629a3f51346 # v5.0.1
 
-      - name: Verify the published HTML endpoints
+      - name: Verify every published report endpoint
         env:
-          HISTORY_URL: ${{ steps.pages.outputs.base_url }}/
-          REPORT_URL: ${{ steps.pages.outputs.base_url }}/reports/${{ github.run_id }}/index.html
+          PAGES_BASE_URL: ${{ steps.pages.outputs.base_url }}
         run: |
-          verify_html() {
-            local url="$1"
-            local headers
-            headers=$(mktemp)
-            for attempt in $(seq 1 12); do
-              if curl --fail --silent --show-error --location --head \
-                --connect-timeout 10 --max-time 20 \
-                --dump-header "$headers" --output /dev/null "$url" \
-                && grep -Eiq '^content-type:[[:space:]]*text/html([[:space:]]*;|[[:space:]]*$)' "$headers"; then
-                echo "Verified HTTP 200 text/html: $url"
-                return 0
-              fi
-              echo "Waiting for Pages propagation (${attempt}/12): $url"
-              sleep 5
-            done
-            echo "Pages endpoint did not return HTTP 200 text/html: $url" >&2
-            return 1
-          }
-
-          verify_html "$HISTORY_URL"
-          verify_html "$REPORT_URL"
+          node scripts/verify-pages-report.mjs \
+            --manifest "$RUNNER_TEMP/pages-site/reports/manifest.json" \
+            --pages-url "$PAGES_BASE_URL" \
+            --run-id "$GITHUB_RUN_ID"
 
       - name: Add report links to the run summary
+        if: always() && steps.deployment.outcome == 'success'
         env:
-          HISTORY_URL: ${{ steps.pages.outputs.base_url }}/
-          REPORT_URL: ${{ steps.pages.outputs.base_url }}/reports/${{ github.run_id }}/index.html
-          AUXILIARY_URL: ${{ steps.pages.outputs.base_url }}/reports/${{ github.run_id }}/auxiliary-report.html
-          REPORT_PREVIEW_URL: ${{ steps.pages.outputs.base_url }}/reports/${{ github.run_id }}/report-preview.png
-          AUXILIARY_PREVIEW_URL: ${{ steps.pages.outputs.base_url }}/reports/${{ github.run_id }}/auxiliary-report-preview.png
+          PAGES_BASE_URL: ${{ steps.pages.outputs.base_url }}
           PRODUCER_RESULT: ${{ inputs.run-result }}
-          REPORT_LABEL: ${{ inputs.report-label }}
           SUMMARY_TITLE: ${{ inputs.summary-title }}
-          AUXILIARY_REPORT_LABEL: ${{ inputs.auxiliary-report-label }}
         run: |
-          SUCCESS_RATE=$(jq -r '.reports[0].successRate' "$RUNNER_TEMP/pages-site/reports/manifest.json")
-          TEST_COUNT=$(jq -r '.reports[0].testCount' "$RUNNER_TEMP/pages-site/reports/manifest.json")
-          if [[ "$PRODUCER_RESULT" == "success" && "$SUCCESS_RATE" == "100" ]]; then
-            TITLE="$SUMMARY_TITLE × Midscene · passed"
-            RESULT_LINE="**All ${TEST_COUNT} published scenarios passed.**"
-          else
-            TITLE="$SUMMARY_TITLE × Midscene · failure captured"
-            RESULT_LINE="**The producing job finished as ${PRODUCER_RESULT}; the latest completed cases are ${SUCCESS_RATE}% passing.**"
-          fi
-
-          HAS_AUXILIARY_REPORT=false
-          if [[ -f "$RUNNER_TEMP/pages-site/reports/$GITHUB_RUN_ID/auxiliary-report.html" ]]; then
-            HAS_AUXILIARY_REPORT=true
-          fi
-
-          if [[ "${{ inputs.report-label }}" == Omarchy* ]]; then
-            if [[ "$PRODUCER_RESULT" == "success" && "$SUCCESS_RATE" == "100" && "$HAS_AUXILIARY_REPORT" == "true" ]]; then
-              RESULT_LINE="**3/3 shell visual checks and all ${TEST_COUNT} published scenarios passed.**"
-            fi
-          fi
-
-          if [[ "$HAS_AUXILIARY_REPORT" == "true" ]]; then
-            REPORT_LINKS="[Open the Doubao Say report]($REPORT_URL) · [$AUXILIARY_REPORT_LABEL]($AUXILIARY_URL) · [Report history]($HISTORY_URL)"
-            REPORT_PREVIEWS="| Doubao Say | $AUXILIARY_REPORT_LABEL |
-          |:--|:--|
-          | [![Final Doubao Say report node with its pass or error status]($REPORT_PREVIEW_URL)]($REPORT_URL) | [![Final $AUXILIARY_REPORT_LABEL node with its pass or error status]($AUXILIARY_PREVIEW_URL)]($AUXILIARY_URL) |"
-          else
-            REPORT_LINKS="[Open the Doubao Say report]($REPORT_URL) · [Report history]($HISTORY_URL)"
-            REPORT_PREVIEWS="[![Final Doubao Say report node with its pass or error status]($REPORT_PREVIEW_URL)]($REPORT_URL)"
-          fi
-
-          cat >> "$GITHUB_STEP_SUMMARY" <<EOF
-          ## $TITLE
-
-          $RESULT_LINE
-
-          $REPORT_LINKS
-
-          $REPORT_PREVIEWS
-
-          Click either final-node preview to inspect that complete Midscene Test report, screenshots, and Agent replay.
-          EOF
+          node scripts/render-ci-report-summary.mjs \
+            --manifest "$RUNNER_TEMP/pages-site/reports/manifest.json" \
+            --pages-url "$PAGES_BASE_URL" \
+            --producer-result "$PRODUCER_RESULT" \
+            --run-id "$GITHUB_RUN_ID" \
+            --summary-title "$SUMMARY_TITLE" \
+            --output "$GITHUB_STEP_SUMMARY"

@@ -271,6 +271,7 @@ class Overlay:
         win.set_default_size(OVERLAY_WIDTH, OVERLAY_HEIGHT)
         win.set_size_request(OVERLAY_WIDTH, OVERLAY_HEIGHT)
         win.set_focus_on_click(False)
+        win.set_focusable(False)
         win.set_can_focus(False)
         win.add_css_class("doubao-overlay")
 
