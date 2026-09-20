@@ -24,7 +24,7 @@ const fixtureHtml = `<!doctype html><html><body>report
 <script type="midscene_web_dump">{"usage":{"_midscene_call_id":"call-1","time_cost":2500,"total_tokens":120}}</script>
 <script type="midscene_web_dump">{"message":"raw
 control character","usage":{"_midscene_call_id":"call-2","time_cost":3500,"total_tokens":180}}</script>
-${runnerScript({ project: 'ubuntu-onboarding', startedAt: '2026-09-15T12:00:00Z' })}
+${runnerScript({ project: 'ubuntu', startedAt: '2026-09-15T12:00:00Z' })}
 </body></html>`;
 
 const shellPrompts = [
@@ -59,6 +59,7 @@ async function fixtureDirectory(root) {
   await mkdir(reportDirectory, { recursive: true });
   await writeFile(path.join(reportDirectory, 'test-run-ubuntu.html'), fixtureHtml);
   await writeFile(path.join(reportDirectory, 'agent-detail.html'), '<html>intermediate Agent report</html>');
+  await writeFile(path.join(path.dirname(reportDirectory), 'report-preview.png'), 'preview');
   return path.dirname(reportDirectory);
 }
 
@@ -82,6 +83,7 @@ function options(reportDirectory, siteDirectory, pagesUrl, runId = '200') {
     retention: '10',
     'pages-url': pagesUrl,
     label: 'Ubuntu 22.04',
+    'primary-project': 'ubuntu',
   };
 }
 
@@ -119,9 +121,20 @@ test('simulates a first deployment when Pages returns 404', async (context) => {
     ),
     fixtureHtml,
   );
+  assert.deepEqual(manifest.reports[0].files, [
+    'reports/200/index.html',
+    'reports/200/report-preview.png',
+  ]);
+  assert.equal(
+    await readFile(
+      path.join(siteDirectory, 'reports', '200', 'report-preview.png'),
+      'utf8',
+    ),
+    'preview',
+  );
 });
 
-test('publishes the shell test-run report directly with a CI entrance image', async (context) => {
+test('publishes the Doubao Say report as the primary CI entrance', async (context) => {
   const root = await mkdtemp(path.join(os.tmpdir(), 'pages-omarchy-'));
   const reportDirectory = await fixtureDirectory(root);
   await writeFile(
@@ -129,6 +142,10 @@ test('publishes the shell test-run report directly with a CI entrance image', as
     shellFixtureHtml,
   );
   await writeFile(path.join(reportDirectory, 'report-preview.png'), 'preview');
+  await writeFile(
+    path.join(reportDirectory, 'auxiliary-report-preview.png'),
+    'auxiliary preview',
+  );
   const siteDirectory = path.join(root, 'site');
   const server = await startServer((_request, response) =>
     response.writeHead(404).end(),
@@ -141,18 +158,23 @@ test('publishes the shell test-run report directly with a CI entrance image', as
 
   assert.equal(manifest.reports[0].testCount, 2);
   assert.equal(manifest.reports[0].successRate, 100);
-  assert.equal(manifest.reports[0].files.length, 3);
+  assert.deepEqual(manifest.reports[0].files, [
+    'reports/200/index.html',
+    'reports/200/auxiliary-report.html',
+    'reports/200/report-preview.png',
+    'reports/200/auxiliary-report-preview.png',
+  ]);
   const publishedReport = await readFile(
     path.join(siteDirectory, 'reports', '200', 'index.html'),
     'utf8',
   );
-  assert.equal(publishedReport, shellFixtureHtml);
+  assert.equal(publishedReport, fixtureHtml);
   assert.equal(
     await readFile(
-      path.join(siteDirectory, 'reports', '200', 'onboarding-report.html'),
+      path.join(siteDirectory, 'reports', '200', 'auxiliary-report.html'),
       'utf8',
     ),
-    fixtureHtml,
+    shellFixtureHtml,
   );
   assert.equal(
     await readFile(
@@ -160,6 +182,18 @@ test('publishes the shell test-run report directly with a CI entrance image', as
       'utf8',
     ),
     'preview',
+  );
+  assert.equal(
+    await readFile(
+      path.join(
+        siteDirectory,
+        'reports',
+        '200',
+        'auxiliary-report-preview.png',
+      ),
+      'utf8',
+    ),
+    'auxiliary preview',
   );
 });
 
@@ -176,6 +210,10 @@ test('publishes a failed shell report with its result in history', async (contex
       ),
   );
   await writeFile(path.join(reportDirectory, 'report-preview.png'), 'failed');
+  await writeFile(
+    path.join(reportDirectory, 'auxiliary-report-preview.png'),
+    'auxiliary failed',
+  );
   const siteDirectory = path.join(root, 'site');
   const server = await startServer((_request, response) =>
     response.writeHead(404).end(),
@@ -215,6 +253,7 @@ test('keeps only the latest failed retry for an Omarchy project', async (context
   const manifest = await buildPagesReport({
     ...options(reportDirectory, siteDirectory, server.url),
     label: 'Omarchy 4.0.3',
+    'primary-project': 'omarchy-onboarding',
   });
 
   assert.equal(manifest.reports[0].successRate, 0);

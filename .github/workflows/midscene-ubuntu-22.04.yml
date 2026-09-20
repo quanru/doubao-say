@@ -12,6 +12,8 @@ on:
       - "tests/e2e/package.json"
       - "tests/e2e/package-lock.json"
       - "tests/e2e/gtk_fixture.py"
+      - "tests/e2e/is-transient-midscene-failure.sh"
+      - "tests/e2e/capture-report-preview.mjs"
       - "tests/e2e/polish_fixture.py"
       - "tests/e2e/cases/**"
       - "tests/e2e/midscene.config.ts"
@@ -26,6 +28,8 @@ on:
       - "tests/e2e/package.json"
       - "tests/e2e/package-lock.json"
       - "tests/e2e/gtk_fixture.py"
+      - "tests/e2e/is-transient-midscene-failure.sh"
+      - "tests/e2e/capture-report-preview.mjs"
       - "tests/e2e/polish_fixture.py"
       - "tests/e2e/cases/**"
       - "tests/e2e/midscene.config.ts"
@@ -36,7 +40,9 @@ permissions:
   contents: read
 
 concurrency:
-  group: midscene-model-e2e
+  # Keep only one pending run for this workflow and ref. Ubuntu, Omarchy, main,
+  # and unrelated PRs must not replace one another in GitHub's concurrency queue.
+  group: midscene-model-e2e-${{ github.workflow }}-${{ github.ref }}
   cancel-in-progress: false
 
 jobs:
@@ -56,6 +62,8 @@ jobs:
       # GitHub's Ubuntu 22.04 runner intermittently times out while Node races
       # IPv4 and IPv6 addresses. The model endpoint is reachable over IPv4.
       NODE_OPTIONS: "--dns-result-order=ipv4first --no-network-family-autoselection"
+    outputs:
+      report-artifact-id: ${{ steps.report.outputs.artifact-id }}
     steps:
       - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
         with:
@@ -106,7 +114,8 @@ jobs:
             libasound2 libatk-bridge2.0-0 libdrm2 libgbm1 libgtk-3-0 \
             libnotify4 libnss3 libpng16-16 libsecret-1-0 libx11-6 \
             libxinerama1 libxkbcommon-x11-0 libxss1 libxtst6 \
-            python3-cairo python3-gi x11-xserver-utils xdg-utils xvfb
+            python3-cairo python3-gi python3-tomli \
+            x11-xserver-utils xdg-utils xvfb
 
       - name: Install pinned Midscene dependencies
         working-directory: tests/e2e
@@ -137,26 +146,66 @@ jobs:
               break
             fi
 
-            if ! grep -Eq 'Connection error|ETIMEDOUT|failed to call AI model service' "$attempt_log"; then
-              echo "Ubuntu Midscene failed for a non-network reason; not retrying." >&2
+            if ! ./is-transient-midscene-failure.sh "$attempt_log"; then
+              echo "Ubuntu Midscene failed for a non-transient reason; not retrying." >&2
               exit 1
             fi
             if [[ $test_attempt -lt 3 ]]; then
-              echo "Transient model connection failure on attempt ${test_attempt}; retrying in 10 seconds." >&2
+              echo "Transient model or connection failure on attempt ${test_attempt}; retrying in 10 seconds." >&2
               sleep 10
             fi
           done
 
           if [[ $midscene_passed != true ]]; then
-            echo "Ubuntu Midscene exhausted three model-connection attempts." >&2
+            echo "Ubuntu Midscene exhausted three transient-failure attempts." >&2
             exit 1
           fi
 
       - name: Verify polishing overlay with Midscene
         working-directory: tests/e2e
-        run: timeout --signal=TERM --kill-after=10s 10m npm test -- --project ubuntu-polishing
+        env:
+          NODE_OPTIONS: --dns-result-order=ipv4first --no-network-family-autoselection --require=./node_modules/@computer-use/libnut/dist/import_libnut.js
+        run: |
+          set -o pipefail
+          polishing_passed=false
+          for test_attempt in 1 2 3 4; do
+            attempt_log="/tmp/ubuntu-polishing-midscene-attempt-${test_attempt}.log"
+            if timeout --signal=TERM --kill-after=10s 10m \
+                npm test -- --project ubuntu-polishing 2>&1 | tee "$attempt_log"; then
+              polishing_passed=true
+              break
+            fi
+
+            if ! ./is-transient-midscene-failure.sh "$attempt_log"; then
+              echo "Ubuntu polishing Midscene failed for a non-transient reason; not retrying." >&2
+              exit 1
+            fi
+            if [[ $test_attempt -lt 4 ]]; then
+              retry_delay=$((15 * test_attempt))
+              echo "Transient model or connection failure on polishing attempt ${test_attempt}; retrying in ${retry_delay} seconds." >&2
+              sleep "$retry_delay"
+            fi
+          done
+
+          if [[ $polishing_passed != true ]]; then
+            echo "Ubuntu polishing Midscene exhausted four transient-failure attempts." >&2
+            exit 1
+          fi
+
+      - name: Capture the final report node for the CI summary
+        if: always()
+        run: >-
+          node tests/e2e/capture-report-preview.mjs
+          tests/e2e/midscene_run
+          tests/e2e/midscene_run/report-preview.png
+          ubuntu
+          && node tests/e2e/capture-report-preview.mjs
+          tests/e2e/midscene_run
+          tests/e2e/midscene_run/auxiliary-report-preview.png
+          ubuntu-polishing
 
       - name: Upload Midscene report
+        id: report
         if: always()
         uses: actions/upload-artifact@043fb46d1a93c77aae656e7c1c64a875d1fc6a0a # v7.0.1
         with:
@@ -169,7 +218,8 @@ jobs:
     name: GitHub Pages report
     needs: ubuntu-gtk
     if: >-
-      needs.ubuntu-gtk.result == 'success' &&
+      always() &&
+      needs.ubuntu-gtk.outputs.report-artifact-id != '' &&
       github.event_name != 'pull_request' &&
       github.ref_name == vars.PAGES_REPORT_BRANCH
     permissions:
@@ -181,3 +231,7 @@ jobs:
     with:
       artifact-name: midscene-ubuntu-22.04-e2e-report
       report-label: Ubuntu 22.04
+      summary-title: Ubuntu
+      primary-project: ubuntu
+      auxiliary-report-label: Polishing overlay report
+      run-result: ${{ needs.ubuntu-gtk.result }}

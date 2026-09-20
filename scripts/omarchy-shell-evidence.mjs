@@ -83,7 +83,7 @@ export function testRunDump(html) {
     : null;
 }
 
-export async function findLatestTestReport(directory) {
+export async function findLatestTestReport(directory, { projectName } = {}) {
   const reports = await Promise.all(
     (await findHtmlFiles(directory)).map(async (file) => {
       const html = await readFile(file, 'utf8');
@@ -96,8 +96,21 @@ export async function findLatestTestReport(directory) {
       };
     }),
   );
-  const latest = reports.sort((left, right) => left.startedAt - right.startedAt).at(-1);
-  if (!latest) throw new Error('No Midscene Test HTML report found');
+  const matchingReports = projectName
+    ? reports.filter((report) =>
+        report.run?.projects?.some((project) => project.name === projectName),
+      )
+    : reports;
+  const latest = matchingReports
+    .sort((left, right) => left.startedAt - right.startedAt)
+    .at(-1);
+  if (!latest) {
+    throw new Error(
+      projectName
+        ? `No Midscene Test HTML report found for project ${projectName}`
+        : 'No Midscene Test HTML report found',
+    );
+  }
   return latest;
 }
 

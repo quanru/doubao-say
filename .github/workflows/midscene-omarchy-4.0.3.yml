@@ -14,6 +14,7 @@ on:
       - "tests/e2e/package.json"
       - "tests/e2e/package-lock.json"
       - "tests/e2e/gtk_fixture.py"
+      - "tests/e2e/is-transient-midscene-failure.sh"
       - "tests/e2e/capture-report-preview.mjs"
       - "tests/e2e/cases/**"
       - "tests/e2e/midscene.config.ts"
@@ -38,6 +39,7 @@ on:
       - "tests/e2e/package.json"
       - "tests/e2e/package-lock.json"
       - "tests/e2e/gtk_fixture.py"
+      - "tests/e2e/is-transient-midscene-failure.sh"
       - "tests/e2e/capture-report-preview.mjs"
       - "tests/e2e/cases/**"
       - "tests/e2e/midscene.config.ts"
@@ -57,7 +59,9 @@ permissions:
   packages: read
 
 concurrency:
-  group: midscene-model-e2e
+  # Keep only one pending run for this workflow and ref. Ubuntu, Omarchy, main,
+  # and unrelated PRs must not replace one another in GitHub's concurrency queue.
+  group: midscene-model-e2e-${{ github.workflow }}-${{ github.ref }}
   cancel-in-progress: false
 
 jobs:
@@ -74,6 +78,9 @@ jobs:
       MIDSCENE_MODEL_REASONING_ENABLED: ${{ secrets.MIDSCENE_MODEL_REASONING_ENABLED }}
       MIDSCENE_COMPUTER_HEADLESS_LINUX: "true"
       MIDSCENE_REPLANNING_CYCLE_LIMIT: "40"
+      # GitHub runners intermittently time out while Node races IPv4 and IPv6
+      # addresses. The configured model endpoint is reachable over IPv4.
+      NODE_OPTIONS: "--dns-result-order=ipv4first --no-network-family-autoselection"
     outputs:
       report-artifact-id: ${{ steps.report.outputs.artifact-id }}
     steps:
@@ -139,7 +146,15 @@ jobs:
 
       - name: Capture the final report node for the CI summary
         if: always()
-        run: node tests/e2e/capture-report-preview.mjs
+        run: >-
+          node tests/e2e/capture-report-preview.mjs
+          tests/e2e/midscene_run
+          tests/e2e/midscene_run/report-preview.png
+          omarchy-onboarding
+          && node tests/e2e/capture-report-preview.mjs
+          tests/e2e/midscene_run
+          tests/e2e/midscene_run/auxiliary-report-preview.png
+          omarchy-shell
 
       - name: Upload installer evidence
         if: always()
@@ -181,4 +196,7 @@ jobs:
     with:
       artifact-name: omarchy-midscene-e2e-report
       report-label: Omarchy 4.0.3
+      summary-title: Omarchy
+      primary-project: omarchy-onboarding
+      auxiliary-report-label: Omarchy visual checks
       run-result: ${{ needs.omarchy-vm.result }}

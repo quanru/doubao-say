@@ -13,6 +13,7 @@ readonly SSH_PORT=2222
 readonly PLUGIN_DIR="/home/omarchy/.config/omarchy/plugins/md.lifeos.doubao-say"
 readonly SHIM_DIR="$(mktemp -d)"
 readonly PLUGIN_ARCHIVE="$(mktemp /tmp/doubao-say-omarchy-plugin-XXXXXX.tar)"
+readonly MODEL_TEST_ATTEMPTS=4
 export NODE_OPTIONS="${NODE_OPTIONS:-} --require=$ROOT_DIR/tests/e2e/node_modules/@computer-use/libnut/dist/import_libnut.js"
 
 VM_PID=""
@@ -180,7 +181,7 @@ start_guest_fixture() {
 
 MIDSCENE_PASSED=false
 ATTEMPT_LOG=""
-for _test_attempt in 1 2 3; do
+for ((_test_attempt = 1; _test_attempt <= MODEL_TEST_ATTEMPTS; _test_attempt++)); do
   start_guest_fixture
   ATTEMPT_LOG="/tmp/omarchy-midscene-attempt-${_test_attempt}.log"
   if npm --prefix tests/e2e test -- \
@@ -189,18 +190,19 @@ for _test_attempt in 1 2 3; do
     break
   fi
 
-  if ! grep -Eq 'Connection error|ETIMEDOUT|failed to call AI model service' "$ATTEMPT_LOG"; then
-    echo "Omarchy Midscene failed for a non-network reason; not retrying." >&2
+  if ! tests/e2e/is-transient-midscene-failure.sh "$ATTEMPT_LOG"; then
+    echo "Omarchy Midscene failed for a non-transient reason; not retrying." >&2
     exit 1
   fi
-  if [[ $_test_attempt -lt 3 ]]; then
-    echo "Transient model connection failure on attempt $_test_attempt; retrying in 10 seconds." >&2
-    sleep 10
+  if ((_test_attempt < MODEL_TEST_ATTEMPTS)); then
+    retry_delay=$((15 * _test_attempt))
+    echo "Transient model or connection failure on attempt $_test_attempt; retrying in $retry_delay seconds." >&2
+    sleep "$retry_delay"
   fi
 done
 
 if [[ $MIDSCENE_PASSED != true ]]; then
-  echo "Omarchy Midscene exhausted three model-connection attempts." >&2
+  echo "Omarchy Midscene exhausted $MODEL_TEST_ATTEMPTS transient-failure attempts." >&2
   exit 1
 fi
 
@@ -226,7 +228,7 @@ done
 # Reuse the same live Hyprland session for a visual comparison against
 # Omarchy's OCR and hyprctl-based acceptance checks.
 MENU_PASSED=false
-for _test_attempt in 1 2 3; do
+for ((_test_attempt = 1; _test_attempt <= MODEL_TEST_ATTEMPTS; _test_attempt++)); do
   ATTEMPT_LOG="/tmp/omarchy-menu-midscene-attempt-${_test_attempt}.log"
   if OMARCHY_SSH_KEY="$SSH_KEY" npm --prefix tests/e2e test -- \
       --project omarchy-shell 2>&1 | tee "$ATTEMPT_LOG"; then
@@ -234,17 +236,18 @@ for _test_attempt in 1 2 3; do
     break
   fi
 
-  if ! grep -Eq 'Connection error|ETIMEDOUT|failed to call AI model service' "$ATTEMPT_LOG"; then
-    echo "Omarchy menu visual test failed for a non-network reason; not retrying." >&2
+  if ! tests/e2e/is-transient-midscene-failure.sh "$ATTEMPT_LOG"; then
+    echo "Omarchy menu visual test failed for a non-transient reason; not retrying." >&2
     exit 1
   fi
-  if [[ $_test_attempt -lt 3 ]]; then
-    echo "Transient model connection failure on menu attempt $_test_attempt; retrying in 10 seconds." >&2
-    sleep 10
+  if ((_test_attempt < MODEL_TEST_ATTEMPTS)); then
+    retry_delay=$((15 * _test_attempt))
+    echo "Transient model or connection failure on menu attempt $_test_attempt; retrying in $retry_delay seconds." >&2
+    sleep "$retry_delay"
   fi
 done
 
 if [[ $MENU_PASSED != true ]]; then
-  echo "Omarchy menu visual test exhausted three model-connection attempts." >&2
+  echo "Omarchy menu visual test exhausted $MODEL_TEST_ATTEMPTS transient-failure attempts." >&2
   exit 1
 fi
