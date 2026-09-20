@@ -106,6 +106,7 @@ def build_runtime_fixture():
 
                 def close_overlay_and_restore_target():
                     overlay.hide()
+                    window.present()
                     target.grab_focus()
 
                 schedule(500, close_overlay_and_restore_target)

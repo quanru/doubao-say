@@ -15,6 +15,7 @@ cases:
       - aiAssert: The current Doubao Say step is Trigger key.
       - aiAct: Stay on Trigger key. Scroll downward exactly once inside the light-gray central content panel, then stop.
       - aiAct: Scroll downward exactly once more inside the same central content panel, then stop.
+      - aiAct: Scroll downward one final time inside the same central content panel, then stop.
       - aiAssert: The Test endpoint button in the Voice polishing section is fully visible.
       - aiTap: Test endpoint button in the visible Voice polishing section
       - wait: { duration: 750 }
