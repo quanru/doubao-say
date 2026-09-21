@@ -10,8 +10,10 @@ Suggested category: **Productivity**. Tags: **ai, hyprland**.
 1. Run `make check` and `make marketplace-check` (requires Omarchy and Gitleaks).
    The latter exports current Git-visible files to a temporary directory without
    committing or staging, rejects tracked ignored files/symlinks, validates the
-   official manifest, links, versions, executable launchers and scans all local
-   Git refs plus source. Redacted reports remain in ignored `artifacts/marketplace/`.
+   official manifest, links, versions, executable launchers, and rejects files
+   that coding agents automatically interpret as workspace instructions. It scans
+   all local Git refs plus source. Redacted reports remain in ignored
+   `artifacts/marketplace/`.
 2. Build the pinned offline wheel set and run `make release`. Keep installers,
    checksums and dependency notices together. Checksums are not signatures.
 3. Run `tests/manual/clean_install.py` against the app archive. This tests a fresh

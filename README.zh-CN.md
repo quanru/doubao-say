@@ -282,7 +282,7 @@ cd "${XDG_CONFIG_HOME:-$HOME/.config}/omarchy/plugins/md.lifeos.doubao-say"
 
 ## 开发与本地打包
 
-开发与 AI Agent 协作遵循 [AGENTS.md](AGENTS.md) 和
+开发与 AI 辅助协作遵循 [DEVELOPMENT.md](DEVELOPMENT.md) 和
 [贡献指南](CONTRIBUTING.md)。Bug 修复需可复现验证，每轮界面验证保存修复前后截图；
 截图无法证明的行为需补充测试或日志证据，并明确尚未验证的范围。
 
