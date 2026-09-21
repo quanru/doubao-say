@@ -136,7 +136,7 @@ try {
       `Captured Midscene report node ${previewStep} (${runnerDump.status}): ${outputFile}`,
     );
 
-    for (const testCase of reportCases(runnerDump, projectName, {
+    for (const testCase of await reportCases(runnerDump, projectName, {
       reportHtml: report.html,
       reportFile: report.file,
     })) {
