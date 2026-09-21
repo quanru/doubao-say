@@ -1,8 +1,26 @@
 # Midscene E2E by Linux distribution
 
 GitHub Actions exposes two distribution-named suites: `Ubuntu 22.04` and
-`Omarchy 4.0.3`. Both run for trusted pull requests and relevant pushes to
-`main`. The Omarchy suite also checks the real desktop shell visually.
+`Omarchy 4.0.3`. The Omarchy suite also checks the real desktop shell visually.
+
+> **Temporary scheduling (2026-09).** The Volcengine Ark endpoint behind
+> `MIDSCENE_MODEL_*` is rate-limited to roughly 25–35 RPM, and the parallel
+> visual fleet (five jobs per workflow, both workflows at once) exhausted that
+> quota within minutes. Until the quota is raised:
+>
+> - the Ubuntu 22.04 workflow runs only via **Actions → Run workflow**
+>   (`workflow_dispatch`); its push/pull-request triggers were removed from the
+>   `on:` block but everything else (matrix, polishing, Pages) is unchanged;
+> - the Omarchy workflow still runs for trusted pull requests and relevant
+>   pushes, but `strategy.max-parallel` is set to `1`, so its five matrix jobs
+>   execute one after another. Each job restores the 3.8 GB VM bundle anew, so
+>   the full suite takes about 110–120 minutes instead of ~35 minutes.
+>
+> To restore parallel scheduling: reinstate the previous `push`/`pull_request`
+> trigger block in `.github/workflows/midscene-ubuntu-22.04.yml` from git
+> history, and change `max-parallel: 1` back to `5` in
+> `.github/workflows/midscene-omarchy-4.0.3.yml`. Restoring five-way
+> parallelism needs an endpoint quota of at least ~150 RPM / ~1M TPM.
 
 The image-builder CI proves that a GitHub-hosted runner can install the exact
 official Omarchy ISO in a headless QEMU/KVM VM. It reuses Omarchy's own ISO
@@ -54,7 +72,9 @@ Both distributions execute the same 13 declarative product cases from
 post-setup dictation checks. `midscene.config.ts` passes each case
 identity to a fresh fixture. Four duration-balanced shards run in isolated
 Actions jobs, each with its own Xvfb desktop or Omarchy VM, while cases inside
-one shard remain serial so window focus cannot leak between tests. The config prepares the GTK fixture or
+one shard remain serial so window focus cannot leak between tests. The shards
+normally run in parallel (`max-parallel: 5`); the Omarchy workflow is
+temporarily pinned to `max-parallel: 1` for the quota reason described above. The config prepares the GTK fixture or
 Omarchy VNC viewer, and resets that state for every retry. Custom `shell.*`
 Nodes prepare the real Omarchy menu and bar; `cases/omarchy-shell.yaml` keeps
 the three pixel-level assertions explicit. Run `npm run nodes` in this

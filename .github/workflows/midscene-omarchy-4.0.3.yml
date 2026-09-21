@@ -54,8 +54,11 @@ jobs:
     strategy:
       # Each shard restores an independent disposable VM. Sharing one Hyprland
       # session would make fixture resets, focus and screenshots race.
+      # TEMPORARY: max-parallel is 1 while the Ark model endpoint is limited
+      # to ~25-35 RPM; the MIDSCENE_MODEL_RETRY_* env below absorbs short
+      # bursts. Restore max-parallel: 5 once RPM is raised.
       fail-fast: false
-      max-parallel: 5
+      max-parallel: 1
       matrix:
         project:
           - omarchy-shard-1
@@ -71,6 +74,10 @@ jobs:
       MIDSCENE_MODEL_REASONING_ENABLED: ${{ secrets.MIDSCENE_MODEL_REASONING_ENABLED }}
       MIDSCENE_COMPUTER_HEADLESS_LINUX: "true"
       MIDSCENE_REPLANNING_CYCLE_LIMIT: "40"
+      # The Ark endpoint answers bursts with 429; retry up to 3 extra times
+      # with a 65s fixed pause so the wait spans the 60s RPM window.
+      MIDSCENE_MODEL_RETRY_COUNT: "3"
+      MIDSCENE_MODEL_RETRY_INTERVAL: "65000"
       # The configured model endpoint is reachable over IPv4; disabling Node's
       # family race avoids intermittent runner-side IPv6 connection timeouts.
       NODE_OPTIONS: "--dns-result-order=ipv4first --no-network-family-autoselection"
@@ -221,14 +228,12 @@ jobs:
   pages-report:
     name: GitHub Pages report
     needs: [omarchy-e2e, report-bundle]
-    # Only push runs on main publish to the public Pages history; pull
-    # requests still run every shard and produce the report artifact.
     if: >-
       always() &&
       !cancelled() &&
       needs.report-bundle.outputs.report-artifact-id != '' &&
-      github.event_name == 'push' &&
-      github.ref == 'refs/heads/main'
+      (github.event_name != 'pull_request' ||
+      github.event.pull_request.head.repo.full_name == github.repository)
     permissions:
       actions: read
       contents: read
