@@ -205,7 +205,7 @@ function collectAssertionResults(run) {
   return { passed, total };
 }
 
-function buildReportEntry({
+async function buildReportEntry({
   includeCaseReportPath = false,
   label,
   previewPath,
@@ -215,9 +215,12 @@ function buildReportEntry({
   role,
 }) {
   const status = report.run?.status ?? 'unknown';
-  const cases = reportCases(report.run, project, {
-    reportHtml: report.html,
-  }).map((testCase) => ({
+  const cases = (
+    await reportCases(report.run, project, {
+      reportHtml: report.html,
+      reportFile: report.file,
+    })
+  ).map((testCase) => ({
     caseId: testCase.caseId,
     name: testCase.name,
     status: testCase.status,
@@ -248,15 +251,17 @@ function buildReportEntry({
   };
 }
 
-function buildReportGroup({ label, reports, role }) {
-  const reportEntries = reports.map((item) =>
-    item.fallbackEntry ??
-    buildReportEntry({
-      ...item,
-      includeCaseReportPath: true,
-      label,
-      role,
-    }),
+async function buildReportGroup({ label, reports, role }) {
+  const reportEntries = await Promise.all(
+    reports.map((item) =>
+      item.fallbackEntry ??
+      buildReportEntry({
+        ...item,
+        includeCaseReportPath: true,
+        label,
+        role,
+      }),
+    ),
   );
   const sum = (field, nested) =>
     reportEntries.reduce((total, entry) => total + entry[field][nested], 0);
@@ -707,19 +712,29 @@ export async function buildPagesReport(options) {
     throw new Error('Site output directory must be empty');
   }
 
-  const reportCandidates = await Promise.all(
-    (await findHtmlFiles(reportDirectory)).map(async (file) => ({
-      file,
-      html: await readFile(file, 'utf8'),
-    })),
-  );
+  const reportCandidates = (
+    await Promise.all(
+      (await findHtmlFiles(reportDirectory)).map(async (file) => ({
+        file,
+        html: await readFile(file, 'utf8'),
+      })),
+    )
+  ).map((report) => ({
+    ...report,
+    run: testRunDump(report.html),
+  }))
+    // Midscene Test 1.13.0 writes its HTML to midscene-e2e-<run>/ instead of
+    // the legacy test-run-* location, so findHtmlFiles also returns the
+    // standalone computer-*.html agent reports. Those carry no runner dump;
+    // only Midscene Test reports participate in aggregation.
+    .filter((report) => report.run !== null);
   const latestByProject = new Map();
   for (const report of reportCandidates) {
-    report.run = testRunDump(report.html);
     report.startedAt = Date.parse(report.run?.startedAt ?? '') || 0;
-    const projectKey =
-      report.run?.projects?.map((project) => project.name).join(',') ||
-      path.basename(report.file);
+    const projectKey = report.run?.projects
+      ?.map((project) => project.name)
+      .join(',');
+    if (!projectKey) continue;
     const previous = latestByProject.get(projectKey);
     if (!previous || report.startedAt >= previous.startedAt) {
       latestByProject.set(projectKey, report);
@@ -773,7 +788,9 @@ export async function buildPagesReport(options) {
     selectedReports = groupedReports.flatMap((group) =>
       group.reports.map((item) => item.report).filter(Boolean),
     );
-    entries = groupedReports.map((group) => buildReportGroup(group));
+    entries = await Promise.all(
+      groupedReports.map((group) => buildReportGroup(group)),
+    );
     reportCopies = groupedReports.flatMap((group) =>
       group.reports.filter((item) => item.report).flatMap((item) => [
         {
@@ -821,28 +838,30 @@ export async function buildPagesReport(options) {
           primaryNativeReport,
           `${reportPrefix}/report-preview.png`,
         ];
-    entries = [
-      buildReportEntry({
-        role: 'primary',
-        project: primaryProject,
-        label: primaryReportLabel,
-        report: primaryReport,
-        reportPath: primaryNativeReport,
-        previewPath: `${reportPrefix}/report-preview.png`,
-      }),
-      ...(auxiliaryReport
-        ? [
-            buildReportEntry({
-              role: 'auxiliary',
-              project: auxiliaryProject,
-              label: auxiliaryReportLabel,
-              report: auxiliaryReport,
-              reportPath: auxiliaryNativeReport,
-              previewPath: `${reportPrefix}/auxiliary-report-preview.png`,
-            }),
-          ]
-        : []),
-    ];
+    entries = await Promise.all(
+      [
+        buildReportEntry({
+          role: 'primary',
+          project: primaryProject,
+          label: primaryReportLabel,
+          report: primaryReport,
+          reportPath: primaryNativeReport,
+          previewPath: `${reportPrefix}/report-preview.png`,
+        }),
+        ...(auxiliaryReport
+          ? [
+              buildReportEntry({
+                role: 'auxiliary',
+                project: auxiliaryProject,
+                label: auxiliaryReportLabel,
+                report: auxiliaryReport,
+                reportPath: auxiliaryNativeReport,
+                previewPath: `${reportPrefix}/auxiliary-report-preview.png`,
+              }),
+            ]
+          : []),
+      ],
+    );
     reportCopies = [
       {
         source: primaryReport.file,
@@ -867,6 +886,36 @@ export async function buildPagesReport(options) {
     ];
   }
   const selectedFiles = new Set(selectedReports.map((report) => report.file));
+  // Midscene 1.13.0 keeps native-report screenshots in a sibling
+  // screenshots/ directory instead of inlining them in the HTML. The
+  // published native reports load screenshots/<id>.jpeg relatively, so
+  // publish the directory next to the flattened report files. File names are
+  // screenshot UUIDs (content-addressed), so a name shared by reports is
+  // published once.
+  const screenshotCopies = [];
+  const seenScreenshotNames = new Set();
+  for (const report of selectedReports) {
+    const screenshotDirectory = path.join(
+      path.dirname(report.file),
+      'screenshots',
+    );
+    let screenshotNames = [];
+    try {
+      screenshotNames = await readdir(screenshotDirectory);
+    } catch (error) {
+      if (error.code !== 'ENOENT') throw error;
+      continue;
+    }
+    for (const name of screenshotNames.sort()) {
+      if (seenScreenshotNames.has(name)) continue;
+      seenScreenshotNames.add(name);
+      screenshotCopies.push({
+        source: path.join(screenshotDirectory, name),
+        destination: `screenshots/${name}`,
+      });
+    }
+  }
+  reportCopies.push(...screenshotCopies);
   const declaredProjects = new Set(
     reportGroups ? reportGroups.flatMap((group) => group.projects) : [],
   );
@@ -899,7 +948,12 @@ export async function buildPagesReport(options) {
   const casePreviewFiles = entries.flatMap((entry) =>
     entry.cases.map((testCase) => testCase.previewPath),
   );
-  const files = [...new Set([...baseFiles, ...casePreviewFiles])];
+  const screenshotFiles = screenshotCopies.map(
+    (copy) => `${reportPrefix}/${copy.destination}`,
+  );
+  const files = [
+    ...new Set([...baseFiles, ...casePreviewFiles, ...screenshotFiles]),
+  ];
   const current = {
     runId,
     generatedAt,
@@ -930,7 +984,9 @@ export async function buildPagesReport(options) {
     const source =
       reportCopy.source ??
       (await findUniqueFile(reportDirectory, reportCopy.sourceName));
-    await copyFile(source, path.join(currentDirectory, reportCopy.destination));
+    const destination = path.join(currentDirectory, reportCopy.destination);
+    await mkdir(path.dirname(destination), { recursive: true });
+    await copyFile(source, destination);
   }
   for (const fallback of generatedFallbacks) {
     const [testCase] = fallback.entry.cases;

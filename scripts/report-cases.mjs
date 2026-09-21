@@ -1,4 +1,7 @@
-import { normalizeJsonControlCharacters } from './omarchy-shell-evidence.mjs';
+import {
+  loadReportImages,
+  normalizeJsonControlCharacters,
+} from './omarchy-shell-evidence.mjs';
 
 function allAttemptSteps(attempt) {
   return [
@@ -43,9 +46,8 @@ function scriptAttributes(source) {
   return attributes;
 }
 
-function embeddedReportData(reportHtml) {
+async function embeddedReportData(reportHtml, reportFile) {
   const dumps = [];
-  const images = new Map();
   for (const match of reportHtml.matchAll(
     /<script\s+([^>]*\btype=["']midscene_web_dump["'][^>]*)>\s*(\{[\s\S]*?)<\/script>/g,
   )) {
@@ -58,14 +60,7 @@ function embeddedReportData(reportHtml) {
       dump: JSON.parse(normalizeJsonControlCharacters(match[2].trim())),
     });
   }
-  for (const match of reportHtml.matchAll(
-    /<script\s+type=["']midscene-image["']\s+data-id=["']([^"']+)["'][^>]*>\s*data:image\/(jpeg|png|webp);base64,([A-Za-z0-9+/=]+)\s*<\/script>/g,
-  )) {
-    images.set(match[1], {
-      extension: match[2] === 'jpeg' ? 'jpg' : match[2],
-      bytes: Buffer.from(match[3], 'base64'),
-    });
-  }
+  const images = await loadReportImages(reportHtml, reportFile);
   return { dumps, images };
 }
 
@@ -152,13 +147,19 @@ function evidenceForStep(step, embedded) {
   };
 }
 
-export function reportCases(run, projectName, { reportHtml } = {}) {
+export async function reportCases(
+  run,
+  projectName,
+  { reportHtml, reportFile } = {},
+) {
   const project = run?.projects?.find((item) => item.name === projectName);
   if (!project) {
     throw new Error(`Project ${projectName} is absent from the runner dump`);
   }
 
-  const embedded = reportHtml ? embeddedReportData(reportHtml) : null;
+  const embedded = reportHtml
+    ? await embeddedReportData(reportHtml, reportFile)
+    : null;
   return (project.documents ?? []).flatMap((document) =>
     (document.cases ?? []).map((testCase) => {
       const attempt = testCase.attempts?.at(-1);

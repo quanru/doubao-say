@@ -138,6 +138,7 @@ try {
 
     for (const testCase of reportCases(runnerDump, projectName, {
       reportHtml: report.html,
+      reportFile: report.file,
     })) {
       const caseOutput = path.join(reportDirectory, testCase.previewFile);
       await writeFile(caseOutput, testCase.screenshot.bytes);

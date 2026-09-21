@@ -115,16 +115,64 @@ export async function findLatestTestReport(
   return latest;
 }
 
-export function extractShellEvidence(html, { allowIncomplete = false } = {}) {
+const INLINE_REPORT_IMAGE_RE =
+  /<script\s+type=["']midscene-image["']\s+data-id=["']([^"']+)["'][^>]*>\s*data:image\/(jpeg|png|webp);base64,([A-Za-z0-9+/=]+)\s*<\/script>/g;
+
+const REPORT_IMAGE_EXTENSIONS = new Set(['jpg', 'jpeg', 'png', 'webp']);
+
+// Midscene reports embed screenshots as inline scripts until 1.12.x;
+// 1.13.0 writes them to a sibling `screenshots/` directory instead
+// (data-screenshot-mode="directory"). Load both so either report shape works.
+export async function loadReportImages(html, reportFile) {
   const images = new Map();
-  for (const match of html.matchAll(
-    /<script\s+type=["']midscene-image["']\s+data-id=["']([^"']+)["'][^>]*>\s*data:image\/(png|jpeg);base64,([A-Za-z0-9+/=]+)\s*<\/script>/g,
-  )) {
+  for (const match of html.matchAll(INLINE_REPORT_IMAGE_RE)) {
     images.set(match[1], {
-      extension: match[2] === 'jpeg' ? 'jpg' : 'png',
+      extension: match[2] === 'jpeg' ? 'jpg' : match[2],
       bytes: Buffer.from(match[3], 'base64'),
     });
   }
+  if (!reportFile) return images;
+  const screenshotDirectory = path.join(path.dirname(reportFile), 'screenshots');
+  let entries = [];
+  try {
+    entries = await readdir(screenshotDirectory);
+  } catch (error) {
+    if (error.code !== 'ENOENT') throw error;
+  }
+  for (const entryName of entries.sort()) {
+    const extension = entryName.split('.').pop()?.toLowerCase();
+    const id = entryName.slice(0, entryName.lastIndexOf('.'));
+    if (
+      !id ||
+      !REPORT_IMAGE_EXTENSIONS.has(extension) ||
+      images.has(id)
+    ) {
+      continue;
+    }
+    images.set(id, {
+      extension: extension === 'jpeg' ? 'jpg' : extension,
+      bytes: await readFile(path.join(screenshotDirectory, entryName)),
+    });
+  }
+  return images;
+}
+
+export function extractShellEvidence(
+  html,
+  { allowIncomplete = false, images = null } = {},
+) {
+  const imageMap =
+    images ??
+    (() => {
+      const inline = new Map();
+      for (const match of html.matchAll(INLINE_REPORT_IMAGE_RE)) {
+        inline.set(match[1], {
+          extension: match[2] === 'jpeg' ? 'jpg' : match[2],
+          bytes: Buffer.from(match[3], 'base64'),
+        });
+      }
+      return inline;
+    })();
 
   const finished = [];
   for (const dump of reportDumps(html)) {
@@ -143,7 +191,7 @@ export function extractShellEvidence(html, { allowIncomplete = false } = {}) {
         return { ...check, passed: false, screenshot: null, missing: true };
       throw new Error(`Missing finished Omarchy assertion: ${check.label}`);
     }
-    const screenshot = images.get(task.uiContext?.screenshot?.id);
+    const screenshot = imageMap.get(task.uiContext?.screenshot?.id);
     if (!screenshot) {
       if (allowIncomplete)
         return { ...check, passed: false, screenshot: null, missing: true };
@@ -158,7 +206,13 @@ export async function findShellReport(directory) {
     const html = await readFile(file, 'utf8');
     const run = testRunDump(html);
     if (run?.projects?.some((project) => project.name === 'omarchy-shell')) {
-      return { file, html, checks: extractShellEvidence(html) };
+      return {
+        file,
+        html,
+        checks: extractShellEvidence(html, {
+          images: await loadReportImages(html, file),
+        }),
+      };
     }
   }
   throw new Error('No Omarchy shell Midscene HTML report found');
