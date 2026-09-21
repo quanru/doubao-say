@@ -233,6 +233,59 @@ ${
 <script type="midscene_test_run_dump">${JSON.stringify(run)}</script>`;
 }
 
+function runnerWithoutScreenshot({ project, startedAt }) {
+  const run = {
+    startedAt,
+    status: 'failed',
+    summary: { total: 2, passed: 0, failed: 1, notRun: 1 },
+    projects: [
+      {
+        name: project,
+        documents: [
+          {
+            cases: [
+              {
+                caseId: `case-${project}`,
+                name: `${project} damaged-agent case`,
+                status: 'failed',
+                attempts: [
+                  {
+                    status: 'failed',
+                    durationMs: 480000,
+                    steps: [
+                      {
+                        id: 'act-without-execution',
+                        node: 'aiAct',
+                        title: 'Timed-out action',
+                        status: 'failed',
+                        error: {
+                          message:
+                            'AI call hard timeout; no stable Agent execution reference was captured',
+                        },
+                      },
+                    ],
+                  },
+                ],
+              },
+            ],
+          },
+          {
+            cases: [
+              {
+                caseId: `not-run-${project}`,
+                name: `${project} not-run case`,
+                status: 'not-run',
+                attempts: [],
+              },
+            ],
+          },
+        ],
+      },
+    ],
+  };
+  return `<script type="midscene_test_run_dump">${JSON.stringify(run)}</script>`;
+}
+
 const fixtureHtml = `<!doctype html><html><body>report
 <script type="midscene_web_dump">{"usage":{"_midscene_call_id":"call-1","time_cost":2500,"total_tokens":120}}</script>
 <script type="midscene_web_dump">{"message":"raw
@@ -940,7 +993,7 @@ test('restores retained history before adding the new run', async (context) => {
       'utf8',
     ),
   );
-  assert.equal(writtenManifest.version, 6);
+  assert.equal(writtenManifest.version, 7);
   assert.equal(writtenManifest.reports[0].reportPath, 'reports/200/index.html');
   assert.equal(
     writtenManifest.reports[0].workflowUrl,
@@ -1314,6 +1367,74 @@ test('pairs an original node screenshot with its AI text or error', async () => 
   assert.equal(failure.descriptionKind, 'error');
   assert.equal(failure.description, 'Fixture error 0-0');
   assert.deepEqual(failure.screenshot.bytes, Buffer.from('/9j/2Q==', 'base64'));
+});
+
+test('preserves a failed case and skips a not-run case after agent damage', async () => {
+  const html = runnerWithoutScreenshot({
+    project: 'ubuntu',
+    startedAt: '2026-09-21T12:00:00Z',
+  });
+  const cases = await reportCases(testRunDump(html), 'ubuntu', {
+    reportHtml: html,
+  });
+  assert.equal(cases.length, 1);
+  const [testCase] = cases;
+
+  assert.equal(testCase.name, 'ubuntu damaged-agent case');
+  assert.equal(testCase.stepId, 'act-without-execution');
+  assert.equal(testCase.selection, 'first-failing-no-screenshot');
+  assert.equal(testCase.previewFile, undefined);
+  assert.equal(testCase.screenshot, undefined);
+  assert.equal(testCase.descriptionKind, 'error');
+  assert.match(testCase.description, /no stable Agent execution reference/);
+});
+
+test('publishes all case metadata when one report has no node screenshot', async (context) => {
+  const root = await mkdtemp(path.join(os.tmpdir(), 'pages-no-node-shot-'));
+  const reportDirectory = path.join(root, 'artifact');
+  const nativeDirectory = path.join(reportDirectory, 'report');
+  await mkdir(nativeDirectory, { recursive: true });
+  const html = runnerWithoutScreenshot({
+    project: 'ubuntu',
+    startedAt: '2026-09-21T12:00:00Z',
+  });
+  await writeFile(path.join(nativeDirectory, 'test-run-ubuntu.html'), html);
+  await writeFile(path.join(reportDirectory, 'report-preview.png'), 'preview');
+  const siteDirectory = path.join(root, 'site');
+  const server = await startServer((_request, response) =>
+    response.writeHead(404).end(),
+  );
+  context.after(server.close);
+
+  const manifest = await buildPagesReport({
+    ...options(reportDirectory, siteDirectory, server.url),
+  });
+  const [testCase] = manifest.reports[0].entries[0].cases;
+  assert.equal(manifest.version, 7);
+  assert.equal(testCase.selection, 'first-failing-no-screenshot');
+  assert.equal(testCase.previewPath, undefined);
+  assert.match(testCase.description, /no stable Agent execution reference/);
+  assert.doesNotMatch(JSON.stringify(manifest.reports[0].files), /case-preview/);
+
+  const runIndex = await readFile(
+    path.join(siteDirectory, 'reports', '200', 'index.html'),
+    'utf8',
+  );
+  assert.match(runIndex, /ubuntu damaged-agent case/);
+  assert.match(runIndex, /Not available/);
+
+  const summary = renderReportSummary({
+    manifest,
+    pagesUrl: 'https://example.test/doubao-say/',
+    producerResult: 'failure',
+    runId: '200',
+    summaryTitle: 'Ubuntu',
+  });
+  assert.match(summary, /Failures \(1\)/);
+  assert.match(summary, /Failed screenshots \(0\)/);
+  assert.match(summary, /No failed-case screenshots were produced/);
+  assert.match(summary, /All screenshots \(0\)/);
+  assert.match(summary, /ubuntu damaged-agent case/);
 });
 
 test('finds Omarchy evidence by project instead of assertion wording', async () => {

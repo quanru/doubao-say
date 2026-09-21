@@ -90,12 +90,14 @@ function failureReason(testCase) {
 // GFM has no layout grid, so a 3-column table of linked thumbnails acts as
 // one. Each cell is the screenshot with the case name as caption below it.
 function screenshotGrid(pagesUrl, entries, cases) {
-  const cells = cases.map(({ entry, testCase }) => {
+  const cells = cases
+    .filter(({ testCase }) => testCase.previewPath)
+    .map(({ entry, testCase }) => {
     const target = caseTarget(pagesUrl, entry, testCase);
     const image = reportUrl(pagesUrl, testCase.previewPath);
     const name = inlineCell(testCase.name);
     return `[![${name}](${image})](${target})<br>[${name}](${target})`;
-  });
+    });
   const rows = [];
   for (let index = 0; index < cells.length; index += 3) {
     const row = cells.slice(index, index + 3);
@@ -149,6 +151,12 @@ export function renderReportSummary({
   const failedCases = groupedCases.filter(
     ({ testCase }) => testCase.status !== 'success',
   );
+  const failedScreenshots = failedCases.filter(
+    ({ testCase }) => testCase.previewPath,
+  );
+  const screenshotCases = groupedCases.filter(
+    ({ testCase }) => testCase.previewPath,
+  );
   const totalCases = groupedCases.length;
   const passedCount = passedCases.length;
   const passRate =
@@ -191,21 +199,19 @@ export function renderReportSummary({
         return `| ❌ [${inlineCell(testCase.name)}](${target}) | ${duration} | ${failureReason(testCase)} |`;
       }),
       '',
-      `### Failed screenshots (${failedCases.length})`,
+      `### Failed screenshots (${failedScreenshots.length})`,
       '',
-      screenshotGrid(pagesUrl, report.entries, failedCases),
+      screenshotGrid(pagesUrl, report.entries, failedScreenshots) ||
+        '_No failed-case screenshots were produced._',
       '',
     );
   }
 
   sections.push(
     `<details>`,
-    `<summary>All screenshots (${totalCases})</summary>`,
+    `<summary>All screenshots (${screenshotCases.length})</summary>`,
     '',
-    screenshotGrid(pagesUrl, report.entries, [
-      ...passedCases,
-      ...failedCases,
-    ]),
+    screenshotGrid(pagesUrl, report.entries, screenshotCases),
     '',
     `</details>`,
     '',
@@ -232,7 +238,7 @@ export function renderReportSummary({
     }),
     `</details>`,
     '',
-    'Each image is the original page screenshot used by that node. A CI failure card is shown only when a shard stops before Midscene can capture a node. Click a case name or image to open its evidence.',
+    'Each image is the original page screenshot used by that node. Cases remain linked to their native report when Midscene stops before producing a node screenshot. A CI failure card is shown only when a shard stops before Midscene can capture a report. Click a case name or image to open its evidence.',
     '',
   );
 

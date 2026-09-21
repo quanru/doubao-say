@@ -140,6 +140,12 @@ try {
       reportHtml: report.html,
       reportFile: report.file,
     })) {
+      if (!testCase.screenshot) {
+        console.log(
+          `Skipped node screenshot for ${testCase.name} at ${testCase.stepId} because Midscene did not produce one.`,
+        );
+        continue;
+      }
       const caseOutput = path.join(reportDirectory, testCase.previewFile);
       await writeFile(caseOutput, testCase.screenshot.bytes);
       console.log(

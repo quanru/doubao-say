@@ -131,19 +131,18 @@ function evidenceForStep(step, embedded) {
     }
   }
   const selected = candidates.at(-1);
-  if (!selected) {
-    throw new Error(`Step ${step.id} has no embedded node screenshot`);
-  }
   const error = normalizedText(step.error?.message);
   const result = normalizedText(step.output?.summary);
-  const description = error ?? selected.explanation ?? result;
+  const description = error ?? selected?.explanation ?? result;
   if (!description) {
     throw new Error(`Step ${step.id} has no AI response or error text`);
   }
   return {
-    screenshot: embedded.images.get(selected.screenshotId),
+    ...(selected
+      ? { screenshot: embedded.images.get(selected.screenshotId) }
+      : {}),
     description,
-    descriptionKind: error ? 'error' : selected.explanation ? 'ai' : 'result',
+    descriptionKind: error ? 'error' : selected?.explanation ? 'ai' : 'result',
   };
 }
 
@@ -161,9 +160,10 @@ export async function reportCases(
     ? await embeddedReportData(reportHtml, reportFile)
     : null;
   return (project.documents ?? []).flatMap((document) =>
-    (document.cases ?? []).map((testCase) => {
+    (document.cases ?? []).flatMap((testCase) => {
       const attempt = testCase.attempts?.at(-1);
       if (!attempt) {
+        if (testCase.status === 'not-run') return [];
         throw new Error(
           `Case ${testCase.name ?? testCase.caseId} has no attempt`,
         );
@@ -185,21 +185,35 @@ export async function reportCases(
         throw new Error('Midscene case metadata is incomplete');
       }
       const evidence = embedded ? evidenceForStep(step, embedded) : null;
-      return {
+      if (passed && embedded && !evidence?.screenshot) {
+        throw new Error(`Step ${step.id} has no embedded node screenshot`);
+      }
+      const selection = passed
+        ? 'last-screenshot'
+        : evidence && !evidence.screenshot
+          ? 'first-failing-no-screenshot'
+          : 'first-failing-screenshot';
+      return [{
         caseId: testCase.caseId,
         name: testCase.name,
         status: passed ? 'success' : 'failed',
         durationMs: attempt.durationMs,
         stepId: step.id,
         stepTitle: step.title ?? step.node,
-        selection: passed ? 'last-screenshot' : 'first-failing-screenshot',
-        previewFile: casePreviewFileName(
-          projectName,
-          testCase.caseId,
-          evidence?.screenshot.extension,
-        ),
+        selection,
+        ...(evidence?.screenshot
+          ? {
+              previewFile: casePreviewFileName(
+                projectName,
+                testCase.caseId,
+                evidence.screenshot.extension,
+              ),
+            }
+          : embedded
+            ? {}
+            : { previewFile: casePreviewFileName(projectName, testCase.caseId) }),
         ...(evidence ?? {}),
-      };
+      }];
     }),
   );
 }

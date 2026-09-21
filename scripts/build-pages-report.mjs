@@ -16,8 +16,16 @@ import {
 } from './omarchy-shell-evidence.mjs';
 import { reportCases } from './report-cases.mjs';
 
-const MANIFEST_VERSION = 6;
-const SUPPORTED_MANIFEST_VERSIONS = new Set([1, 2, 3, 4, 5, MANIFEST_VERSION]);
+const MANIFEST_VERSION = 7;
+const SUPPORTED_MANIFEST_VERSIONS = new Set([
+  1,
+  2,
+  3,
+  4,
+  5,
+  6,
+  MANIFEST_VERSION,
+]);
 
 export function formatDuration(durationMs) {
   if (!Number.isFinite(durationMs) || durationMs < 0) return '';
@@ -231,7 +239,11 @@ async function buildReportEntry({
     selection: testCase.selection,
     description: testCase.description,
     descriptionKind: testCase.descriptionKind,
-    previewPath: `${path.posix.dirname(reportPath)}/${testCase.previewFile}`,
+    ...(testCase.previewFile
+      ? {
+          previewPath: `${path.posix.dirname(reportPath)}/${testCase.previewFile}`,
+        }
+      : {}),
     ...(includeCaseReportPath ? { reportPath } : {}),
   }));
   return {
@@ -407,9 +419,12 @@ function validReportEntry(entry, files) {
               Number.isInteger(testCase.durationMs)) &&
             (typeof testCase.stepId === 'string' ||
               testCase.selection === 'workflow-failure') &&
-            ['last-screenshot', 'first-failing-screenshot', 'workflow-failure'].includes(
-              testCase.selection,
-            ) &&
+            [
+              'last-screenshot',
+              'first-failing-screenshot',
+              'first-failing-no-screenshot',
+              'workflow-failure',
+            ].includes(testCase.selection) &&
             (testCase.description === undefined ||
               (typeof testCase.description === 'string' &&
                 testCase.description.length > 0)) &&
@@ -417,7 +432,9 @@ function validReportEntry(entry, files) {
               ['ai', 'error', 'result'].includes(testCase.descriptionKind)) &&
             (testCase.description === undefined) ===
               (testCase.descriptionKind === undefined) &&
-            files?.includes(testCase.previewPath) &&
+            (testCase.selection === 'first-failing-no-screenshot'
+              ? testCase.previewPath === undefined
+              : files?.includes(testCase.previewPath)) &&
             (testCase.reportPath === undefined ||
               files?.includes(testCase.reportPath)),
         )))
@@ -541,7 +558,9 @@ function buildRunIndex(report) {
       const rows = entry.cases
         .map((testCase) => {
           const target = runStepHref(entry, testCase);
-          const image = path.basename(testCase.previewPath);
+          const image = testCase.previewPath
+            ? path.basename(testCase.previewPath)
+            : null;
           const status = testCase.status === 'success' ? '✅ Passed' : '❌ Failed';
           const descriptionLabel = {
             ai: 'AI',
@@ -553,7 +572,7 @@ function buildRunIndex(report) {
               <td class="status">${status}</td>
               <td><a href="${escapeHtml(target)}">${escapeHtml(testCase.name)}</a></td>
               <td class="duration">${escapeHtml(formatDuration(testCase.durationMs))}</td>
-              <td><a href="${escapeHtml(target)}"><img src="${escapeHtml(image)}" alt="${escapeHtml(testCase.name)} node screenshot" loading="lazy"></a></td>
+              <td>${image ? `<a href="${escapeHtml(target)}"><img src="${escapeHtml(image)}" alt="${escapeHtml(testCase.name)} node screenshot" loading="lazy"></a>` : '<span class="unavailable">Not available</span>'}</td>
               <td><strong>${escapeHtml(descriptionLabel)}:</strong> ${escapeHtml(testCase.description)}</td>
             </tr>`;
         })
@@ -946,7 +965,7 @@ export async function buildPagesReport(options) {
     { passed: 0, tests: 0 },
   );
   const casePreviewFiles = entries.flatMap((entry) =>
-    entry.cases.map((testCase) => testCase.previewPath),
+    entry.cases.map((testCase) => testCase.previewPath).filter(Boolean),
   );
   const screenshotFiles = screenshotCopies.map(
     (copy) => `${reportPrefix}/${copy.destination}`,
@@ -1001,7 +1020,12 @@ export async function buildPagesReport(options) {
   }
   for (const entry of entries) {
     for (const testCase of entry.cases) {
-      if (testCase.selection === 'workflow-failure') continue;
+      if (
+        testCase.selection === 'workflow-failure' ||
+        testCase.selection === 'first-failing-no-screenshot'
+      ) {
+        continue;
+      }
       await copyFile(
         await findUniqueFile(
           reportDirectory,
