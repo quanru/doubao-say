@@ -47,6 +47,37 @@ class MarketplaceTest(unittest.TestCase):
             with self.assertRaisesRegex(ValueError, "Tracked ignored"):
                 snapshot.export_source(root, Path(folder) / "out")
 
+    def test_rejects_automatic_agent_instructions_from_installed_tree(self):
+        blocked = (
+            "AGENTS.md",
+            "nested/AGENTS.override.md",
+            "CLAUDE.md",
+            ".github/copilot-instructions.md",
+            ".github/instructions/review.instructions.md",
+        )
+        for relative in blocked:
+            with self.subTest(relative=relative), tempfile.TemporaryDirectory() as folder:
+                root = Path(folder) / "repo"
+                self.repo(root)
+                path = root / relative
+                path.parent.mkdir(parents=True, exist_ok=True)
+                path.write_text("third-party instructions")
+                with self.assertRaisesRegex(
+                    ValueError, "Automatic agent instruction file cannot be published"
+                ):
+                    snapshot.export_source(root, Path(folder) / "out")
+
+    def test_allows_normal_development_documentation(self):
+        with tempfile.TemporaryDirectory() as folder:
+            root = Path(folder) / "repo"
+            self.repo(root)
+            (root / "DEVELOPMENT.md").write_text("Development guide")
+            destination = Path(folder) / "snapshot"
+            snapshot.export_source(root, destination)
+            self.assertEqual(
+                (destination / "DEVELOPMENT.md").read_text(), "Development guide"
+            )
+
     def test_rejects_symlink_without_overwriting_destination(self):
         with tempfile.TemporaryDirectory() as folder:
             root = Path(folder) / "repo"

@@ -1,12 +1,12 @@
-# Agent Development Guidelines
+# Development and Verification Guide
 
-These instructions apply to the entire Doubao Say repository. Before starting,
+This guide applies to development across the Doubao Say repository. Before starting,
 read this file, [CONTRIBUTING.md](CONTRIBUTING.md), and
 [tests/README.md](tests/README.md).
 
 ## Collaboration and scope
 
-- This is an English-by-default project. Write agent instructions, development
+- This is an English-by-default project. Write development guidance, development
   documentation, code comments, and new primary UI copy in English. Keep explicitly
   localized documents and translations in their target languages. Follow the
   user's requested language when communicating.
@@ -148,7 +148,7 @@ read this file, [CONTRIBUTING.md](CONTRIBUTING.md), and
 
 ## Documentation and release
 
-- Keep this file and primary development documentation entirely in English.
+- Keep this guide and primary development documentation entirely in English.
   Update README.md and README.zh-CN.md when user-visible behavior changes; update
   CONTRIBUTING.md and tests/README.md when development workflows change.
 - Use focused conventional commits and stage only files owned by the current task.

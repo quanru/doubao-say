@@ -12,7 +12,7 @@
 `make test` runs both. See `CONTRIBUTING.md` before running anything under
 `manual/`.
 
-Bug reproduction and visual acceptance follow [AGENTS.md](../AGENTS.md).
+Bug reproduction and visual acceptance follow [DEVELOPMENT.md](../DEVELOPMENT.md).
 For each verification round, keep before/after captures and a verification record
 under `artifacts/verification/<task>/<round>/` (ignored by Git). Supplement visual
 evidence with behavior assertions; document missing evidence and checks that were

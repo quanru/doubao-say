@@ -4,6 +4,31 @@ import shutil
 import subprocess
 
 
+AUTOMATIC_AGENT_INSTRUCTION_NAMES = {
+    ".clinerules",
+    ".cursorrules",
+    ".windsurfrules",
+    "agents.md",
+    "agents.override.md",
+    "claude.md",
+    "gemini.md",
+}
+
+
+def is_automatic_agent_instruction(relative: Path) -> bool:
+    """Return whether an installed checkout could auto-load this as agent policy."""
+    lowered = tuple(part.casefold() for part in relative.parts)
+    if relative.name.casefold() in AUTOMATIC_AGENT_INSTRUCTION_NAMES:
+        return True
+    if lowered == (".github", "copilot-instructions.md"):
+        return True
+    return (
+        len(lowered) >= 3
+        and lowered[0:2] == (".github", "instructions")
+        and lowered[-1].endswith(".instructions.md")
+    )
+
+
 def export_source(root: Path, destination: Path) -> list[Path]:
     """Include unstaged/new source, exclude ignored files, reject unsafe content."""
     root = root.resolve()
@@ -17,6 +42,10 @@ def export_source(root: Path, destination: Path) -> list[Path]:
         relative = Path(name)
         if relative.is_absolute() or ".." in relative.parts:
             raise ValueError("Unsafe repository path")
+        if is_automatic_agent_instruction(relative):
+            raise ValueError(
+                f"Automatic agent instruction file cannot be published: {relative}"
+            )
         path = root / relative
         if path.is_symlink() or any(p.is_symlink() for p in path.parents if p != root):
             raise ValueError(f"Symlink cannot be published: {relative}")

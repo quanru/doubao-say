@@ -7,7 +7,7 @@ There is no published repository/release for this revision yet.
 
 ## Agent workflow and bug evidence
 
-Read [AGENTS.md](AGENTS.md) before making changes. For every bug verification
+Read [DEVELOPMENT.md](DEVELOPMENT.md) before making changes. For every bug verification
 round, reproduce the problem before editing, retain before/after screenshots,
 and repeat the same scenario after the fix. Use real application captures for
 UI changes; supplement screenshots with assertions or sanitized logs for focus,
@@ -21,7 +21,7 @@ Store each round under `artifacts/verification/<task>/<round>/`, including a
 commands, exit codes, results, and evidence paths. Inspect the captures and link
 before/after images in the handoff. These local artifacts are ignored by Git;
 include a durable verification summary and sanitized attachments when sharing
-an issue or PR. See AGENTS.md for the complete workflow.
+an issue or PR. See DEVELOPMENT.md for the complete workflow.
 
 ## Development
 
