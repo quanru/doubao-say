@@ -460,7 +460,7 @@ function validateHistoryManifest(manifest) {
           report.files.some(
             (file) =>
               typeof file !== 'string' ||
-              !/^reports\/\d+\/[a-z0-9.-]+$/.test(file) ||
+              !/^reports\/\d+\/(?:screenshots\/)?[a-z0-9.-]+$/.test(file) ||
               !file.startsWith(`reports/${report.runId}/`),
           ))) ||
       (report.entries !== undefined &&

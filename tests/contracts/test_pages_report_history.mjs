@@ -1056,6 +1056,81 @@ test('restores version 4 history created before node text evidence', async (cont
   assert.equal(manifest.reports[1].entries[0].cases[0].description, undefined);
 });
 
+test('restores version 6 history with directory-mode screenshots', async (context) => {
+  const root = await mkdtemp(path.join(os.tmpdir(), 'pages-v6-history-'));
+  const reportDirectory = await fixtureDirectory(root);
+  const siteDirectory = path.join(root, 'site');
+  const files = [
+    'reports/100/index.html',
+    'reports/100/native-report.html',
+    'reports/100/report-preview.png',
+    'reports/100/case-preview-ubuntu-old-case.jpg',
+    'reports/100/screenshots/node-shot-1.jpeg',
+  ];
+  const oldEntry = {
+    runId: '100',
+    generatedAt: '2026-09-20T12:00:00.000Z',
+    label: 'Ubuntu 22.04',
+    successRate: 100,
+    testCount: 1,
+    modelCallCount: 1,
+    averageDurationMs: 4000,
+    tokenUsage: 100,
+    workflowUrl: 'https://github.com/quanru/doubao-say/actions/runs/100',
+    reportPath: files[0],
+    files,
+    entries: [
+      {
+        role: 'primary',
+        project: 'ubuntu',
+        label: 'Doubao Say',
+        status: 'success',
+        previewStep: 'last',
+        reportPath: files[1],
+        previewPath: files[2],
+        scenarios: { passed: 1, total: 1 },
+        assertions: { passed: 1, total: 1 },
+        cases: [
+          {
+            caseId: 'old-case',
+            name: 'Old visual case',
+            status: 'success',
+            stepId: 'old-step',
+            selection: 'last-screenshot',
+            description: 'Old AI explanation',
+            descriptionKind: 'ai',
+            previewPath: files[3],
+          },
+        ],
+      },
+    ],
+  };
+  const server = await startServer((request, response) => {
+    if (request.url === '/reports/manifest.json') {
+      response.setHeader('content-type', 'application/json');
+      response.end(JSON.stringify({ version: 6, reports: [oldEntry] }));
+      return;
+    }
+    const file = files.find((candidate) => `/${candidate}` === request.url);
+    if (!file) return response.writeHead(404).end();
+    response.setHeader(
+      'content-type',
+      file.endsWith('.html') ? 'text/html; charset=utf-8' : 'image/jpeg',
+    );
+    response.end(file);
+  });
+  context.after(server.close);
+
+  const manifest = await buildPagesReport(
+    options(reportDirectory, siteDirectory, server.url),
+  );
+  assert.deepEqual(manifest.reports.map((report) => report.runId), ['200', '100']);
+  assert.equal(
+    await readFile(path.join(siteDirectory, files[4]), 'utf8'),
+    files[4],
+  );
+});
+
 test('stops when a manifest exists but an old report cannot be restored', async (context) => {
   const root = await mkdtemp(path.join(os.tmpdir(), 'pages-failure-'));
   const reportDirectory = await fixtureDirectory(root);
