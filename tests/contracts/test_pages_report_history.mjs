@@ -130,6 +130,30 @@ test('assigns every product case to exactly one balanced shard', async () => {
   });
 });
 
+test('keeps visual E2E interactions at task level', async () => {
+  for (const file of [
+    'onboarding.yaml',
+    'onboarding-regressions.yaml',
+    'polishing.yaml',
+    'runtime.yaml',
+  ]) {
+    const source = await readFile(
+      new URL(`../e2e/cases/${file}`, import.meta.url),
+      'utf8',
+    );
+    assert.doesNotMatch(
+      source,
+      /^\s+-\s+(?:aiTap|aiScroll|aiInput|computer\.inputText):/gm,
+      `${file} must express visual interactions as task-level aiAct steps`,
+    );
+    assert.doesNotMatch(
+      source,
+      /^\s+-\s+wait:/gm,
+      `${file} must wait for a visible state with aiWaitFor instead of sleeping`,
+    );
+  }
+});
+
 function runnerScript({
   assertionCount = 0,
   assertionAttempts,

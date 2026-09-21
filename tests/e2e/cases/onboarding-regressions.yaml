@@ -3,208 +3,248 @@ cases:
     tags: [shard-1]
     steps:
       - aiAssert: The current step is Sign in and both left-arrow Previous and right-arrow Next in the fixed top navigation are disabled.
-      - aiAct: Scroll inside the Sign in content panel until Open Doubao sign-in is fully visible.
-      - aiTap: Open Doubao sign-in button in the Sign in content panel
-      - wait: { duration: 500 }
-      - aiAssert: The CI-only Synthetic Doubao sign-in window is visible.
+      - aiAct: In the Sign in content panel, open the CI-only Doubao sign-in window exactly once.
+      - aiWaitFor:
+          prompt: The CI-only Synthetic Doubao sign-in window is visible.
+          options: { timeoutMs: 30000, checkIntervalMs: 1000 }
+      - aiAssert: The synthetic sign-in window says it makes no network request and uses no real credentials.
       - computer.keyPress: { keyName: Escape }
-      - wait: { duration: 500 }
-      - aiAssert: The synthetic sign-in window is gone, Doubao Say remains on Sign in, and right-arrow Next remains disabled.
-      - aiAct: Scroll inside the Sign in content panel until Open Doubao sign-in is fully visible.
-      - aiTap: Open Doubao sign-in button in the Sign in content panel
-      - wait: { duration: 500 }
-      - aiAssert: A Synthetic Doubao sign-in window is visible and explicitly says it is CI-only, makes no network request, and uses no real credentials.
-      - aiTap: Simulate successful sign-in button in the Synthetic Doubao sign-in window
-      - wait: { duration: 500 }
-      - aiAssert: The synthetic sign-in window closed and Doubao Say automatically advanced to the Microphone step.
+      - aiWaitFor:
+          prompt: The synthetic sign-in window is gone and Doubao Say remains on Sign in.
+          options: { timeoutMs: 30000, checkIntervalMs: 1000 }
+      - aiAssert: Doubao Say remains on Sign in and the right-arrow Next button is disabled.
+      - aiAct: Open the CI-only Doubao sign-in window again from the Sign in content panel.
+      - aiWaitFor:
+          prompt: The CI-only Synthetic Doubao sign-in window is visible again.
+          options: { timeoutMs: 30000, checkIntervalMs: 1000 }
+      - aiAct: In the Synthetic Doubao sign-in window, simulate a successful sign-in exactly once.
+      - aiWaitFor:
+          prompt: The sign-in window is closed and Doubao Say has advanced to the Microphone step.
+          options: { timeoutMs: 30000, checkIntervalMs: 1000 }
+      - aiAssert: Doubao Say is on the Microphone step and no synthetic sign-in window is open.
+
   - name: Preserve signed-in account across backward navigation
     tags: [shard-4]
     steps:
       - aiAssert: The visible Doubao Say window starts on the Sign in step and says the user is not signed in.
-      - aiAct: Scroll inside the Sign in content panel until Open Doubao sign-in is fully visible.
-      - aiTap: Open Doubao sign-in button in the Sign in content panel
-      - wait: { duration: 500 }
-      - aiAssert: A Synthetic Doubao sign-in window is visible and explicitly says it is CI-only, makes no network request, and uses no real credentials.
-      - aiTap: Simulate successful sign-in button in the Synthetic Doubao sign-in window
-      - wait: { duration: 500 }
-      - aiAssert: The synthetic sign-in window closed and Doubao Say automatically advanced to the Microphone step.
-      - aiAct: Scroll to the bottom of the Microphone central content panel.
-      - aiTap: Left-arrow Previous button in the fixed top navigation
-      - aiAssert: The Sign in step shows the heading Your voice, wherever you type; left-arrow Previous is disabled and right-arrow Next is enabled.
-      - aiAct: Scroll inside the Sign in content panel until the signed-in account status and Sign in again / change account are fully visible.
-      - aiAssert: The account status says Signed in and Sign in again / change account is available.
-      - aiTap: Right-arrow Next button in the fixed top navigation
-      - aiAssert: The Microphone step shows Let's make sure we can hear you, and no synthetic sign-in window is open.
+      - aiAct: In the Sign in content panel, open the CI-only Doubao sign-in window exactly once.
+      - aiWaitFor:
+          prompt: The CI-only Synthetic Doubao sign-in window is visible.
+          options: { timeoutMs: 30000, checkIntervalMs: 1000 }
+      - aiAssert: The synthetic sign-in window says it makes no network request and uses no real credentials.
+      - aiAct: In the Synthetic Doubao sign-in window, simulate a successful sign-in exactly once.
+      - aiWaitFor:
+          prompt: The sign-in window is closed and Doubao Say has advanced to the Microphone step.
+          options: { timeoutMs: 30000, checkIntervalMs: 1000 }
+      - aiAct: Use the left-arrow Previous button once to return to Sign in, then reveal the signed-in account status in the content panel.
+      - aiWaitFor:
+          prompt: The Sign in step shows the signed-in account status and Sign in again or change account.
+          options: { timeoutMs: 30000, checkIntervalMs: 1000 }
+      - aiAssert: The Sign in step shows the heading Your voice, wherever you type; left-arrow Previous is disabled, right-arrow Next is enabled, and the account status says Signed in.
+      - aiAct: Use the right-arrow Next button once to return to Microphone.
+      - aiWaitFor:
+          prompt: The Microphone step shows Let's make sure we can hear you.
+          options: { timeoutMs: 30000, checkIntervalMs: 1000 }
+      - aiAssert: The Microphone step is visible and no synthetic sign-in window is open.
+
   - name: Require an enabled trigger and retain the replacement
     tags: [shard-4]
     steps:
       - aiAssert: The visible Doubao Say window starts on the Sign in step and says the user is not signed in.
-      - aiAct: Scroll inside the Sign in content panel until Open Doubao sign-in is fully visible.
-      - aiTap: Open Doubao sign-in button in the Sign in content panel
-      - wait: { duration: 500 }
-      - aiAssert: A Synthetic Doubao sign-in window is visible and explicitly says it is CI-only, makes no network request, and uses no real credentials.
-      - aiTap: Simulate successful sign-in button in the Synthetic Doubao sign-in window
-      - wait: { duration: 500 }
-      - aiAssert: The synthetic sign-in window closed and Doubao Say automatically advanced to the Microphone step.
-      - aiTap: Right-arrow Next button in the fixed top navigation
-      - aiAssert: The current step is Trigger key and the heading Choose how to start speaking is visible.
-      - aiAct: In the trigger selection dropdown below Active trigger, select Disabled. Do not change Voice polishing.
-      - aiTap: Right-arrow Next button in the fixed top navigation
+      - aiAct: Complete the CI-only synthetic Doubao sign-in successfully. Do not change any onboarding setting afterward.
+      - aiWaitFor:
+          prompt: Doubao Say has advanced to the Microphone step and the sign-in window is closed.
+          options: { timeoutMs: 30000, checkIntervalMs: 1000 }
+      - aiAct: Use the right-arrow Next button once to open Trigger key.
+      - aiWaitFor:
+          prompt: The Trigger key step shows Choose how to start speaking.
+          options: { timeoutMs: 30000, checkIntervalMs: 1000 }
+      - aiAct: In the trigger selection dropdown, choose Disabled. Do not change Voice polishing.
+      - aiAssert: Active trigger says Disabled and Voice polishing has not changed.
+      - aiAct: Use the right-arrow Next button once, then stop.
       - aiAssert: The current step is still Trigger key and the message Choose an enabled trigger to continue is visible.
-      - aiAct: In the trigger selection dropdown select F8.
+      - aiAct: In the trigger selection dropdown, choose F8.
       - aiAssert: Active trigger shows F8 and F8 is selected in the trigger dropdown.
-      - aiTap: Right-arrow Next button in the fixed top navigation
-      - aiAssert: The current step is Voice test, the heading Try a sentence. Nothing gets pasted is visible, and right-arrow Next is disabled.
-      - aiTap: Left-arrow Previous button in the fixed top navigation
+      - aiAct: Use the right-arrow Next button once to open Voice test.
+      - aiWaitFor:
+          prompt: Voice test shows Try a sentence. Nothing gets pasted and the right-arrow Next button is disabled.
+          options: { timeoutMs: 30000, checkIntervalMs: 1000 }
+      - aiAct: Use the left-arrow Previous button once to return to Trigger key.
+      - aiWaitFor:
+          prompt: The Trigger key step is visible again.
+          options: { timeoutMs: 30000, checkIntervalMs: 1000 }
       - aiAssert: The Trigger key step still shows Active trigger F8 and F8 is selected in the trigger dropdown.
+
   - name: Toggle polishing without losing configuration
     tags: [shard-3]
     steps:
       - aiAssert: The visible Doubao Say window starts on the Sign in step and says the user is not signed in.
-      - aiAct: Scroll inside the Sign in content panel until Open Doubao sign-in is fully visible.
-      - aiTap: Open Doubao sign-in button in the Sign in content panel
-      - wait: { duration: 500 }
-      - aiAssert: A Synthetic Doubao sign-in window is visible and explicitly says it is CI-only, makes no network request, and uses no real credentials.
-      - aiTap: Simulate successful sign-in button in the Synthetic Doubao sign-in window
-      - wait: { duration: 500 }
-      - aiAssert: The synthetic sign-in window closed and Doubao Say automatically advanced to the Microphone step.
-      - aiTap: Right-arrow Next button in the fixed top navigation
-      - aiAssert: The current step is Trigger key and the heading Choose how to start speaking is visible.
-      - aiAct: Scroll inside the central content panel until the Voice polishing heading and switch are fully visible.
-      - aiTap: Enabled switch beside Voice polishing
+      - aiAct: Complete the CI-only synthetic Doubao sign-in successfully. Do not change any onboarding setting afterward.
+      - aiWaitFor:
+          prompt: Doubao Say has advanced to the Microphone step and the sign-in window is closed.
+          options: { timeoutMs: 30000, checkIntervalMs: 1000 }
+      - aiAct: Use the right-arrow Next button once to open Trigger key, then reveal the Voice polishing controls.
+      - aiWaitFor:
+          prompt: The Trigger key step and the Voice polishing switch are visible.
+          options: { timeoutMs: 30000, checkIntervalMs: 1000 }
+      - aiAct: Turn Voice polishing off exactly once.
       - aiAssert: Voice polishing disabled is visible, the switch is off, and the polishing Base URL and Model fields are hidden.
-      - aiTap: Disabled switch beside Voice polishing
-      - aiAssert: Voice polishing enabled is visible and the switch is on.
-      - aiAct: Scroll downward inside the central content panel until the Voice polishing Model input and its complete value are fully visible.
-      - aiAssert: The Voice polishing Model input contains exactly synthetic-model.
+      - aiAct: Turn Voice polishing on exactly once, then reveal its Model input.
+      - aiWaitFor:
+          prompt: Voice polishing is enabled and its Model input is visible.
+          options: { timeoutMs: 30000, checkIntervalMs: 1000 }
+      - aiAssert: The Voice polishing switch is on and the Model input contains exactly synthetic-model.
+
   - name: Recover from an endpoint failure
     tags: [shard-1]
     steps:
       - aiAssert: The visible Doubao Say window starts on the Sign in step and says the user is not signed in.
-      - aiAct: Scroll inside the Sign in content panel until Open Doubao sign-in is fully visible.
-      - aiTap: Open Doubao sign-in button in the Sign in content panel
-      - wait: { duration: 500 }
-      - aiAssert: A Synthetic Doubao sign-in window is visible and explicitly says it is CI-only, makes no network request, and uses no real credentials.
-      - aiTap: Simulate successful sign-in button in the Synthetic Doubao sign-in window
-      - wait: { duration: 500 }
-      - aiAssert: The synthetic sign-in window closed and Doubao Say automatically advanced to the Microphone step.
-      - aiTap: Right-arrow Next button in the fixed top navigation
-      - aiAssert: The current step is Trigger key and the heading Choose how to start speaking is visible.
-      - aiAct: Scroll inside the central content panel until the Voice polishing Model input is fully visible. Do not click Test endpoint.
-      - computer.inputText:
-          target: Voice polishing Model input
-          value: ci-fail-model
+      - aiAct: Complete the CI-only synthetic Doubao sign-in successfully. Do not change any onboarding setting afterward.
+      - aiWaitFor:
+          prompt: Doubao Say has advanced to the Microphone step and the sign-in window is closed.
+          options: { timeoutMs: 30000, checkIntervalMs: 1000 }
+      - aiAct: Use the right-arrow Next button once to open Trigger key.
+      - aiWaitFor:
+          prompt: The Trigger key step shows Choose how to start speaking.
+          options: { timeoutMs: 30000, checkIntervalMs: 1000 }
+      - aiAct: In Voice polishing, replace the Model value with ci-fail-model. Do not activate Test endpoint.
       - aiAssert: The Voice polishing Model input contains exactly ci-fail-model.
-      - aiAct: Scroll downward inside the central content panel until the Test endpoint button is fully visible.
-      - aiAssert: The Test endpoint button in Voice polishing is fully visible.
-      - aiTap: Test endpoint button in the Voice polishing section
-      - wait: { duration: 750 }
-      - aiAct: Scroll downward inside the central content panel until both the endpoint failure text and the retry button are fully visible.
-      - aiAssert: "The visible endpoint feedback says Endpoint test failed: Synthetic endpoint unavailable, and the enabled retry button says Test failed — try again."
-      - aiAct: Scroll upward inside the central content panel until the Model input under Voice polishing is fully visible. Do not click the retry button.
-      - computer.inputText:
-          target: Model input under Voice polishing
-          value: ci-ok-model
+      - aiAct: Activate Test endpoint once and leave the failure result visible.
+      - aiWaitFor:
+          prompt: The endpoint feedback contains Synthetic endpoint unavailable and the retry button says Test failed — try again.
+          options: { timeoutMs: 30000, checkIntervalMs: 1000 }
+      - aiAssert: The endpoint failure and its enabled retry button are both visible.
+      - aiAct: Replace the Voice polishing Model value with ci-ok-model. Do not activate the retry button yet.
       - aiAssert: The Voice polishing Model input contains exactly ci-ok-model, without the word fail.
-      - aiAct: Scroll inside the central content panel until the Test failed — try again button is fully visible.
-      - aiTap: Test failed — try again button in the Voice polishing section
-      - wait: { duration: 750 }
-      - aiAct: Scroll inside the central content panel until the endpoint result text below the retry button is fully visible.
-      - aiAssert: "The endpoint result says Endpoint works: Synthetic endpoint response, the enabled button says Endpoint works, and the previous Synthetic endpoint unavailable error is no longer visible."
+      - aiAct: Activate Test failed — try again exactly once and leave the new result visible.
+      - aiWaitFor:
+          prompt: The endpoint result contains Synthetic endpoint response and the button says Endpoint works.
+          options: { timeoutMs: 30000, checkIntervalMs: 1000 }
+      - aiAssert: The previous Synthetic endpoint unavailable error is gone and the successful endpoint result is visible.
+
   - name: Microphone check gates setup completion
     tags: [shard-4]
     steps:
       - fixture.prepare: { mode: microphone-gate }
       - aiAssert: The visible Doubao Say window starts on the Microphone step, shows Synthetic microphone one, and offers Check microphone · 3 seconds.
-      - aiTap: Right-arrow Next button in the fixed top navigation
-      - aiTap: Right-arrow Next button in the fixed top navigation
-      - aiAct: Scroll down inside the Voice test content panel until the Finish setup button is fully visible.
-      - aiAssert: The current step is Voice test and the Finish setup button is visibly disabled.
-      - aiTap: Left-arrow Previous button in the fixed top navigation
-      - aiTap: Left-arrow Previous button in the fixed top navigation
-      - aiTap: Check microphone · 3 seconds button on the Microphone step
-      - wait: { duration: 750 }
-      - aiAssert: A visible message says Microphone is working and instructs the user to continue to the trigger key step.
-      - aiTap: Right-arrow Next button in the fixed top navigation
-      - aiTap: Right-arrow Next button in the fixed top navigation
-      - aiAct: Scroll down inside the Voice test content panel until the Finish setup button is fully visible.
+      - aiAct: Without running the microphone check, use the right-arrow Next button on Microphone and then on Trigger key to reach Voice test. Reveal Finish setup but do not activate it.
+      - aiWaitFor:
+          prompt: Voice test is visible and Finish setup is fully visible.
+          options: { timeoutMs: 30000, checkIntervalMs: 1000 }
+      - aiAssert: The Finish setup button is visibly disabled.
+      - aiAct: Return to Microphone with the left-arrow Previous button on Voice test and then on Trigger key. Run Check microphone · 3 seconds exactly once.
+      - aiWaitFor:
+          prompt: The visible feedback says Microphone is working and instructs the user to continue to the trigger key step.
+          options: { timeoutMs: 30000, checkIntervalMs: 1000 }
+      - aiAssert: The microphone result says Microphone is working and Synthetic microphone one remains selected.
+      - aiAct: Use the right-arrow Next button on Microphone and then on Trigger key to return to Voice test. Reveal Finish setup but do not activate it.
+      - aiWaitFor:
+          prompt: Voice test is visible and Finish setup is fully visible.
+          options: { timeoutMs: 30000, checkIntervalMs: 1000 }
       - aiAssert: The Finish setup button is visibly enabled.
+
   - name: Complete and cancel a voice test safely
     tags: [shard-3]
     steps:
       - fixture.prepare: { mode: voice-test }
       - aiAssert: The visible Doubao Say window starts on the Microphone step and the microphone is already configured.
-      - aiTap: Right-arrow Next button in the fixed top navigation
-      - aiTap: Right-arrow Next button in the fixed top navigation
-      - aiAssert: The current step is Voice test and Start voice test is available.
-      - aiAct: Scroll down inside the Voice test content panel until the Finish setup button is fully visible.
-      - aiAssert: The Finish setup button is visibly disabled.
-      - aiTap: Start voice test button in the Voice test content panel
-      - wait: { duration: 750 }
-      - aiAssert: Synthetic voice test transcript is visible, and both Finish & check result and Cancel test are available.
-      - aiTap: Cancel test button in the Voice test content panel
-      - wait: { duration: 1000 }
-      - aiAct: If the Listening overlay and Cancel test are both still visible, activate Cancel test exactly once and then wait at least one second. If the voice test is already cancelled, do nothing.
-      - wait: { duration: 1000 }
-      - aiAssert: The Listening overlay is gone, Start voice test is available, the voice-test transcript is empty, and the visible feedback says Voice test cancelled and nothing was pasted or sent.
-      - aiAct: Scroll down inside the Voice test content panel until the setup button is fully visible.
-      - aiAssert: The disabled setup button visibly says Voice test cancelled and nothing pasted or sent.
-      - aiTap: Start voice test button in the Voice test content panel
-      - wait: { duration: 750 }
-      - aiAssert: Synthetic voice test transcript is visible, and Finish & check result is available again.
-      - aiTap: Finish & check result button in the Voice test content panel
-      - wait: { duration: 1250 }
-      - aiAct: If the Listening overlay and Finish & check result are both still visible, activate Finish & check result exactly once and then wait at least one second. If the voice test has already finished, do nothing.
-      - wait: { duration: 1250 }
-      - aiAssert: The Listening overlay is gone, Start voice test is available, and the visible feedback says Voice test passed and nothing was pasted or sent.
-      - aiAct: Scroll down inside the Voice test content panel until the setup button is fully visible.
-      - aiAssert: The enabled setup button visibly says Voice test passed and nothing pasted or sent.
+      - aiAct: Use the right-arrow Next button on Microphone and then on Trigger key to reach Voice test. Reveal Finish setup but do not activate it or start the voice test.
+      - aiWaitFor:
+          prompt: Voice test is visible and the disabled Finish setup control is fully visible.
+          options: { timeoutMs: 30000, checkIntervalMs: 1000 }
+      - aiAssert: The setup control is disabled before any voice test passes.
+      - aiAct: Start the voice test exactly once.
+      - aiWaitFor:
+          prompt: Synthetic voice test transcript is visible, and both Finish & check result and Cancel test are available.
+          options: { timeoutMs: 30000, checkIntervalMs: 1000 }
+      - aiAssert: The listening voice test has a synthetic transcript and offers both finish and cancel actions.
+      - aiAct: Cancel the active voice test exactly once.
+      - aiWaitFor:
+          prompt: The Listening overlay is gone and the visible feedback says Voice test cancelled and nothing was pasted or sent.
+          options: { timeoutMs: 30000, checkIntervalMs: 1000 }
+      - aiAssert: Start voice test is available again, the transcript is empty, and the visible feedback says Voice test cancelled and nothing was pasted or sent.
+      - aiAct: Reveal the voice-test result and Finish setup control without starting another test or activating Finish setup.
+      - aiWaitFor:
+          prompt: The cancelled voice-test result and the disabled Finish setup control are fully visible.
+          options: { timeoutMs: 30000, checkIntervalMs: 1000 }
+      - aiAssert: The setup control is disabled and says Voice test cancelled and nothing pasted or sent.
+      - aiAct: Start a second voice test exactly once.
+      - aiWaitFor:
+          prompt: Synthetic voice test transcript is visible and Finish & check result is available again.
+          options: { timeoutMs: 30000, checkIntervalMs: 1000 }
+      - aiAct: Finish the active voice test and check its result exactly once.
+      - aiWaitFor:
+          prompt: The Listening overlay is gone and the visible feedback says Voice test passed and nothing was pasted or sent.
+          options: { timeoutMs: 30000, checkIntervalMs: 1000 }
+      - aiAssert: Start voice test is available again, and the enabled setup control says Voice test passed and nothing pasted or sent.
+
   - name: Switch to Volcengine and validate credentials
     tags: [shard-3]
     steps:
       - fixture.prepare: { mode: volcengine }
       - aiAssert: The visible Doubao Say window starts on Sign in with Doubao account selected and right-arrow Next disabled.
-      - aiAct: In Recognition service, select Volcengine API exactly once.
-      - aiAct: Scroll down inside the central content panel until the API Key field and Test API key button are both visible.
-      - aiAssert: The page is now Recognition, shows an empty API Key field, hides Open Doubao sign-in, and both Test API key and right-arrow Next are visibly disabled.
-      - computer.inputText:
-          target: API Key field
-          value: synthetic-ci-key
-      - aiAssert: The API Key field visibly contains a non-empty masked value and the Test API key button is enabled.
-      - aiTap: Test API key button below the API Key field
-      - wait: { duration: 750 }
-      - aiAct: Scroll downward exactly once inside the central content panel so the API key test result is visible, then stop.
-      - aiAssert: The result says API key accepted by synthetic endpoint and the page reports that the official API is ready.
-      - aiTap: Right-arrow Next button in the fixed top navigation
-      - aiAssert: The current step is Microphone and the heading Let's make sure we can hear you is visible.
+      - aiAct: In Recognition service, choose Volcengine API exactly once.
+      - aiWaitFor:
+          prompt: The page title is Recognition and the empty API Key field is visible.
+          options: { timeoutMs: 30000, checkIntervalMs: 1000 }
+      - aiAssert: Open Doubao sign-in is hidden, and both Test API key and right-arrow Next are disabled while the API Key is empty.
+      - aiAct: Enter synthetic-ci-key in the API Key field. Do not activate Test API key yet.
+      - aiWaitFor:
+          prompt: The API Key field has a non-empty masked value and Test API key is enabled.
+          options: { timeoutMs: 30000, checkIntervalMs: 1000 }
+      - aiAssert: The API Key is visibly saved as a masked non-empty value.
+      - aiAct: Activate Test API key exactly once and leave its result visible.
+      - aiWaitFor:
+          prompt: The result says API key accepted by synthetic endpoint and the page reports that the official API is ready.
+          options: { timeoutMs: 30000, checkIntervalMs: 1000 }
+      - aiAssert: The accepted API key result and official API ready state are both visible.
+      - aiAct: Use the right-arrow Next button once to open Microphone.
+      - aiWaitFor:
+          prompt: The Microphone step shows Let's make sure we can hear you.
+          options: { timeoutMs: 30000, checkIntervalMs: 1000 }
+      - aiAssert: The current step is Microphone.
+
   - name: Changing microphone requires another check
     tags: [shard-2]
     steps:
       - fixture.prepare: { mode: microphone-change }
       - aiAssert: The visible Doubao Say window starts on the Microphone step with Synthetic microphone one selected.
-      - aiAct: In the microphone dropdown, select Synthetic microphone two exactly once.
-      - aiAssert: A visible message says Microphone saved and requires a new three-second check.
-      - aiTap: Right-arrow Next button in the fixed top navigation
-      - aiTap: Right-arrow Next button in the fixed top navigation
-      - aiAct: Scroll down inside the Voice test content panel until the Finish setup button is fully visible.
+      - aiAct: In the microphone dropdown, choose Synthetic microphone two exactly once.
+      - aiWaitFor:
+          prompt: The visible feedback says Microphone saved and requires a new three-second check.
+          options: { timeoutMs: 30000, checkIntervalMs: 1000 }
+      - aiAssert: Synthetic microphone two is selected and a new microphone check is required.
+      - aiAct: Without running the new microphone check, use the right-arrow Next button on Microphone and then on Trigger key to reach Voice test. Reveal Finish setup but do not activate it.
+      - aiWaitFor:
+          prompt: Voice test is visible and Finish setup is fully visible.
+          options: { timeoutMs: 30000, checkIntervalMs: 1000 }
       - aiAssert: The Finish setup button is visibly disabled.
-      - aiTap: Left-arrow Previous button in the fixed top navigation
-      - aiTap: Left-arrow Previous button in the fixed top navigation
-      - aiTap: Check microphone · 3 seconds button on the Microphone step
-      - wait: { duration: 750 }
-      - aiAssert: The result says Microphone is working and Synthetic microphone two remains selected.
-      - aiTap: Right-arrow Next button in the fixed top navigation
-      - aiTap: Right-arrow Next button in the fixed top navigation
-      - aiAct: Scroll down inside the Voice test content panel until the Finish setup button is fully visible.
+      - aiAct: Return to Microphone with the left-arrow Previous button on Voice test and then on Trigger key. Run Check microphone · 3 seconds exactly once.
+      - aiWaitFor:
+          prompt: The visible feedback says Microphone is working and Synthetic microphone two remains selected.
+          options: { timeoutMs: 30000, checkIntervalMs: 1000 }
+      - aiAssert: The microphone result says Microphone is working and Synthetic microphone two remains selected.
+      - aiAct: Use the right-arrow Next button on Microphone and then on Trigger key to return to Voice test. Reveal Finish setup but do not activate it.
+      - aiWaitFor:
+          prompt: Voice test is visible and Finish setup is fully visible.
+          options: { timeoutMs: 30000, checkIntervalMs: 1000 }
       - aiAssert: The Finish setup button is visibly enabled.
+
   - name: Capture and retain a custom trigger shortcut
     tags: [shard-2]
     steps:
       - fixture.prepare: { mode: shortcut-capture }
-      - aiTap: Right-arrow Next button in the fixed top navigation
-      - aiAssert: The Trigger key page shows Active trigger fn and a trigger selection dropdown.
-      - aiAct: In the trigger selection dropdown, select Record a shortcut… exactly once and wait for the synthetic shortcut capture to finish.
-      - aiAssert: The active trigger now shows the control symbol ⌃ plus F8, and the trigger dropdown displays that same custom shortcut.
-      - aiTap: Right-arrow Next button in the fixed top navigation
-      - aiTap: Left-arrow Previous button in the fixed top navigation
-      - aiAssert: The Trigger key page still shows the custom ⌃ plus F8 shortcut as the active and selected trigger.
+      - aiAct: Use the right-arrow Next button once to open Trigger key.
+      - aiWaitFor:
+          prompt: Trigger key shows Active trigger fn and its trigger selection dropdown.
+          options: { timeoutMs: 30000, checkIntervalMs: 1000 }
+      - aiAct: In the trigger selection dropdown, choose Record a shortcut… exactly once and allow the synthetic shortcut capture to finish.
+      - aiWaitFor:
+          prompt: The active trigger and trigger dropdown both show the control symbol ⌃ plus F8.
+          options: { timeoutMs: 30000, checkIntervalMs: 1000 }
+      - aiAssert: The active and selected trigger is the custom shortcut ⌃ plus F8.
+      - aiAct: Use the right-arrow Next button once to open Voice test, then use the left-arrow Previous button once to return to Trigger key.
+      - aiWaitFor:
+          prompt: Trigger key is visible again and still shows the custom shortcut.
+          options: { timeoutMs: 30000, checkIntervalMs: 1000 }
+      - aiAssert: The Trigger key page still shows ⌃ plus F8 as both the active and selected trigger.
