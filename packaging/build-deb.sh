@@ -7,7 +7,7 @@
 #        python3-websockets python3-sounddevice python3-evdev
 #
 # Usage:
-#   ./packaging/build-deb.sh           # builds ../doubao-say_1.1.0-1_all.deb
+#   ./packaging/build-deb.sh           # builds ../doubao-say_1.2.0-1_all.deb
 #   ./packaging/build-deb.sh --install # also installs it locally
 set -e
 

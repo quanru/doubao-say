@@ -51,7 +51,7 @@ class ProductTest(TestCase):
         self.assertNotIn("private-device-identifier", data)
         self.assertNotIn("cookies", data)
         self.assertNotIn("transcript", data)
-        self.assertEqual(json.loads(data)["product_version"], "1.1.0")
+        self.assertEqual(json.loads(data)["product_version"], "1.2.0")
         self.assertEqual(json.loads(data)["recognition_provider"], "volcengine")
         self.assertEqual(json.loads(data)["recent_stages"], [
             {"stage": "first_result", "after_ms": 125}])
