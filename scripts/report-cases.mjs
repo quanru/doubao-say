@@ -188,6 +188,7 @@ export function reportCases(run, projectName, { reportHtml } = {}) {
         caseId: testCase.caseId,
         name: testCase.name,
         status: passed ? 'success' : 'failed',
+        durationMs: attempt.durationMs,
         stepId: step.id,
         stepTitle: step.title ?? step.node,
         selection: passed ? 'last-screenshot' : 'first-failing-screenshot',

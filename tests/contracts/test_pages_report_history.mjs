@@ -54,8 +54,8 @@ test('records every shard and renders the Summary before Pages deployment', asyn
     );
     assert.match(
       source,
-      /max-parallel: 5/,
-      `${workflow} must start all four product shards and its auxiliary project together`,
+      /^\s*max-parallel: [1-5]$/m,
+      `${workflow} must declare an explicit matrix concurrency (1 while the model endpoint is rate-limited, 5 otherwise)`,
     );
     assert.match(source, /if-no-files-found: error/);
     assert.match(source, /Create bundle even when every shard failed early/);
@@ -188,11 +188,13 @@ function runnerScript({
                       status: statuses.every((item) => item === 'success')
                         ? 'success'
                         : 'failed',
+                      durationMs: 12000 + attemptIndex * 1000,
                       steps: statuses.map((stepStatus, stepIndex) => ({
                         id: `assert-${attemptIndex}-${stepIndex}`,
                         node: assertionCount || assertionAttempts ? 'aiAssert' : 'aiAct',
                         title: `Evidence ${attemptIndex}-${stepIndex}`,
                         status: stepStatus,
+                        durationMs: 4000 + stepIndex * 500,
                         ...(stepStatus === 'failed'
                           ? {
                               error: {
@@ -580,6 +582,7 @@ test('publishes the Doubao Say report as the primary CI entrance', async (contex
           caseId: 'case-ubuntu',
           name: 'ubuntu visual case',
           status: 'success',
+          durationMs: 12000,
           stepId: 'assert-0-0',
           selection: 'last-screenshot',
           description: 'AI explanation 0-0',
@@ -603,6 +606,7 @@ test('publishes the Doubao Say report as the primary CI entrance', async (contex
           caseId: 'case-omarchy-shell',
           name: 'omarchy-shell visual case',
           status: 'success',
+          durationMs: 12000,
           stepId: 'assert-0-2',
           selection: 'last-screenshot',
           description: 'AI explanation 0-2',
@@ -855,7 +859,7 @@ test('restores retained history before adding the new run', async (context) => {
       'utf8',
     ),
   );
-  assert.equal(writtenManifest.version, 5);
+  assert.equal(writtenManifest.version, 6);
   assert.equal(writtenManifest.reports[0].reportPath, 'reports/200/index.html');
   assert.equal(
     writtenManifest.reports[0].workflowUrl,
@@ -1004,6 +1008,7 @@ test('renders one full-width section per structured report entry', () => {
                 caseId: 'case-ubuntu',
                 name: 'Launch and finish onboarding',
                 status: 'success',
+                durationMs: 73000,
                 stepId: 'case-ubuntu:steps:8',
                 selection: 'last-screenshot',
                 description: 'The setup completion state is visible.',
@@ -1028,6 +1033,7 @@ test('renders one full-width section per structured report entry', () => {
                 caseId: 'case-polishing',
                 name: 'Polish selected text',
                 status: 'success',
+                durationMs: 52000,
                 stepId: 'case-polishing:steps:5',
                 selection: 'last-screenshot',
                 description: 'The polished text is visible.',
@@ -1050,19 +1056,26 @@ test('renders one full-width section per structured report entry', () => {
   });
 
   assert.match(summary, /Ubuntu × Midscene · passed/);
-  assert.match(summary, /Doubao Say: 6\/6 scenarios passed/);
-  assert.match(summary, /Polishing overlay report: 1\/1 scenarios passed/);
+  assert.match(summary, /\*\*2\/2 cases · 100% passed\*\*/);
+  assert.match(summary, /Doubao Say: 6\/6 cases · 5\/5 assertions\./);
   assert.match(
     summary,
-    /\| Result \| Case \| Node screenshot \| AI response \/ error \|/,
+    /Polishing overlay report: 1\/1 cases · 8\/8 assertions\./,
   );
-  assert.match(summary, /✅ Passed/);
+  assert.match(summary, /\*\*All 2 cases passed\.\*\*/);
+  assert.doesNotMatch(summary, /### Failures/);
   assert.match(
     summary,
     /index\.html#runner-step=case-ubuntu%3Asteps%3A8/,
   );
-  assert.match(summary, /Last screenshot: Launch and finish onboarding/);
-  assert.match(summary, /\*\*AI:\*\* The setup completion state is visible\./);
+  assert.match(summary, /✅ \[Launch and finish onboarding\].*— 1m13s/);
+  assert.match(summary, /— 52s/);
+  assert.match(
+    summary,
+    /case-preview-ubuntu-case-ubuntu\.jpg/,
+  );
+  assert.match(summary, /<summary>All screenshots \(2\)<\/summary>/);
+  assert.match(summary, /<summary>Passed cases \(2\)<\/summary>/);
   assert.doesNotMatch(summary, /report report/);
   assert.match(summary, /Each image is the original page screenshot/);
 });
@@ -1110,16 +1123,20 @@ test('renders singular failure copy for one available report', () => {
   });
 
   assert.match(summary, /Ubuntu × Midscene · failure captured/);
-  assert.match(summary, /❌ Failed/);
-  assert.match(summary, /First failing screenshot: Broken flow/);
+  assert.match(summary, /\*\*0\/1 cases · 0% passed\*\*/);
+  assert.match(summary, /### Failures \(1\)/);
+  assert.match(summary, /\| Case \| Duration \| Reason \|/);
+  assert.match(summary, /❌ \[Broken flow\]/);
   assert.match(
     summary,
-    /\*\*Error:\*\* Node "aiAssert" failed: expected state missing\./,
+    /Error: Node "aiAssert" failed: expected state missing\./,
   );
   assert.match(
     summary,
     /index\.html#runner-step=case-fail%3Asteps%3A2/,
   );
+  assert.match(summary, /### Failed screenshots \(1\)/);
+  assert.match(summary, /case-preview-ubuntu-case-fail\.jpg/);
   assert.match(summary, /Each image is the original page screenshot/);
 });
 

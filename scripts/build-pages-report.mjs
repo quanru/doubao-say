@@ -16,8 +16,17 @@ import {
 } from './omarchy-shell-evidence.mjs';
 import { reportCases } from './report-cases.mjs';
 
-const MANIFEST_VERSION = 5;
-const SUPPORTED_MANIFEST_VERSIONS = new Set([1, 2, 3, 4, MANIFEST_VERSION]);
+const MANIFEST_VERSION = 6;
+const SUPPORTED_MANIFEST_VERSIONS = new Set([1, 2, 3, 4, 5, MANIFEST_VERSION]);
+
+export function formatDuration(durationMs) {
+  if (!Number.isFinite(durationMs) || durationMs < 0) return '';
+  const totalSeconds = Math.round(durationMs / 1000);
+  const minutes = Math.floor(totalSeconds / 60);
+  const seconds = totalSeconds % 60;
+  if (minutes === 0) return `${seconds}s`;
+  return `${minutes}m${String(seconds).padStart(2, '0')}s`;
+}
 
 function parseArguments(argv) {
   const options = {};
@@ -212,6 +221,9 @@ function buildReportEntry({
     caseId: testCase.caseId,
     name: testCase.name,
     status: testCase.status,
+    ...(Number.isFinite(testCase.durationMs)
+      ? { durationMs: testCase.durationMs }
+      : {}),
     stepId: testCase.stepId,
     selection: testCase.selection,
     description: testCase.description,
@@ -386,6 +398,8 @@ function validReportEntry(entry, files) {
             typeof testCase.caseId === 'string' &&
             typeof testCase.name === 'string' &&
             ['success', 'failed'].includes(testCase.status) &&
+            (testCase.durationMs === undefined ||
+              Number.isInteger(testCase.durationMs)) &&
             (typeof testCase.stepId === 'string' ||
               testCase.selection === 'workflow-failure') &&
             ['last-screenshot', 'first-failing-screenshot', 'workflow-failure'].includes(
@@ -493,7 +507,7 @@ function escapeHtml(value) {
     .replaceAll("'", '&#039;');
 }
 
-function formatDuration(durationMs) {
+function formatModelDuration(durationMs) {
   if (durationMs === null) return 'Unavailable';
   return `${(durationMs / 1000).toFixed(2)} s`;
 }
@@ -533,6 +547,7 @@ function buildRunIndex(report) {
             <tr>
               <td class="status">${status}</td>
               <td><a href="${escapeHtml(target)}">${escapeHtml(testCase.name)}</a></td>
+              <td class="duration">${escapeHtml(formatDuration(testCase.durationMs))}</td>
               <td><a href="${escapeHtml(target)}"><img src="${escapeHtml(image)}" alt="${escapeHtml(testCase.name)} node screenshot" loading="lazy"></a></td>
               <td><strong>${escapeHtml(descriptionLabel)}:</strong> ${escapeHtml(testCase.description)}</td>
             </tr>`;
@@ -549,7 +564,7 @@ function buildRunIndex(report) {
           </div>
           <div class="table-wrap">
             <table>
-              <thead><tr><th>Result</th><th>Case</th><th>Node screenshot</th><th>AI response / error</th></tr></thead>
+              <thead><tr><th>Result</th><th>Case</th><th>Duration</th><th>Node screenshot</th><th>AI response / error</th></tr></thead>
               <tbody>${rows}
               </tbody>
             </table>
@@ -579,9 +594,10 @@ function buildRunIndex(report) {
       th { font-size: .78rem; text-transform: uppercase; }
       th:nth-child(1) { width: 7rem; }
       th:nth-child(2) { width: 17rem; }
-      th:nth-child(3) { width: 34%; }
+      th:nth-child(3) { width: 6rem; }
+      th:nth-child(4) { width: 34%; }
       td { line-height: 1.45; }
-      td.status { white-space: nowrap; }
+      td.status, td.duration { white-space: nowrap; }
       img { border: 1px solid #8885; border-radius: .5rem; display: block; height: auto; width: 100%; }
       @media (max-width: 900px) {
         body { padding: 1rem .6rem 3rem; }
@@ -612,7 +628,7 @@ function buildIndex(reports) {
             <td>${escapeHtml(report.label ?? 'Midscene E2E')}</td>
             <td>${escapeHtml(report.generatedAt)}</td>
             <td>${escapeHtml(report.successRate.toFixed(1))}%</td>
-            <td>${escapeHtml(formatDuration(report.averageDurationMs))}</td>
+            <td>${escapeHtml(formatModelDuration(report.averageDurationMs))}</td>
             <td>${escapeHtml(report.modelCallCount)}</td>
             <td>${report.tokenUsage === null ? 'Unavailable' : escapeHtml(report.tokenUsage.toLocaleString('en-US'))}</td>
             <td><a href="${escapeHtml(report.workflowUrl)}">Actions run</a></td>
