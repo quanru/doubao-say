@@ -221,12 +221,14 @@ jobs:
   pages-report:
     name: GitHub Pages report
     needs: [omarchy-e2e, report-bundle]
+    # Only push runs on main publish to the public Pages history; pull
+    # requests still run every shard and produce the report artifact.
     if: >-
       always() &&
       !cancelled() &&
       needs.report-bundle.outputs.report-artifact-id != '' &&
-      (github.event_name != 'pull_request' ||
-      github.event.pull_request.head.repo.full_name == github.repository)
+      github.event_name == 'push' &&
+      github.ref == 'refs/heads/main'
     permissions:
       actions: read
       contents: read
