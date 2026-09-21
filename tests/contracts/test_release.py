@@ -44,6 +44,14 @@ class ReleaseTest(unittest.TestCase):
         self.assertEqual(manifest["name"], "Doubao Say")
         self.assertNotIn("voice-input", json.dumps(manifest))
 
+    def test_release_workflow_publishes_curated_product_notes(self):
+        workflow = (ROOT / ".github/workflows/release.yml").read_text()
+        notes = (ROOT / "RELEASE_NOTES.md").read_text()
+        self.assertIn("--notes-file RELEASE_NOTES.md", workflow)
+        self.assertNotIn("--generate-notes", workflow)
+        for expected in ("Doubao Say 1.2.0", "Volcengine Seed ASR 2.0", "Vibekey", "Midscene Test"):
+            self.assertIn(expected, notes)
+
     def test_both_archives_exclude_ignored_source_files(self):
         with tempfile.TemporaryDirectory() as folder:
             root = Path(folder)

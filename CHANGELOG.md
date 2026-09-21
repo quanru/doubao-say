@@ -1,5 +1,34 @@
 # Changelog
 
+## 1.2.0
+
+- Added optional Vibekey receiver support with authenticated heartbeat and hot-plug
+  recovery. Its three buttons, two dial directions, and dial press have useful
+  defaults and can each send a custom recorded shortcut. Support remains off by
+  default and uses a narrowly scoped udev rule without adding a software dependency.
+- Recover cleanly when a microphone or keyboard device disconnects. Unexpected
+  PipeWire termination stops the active session, stale callbacks cannot affect a
+  newer recording, and one failed evdev device no longer drops every keyboard.
+- Added live microphone refresh in Settings. Opening Settings or pressing Refresh
+  devices rescans PipeWire inputs while preserving a saved device that is temporarily
+  unavailable.
+- Gave voice polishing its own status row, subtle sparkle animation, delayed
+  original-text shortcut hint, and reduced-motion presentation. Streaming text no
+  longer has to carry the polishing status prefix.
+- Added provider-aware low-latency reasoning controls and clearer bilingual guidance.
+  Official DeepSeek and compatible Gemini configurations request thinking off;
+  Zhipu standard and Coding Plan endpoints request thinking off where supported,
+  while GLM-5.3 variants use low reasoning effort because they reject that switch.
+  The five-second deadline and original-text fallback remain unchanged.
+- Simplified onboarding navigation with larger icon-only arrow controls and localized
+  tooltips.
+- Rebuilt desktop acceptance around Midscene Test on Ubuntu 22.04 and Omarchy 4.0.3.
+  CI now publishes per-case Markdown evidence tables, node screenshots, AI text or
+  errors, direct failed-node links, replayable HTML reports, and retained report
+  history even when individual cases fail. Product cases run in parallel shards.
+- Removed automatically loaded coding-agent instruction files from the distributed
+  Marketplace checkout and added a publication guard to prevent them from returning.
+
 ## 1.1.0
 
 - Added native X11/XFCE automatic input with target/focus guards, terminal-aware

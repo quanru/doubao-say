@@ -1,4 +1,4 @@
-# Doubao Say 1.1.0
+# Doubao Say 1.2.0
 
 English interface by default. Select System, English or 简体中文 in Settings;
 the choice saves and applies automatically. System follows the session locale (Chinese → Simplified Chinese;
