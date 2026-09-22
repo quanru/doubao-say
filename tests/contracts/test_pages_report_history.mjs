@@ -157,6 +157,7 @@ test('keeps visual E2E interactions at task level with proven aiTap exceptions',
           ? [
               '- aiTap: The large blue full-width Open Doubao sign-in button near the bottom of the central Sign in panel, around 50% width and 73% screen height',
               '- aiTap: The large blue full-width Open Doubao sign-in button near the bottom of the central Sign in panel, around 50% width and 73% screen height',
+              '- aiTap: The blue Simulate successful sign-in button in the CI-only modal, around 50% width and 43% screen height',
             ]
           : [],
       `${file} must express visual interactions as task-level aiAct steps except for proven failures`,

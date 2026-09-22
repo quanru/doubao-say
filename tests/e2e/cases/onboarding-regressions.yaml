@@ -17,7 +17,7 @@ cases:
       - aiWaitFor:
           prompt: The CI-only Synthetic Doubao sign-in window is visible again.
           options: { timeoutMs: 30000, checkIntervalMs: 1000 }
-      - aiAct: Simulate a successful sign-in.
+      - aiTap: The blue Simulate successful sign-in button in the CI-only modal, around 50% width and 43% screen height
       - aiWaitFor:
           prompt: The sign-in window is closed and Doubao Say has advanced to the Microphone step.
           options: { timeoutMs: 30000, checkIntervalMs: 1000 }
