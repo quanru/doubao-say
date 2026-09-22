@@ -130,7 +130,7 @@ test('assigns every product case to exactly one balanced shard', async () => {
   });
 });
 
-test('uses one-shot nodes for direct visual interactions', async () => {
+test('keeps visual E2E interactions at task level with one proven aiTap exception', async () => {
   for (const file of [
     'onboarding.yaml',
     'onboarding-regressions.yaml',
@@ -141,14 +141,21 @@ test('uses one-shot nodes for direct visual interactions', async () => {
       new URL(`../e2e/cases/${file}`, import.meta.url),
       'utf8',
     );
-    const aiActs = source.match(/^\s+-\s+aiAct:\s+.+$/gm) ?? [];
-    for (const aiAct of aiActs) {
-      assert.match(
-        aiAct,
-        /scroll/i,
-        `${file} must use aiTap, computer.inputText, or computer.keyPress for direct interactions: ${aiAct.trim()}`,
-      );
-    }
+    const oneShotActions = source.match(
+      /^\s+-\s+(?:aiTap|aiScroll|aiInput|computer\.inputText):.+$/gm,
+    ) ?? [];
+    assert.deepEqual(
+      oneShotActions.map((line) => line.trim()),
+      file === 'onboarding.yaml'
+        ? ['- aiTap: Check microphone · 3 seconds button on the Microphone step']
+        : [],
+      `${file} must express visual interactions as task-level aiAct steps except for the proven microphone-check failure`,
+    );
+    assert.doesNotMatch(
+      source,
+      /^\s+-\s+wait:/gm,
+      `${file} must wait for a visible state with aiWaitFor instead of sleeping`,
+    );
   }
 });
 

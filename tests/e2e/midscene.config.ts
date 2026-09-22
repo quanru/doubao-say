@@ -92,7 +92,7 @@ const setup = defineProjectSetup<DesktopContext>({
         aiContexts: shell
           ? { aiAssert: 'Inspect the real Omarchy desktop through VNC. Judge only visible pixels; do not infer success from commands or configuration.' }
           : polishing ? { aiAct: 'Test the native polishing overlay using the separate Polishing overlay test controls window. Use visible button labels.' }
-          : { aiAct: `Test the English Doubao Say GTK onboarding window${omarchy ? ' inside a real Omarchy VM shown through VNC' : ''}. Interact only with Doubao Say and use visible labels. Perform the minimum requested interaction, then finish the task immediately. Never repeat a completed click or scroll.` },
+          : { aiAct: `Test the English Doubao Say GTK onboarding window${omarchy ? ' inside a real Omarchy VM shown through VNC' : ''}. Interact only with Doubao Say and use visible labels.` },
       });
       desktopReady = true;
       return agent;
