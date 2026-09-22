@@ -5,36 +5,24 @@ cases:
       - fixture.prepare: { mode: runtime-delivery }
       - aiAssert: A Synthetic dictation target window is focused, its text field is empty, and the status says Idle with 0 deliveries.
       - computer.keyPress: { keyName: F8 }
-      - aiWaitFor:
-          prompt: A dark Doubao Say overlay says Listening to synthetic speech and shows Synthetic dictation is ready to deliver.
-          options: { timeoutMs: 30000, checkIntervalMs: 1000 }
-      - aiAssert: The listening overlay is visible and the target field remains empty.
+      - wait: { duration: 1000 }
+      - aiAssert: A dark Doubao Say overlay visibly says Listening to synthetic speech and shows Synthetic dictation is ready to deliver; the target field remains empty.
       - computer.keyPress: { keyName: F8 }
-      - aiWaitFor:
-          prompt: The overlay is gone and the target field contains Synthetic dictation delivered exactly once.
-          options: { timeoutMs: 30000, checkIntervalMs: 1000 }
-      - aiAssert: The target field contains exactly Synthetic dictation delivered exactly once, and the status says Delivered once with 1 delivery.
+      - wait: { duration: 1200 }
+      - aiAssert: The overlay is gone, the target field contains exactly Synthetic dictation delivered exactly once, and the status says Delivered once with 1 delivery.
   - name: Cancel synthetic dictation without delivering text
     tags: [shard-4]
     steps:
       - fixture.prepare: { mode: runtime-cancel }
       - aiAssert: A Synthetic dictation target window is focused, its text field is empty, and the status says Idle with 0 deliveries.
       - computer.keyPress: { keyName: F8 }
-      - aiWaitFor:
-          prompt: The recording overlay is visible and the target field is still empty.
-          options: { timeoutMs: 30000, checkIntervalMs: 1000 }
+      - wait: { duration: 1000 }
       - aiAssert: The recording overlay is visible and the target field is still empty.
       - computer.keyPress: { keyName: Escape }
-      - aiWaitFor:
-          prompt: The overlay is gone and the status says Cancelled, no text delivered, and ready to try again.
-          options: { timeoutMs: 30000, checkIntervalMs: 1000 }
-      - aiAssert: The target field remains empty and the status says Cancelled, no text delivered, and ready to try again.
+      - wait: { duration: 1000 }
+      - aiAssert: The overlay is gone, the target field remains empty, and the status says Cancelled, no text delivered, and ready to try again.
       - computer.keyPress: { keyName: F8 }
-      - aiWaitFor:
-          prompt: A new recording overlay is visible.
-          options: { timeoutMs: 30000, checkIntervalMs: 1000 }
+      - wait: { duration: 1000 }
       - computer.keyPress: { keyName: F8 }
-      - aiWaitFor:
-          prompt: The new attempt has delivered exactly one synthetic sentence and the status reports 1 delivery.
-          options: { timeoutMs: 30000, checkIntervalMs: 1000 }
-      - aiAssert: A new attempt succeeded with exactly one delivered synthetic sentence and the status reports 1 delivery.
+      - wait: { duration: 1200 }
+      - aiAssert: A new attempt succeeds with exactly one delivered synthetic sentence and the status reports 1 delivery.

@@ -130,7 +130,7 @@ test('assigns every product case to exactly one balanced shard', async () => {
   });
 });
 
-test('keeps visual E2E interactions at task level', async () => {
+test('uses one-shot nodes for direct visual interactions', async () => {
   for (const file of [
     'onboarding.yaml',
     'onboarding-regressions.yaml',
@@ -141,16 +141,14 @@ test('keeps visual E2E interactions at task level', async () => {
       new URL(`../e2e/cases/${file}`, import.meta.url),
       'utf8',
     );
-    assert.doesNotMatch(
-      source,
-      /^\s+-\s+(?:aiTap|aiScroll|aiInput|computer\.inputText):/gm,
-      `${file} must express visual interactions as task-level aiAct steps`,
-    );
-    assert.doesNotMatch(
-      source,
-      /^\s+-\s+wait:/gm,
-      `${file} must wait for a visible state with aiWaitFor instead of sleeping`,
-    );
+    const aiActs = source.match(/^\s+-\s+aiAct:\s+.+$/gm) ?? [];
+    for (const aiAct of aiActs) {
+      assert.match(
+        aiAct,
+        /scroll/i,
+        `${file} must use aiTap, computer.inputText, or computer.keyPress for direct interactions: ${aiAct.trim()}`,
+      );
+    }
   }
 });
 
