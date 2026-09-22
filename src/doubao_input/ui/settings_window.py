@@ -9,6 +9,7 @@ from doubao_input.product import VERSION
 from doubao_input.settings import INPUT_METHODS, WAVEFORM_STYLES
 from doubao_input.ui.style import apply_window_style
 from doubao_input.settings import ASR_PROVIDERS
+from doubao_input.recognition_providers import recognition_providers
 
 
 class SettingsWindow:
@@ -103,10 +104,8 @@ class SettingsWindow:
             "更改会自动保存；选择“系统默认”可跟随桌面的输入设备。")))
 
         section(tr("Recognition service", "语音识别服务"))
-        self.asr_provider = Gtk.DropDown.new_from_strings([
-            tr("Doubao account", "豆包账号"),
-            tr("Volcengine official API", "火山引擎官方 API"),
-        ])
+        self.asr_provider = Gtk.DropDown.new_from_strings(
+            [provider.name for provider in recognition_providers()])
         self.asr_provider.set_selected(ASR_PROVIDERS.index(settings.asr_provider))
         row(tr("Service", "服务"), self.asr_provider)
         self.asr_details = Gtk.Box(orientation=Gtk.Orientation.VERTICAL, spacing=10)

@@ -26,7 +26,6 @@ from doubao_input.inject.target import focused_target
 from doubao_input.result import RecentResult
 from doubao_input.doubao.params_store import ParamsStore
 from doubao_input.doubao.transcription import TranscriptionManager
-from doubao_input.doubao.asr_client import ASRClient
 from doubao_input.doubao.volcengine_asr_client import VolcengineASRClient
 from doubao_input.doubao.volcengine_credentials import (
     VolcengineCredentials, VolcengineCredentialsStore,
@@ -48,6 +47,7 @@ from doubao_input.updates import UpdateChecker
 from doubao_input.polish_preview import PolishPreview
 from doubao_input.trigger.escape_guard import EscapeGuard
 from doubao_input.diagnostics import DiagnosticTrace, report as diagnostic_report
+from doubao_input.recognition_providers import recognition_provider
 
 logger = logging.getLogger(__name__)
 
@@ -346,29 +346,29 @@ class DoubaoInputApp(Gtk.Application):
         self._control.refresh()
 
     def _new_transcription_manager(self):
-        if self.settings.asr_provider == "volcengine":
-            return TranscriptionManager(self.app_state,
-                asr_client=VolcengineASRClient(),
-                credential_store=VolcengineCredentialsStore,
-                interactive_auth=False, clear_rejected_credentials=False)
-        return TranscriptionManager(self.app_state, asr_client=ASRClient(),
-            credential_store=ParamsStore, interactive_auth=True,
-            clear_rejected_credentials=True)
+        provider = recognition_provider(self.settings.asr_provider)
+        return TranscriptionManager(
+            self.app_state,
+            asr_client=provider.new_client(),
+            credential_store=provider.credential_store,
+            interactive_auth=provider.interactive_auth,
+            clear_rejected_credentials=provider.clear_rejected_credentials,
+        )
 
     def _configure_recognition_backend(self):
-        if self.settings.asr_provider == "volcengine":
-            self._tm.configure_backend(VolcengineASRClient(),
-                VolcengineCredentialsStore, interactive_auth=False,
-                clear_rejected_credentials=False)
-        else:
-            self._tm.configure_backend(ASRClient(), ParamsStore,
-                interactive_auth=True, clear_rejected_credentials=True)
+        provider = recognition_provider(self.settings.asr_provider)
+        self._tm.configure_backend(
+            provider.new_client(),
+            provider.credential_store,
+            interactive_auth=provider.interactive_auth,
+            clear_rejected_credentials=provider.clear_rejected_credentials,
+        )
 
     def _recognition_ready(self):
         try:
-            store = (VolcengineCredentialsStore if self.settings.asr_provider == "volcengine"
-                     else ParamsStore)
-            return store.has_saved()
+            return recognition_provider(
+                self.settings.asr_provider
+            ).credential_store.has_saved()
         except (OSError, ValueError):
             return False
 
@@ -764,10 +764,8 @@ class DoubaoInputApp(Gtk.Application):
                 "microphone_id": self.settings.microphone,
                 "microphone_ok": bool(setup and setup.microphone_ok),
                 "asr_provider": self.settings.asr_provider,
-                "asr_provider_name": tr(
-                    "Volcengine official API", "火山引擎官方 API")
-                    if self.settings.asr_provider == "volcengine" else
-                    tr("Doubao account", "豆包账号"),
+                "asr_provider_name": recognition_provider(
+                    self.settings.asr_provider).name,
                 "voice_test_ok": bool(setup and setup.voice_ok),
                 "onboarding_complete": self.settings.onboarding_complete,
                 "result": self.recent.text, "status": self.recent.status}
@@ -815,9 +813,10 @@ class DoubaoInputApp(Gtk.Application):
         if self._login_window:
             self._login_window.destroy()
             self._login_window = None
-        official = getattr(getattr(self, "settings", None), "asr_provider", "doubao") == "volcengine"
-        store = (VolcengineCredentialsStore if official
-                 else ParamsStore)
+        provider = recognition_provider(
+            getattr(getattr(self, "settings", None), "asr_provider", "doubao"))
+        official = provider.id == "volcengine"
+        store = provider.credential_store
         try:
             store.clear()
         except OSError as error:
