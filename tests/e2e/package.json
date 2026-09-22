@@ -13,8 +13,8 @@
     "@img/sharp-linux-x64": "0.34.5"
   },
   "devDependencies": {
-    "@midscene/computer": "1.13.0",
-    "@midscene/test": "1.13.0",
+    "@midscene/computer": "1.13.1",
+    "@midscene/test": "1.13.1",
     "@types/node": "^22.0.0",
     "puppeteer-core": "^25.11.0",
     "typescript": "^5.8.3"
