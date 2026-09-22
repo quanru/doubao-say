@@ -190,6 +190,13 @@ cases:
       - aiTap: Test API key button below the API Key field
       - wait: { duration: 750 }
       - aiAssert: The result says API key accepted by synthetic endpoint and the page reports that the speech API is ready.
+  - name: Show Voxtype local setup requirements
+    tags: [shard-3]
+    steps:
+      - fixture.prepare: { mode: voxtype }
+      - aiAct: In Recognition service, select Voxtype local exactly once.
+      - aiAssert: The page explains that Voxtype owns local recording and transcription, no API Key field or Doubao sign-in button is visible, and Refresh Voxtype status is available.
+      - aiAssert: The page says Voxtype 1.0.0 or newer must be installed, configured with a model, and running.
   - name: Changing microphone requires another check
     tags: [shard-2]
     steps:

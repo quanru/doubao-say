@@ -112,6 +112,11 @@ class SettingsWindow:
             [provider.name for provider in recognition_providers()])
         self.asr_provider.set_selected(ASR_PROVIDERS.index(settings.asr_provider))
         row(tr("Service", "服务"), self.asr_provider)
+        selected_provider = recognition_provider(settings.asr_provider)
+        self.provider_help = Gtk.Label(
+            xalign=0, wrap=True, label=selected_provider.credential_help)
+        self.provider_help.set_visible(bool(selected_provider.credential_help))
+        box.append(self.provider_help)
         self.asr_details = Gtk.Box(orientation=Gtk.Orientation.VERTICAL, spacing=10)
         self.asr_key = Gtk.Entry(visibility=False, hexpand=True)
         self.asr_key.set_invisible_char("•")
@@ -123,10 +128,6 @@ class SettingsWindow:
         key_row.append(Gtk.Label(label="API Key", xalign=0, hexpand=True, wrap=True))
         key_row.append(self.asr_key)
         self.asr_details.append(key_row)
-        selected_provider = recognition_provider(settings.asr_provider)
-        self.asr_help = Gtk.Label(
-            xalign=0, wrap=True, label=selected_provider.credential_help)
-        self.asr_details.append(self.asr_help)
         asr_actions = Gtk.Box(spacing=8, homogeneous=True)
         self.asr_test_button = Gtk.Button(label=tr("Test API key", "测试 API Key"))
         self.asr_test_button.connect("clicked", self._test_asr_clicked)
@@ -465,7 +466,8 @@ class SettingsWindow:
         self.asr_details.set_visible(provider.uses_api_key)
         self.login_button.set_visible(provider.interactive_auth)
         self.clear_credentials_button.set_visible(provider.interactive_auth)
-        self.asr_help.set_text(provider.credential_help)
+        self.provider_help.set_text(provider.credential_help)
+        self.provider_help.set_visible(bool(provider.credential_help))
         self.privacy_copy.set_text(provider.privacy)
 
     def _queue_asr_key_save(self, *_):

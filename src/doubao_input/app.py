@@ -349,6 +349,7 @@ class DoubaoInputApp(Gtk.Application):
             credential_store=provider.credential_store,
             interactive_auth=provider.interactive_auth,
             clear_rejected_credentials=provider.clear_rejected_credentials,
+            failure_message=provider.failure_message,
         )
 
     def _configure_recognition_backend(self):
@@ -358,6 +359,7 @@ class DoubaoInputApp(Gtk.Application):
             provider.credential_store,
             interactive_auth=provider.interactive_auth,
             clear_rejected_credentials=provider.clear_rejected_credentials,
+            failure_message=provider.failure_message,
         )
 
     def _recognition_ready(self):
@@ -911,7 +913,15 @@ class DoubaoInputApp(Gtk.Application):
 
     def _connect_recognition(self) -> None:
         provider = recognition_provider(self.settings.asr_provider)
-        if provider.uses_api_key:
+        if provider.is_local:
+            self._sync_recognition_status()
+            self._control.refresh()
+            self._control.set_feedback(
+                tr("Voxtype is ready.", "Voxtype 已就绪。")
+                if self.app_state.login_status == LoginStatus.LOGGED_IN else tr(
+                    "Start and configure Voxtype, then refresh its status.",
+                    "请先启动并配置 Voxtype，再刷新状态。"))
+        elif provider.uses_api_key:
             self._control.set_feedback(tr(
                 "Add or test your speech API key in Settings.",
                 "请在设置中填写或测试语音 API Key。"))

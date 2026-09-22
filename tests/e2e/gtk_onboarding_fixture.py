@@ -239,6 +239,7 @@ def build_onboarding_fixture(mode):
             "doubao": "Doubao",
             "volcengine": "Volcengine",
             "deepgram": "Deepgram Nova-3 (English)",
+            "voxtype": "Voxtype (local)",
         }
         summary.update(
             asr_provider=provider,

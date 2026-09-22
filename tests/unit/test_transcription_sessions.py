@@ -85,6 +85,22 @@ class TranscriptionSessionTest(TestCase):
         manager._stop_recording()
         self.assertEqual([call[0] for call in order.mock_calls], ["drain", "end"])
 
+    def test_delegated_backend_owns_capture_without_opening_app_microphone(self):
+        manager = self.manager()
+        manager.asr_client.owns_audio_capture = True
+        manager.app_state.login_status = LoginStatus.LOGGED_IN
+        manager.credential_store = Mock()
+        manager.credential_store.load.return_value = object()
+
+        self.assertTrue(manager.prime_recording())
+        manager._start_recording()
+        manager._later = Mock(return_value=1)
+        manager._stop_recording()
+
+        manager.audio_capture.start.assert_not_called()
+        manager.audio_capture.finish.assert_not_called()
+        manager.asr_client.finish_sending.assert_called_once()
+
     def test_failed_drain_recovers_instead_of_completing(self):
         manager = self.manager()
         manager.app_state.transcription_text = "partial"
