@@ -148,6 +148,7 @@ test('keeps visual E2E interactions at task level with proven aiTap exceptions',
       oneShotActions.map((line) => line.trim()),
       file === 'onboarding.yaml'
         ? [
+            '- aiTap: Open Doubao sign-in button in the Sign in content panel',
             '- aiTap: Check microphone · 3 seconds button on the Microphone step',
             '- aiTap: Right-arrow Next button in the fixed top navigation',
           ]

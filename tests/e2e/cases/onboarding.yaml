@@ -3,7 +3,7 @@ cases:
     tags: [shard-1]
     steps:
       - aiAssert: The visible Doubao Say window is on Sign in and says the user is not signed in.
-      - aiAct: Open the CI-only Doubao sign-in window.
+      - aiTap: Open Doubao sign-in button in the Sign in content panel
       - aiWaitFor:
           prompt: The CI-only Synthetic Doubao sign-in window is visible.
           options: { timeoutMs: 30000, checkIntervalMs: 1000 }
