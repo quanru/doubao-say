@@ -2,7 +2,7 @@ cases:
   - name: Cancel sign-in and retry
     tags: [shard-1]
     steps:
-      - aiAssert: The current step is Sign in and both left-arrow Previous and right-arrow Next in the fixed top navigation are disabled.
+      - aiAssert: The current step is Sign in, the page says Not signed in, and the large blue Open Doubao sign-in button is visible.
       - aiAct: Open the CI-only Doubao sign-in window.
       - aiWaitFor:
           prompt: The CI-only Synthetic Doubao sign-in window is visible.
