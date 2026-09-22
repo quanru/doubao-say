@@ -12,13 +12,11 @@ permissions:
   pull-requests: write
 
 env:
-  MIDSCENE_MODEL_API_KEY: ${{ secrets.MIDSCENE_MODEL_API_KEY }}
-  MIDSCENE_MODEL_BASE_URL: ${{ secrets.MIDSCENE_MODEL_BASE_URL }}
-  MIDSCENE_MODEL_NAME: ${{ secrets.MIDSCENE_MODEL_NAME }}
-  MIDSCENE_MODEL_FAMILY: ${{ secrets.MIDSCENE_MODEL_FAMILY }}
-  MIDSCENE_MODEL_REASONING_ENABLED: ${{ secrets.MIDSCENE_MODEL_REASONING_ENABLED }}
-  MIDSCENE_MODEL_RETRY_COUNT: '3'
-  MIDSCENE_MODEL_RETRY_INTERVAL: '65000'
+  MIDSCENE_MODEL_API_KEY: ${{ secrets.MIDSCENE_ACTION_MODEL_API_KEY }}
+  MIDSCENE_MODEL_BASE_URL: ${{ vars.MIDSCENE_ACTION_MODEL_BASE_URL }}
+  MIDSCENE_MODEL_NAME: ${{ vars.MIDSCENE_ACTION_MODEL_NAME }}
+  MIDSCENE_MODEL_FAMILY: ${{ vars.MIDSCENE_ACTION_MODEL_FAMILY }}
+  MIDSCENE_MODEL_RETRY_COUNT: '2'
   NODE_OPTIONS: '--dns-result-order=ipv4first --no-network-family-autoselection'
 
 jobs:
@@ -32,7 +30,7 @@ jobs:
         with:
           node-version: 22
       - name: Run the public Midscene Action against Doubao Say
-        uses: quanru/midscene-action@c7c339f66a6a73bf8655e7023c4b71cc572d1dc5
+        uses: quanru/midscene-action@1851db05bf3a7aea0f2417e3aa43c6bbf5250a4f
         with:
           yaml-files: tests/action-smoke/report-history.yaml
           preview-url: https://quanru.github.io/doubao-say/
