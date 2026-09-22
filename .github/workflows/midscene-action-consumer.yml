@@ -1,0 +1,45 @@
+name: Midscene Action consumer smoke test
+
+on:
+  pull_request:
+    paths:
+      - '.github/workflows/midscene-action-consumer.yml'
+      - 'tests/action-smoke/**'
+  workflow_dispatch:
+
+permissions:
+  contents: read
+  pull-requests: write
+
+env:
+  MIDSCENE_MODEL_API_KEY: ${{ secrets.MIDSCENE_MODEL_API_KEY }}
+  MIDSCENE_MODEL_BASE_URL: ${{ secrets.MIDSCENE_MODEL_BASE_URL }}
+  MIDSCENE_MODEL_NAME: ${{ secrets.MIDSCENE_MODEL_NAME }}
+  MIDSCENE_MODEL_FAMILY: ${{ secrets.MIDSCENE_MODEL_FAMILY }}
+  MIDSCENE_MODEL_REASONING_ENABLED: ${{ secrets.MIDSCENE_MODEL_REASONING_ENABLED }}
+  MIDSCENE_MODEL_RETRY_COUNT: '3'
+  MIDSCENE_MODEL_RETRY_INTERVAL: '65000'
+  NODE_OPTIONS: '--dns-result-order=ipv4first --no-network-family-autoselection'
+
+jobs:
+  smoke:
+    if: github.event_name != 'pull_request' || github.event.pull_request.head.repo.full_name == github.repository
+    runs-on: ubuntu-latest
+    timeout-minutes: 15
+    steps:
+      - uses: actions/checkout@34e114876b0b11c390a56381ad16ebd13914f8d5 # v4.3.1
+      - uses: actions/setup-node@49933ea5288caeca8642d1e84afbd3f7d6820020 # v4.4.0
+        with:
+          node-version: 22
+      - name: Run the public Midscene Action against Doubao Say
+        uses: quanru/midscene-action@c7c339f66a6a73bf8655e7023c4b71cc572d1dc5
+        with:
+          yaml-files: tests/action-smoke/report-history.yaml
+          preview-url: https://quanru.github.io/doubao-say/
+          max-cases: '1'
+          timeout-minutes: '8'
+          retries: '1'
+          install-browser-deps: 'false'
+          artifact-name: doubao-say-action-smoke-report
+          retention-days: '7'
+          comment-identifier: action-consumer-smoke
