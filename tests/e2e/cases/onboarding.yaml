@@ -28,7 +28,7 @@ cases:
           prompt: The Voice polishing result says Endpoint works and includes Synthetic endpoint response.
           options: { timeoutMs: 30000, checkIntervalMs: 1000 }
       - aiAssert: The visible endpoint result says Endpoint works and includes Synthetic endpoint response.
-      - aiAct: Continue to Voice test.
+      - aiTap: Right-arrow Next button in the fixed top navigation
       - aiWaitFor:
           prompt: The Voice test page is visible and Start voice test is available.
           options: { timeoutMs: 30000, checkIntervalMs: 1000 }

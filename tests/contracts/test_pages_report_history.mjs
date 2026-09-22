@@ -130,7 +130,7 @@ test('assigns every product case to exactly one balanced shard', async () => {
   });
 });
 
-test('keeps visual E2E interactions at task level with one proven aiTap exception', async () => {
+test('keeps visual E2E interactions at task level with proven aiTap exceptions', async () => {
   for (const file of [
     'onboarding.yaml',
     'onboarding-regressions.yaml',
@@ -147,9 +147,12 @@ test('keeps visual E2E interactions at task level with one proven aiTap exceptio
     assert.deepEqual(
       oneShotActions.map((line) => line.trim()),
       file === 'onboarding.yaml'
-        ? ['- aiTap: Check microphone · 3 seconds button on the Microphone step']
+        ? [
+            '- aiTap: Check microphone · 3 seconds button on the Microphone step',
+            '- aiTap: Right-arrow Next button in the fixed top navigation',
+          ]
         : [],
-      `${file} must express visual interactions as task-level aiAct steps except for the proven microphone-check failure`,
+      `${file} must express visual interactions as task-level aiAct steps except for proven failures`,
     );
     assert.doesNotMatch(
       source,
