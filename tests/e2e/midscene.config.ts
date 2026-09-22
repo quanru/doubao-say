@@ -195,6 +195,7 @@ const empty = z.strictObject({});
 const fixtureMode = z.strictObject({
   mode: z.enum([
     'microphone-gate',
+    'trigger-settings',
     'voice-test',
     'volcengine',
     'microphone-change',

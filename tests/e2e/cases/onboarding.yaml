@@ -1,44 +1,44 @@
 cases:
   - name: Complete Doubao Say onboarding on a real desktop
-    tags: [shard-2]
+    tags: [shard-1]
     steps:
       - aiAssert: The visible Doubao Say window is on Sign in and says the user is not signed in.
-      - aiAct: In the Sign in content panel, open the CI-only Doubao sign-in window exactly once.
+      - aiAct: Open the CI-only Doubao sign-in window.
       - aiWaitFor:
           prompt: The CI-only Synthetic Doubao sign-in window is visible.
           options: { timeoutMs: 30000, checkIntervalMs: 1000 }
       - aiAssert: The Synthetic Doubao sign-in window explicitly says it is CI-only, makes no network request, and uses no real credentials.
-      - aiAct: In the Synthetic Doubao sign-in window, simulate a successful sign-in exactly once.
+      - aiAct: Simulate a successful sign-in.
       - aiWaitFor:
           prompt: The synthetic sign-in window is closed and Doubao Say is on the Microphone step.
           options: { timeoutMs: 30000, checkIntervalMs: 1000 }
       - aiAssert: The Microphone step shows Check microphone · 3 seconds and the right-arrow Next button in the fixed top navigation.
-      - aiAct: On the Microphone step, run Check microphone · 3 seconds exactly once.
+      - aiAct: Run Check microphone · 3 seconds.
       - aiWaitFor:
           prompt: The visible feedback says Microphone is working and instructs the user to continue to the trigger key step.
           options: { timeoutMs: 30000, checkIntervalMs: 1000 }
       - aiAssert: The visible microphone result says Microphone is working.
-      - aiAct: Use the right-arrow Next button once to open Trigger key, then reveal the complete Voice polishing model guidance in the central content panel. Do not change any trigger or polishing setting.
+      - aiAct: Continue to Trigger key and reveal the Voice polishing model guidance.
       - aiWaitFor:
           prompt: The Trigger key page is visible and the complete Voice polishing model guidance can be read.
           options: { timeoutMs: 30000, checkIntervalMs: 1000 }
       - aiAssert: The model guidance recommends a small, fast model with thinking off, names DeepSeek Flash and Gemini 2.5 Flash-Lite, and warns that large reasoning models may exceed five seconds and fall back to the original text.
-      - aiAct: In the Voice polishing section, activate Test endpoint exactly once and leave its result visible.
+      - aiAct: Test the Voice polishing endpoint.
       - aiWaitFor:
           prompt: The Voice polishing result says Endpoint works and includes Synthetic endpoint response.
           options: { timeoutMs: 30000, checkIntervalMs: 1000 }
       - aiAssert: The visible endpoint result says Endpoint works and includes Synthetic endpoint response.
-      - aiAct: Use the right-arrow Next button once to open Voice test. Do not start the voice test yet.
+      - aiAct: Continue to Voice test.
       - aiWaitFor:
           prompt: The Voice test page is visible and Start voice test is available.
           options: { timeoutMs: 30000, checkIntervalMs: 1000 }
       - aiAssert: The Voice test heading and introductory text are clearly visible, and Start voice test is available.
-      - aiAct: Start the voice test exactly once.
+      - aiAct: Start the voice test.
       - aiWaitFor:
           prompt: Synthetic voice test transcript is visible, and both Finish & check result and Cancel test are available.
           options: { timeoutMs: 30000, checkIntervalMs: 1000 }
       - aiAssert: The Voice test shows Synthetic voice test transcript and offers both Finish & check result and Cancel test.
-      - aiAct: Finish the active voice test and check its result exactly once.
+      - aiAct: Finish the active voice test and check its result.
       - aiWaitFor:
           prompt: The Listening overlay is gone and the visible feedback says Voice test passed and nothing was pasted or sent.
           options: { timeoutMs: 30000, checkIntervalMs: 1000 }
