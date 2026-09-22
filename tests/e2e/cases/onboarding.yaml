@@ -5,9 +5,8 @@ cases:
       - aiAssert: The visible Doubao Say window is on Sign in and says the user is not signed in.
       - aiTap: The large blue full-width Open Doubao sign-in button near the bottom of the central Sign in panel, around 50% width and 73% screen height
       - aiWaitFor:
-          prompt: The CI-only Synthetic Doubao sign-in window is visible.
+          prompt: The modal titled CI-ONLY SYNTHETIC DOUBAO SIGN-IN is visible and says it makes no network request and uses no real credentials.
           options: { timeoutMs: 30000, checkIntervalMs: 1000 }
-      - aiAssert: The Synthetic Doubao sign-in window explicitly says it is CI-only, makes no network request, and uses no real credentials.
       - aiAct: Simulate a successful sign-in.
       - aiWaitFor:
           prompt: The synthetic sign-in window is closed and Doubao Say is on the Microphone step.

@@ -3,7 +3,7 @@ cases:
     tags: [shard-1]
     steps:
       - aiAssert: The current step is Sign in, the page says Not signed in, and the large blue Open Doubao sign-in button is visible.
-      - aiAct: Open the CI-only Doubao sign-in window.
+      - aiTap: The large blue full-width Open Doubao sign-in button near the bottom of the central Sign in panel, around 50% width and 73% screen height
       - aiWaitFor:
           prompt: The CI-only Synthetic Doubao sign-in window is visible.
           options: { timeoutMs: 30000, checkIntervalMs: 1000 }
@@ -13,7 +13,7 @@ cases:
           prompt: The synthetic sign-in window is gone and Doubao Say remains on Sign in.
           options: { timeoutMs: 30000, checkIntervalMs: 1000 }
       - aiAssert: Doubao Say remains on Sign in and the right-arrow Next button is disabled.
-      - aiAct: Open the CI-only Doubao sign-in window again from the Sign in content panel.
+      - aiTap: The large blue full-width Open Doubao sign-in button near the bottom of the central Sign in panel, around 50% width and 73% screen height
       - aiWaitFor:
           prompt: The CI-only Synthetic Doubao sign-in window is visible again.
           options: { timeoutMs: 30000, checkIntervalMs: 1000 }
