@@ -336,6 +336,17 @@ export default defineTestProject<DesktopContext>({
             if (existing) return existing.agent;
             context.agent ??= await context.createAgent();
             await context.resetFixture?.(context.fixtureMode ?? '');
+            if (context.environment === 'omarchy') {
+              // The full-screen TigerVNC viewer can return two stale black
+              // frames after the guest fixture is replaced. A harmless click
+              // on the app header focuses the viewer and forces a fresh frame
+              // before the first visual node captures its screenshot.
+              await context.agent.interface.inputPrimitives.pointer.tap({
+                x: 640,
+                y: 50,
+              });
+              await sleep(750);
+            }
             active.set(runId, { agent: context.agent, context });
             return context.agent;
           },
