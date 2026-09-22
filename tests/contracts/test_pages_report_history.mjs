@@ -121,11 +121,11 @@ test('assigns every product case to exactly one balanced shard', async () => {
       caseCount += 1;
     }
   }
-  assert.equal(caseCount, 13);
+  assert.equal(caseCount, 15);
   assert.deepEqual(Object.fromEntries(shardCounts), {
     'shard-1': 2,
     'shard-2': 3,
-    'shard-3': 4,
+    'shard-3': 6,
     'shard-4': 4,
   });
 });
