@@ -117,7 +117,8 @@ This demonstrates visual testing of a Wayland desktop through a VM bridge.
 `cases/onboarding-regressions.yaml` covers ten focused cases: sign-in
 cancellation and persistence, disabled and custom triggers, polishing state,
 endpoint recovery, microphone checks and device changes, voice-test
-cancellation, and official Volcengine API configuration. `cases/runtime.yaml`
+cancellation, Volcengine API configuration, and Deepgram English API configuration.
+`cases/runtime.yaml`
 adds successful and cancelled F8 dictation delivery. The Ubuntu project runs
 these alongside the successful onboarding case.
 

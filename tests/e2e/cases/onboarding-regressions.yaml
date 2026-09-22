@@ -177,6 +177,19 @@ cases:
       - aiAssert: The result says API key accepted by synthetic endpoint and the page reports that the official API is ready.
       - aiTap: Right-arrow Next button in the fixed top navigation
       - aiAssert: The current step is Microphone and the heading Let's make sure we can hear you is visible.
+  - name: Switch to Deepgram English recognition
+    tags: [shard-3]
+    steps:
+      - fixture.prepare: { mode: deepgram }
+      - aiAct: In Recognition service, select Deepgram Nova-3 English exactly once.
+      - aiAct: Scroll down inside the central content panel until the API Key field and Test API key button are both visible.
+      - aiAssert: The page is Recognition, explains Deepgram Nova-3 English dictation, shows an empty API Key field, and hides Open Doubao sign-in.
+      - computer.inputText:
+          target: API Key field
+          value: synthetic-deepgram-key
+      - aiTap: Test API key button below the API Key field
+      - wait: { duration: 750 }
+      - aiAssert: The result says API key accepted by synthetic endpoint and the page reports that the speech API is ready.
   - name: Changing microphone requires another check
     tags: [shard-2]
     steps:

@@ -16,6 +16,9 @@ class CredentialStore(Protocol):
     def clear(cls) -> None: ...
 
     @classmethod
+    def save(cls, credentials) -> None: ...
+
+    @classmethod
     def has_saved(cls) -> bool: ...
 
 
@@ -28,6 +31,15 @@ class RecognitionProvider:
     credential_store_factory: Callable[[], type[CredentialStore]]
     interactive_auth: bool
     clear_rejected_credentials: bool
+    secret_credentials_factory: Callable[[str], object] | None
+    setup_heading_en: str
+    setup_heading_zh: str
+    setup_body_en: str
+    setup_body_zh: str
+    credential_help_en: str
+    credential_help_zh: str
+    privacy_en: str
+    privacy_zh: str
 
     @property
     def name(self) -> str:
@@ -39,6 +51,31 @@ class RecognitionProvider:
     @property
     def credential_store(self) -> type[CredentialStore]:
         return self.credential_store_factory()
+
+    @property
+    def uses_api_key(self) -> bool:
+        return self.secret_credentials_factory is not None
+
+    @property
+    def setup_heading(self) -> str:
+        return tr(self.setup_heading_en, self.setup_heading_zh)
+
+    @property
+    def setup_body(self) -> str:
+        return tr(self.setup_body_en, self.setup_body_zh)
+
+    @property
+    def credential_help(self) -> str:
+        return tr(self.credential_help_en, self.credential_help_zh)
+
+    @property
+    def privacy(self) -> str:
+        return tr(self.privacy_en, self.privacy_zh)
+
+    def credentials_from_secret(self, secret: str):
+        if self.secret_credentials_factory is None:
+            raise ValueError("Recognition provider does not use an API key")
+        return self.secret_credentials_factory(secret)
 
 
 def _doubao_client():
@@ -61,6 +98,26 @@ def _volcengine_store():
     return VolcengineCredentialsStore
 
 
+def _volcengine_credentials(secret):
+    from doubao_input.doubao.volcengine_credentials import VolcengineCredentials
+    return VolcengineCredentials(secret)
+
+
+def _deepgram_client():
+    from doubao_input.deepgram.asr_client import DeepgramASRClient
+    return DeepgramASRClient()
+
+
+def _deepgram_store():
+    from doubao_input.deepgram.credentials import DeepgramCredentialsStore
+    return DeepgramCredentialsStore
+
+
+def _deepgram_credentials(secret):
+    from doubao_input.deepgram.credentials import DeepgramCredentials
+    return DeepgramCredentials(secret)
+
+
 _PROVIDERS = (
     RecognitionProvider(
         id="doubao",
@@ -70,6 +127,15 @@ _PROVIDERS = (
         credential_store_factory=_doubao_store,
         interactive_auth=True,
         clear_rejected_credentials=True,
+        secret_credentials_factory=None,
+        setup_heading_en="Your voice, wherever you type.",
+        setup_heading_zh="让声音变成文字。",
+        setup_body_en="Connect your Doubao account in a secure web window. Complete the sign-in method offered by Doubao, then return here. We never ask you to type a password into this app's settings.\n\nAudio is sent to Doubao only during recording. Sign-in data is stored on this device. This is an unofficial client.",
+        setup_body_zh="在网页窗口中连接豆包账号。按照豆包页面提供的方式完成登录，再回到这里；无需在本软件设置中填写密码。\n\n仅录音期间会向豆包发送音频。登录信息保存在本机。这是非官方客户端。",
+        credential_help_en="",
+        credential_help_zh="",
+        privacy_en="Doubao receives audio during dictation and voice tests. Microphone checks stay local. No recording files or transcript history are saved. Recent text stays in memory until cleared or the app exits.",
+        privacy_zh="听写和语音测试会向豆包发送音频，麦克风检查仅在本机进行。不保存录音文件和转写历史，最近文字仅在内存保留，清除或退出后消失。",
     ),
     RecognitionProvider(
         id="volcengine",
@@ -79,6 +145,33 @@ _PROVIDERS = (
         credential_store_factory=_volcengine_store,
         interactive_auth=False,
         clear_rejected_credentials=False,
+        secret_credentials_factory=_volcengine_credentials,
+        setup_heading_en="Use the official Volcengine speech API.",
+        setup_heading_zh="使用火山引擎官方语音 API。",
+        setup_body_en="Add your API key in Settings. Audio is sent to Volcengine only while recording; usage is billed by Volcengine to your account. The key is stored separately on this device with owner-only permissions.",
+        setup_body_zh="请在设置中填写 API Key。仅录音期间会向火山引擎发送音频，用量由火山引擎向你的账号计费。API Key 单独保存在本机，且仅当前用户可读。",
+        credential_help_en="The new Doubao Speech console uses one API Key. Resource ID volc.seedasr.sauc.duration is built in. App ID and Access Key are only for the legacy console and are not required here.",
+        credential_help_zh="新版豆包语音控制台只使用一个 API Key；资源 ID volc.seedasr.sauc.duration 已内置。App ID 和 Access Key 仅用于旧版控制台，这里不需要填写。",
+        privacy_en="Volcengine receives audio during dictation and voice tests. Usage and data handling follow your Volcengine account and service terms. Microphone checks stay local. No recording files or transcript history are saved; recent text stays in memory until cleared or the app exits.",
+        privacy_zh="听写和试说时会向火山引擎发送音频，用量和数据处理遵循你的火山引擎账号及服务条款。麦克风检查仅在本机进行。不保存录音文件和转写历史；最近文字仅在内存保留，清除或退出后消失。",
+    ),
+    RecognitionProvider(
+        id="deepgram",
+        name_en="Deepgram Nova-3 (English)",
+        name_zh="Deepgram Nova-3（英语）",
+        client_factory=_deepgram_client,
+        credential_store_factory=_deepgram_store,
+        interactive_auth=False,
+        clear_rejected_credentials=False,
+        secret_credentials_factory=_deepgram_credentials,
+        setup_heading_en="Use Deepgram Nova-3 for English dictation.",
+        setup_heading_zh="使用 Deepgram Nova-3 进行英语听写。",
+        setup_body_en="Add a Deepgram API key in Settings. Audio is streamed to Deepgram only while recording. Usage is billed to your Deepgram account, and the key is stored separately on this device with owner-only permissions.",
+        setup_body_zh="请在设置中填写 Deepgram API Key。仅录音期间会向 Deepgram 流式发送音频，用量由 Deepgram 向你的账号计费。API Key 单独保存在本机，且仅当前用户可读。",
+        credential_help_en="Uses Deepgram Nova-3 with US English, interim results, punctuation, and smart formatting. Create and manage the API key in the Deepgram console.",
+        credential_help_zh="使用 Deepgram Nova-3 美式英语模型，并启用中间结果、标点和智能格式化。请在 Deepgram 控制台创建和管理 API Key。",
+        privacy_en="Deepgram receives audio during dictation and voice tests. Usage and data handling follow your Deepgram account and service terms. Microphone checks stay local. No recording files or transcript history are saved; recent text stays in memory until cleared or the app exits.",
+        privacy_zh="听写和试说时会向 Deepgram 发送音频，用量和数据处理遵循你的 Deepgram 账号及服务条款。麦克风检查仅在本机进行。不保存录音文件和转写历史；最近文字仅在内存保留，清除或退出后消失。",
     ),
 )
 

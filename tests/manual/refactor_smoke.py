@@ -52,10 +52,10 @@ def main():
             window = SettingsWindow(app._control.window, app.settings, app.apply_settings,
                 capture_key=app._begin_key_capture, cancel_capture=app._end_key_capture,
                 apply_key=app._apply_trigger_key,
-                asr_has_key=app._official_has_key,
-                save_asr=app._save_official_key,
-                clear_asr=app._clear_official_key,
-                test_asr=app._test_official_asr)
+                asr_has_key=app._api_key_has_saved,
+                save_asr=app._save_asr_key,
+                clear_asr=app._clear_asr_key,
+                test_asr=app._test_asr_key)
             window.window.realize()
             if language == "en":
                 window.asr_provider.set_selected(1)

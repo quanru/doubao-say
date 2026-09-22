@@ -4,6 +4,8 @@ from doubao_input.doubao.asr_client import ASRClient
 from doubao_input.doubao.params_store import ParamsStore
 from doubao_input.doubao.volcengine_asr_client import VolcengineASRClient
 from doubao_input.doubao.volcengine_credentials import VolcengineCredentialsStore
+from doubao_input.deepgram.asr_client import DeepgramASRClient
+from doubao_input.deepgram.credentials import DeepgramCredentialsStore
 from doubao_input.recognition_providers import (
     RECOGNITION_PROVIDER_IDS,
     recognition_provider,
@@ -20,7 +22,11 @@ class RecognitionProviderRegistryTest(TestCase):
         )
         self.assertEqual(
             [provider.name for provider in providers],
-            ["Doubao account", "Volcengine official API"],
+            [
+                "Doubao account",
+                "Volcengine official API",
+                "Deepgram Nova-3 (English)",
+            ],
         )
 
     def test_registry_owns_runtime_backend_configuration(self):
@@ -32,6 +38,11 @@ class RecognitionProviderRegistryTest(TestCase):
         self.assertIsInstance(official.new_client(), VolcengineASRClient)
         self.assertIs(official.credential_store, VolcengineCredentialsStore)
         self.assertFalse(official.interactive_auth)
+        deepgram = recognition_provider("deepgram")
+        self.assertIsInstance(deepgram.new_client(), DeepgramASRClient)
+        self.assertIs(deepgram.credential_store, DeepgramCredentialsStore)
+        self.assertTrue(deepgram.uses_api_key)
+        self.assertIn("Nova-3", deepgram.credential_help)
 
     def test_unknown_provider_is_rejected(self):
         with self.assertRaisesRegex(ValueError, "Unsupported recognition service"):
