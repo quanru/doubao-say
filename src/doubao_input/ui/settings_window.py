@@ -22,6 +22,8 @@ class SettingsWindow:
                  apply_key=None, asr_has_key=lambda: False,
                  save_asr=lambda key: None, clear_asr=lambda: None,
                  test_asr=lambda key, completed: None,
+                 voxtype_details=lambda: None,
+                 configure_voxtype=lambda: None,
                  diagnostic_report=None):
         self.window = Gtk.Window(title=tr("Doubao Say Settings", "豆包说设置"), transient_for=parent, modal=True)
         self.window.set_default_size(540, 580)
@@ -35,6 +37,8 @@ class SettingsWindow:
         self._save_asr = save_asr
         self._clear_asr = clear_asr
         self._test_asr = test_asr
+        self._voxtype_details = voxtype_details
+        self._configure_voxtype = configure_voxtype
         self._asr_save_source = 0
         self._asr_testing = False
         self._diagnostic_report = diagnostic_report or (lambda: report(self._settings))
@@ -141,6 +145,25 @@ class SettingsWindow:
         self.asr_details.append(self.asr_status)
         self.asr_details.set_visible(selected_provider.uses_api_key)
         box.append(self.asr_details)
+        self.voxtype_details = Gtk.Box(
+            orientation=Gtk.Orientation.VERTICAL, spacing=8)
+        self.voxtype_summary = Gtk.Label(
+            xalign=0, wrap=True, selectable=True)
+        self.voxtype_details.append(self.voxtype_summary)
+        voxtype_actions = Gtk.Box(spacing=8, homogeneous=True)
+        self.voxtype_refresh = Gtk.Button(label=tr(
+            "Refresh Voxtype status", "刷新 Voxtype 状态"))
+        self.voxtype_refresh.connect(
+            "clicked", self._refresh_voxtype_details)
+        self.voxtype_configure = Gtk.Button(label=tr(
+            "Open Voxtype configuration", "打开 Voxtype 配置"))
+        self.voxtype_configure.connect(
+            "clicked", self._open_voxtype_configuration)
+        voxtype_actions.append(self.voxtype_refresh)
+        voxtype_actions.append(self.voxtype_configure)
+        self.voxtype_details.append(voxtype_actions)
+        self.voxtype_details.set_visible(selected_provider.is_local)
+        box.append(self.voxtype_details)
 
         section(tr("Input", "输入"))
         self.input_method = Gtk.DropDown.new_from_strings([
@@ -468,7 +491,42 @@ class SettingsWindow:
         self.clear_credentials_button.set_visible(provider.interactive_auth)
         self.provider_help.set_text(provider.credential_help)
         self.provider_help.set_visible(bool(provider.credential_help))
+        self.voxtype_details.set_visible(provider.is_local)
+        if provider.is_local:
+            self._refresh_voxtype_details()
         self.privacy_copy.set_text(provider.privacy)
+
+    def _refresh_voxtype_details(self, *_):
+        try:
+            details = self._voxtype_details()
+            if details is None:
+                raise RuntimeError("Voxtype details are unavailable")
+        except (OSError, RuntimeError) as error:
+            self.voxtype_summary.set_text(tr(
+                "Voxtype status unavailable: ",
+                "无法读取 Voxtype 状态：") + str(error))
+            return
+        self.voxtype_summary.set_text("\n".join((
+            tr("CLI version: ", "CLI 版本：") + details.cli_version,
+            tr("Daemon version: ", "Daemon 版本：") + details.daemon_version,
+            tr("State: ", "状态：") + details.state,
+            tr("Engine: ", "引擎：") + details.engine,
+            tr("Model: ", "模型：") + details.model,
+            tr("Audio device: ", "音频设备：") + details.device,
+            tr("Compute backend: ", "计算后端：") + details.backend,
+            tr("Config schema: ", "配置 Schema：") + str(details.schema_version),
+            tr("Config file: ", "配置文件：") + details.config_path,
+        )))
+
+    def _open_voxtype_configuration(self, *_):
+        try:
+            self._configure_voxtype()
+        except (OSError, ValueError) as error:
+            self.voxtype_summary.set_text(str(error))
+            return
+        self.voxtype_summary.set_text(tr(
+            "Voxtype configuration opened in a terminal.",
+            "已在终端中打开 Voxtype 配置。"))
 
     def _queue_asr_key_save(self, *_):
         if self._updating or not self.asr_key.get_text().strip():

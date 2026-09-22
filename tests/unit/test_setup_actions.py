@@ -9,6 +9,7 @@ from doubao_input.app import DoubaoInputApp
 from doubao_input.ui.control_window import ControlWindow
 from doubao_input.ui.polish_settings import PolishSettings
 from doubao_input.ui.settings_window import SettingsWindow
+from doubao_input.voxtype.control import VoxtypeDetails
 
 
 class SetupActionsTest(unittest.TestCase):
@@ -250,3 +251,37 @@ class SetupActionsTest(unittest.TestCase):
         completed("API key accepted", "")
         self.assertFalse(view._asr_testing)
         self.assertEqual(view.asr_status.set_text.call_args.args[0], "API key accepted")
+
+    def test_voxtype_details_are_rendered_without_editing_config(self):
+        details = VoxtypeDetails(
+            cli_version="1.0.1",
+            daemon_version="1.0.1",
+            state="idle",
+            engine="whisper",
+            model="large-v3-turbo",
+            device="Desk microphone",
+            backend="Vulkan",
+            schema_version=1,
+            config_path="/home/test/.config/voxtype/config.toml",
+        )
+        view = SimpleNamespace(
+            _voxtype_details=Mock(return_value=details),
+            voxtype_summary=Mock(),
+        )
+
+        SettingsWindow._refresh_voxtype_details(view)
+
+        rendered = view.voxtype_summary.set_text.call_args.args[0]
+        self.assertIn("large-v3-turbo", rendered)
+        self.assertIn("Vulkan", rendered)
+        self.assertIn("config.toml", rendered)
+
+    def test_voxtype_configure_failure_stays_in_settings(self):
+        view = SimpleNamespace(
+            _configure_voxtype=Mock(side_effect=ValueError("no terminal")),
+            voxtype_summary=Mock(),
+        )
+
+        SettingsWindow._open_voxtype_configuration(view)
+
+        view.voxtype_summary.set_text.assert_called_once_with("no terminal")

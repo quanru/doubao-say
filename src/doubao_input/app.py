@@ -854,10 +854,25 @@ class DoubaoInputApp(Gtk.Application):
             preview=self._preview_overlay, apply_key=self._apply_trigger_key,
             asr_has_key=self._api_key_has_saved, save_asr=self._save_asr_key,
             clear_asr=self._clear_asr_key, test_asr=self._test_asr_key,
+            voxtype_details=self._voxtype_details,
+            configure_voxtype=self._configure_voxtype,
             diagnostic_report=lambda: diagnostic_report(
                 self.settings, recording=self.app_state.is_recording,
                 trace=self._diagnostics))
         self._settings_window.show()
+
+    @staticmethod
+    def _voxtype_details():
+        from doubao_input.voxtype.control import inspect_details
+        return inspect_details()
+
+    @staticmethod
+    def _configure_voxtype():
+        from doubao_input.voxtype.control import launch_configure
+        try:
+            launch_configure()
+        except RuntimeError as error:
+            raise ValueError(str(error)) from error
 
     def _preview_overlay(self):
         if self._busy():
