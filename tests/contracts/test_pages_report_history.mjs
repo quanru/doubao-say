@@ -155,6 +155,7 @@ test('keeps visual E2E interactions at task level with proven aiTap exceptions',
             '- aiScroll:',
             '- aiTap: Test endpoint button in the Voice polishing section',
             '- aiTap: Right-arrow Next button in the fixed top navigation',
+            '- aiTap: Start voice test button',
           ]
         : file === 'onboarding-regressions.yaml'
           ? [
