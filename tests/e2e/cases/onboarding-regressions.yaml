@@ -5,9 +5,8 @@ cases:
       - aiAssert: The current step is Sign in, the page says Not signed in, and the large blue Open Doubao sign-in button is visible.
       - aiTap: The large blue full-width Open Doubao sign-in button near the bottom of the central Sign in panel, around 50% width and 73% screen height
       - aiWaitFor:
-          prompt: The CI-only Synthetic Doubao sign-in window is visible.
+          prompt: The modal titled CI-ONLY SYNTHETIC DOUBAO SIGN-IN is visible and says it makes no network request and uses no real credentials.
           options: { timeoutMs: 30000, checkIntervalMs: 1000 }
-      - aiAssert: The synthetic sign-in window says it makes no network request and uses no real credentials.
       - computer.keyPress: { keyName: Escape }
       - aiWaitFor:
           prompt: The synthetic sign-in window is gone and Doubao Say remains on Sign in.

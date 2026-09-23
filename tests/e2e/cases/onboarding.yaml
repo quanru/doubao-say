@@ -17,7 +17,8 @@ cases:
           prompt: The visible feedback says Microphone is working and instructs the user to continue to the trigger key step.
           options: { timeoutMs: 30000, checkIntervalMs: 1000 }
       - aiAssert: The visible microphone result says Microphone is working.
-      - aiAct: Continue to Trigger key and reveal the Voice polishing model guidance.
+      - aiTap: Right-arrow Next button in the fixed top navigation
+      - aiAct: Reveal the complete Voice polishing model guidance on the Trigger key page.
       - aiWaitFor:
           prompt: The Trigger key page is visible and the complete Voice polishing model guidance can be read.
           options: { timeoutMs: 30000, checkIntervalMs: 1000 }
