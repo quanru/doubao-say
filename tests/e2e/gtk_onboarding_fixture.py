@@ -378,6 +378,14 @@ def build_onboarding_fixture(mode):
     )
     holder["control"] = control
     control.show()
+    if mode == "voxtype-settings":
+        def show_voxtype_settings():
+            open_settings()
+            # Focus the real control so GTK scrolls its containing pane into view.
+            holder["settings_window"].voxtype_refresh.grab_focus()
+            return GLib.SOURCE_REMOVE
+
+        GLib.idle_add(show_voxtype_settings)
 
     def cleanup():
         if holder["settings_window"]:
