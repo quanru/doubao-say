@@ -4,7 +4,7 @@
 # Requires (on the build host):
 #   sudo apt install build-essential debhelper dh-python \
 #        python3-all python3-setuptools python3-pip \
-#        python3-websockets python3-sounddevice python3-evdev
+#        python3-installer
 #
 # Usage:
 #   ./packaging/build-deb.sh           # builds ../doubao-say_1.2.0-1_all.deb
