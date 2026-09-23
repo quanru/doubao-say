@@ -178,7 +178,7 @@ cases:
       - aiTap: Right-arrow Next button in the fixed top navigation
       - aiAssert: The current step is Microphone and the heading Let's make sure we can hear you is visible.
   - name: Switch to Deepgram English recognition
-    tags: [shard-3]
+    tags: [shard-3, provider]
     steps:
       - fixture.prepare: { mode: deepgram }
       - aiAct: In Recognition service, select Deepgram Nova-3 English exactly once.

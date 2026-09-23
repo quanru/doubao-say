@@ -39,6 +39,7 @@ on:
           - ubuntu-shard-3
           - ubuntu-shard-4
           - ubuntu-polishing
+          - ubuntu-providers
 
 permissions:
   contents: read
