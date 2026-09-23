@@ -26,7 +26,7 @@ cases:
     tags: [shard-4]
     steps:
       - aiAssert: The visible Doubao Say window starts on the Sign in step and says the user is not signed in.
-      - aiAct: Open the CI-only Doubao sign-in window.
+      - aiTap: The large blue full-width Open Doubao sign-in button near the bottom of the central Sign in panel, around 50% width and 73% screen height
       - aiWaitFor:
           prompt: The CI-only Synthetic Doubao sign-in window is visible.
           options: { timeoutMs: 30000, checkIntervalMs: 1000 }
@@ -51,7 +51,8 @@ cases:
     steps:
       - fixture.prepare: { mode: trigger-settings }
       - aiAssert: The Trigger key step shows Choose how to start speaking and Voice polishing is enabled.
-      - aiAct: Choose Disabled in the trigger selection dropdown.
+      - aiTap: The trigger selection dropdown currently showing fn
+      - aiTap: Disabled option in the open trigger selection dropdown
       - aiAssert: Active trigger says Disabled and Voice polishing has not changed.
       - aiAct: Try to continue to the next step.
       - aiAssert: The current step is still Trigger key and the message Choose an enabled trigger to continue is visible.
@@ -76,7 +77,7 @@ cases:
       - aiWaitFor:
           prompt: The Trigger key step and the Voice polishing switch are visible.
           options: { timeoutMs: 30000, checkIntervalMs: 1000 }
-      - aiAct: Turn Voice polishing off.
+      - aiTap: The enabled Voice polishing switch at the upper right of the Voice polishing section
       - aiAssert: Voice polishing disabled is visible, the switch is off, and the polishing Base URL and Model fields are hidden.
       - aiAct: Turn Voice polishing on and reveal its Model input.
       - aiWaitFor:
@@ -108,7 +109,9 @@ cases:
     steps:
       - fixture.prepare: { mode: microphone-gate }
       - aiAssert: The visible Doubao Say window starts on the Microphone step, shows Synthetic microphone one, and offers Check microphone · 3 seconds.
-      - aiAct: Continue to Voice test without checking the microphone, then reveal Finish setup.
+      - aiTap: Right-arrow Next button in the fixed top navigation
+      - aiScroll:
+          options: { direction: down, scrollType: singleAction, distance: 500 }
       - aiWaitFor:
           prompt: Voice test is visible and Finish setup is fully visible.
           options: { timeoutMs: 30000, checkIntervalMs: 1000 }
@@ -118,7 +121,9 @@ cases:
           prompt: The visible feedback says Microphone is working and instructs the user to continue to the trigger key step.
           options: { timeoutMs: 30000, checkIntervalMs: 1000 }
       - aiAssert: The microphone result says Microphone is working and Synthetic microphone one remains selected.
-      - aiAct: Continue to Voice test and reveal Finish setup.
+      - aiTap: Right-arrow Next button in the fixed top navigation
+      - aiScroll:
+          options: { direction: down, scrollType: singleAction, distance: 500 }
       - aiWaitFor:
           prompt: Voice test is visible and Finish setup is fully visible.
           options: { timeoutMs: 30000, checkIntervalMs: 1000 }
@@ -163,7 +168,8 @@ cases:
     steps:
       - fixture.prepare: { mode: volcengine }
       - aiAssert: The visible Doubao Say window starts on Sign in with Doubao account selected and right-arrow Next disabled.
-      - aiAct: Choose Volcengine API as the Recognition service.
+      - aiTap: The Recognition service dropdown currently showing Doubao account
+      - aiTap: Volcengine API option in the open Recognition service dropdown
       - aiWaitFor:
           prompt: The page title is Recognition and the empty API Key field is visible.
           options: { timeoutMs: 30000, checkIntervalMs: 1000 }

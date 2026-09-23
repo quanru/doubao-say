@@ -11,6 +11,7 @@ interface DesktopContext {
   agent?: ComputerAgent;
   createAgent: () => Promise<ComputerAgent>;
   environment: 'ubuntu' | 'omarchy';
+  shell: boolean;
   fixtureMode?: string;
   resetFixture?: (mode: string) => Promise<void>;
   barConfigBackup?: string;
@@ -101,6 +102,7 @@ const setup = defineProjectSetup<DesktopContext>({
       agent: await createAgent(),
       createAgent,
       environment: omarchy ? 'omarchy' : 'ubuntu',
+      shell,
     };
     onTeardown(() => context.agent?.destroy());
     const fluxbox = spawn('fluxbox', [], { detached: true, stdio: 'ignore', env: process.env });
@@ -342,7 +344,7 @@ export default defineTestProject<DesktopContext>({
             if (existing) return existing.agent;
             context.agent ??= await context.createAgent();
             await context.resetFixture?.(context.fixtureMode ?? '');
-            if (context.environment === 'omarchy') {
+            if (context.environment === 'omarchy' && !context.shell) {
               // The full-screen TigerVNC viewer can return two stale black
               // frames after the guest fixture is replaced. A harmless click
               // on the app header focuses the viewer and forces a fresh frame
