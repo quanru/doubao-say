@@ -27,6 +27,18 @@ on:
     branches: [main]
     paths: *e2e-paths
   workflow_dispatch:
+    inputs:
+      project:
+        description: Run one Midscene project for focused verification
+        type: choice
+        default: all
+        options:
+          - all
+          - ubuntu-shard-1
+          - ubuntu-shard-2
+          - ubuntu-shard-3
+          - ubuntu-shard-4
+          - ubuntu-polishing
 
 permissions:
   contents: read
@@ -48,12 +60,10 @@ jobs:
       fail-fast: false
       max-parallel: 5
       matrix:
-        project:
-          - ubuntu-shard-1
-          - ubuntu-shard-2
-          - ubuntu-shard-3
-          - ubuntu-shard-4
-          - ubuntu-polishing
+        project: >-
+          ${{ fromJSON((inputs.project != '' && inputs.project != 'all') &&
+          format('["{0}"]', inputs.project) ||
+          '["ubuntu-shard-1","ubuntu-shard-2","ubuntu-shard-3","ubuntu-shard-4","ubuntu-polishing"]') }}
     env:
       MIDSCENE_MODEL_API_KEY: ${{ secrets.MIDSCENE_MODEL_API_KEY }}
       MIDSCENE_MODEL_NAME: ${{ secrets.MIDSCENE_MODEL_NAME }}
@@ -179,7 +189,9 @@ jobs:
   report-bundle:
     name: Assemble Midscene report bundle
     needs: ubuntu-e2e
-    if: always() && !cancelled()
+    if: >-
+      always() && !cancelled() &&
+      (inputs.project == '' || inputs.project == 'all')
     runs-on: ubuntu-latest
     outputs:
       report-artifact-id: ${{ steps.report.outputs.artifact-id }}

@@ -197,6 +197,7 @@ const fixtureMode = z.strictObject({
     'microphone-gate',
     'voice-test',
     'volcengine',
+    'deepgram',
     'microphone-change',
     'shortcut-capture',
     'runtime-delivery',
