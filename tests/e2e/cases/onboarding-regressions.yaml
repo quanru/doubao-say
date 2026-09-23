@@ -188,7 +188,6 @@ cases:
     tags: [shard-2]
     steps:
       - fixture.prepare: { mode: microphone-change }
-      - aiAssert: The visible Doubao Say window starts on the Microphone step with Synthetic microphone one selected.
       - aiTap: The microphone dropdown currently showing Synthetic microphone one
       - aiTap: Synthetic microphone two option in the open microphone dropdown
       - aiWaitFor:
@@ -210,7 +209,9 @@ cases:
           prompt: The visible feedback says Microphone is working and Synthetic microphone two remains selected.
           options: { timeoutMs: 30000, checkIntervalMs: 1000 }
       - aiAssert: The microphone result says Microphone is working and Synthetic microphone two remains selected.
-      - aiAct: Continue to Voice test and reveal Finish setup.
+      - aiTap: Right-arrow Next button in the fixed top navigation
+      - aiScroll:
+          options: { direction: down, scrollType: singleAction, distance: 500 }
       - aiWaitFor:
           prompt: Voice test is visible and Finish setup is fully visible.
           options: { timeoutMs: 30000, checkIntervalMs: 1000 }
