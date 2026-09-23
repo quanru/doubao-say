@@ -175,6 +175,21 @@ test('keeps visual E2E interactions at task level with proven aiTap exceptions',
   }
 });
 
+test('captures both legacy and current Midscene report step lists', async () => {
+  const source = await readFile(
+    new URL('../e2e/capture-report-preview.mjs', import.meta.url),
+    'utf8',
+  );
+  assert.match(
+    source,
+    /\.runner-detail-step-group > button, .*\.runner-detail-step-list > button/,
+  );
+  assert.match(
+    source,
+    /\.runner-detail-step-group > button\.is-selected, .*\.runner-detail-step-list > button\.is-selected/,
+  );
+});
+
 function runnerScript({
   assertionCount = 0,
   assertionAttempts,

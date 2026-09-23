@@ -108,11 +108,11 @@ try {
     await page.waitForFunction((expectedStep) => {
       const buttons = [
         ...document.querySelectorAll(
-          '[aria-label="Execution steps"] .runner-detail-step-group > button',
+          '[aria-label="Execution steps"] .runner-detail-step-group > button, [aria-label="Execution steps"] .runner-detail-step-list > button',
         ),
       ];
       const selected = document.querySelector(
-        '[aria-label="Execution steps"] button.is-selected',
+        '[aria-label="Execution steps"] .runner-detail-step-group > button.is-selected, [aria-label="Execution steps"] .runner-detail-step-list > button.is-selected',
       );
       const selectedName = selected?.querySelector(
         '.runner-detail-step-copy strong',
