@@ -26,7 +26,7 @@ cases:
       - aiWaitFor:
           prompt: The Trigger key page visibly recommends a small, fast Voice polishing model with thinking off, names DeepSeek Flash and Gemini 2.5 Flash-Lite, and warns that large reasoning models may exceed five seconds and fall back to the original text.
           options: { timeoutMs: 30000, checkIntervalMs: 1000 }
-      - aiAct: Test the Voice polishing endpoint.
+      - aiTap: Test endpoint button in the Voice polishing section
       - aiWaitFor:
           prompt: The Voice polishing result says Endpoint works and includes Synthetic endpoint response.
           options: { timeoutMs: 30000, checkIntervalMs: 1000 }
