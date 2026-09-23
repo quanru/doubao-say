@@ -2,6 +2,7 @@
 
 import base64
 import os
+from pathlib import Path
 import signal
 import sys
 
@@ -35,6 +36,9 @@ def main():
     Gtk.init()
     set_language("en")
     mode = fixture_mode()
+    if mode == "voxtype-live":
+        fake_cli = Path(__file__).parent / "fakes"
+        os.environ["PATH"] = str(fake_cli) + os.pathsep + os.environ["PATH"]
     cleanup = (
         build_runtime_fixture() if mode in RUNTIME_MODES
         else build_onboarding_fixture(mode)

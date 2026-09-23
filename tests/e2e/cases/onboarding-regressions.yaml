@@ -197,6 +197,20 @@ cases:
       - aiAct: In Recognition service, select Voxtype local exactly once.
       - aiAssert: The page explains that Voxtype owns local recording and transcription, no API Key field or Doubao sign-in button is visible, and Refresh Voxtype status is available.
       - aiAssert: The page says Voxtype 1.0.0 or newer must be installed, configured with a model, and running.
+  - name: Complete a Voxtype CLI voice test
+    tags: [shard-3]
+    steps:
+      - fixture.prepare: { mode: voxtype-live }
+      - aiAssert: The Doubao Say window starts on Microphone and says local recognition is ready.
+      - aiTap: Right-arrow Next button in the fixed top navigation
+      - aiTap: Right-arrow Next button in the fixed top navigation
+      - aiAssert: The current step is Voice test and Start voice test is available.
+      - aiTap: Start voice test button in the Voice test content panel
+      - wait: { duration: 750 }
+      - aiAssert: The Listening overlay is visible and Finish & check result is available.
+      - aiTap: Finish & check result button in the Voice test content panel
+      - wait: { duration: 1250 }
+      - aiAssert: The voice test shows Synthetic Voxtype English transcript, the Listening overlay is gone, and feedback says the synthetic Voxtype CLI completed with transcript files removed and nothing pasted or sent.
   - name: Changing microphone requires another check
     tags: [shard-2]
     steps:
