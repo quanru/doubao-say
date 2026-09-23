@@ -40,7 +40,7 @@ cases:
       - aiWaitFor:
           prompt: Synthetic voice test transcript is visible, and both Finish & check result and Cancel test are available.
           options: { timeoutMs: 30000, checkIntervalMs: 1000 }
-      - aiAct: Finish the active voice test and check its result.
+      - aiTap: Finish & check result button
       - aiWaitFor:
           prompt: The Listening overlay is gone and the visible feedback says Voice test passed and nothing was pasted or sent.
           options: { timeoutMs: 30000, checkIntervalMs: 1000 }
