@@ -20,6 +20,7 @@ on:
       - "tests/e2e/gtk_fixture.py"
       - "tests/e2e/gtk_onboarding_fixture.py"
       - "tests/e2e/gtk_runtime_fixture.py"
+      - "tests/e2e/fakes/**"
       - "tests/e2e/capture-report-preview.mjs"
       - "tests/e2e/cases/**"
       - "tests/e2e/midscene.config.ts"
@@ -48,6 +49,7 @@ on:
           - omarchy-shard-3
           - omarchy-shard-4
           - omarchy-shell
+          - omarchy-providers
 
 permissions:
   contents: read
