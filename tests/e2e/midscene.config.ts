@@ -335,6 +335,20 @@ export default defineTestProject<DesktopContext>({
       tags: { include: ['provider'] },
     },
     {
+      name: 'ubuntu-voxtype-settings',
+      retry: 2,
+      setup,
+      files: { include: productCaseFiles },
+      tags: { include: ['voxtype-settings'] },
+    },
+    {
+      name: 'omarchy-voxtype-settings',
+      retry: 2,
+      setup,
+      files: { include: productCaseFiles },
+      tags: { include: ['voxtype-settings'] },
+    },
+    {
       name: 'omarchy-shell',
       retry: 2,
       setup,

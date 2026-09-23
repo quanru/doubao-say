@@ -50,6 +50,7 @@ on:
           - omarchy-shard-4
           - omarchy-shell
           - omarchy-providers
+          - omarchy-voxtype-settings
 
 permissions:
   contents: read

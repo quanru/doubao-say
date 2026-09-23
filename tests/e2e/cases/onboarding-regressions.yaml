@@ -214,7 +214,7 @@ cases:
       - wait: { duration: 1250 }
       - aiAssert: The voice test shows Synthetic Voxtype English transcript, the Listening overlay is gone, and feedback says the synthetic Voxtype CLI completed with transcript files removed and nothing pasted or sent.
   - name: Inspect Voxtype configuration in Settings
-    tags: [shard-1, provider]
+    tags: [shard-1, provider, voxtype-settings]
     steps:
       - fixture.prepare: { mode: voxtype-settings }
       - aiAssert: The Doubao Say Settings window is open with the Voxtype status and action buttons visible.
