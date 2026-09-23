@@ -71,7 +71,8 @@ cases:
     tags: [shard-3]
     steps:
       - fixture.prepare: { mode: trigger-settings }
-      - aiAct: Reveal the Voice polishing controls.
+      - aiScroll:
+          options: { direction: down, scrollType: singleAction, distance: 500 }
       - aiWaitFor:
           prompt: The Trigger key step and the Voice polishing switch are visible.
           options: { timeoutMs: 30000, checkIntervalMs: 1000 }
