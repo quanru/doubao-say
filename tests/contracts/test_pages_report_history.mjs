@@ -142,7 +142,7 @@ test('keeps visual E2E interactions at task level with proven aiTap exceptions',
       'utf8',
     );
     const oneShotActions = source.match(
-      /^\s+-\s+(?:aiTap|aiScroll|aiInput|computer\.inputText):.+$/gm,
+      /^\s+-\s+(?:aiTap|aiScroll|aiInput|computer\.inputText):.*$/gm,
     ) ?? [];
     assert.deepEqual(
       oneShotActions.map((line) => line.trim()),
@@ -152,6 +152,7 @@ test('keeps visual E2E interactions at task level with proven aiTap exceptions',
             '- aiTap: The blue Simulate successful sign-in button in the CI-only modal, around 50% width and 43% screen height',
             '- aiTap: Check microphone · 3 seconds button on the Microphone step',
             '- aiTap: Right-arrow Next button in the fixed top navigation',
+            '- aiScroll:',
             '- aiTap: Right-arrow Next button in the fixed top navigation',
           ]
         : file === 'onboarding-regressions.yaml'
