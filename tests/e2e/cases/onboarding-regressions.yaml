@@ -88,7 +88,9 @@ cases:
     steps:
       - fixture.prepare: { mode: trigger-settings }
       - aiAssert: The Trigger key step shows Choose how to start speaking and Voice polishing is enabled.
-      - aiAct: Replace the Voice polishing Model value with ci-fail-model.
+      - aiScroll:
+          options: { direction: down, scrollType: singleAction, distance: 500 }
+      - computer.inputText: { target: The Model input in the Voice polishing section, value: ci-fail-model }
       - aiAssert: The Voice polishing Model input contains exactly ci-fail-model.
       - aiAct: Test the Voice polishing endpoint.
       - aiWaitFor:
@@ -189,12 +191,15 @@ cases:
     steps:
       - fixture.prepare: { mode: microphone-change }
       - aiAssert: The visible Doubao Say window starts on the Microphone step with Synthetic microphone one selected.
-      - aiAct: Choose Synthetic microphone two in the microphone dropdown.
+      - aiTap: The microphone dropdown currently showing Synthetic microphone one
+      - aiTap: Synthetic microphone two option in the open microphone dropdown
       - aiWaitFor:
           prompt: The visible feedback says Microphone saved and requires a new three-second check.
           options: { timeoutMs: 30000, checkIntervalMs: 1000 }
       - aiAssert: Synthetic microphone two is selected and a new microphone check is required.
-      - aiAct: Continue to Voice test without running the new microphone check, then reveal Finish setup.
+      - aiTap: Right-arrow Next button in the fixed top navigation
+      - aiScroll:
+          options: { direction: down, scrollType: singleAction, distance: 500 }
       - aiWaitFor:
           prompt: Voice test is visible and Finish setup is fully visible.
           options: { timeoutMs: 30000, checkIntervalMs: 1000 }
@@ -215,7 +220,8 @@ cases:
     steps:
       - fixture.prepare: { mode: shortcut-capture }
       - aiAssert: Trigger key shows Active trigger fn and its trigger selection dropdown.
-      - aiAct: Choose Record a shortcut… in the trigger selection dropdown.
+      - aiTap: The trigger selection dropdown currently showing fn
+      - aiTap: Record a shortcut… option in the open trigger selection dropdown
       - aiWaitFor:
           prompt: The active trigger and trigger dropdown both show the control symbol ⌃ plus F8.
           options: { timeoutMs: 30000, checkIntervalMs: 1000 }
