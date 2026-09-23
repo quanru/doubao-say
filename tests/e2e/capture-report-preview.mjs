@@ -100,7 +100,13 @@ try {
 
     const page = await browser.newPage();
     await page.setViewport({ width: 1600, height: 1000, deviceScaleFactor: 1 });
-    await page.goto(previewUrl.href, { waitUntil: 'networkidle0' });
+    // A failed run with repeated AI replans can embed many screenshots in the
+    // report. Wait for the document, then for the specific rendered evidence;
+    // waiting for all network activity can exceed Puppeteer's 30s default on CI.
+    await page.goto(previewUrl.href, {
+      waitUntil: 'domcontentloaded',
+      timeout: 120_000,
+    });
     await page.waitForSelector(
       '[aria-label="Execution steps"] button.is-selected .runner-step-status',
     );

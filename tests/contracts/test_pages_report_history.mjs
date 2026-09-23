@@ -165,13 +165,18 @@ test('keeps visual E2E interactions at task level with proven aiTap exceptions',
               '- aiTap: The large blue full-width Open Doubao sign-in button near the bottom of the central Sign in panel, around 50% width and 73% screen height',
               '- aiTap: The blue Simulate successful sign-in button in the CI-only modal, around 50% width and 43% screen height',
               '- aiScroll:',
-              '- computer.inputText: { target: The Model input in the Voice polishing section, value: ci-fail-model }',
+              '- computer.inputText: { target: The text entry to the right of Model containing synthetic-model, value: ci-fail-model, point: { x: 850, y: 477 } }',
+              '- aiTap: Test endpoint button in the Voice polishing section',
               '- aiTap: The microphone dropdown currently showing Synthetic microphone one',
               '- aiTap: Synthetic microphone two option in the open microphone dropdown',
               '- aiTap: Right-arrow Next button in the fixed top navigation',
               '- aiScroll:',
+              '- aiTap: Left-arrow Previous button in the fixed top navigation',
+              '- aiTap: Check microphone · 3 seconds button on the Microphone step',
               '- aiTap: The trigger selection dropdown currently showing fn',
               '- aiTap: Record a shortcut… option in the open trigger selection dropdown',
+              '- aiTap: Right-arrow Next button in the fixed top navigation',
+              '- aiTap: Left-arrow Previous button in the fixed top navigation',
             ]
           : [],
       `${file} must express visual interactions as task-level aiAct steps except for proven failures`,
@@ -197,6 +202,8 @@ test('captures both legacy and current Midscene report step lists', async () => 
     source,
     /\.runner-detail-step-group > button\.is-selected, .*\.runner-detail-step-list > button\.is-selected/,
   );
+  assert.match(source, /waitUntil: 'domcontentloaded'/);
+  assert.match(source, /timeout: 120_000/);
 });
 
 function runnerScript({

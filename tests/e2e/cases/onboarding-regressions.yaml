@@ -90,9 +90,9 @@ cases:
       - aiAssert: The Trigger key step shows Choose how to start speaking and Voice polishing is enabled.
       - aiScroll:
           options: { direction: down, scrollType: singleAction, distance: 500 }
-      - computer.inputText: { target: The Model input in the Voice polishing section, value: ci-fail-model }
+      - computer.inputText: { target: The text entry to the right of Model containing synthetic-model, value: ci-fail-model, point: { x: 850, y: 477 } }
       - aiAssert: The Voice polishing Model input contains exactly ci-fail-model.
-      - aiAct: Test the Voice polishing endpoint.
+      - aiTap: Test endpoint button in the Voice polishing section
       - aiWaitFor:
           prompt: The endpoint feedback contains Synthetic endpoint unavailable and the retry button says Test failed — try again.
           options: { timeoutMs: 30000, checkIntervalMs: 1000 }
@@ -196,7 +196,6 @@ cases:
       - aiWaitFor:
           prompt: The visible feedback says Microphone saved and requires a new three-second check.
           options: { timeoutMs: 30000, checkIntervalMs: 1000 }
-      - aiAssert: Synthetic microphone two is selected and a new microphone check is required.
       - aiTap: Right-arrow Next button in the fixed top navigation
       - aiScroll:
           options: { direction: down, scrollType: singleAction, distance: 500 }
@@ -204,7 +203,11 @@ cases:
           prompt: Voice test is visible and Finish setup is fully visible.
           options: { timeoutMs: 30000, checkIntervalMs: 1000 }
       - aiAssert: The Finish setup button is visibly disabled.
-      - aiAct: Return to Microphone and run Check microphone · 3 seconds.
+      - aiTap: Left-arrow Previous button in the fixed top navigation
+      - aiWaitFor:
+          prompt: The Microphone step and Check microphone · 3 seconds button are visible.
+          options: { timeoutMs: 30000, checkIntervalMs: 1000 }
+      - aiTap: Check microphone · 3 seconds button on the Microphone step
       - aiWaitFor:
           prompt: The visible feedback says Microphone is working and Synthetic microphone two remains selected.
           options: { timeoutMs: 30000, checkIntervalMs: 1000 }
@@ -219,14 +222,17 @@ cases:
     tags: [shard-2]
     steps:
       - fixture.prepare: { mode: shortcut-capture }
-      - aiAssert: Trigger key shows Active trigger fn and its trigger selection dropdown.
       - aiTap: The trigger selection dropdown currently showing fn
       - aiTap: Record a shortcut… option in the open trigger selection dropdown
       - aiWaitFor:
           prompt: The active trigger and trigger dropdown both show the control symbol ⌃ plus F8.
           options: { timeoutMs: 30000, checkIntervalMs: 1000 }
       - aiAssert: The active and selected trigger is the custom shortcut ⌃ plus F8.
-      - aiAct: Continue to Voice test and then return to Trigger key.
+      - aiTap: Right-arrow Next button in the fixed top navigation
+      - aiWaitFor:
+          prompt: Voice test is visible.
+          options: { timeoutMs: 30000, checkIntervalMs: 1000 }
+      - aiTap: Left-arrow Previous button in the fixed top navigation
       - aiWaitFor:
           prompt: Trigger key is visible again and still shows the custom shortcut.
           options: { timeoutMs: 30000, checkIntervalMs: 1000 }

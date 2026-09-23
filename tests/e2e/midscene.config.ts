@@ -210,6 +210,7 @@ const keyboardKey = z.strictObject({
 const inputText = z.strictObject({
   target: z.string().min(1),
   value: z.string(),
+  point: z.strictObject({ x: z.number(), y: z.number() }).optional(),
 });
 const prepareFixture = defineNode<typeof fixtureMode, void, DesktopContext>({
   name: 'fixture.prepare',
@@ -240,10 +241,15 @@ const inputTextField = defineNode<typeof inputText, void, DesktopContext>({
   async execute({ context, input }) {
     if (!context.agent) throw new Error('Midscene Computer Agent is not active');
     if (context.environment === 'omarchy') {
-      // Midscene still finds and focuses the visual target. Send the text from
-      // inside the Wayland guest because X11 clipboard typing stops at the VNC
-      // boundary on some TigerVNC/GitHub runner combinations.
-      await context.agent.aiTap(input.target);
+      // Focus the input through the VNC device. The optional point is reserved
+      // for a fixed-size fixture where the model repeatedly located the label
+      // instead of the entry. Send text inside Wayland because X11 clipboard
+      // typing stops at the VNC boundary on some runner combinations.
+      if (input.point) {
+        await context.agent.interface.inputPrimitives.pointer.tap(input.point);
+      } else {
+        await context.agent.aiTap(input.target);
+      }
       await sleep(250);
       guest(
         `wtype -M ctrl -k a -m ctrl; wtype -d 35 ${shellQuote(input.value)}`,
