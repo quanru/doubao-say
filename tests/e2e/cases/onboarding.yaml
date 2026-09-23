@@ -45,7 +45,7 @@ cases:
           prompt: The Listening overlay is gone and the visible feedback says Voice test passed and nothing was pasted or sent.
           options: { timeoutMs: 30000, checkIntervalMs: 1000 }
       - aiAssert: Start voice test is available again, and the visible feedback says Voice test passed and nothing was pasted or sent.
-      - aiAct: Activate the enabled Finish setup control whose label says Voice test passed and nothing pasted or sent.
+      - aiTap: Enabled Finish setup button that says Voice test passed and nothing pasted or sent
       - aiWaitFor:
           prompt: The setup control is disabled and says Setup completed by the synthetic E2E fixture.
           options: { timeoutMs: 30000, checkIntervalMs: 1000 }
