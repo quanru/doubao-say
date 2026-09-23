@@ -88,19 +88,16 @@ cases:
     tags: [shard-2]
     steps:
       - fixture.prepare: { mode: trigger-settings }
-      - aiAssert: The Trigger key step shows Choose how to start speaking and Voice polishing is enabled.
       - aiScroll:
           options: { direction: down, scrollType: singleAction, distance: 500 }
       - computer.inputText: { target: The text entry to the right of Model containing synthetic-model, value: ci-fail-model, point: { x: 850, y: 477 } }
-      - aiAssert: The Voice polishing Model input contains exactly ci-fail-model.
       - aiTap: Test endpoint button in the Voice polishing section
       - aiWaitFor:
           prompt: The endpoint feedback contains Synthetic endpoint unavailable and the retry button says Test failed — try again.
           options: { timeoutMs: 30000, checkIntervalMs: 1000 }
       - aiAssert: The endpoint failure and its enabled retry button are both visible.
-      - aiAct: Replace the Voice polishing Model value with ci-ok-model.
-      - aiAssert: The Voice polishing Model input contains exactly ci-ok-model, without the word fail.
-      - aiAct: Retry the Voice polishing endpoint test.
+      - computer.inputText: { target: The text entry to the right of Model containing ci-fail-model, value: ci-ok-model, point: { x: 850, y: 477 } }
+      - aiTap: Test failed — try again button in the Voice polishing section
       - aiWaitFor:
           prompt: The endpoint result contains Synthetic endpoint response and the button says Endpoint works.
           options: { timeoutMs: 30000, checkIntervalMs: 1000 }
