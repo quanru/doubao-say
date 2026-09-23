@@ -18,6 +18,7 @@ on:
       - "tests/e2e/gtk_fixture.py"
       - "tests/e2e/gtk_onboarding_fixture.py"
       - "tests/e2e/gtk_runtime_fixture.py"
+      - "tests/e2e/fakes/**"
       - "tests/e2e/capture-report-preview.mjs"
       - "tests/e2e/polish_fixture.py"
       - "tests/e2e/cases/**"
