@@ -181,7 +181,8 @@ cases:
     tags: [shard-3, provider]
     steps:
       - fixture.prepare: { mode: deepgram }
-      - aiAct: In Recognition service, select Deepgram Nova-3 English exactly once.
+      - aiTap: Recognition service dropdown currently showing Doubao account
+      - aiTap: Deepgram Nova-3 (English) option in the opened dropdown
       - aiAct: Scroll down inside the central content panel until the API Key field and Test API key button are both visible.
       - aiAssert: The page is Recognition, explains Deepgram Nova-3 English dictation, shows an empty API Key field, and hides Open Doubao sign-in.
       - computer.inputText:
