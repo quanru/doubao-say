@@ -211,6 +211,17 @@ cases:
       - aiTap: Finish & check result button in the Voice test content panel
       - wait: { duration: 1250 }
       - aiAssert: The voice test shows Synthetic Voxtype English transcript, the Listening overlay is gone, and feedback says the synthetic Voxtype CLI completed with transcript files removed and nothing pasted or sent.
+  - name: Inspect Voxtype configuration in Settings
+    tags: [shard-1, provider]
+    steps:
+      - fixture.prepare: { mode: voxtype-settings }
+      - aiTap: Settings button in the Doubao Say header
+      - aiAct: Scroll down in the Settings window until Voxtype status and its two action buttons are fully visible.
+      - aiAssert: The Voxtype status shows CLI version 1.0.1, daemon version 1.0.1, idle state, whisper engine, synthetic-english-model, CI-only synthetic microphone, CPU backend, and config schema 1. The API Key field is hidden.
+      - aiTap: Refresh Voxtype status button in the Settings window
+      - aiAssert: The Voxtype status still shows idle and synthetic-english-model, and Open Voxtype configuration is available.
+      - aiTap: Open Voxtype configuration button in the Settings window
+      - aiAssert: The Settings window says Voxtype configuration opened in a terminal.
   - name: Changing microphone requires another check
     tags: [shard-2]
     steps:

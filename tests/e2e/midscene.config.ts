@@ -200,6 +200,7 @@ const fixtureMode = z.strictObject({
     'deepgram',
     'voxtype',
     'voxtype-live',
+    'voxtype-settings',
     'microphone-change',
     'shortcut-capture',
     'runtime-delivery',

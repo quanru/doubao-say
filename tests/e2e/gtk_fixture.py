@@ -36,7 +36,7 @@ def main():
     Gtk.init()
     set_language("en")
     mode = fixture_mode()
-    if mode == "voxtype-live":
+    if mode in {"voxtype-live", "voxtype-settings"}:
         fake_cli = Path(__file__).parent / "fakes"
         os.environ["PATH"] = str(fake_cli) + os.pathsep + os.environ["PATH"]
     cleanup = (

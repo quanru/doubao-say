@@ -27,6 +27,7 @@ LOGGED_IN_MODES = {
     "microphone-change",
     "shortcut-capture",
     "voxtype-live",
+    "voxtype-settings",
 }
 
 
@@ -38,6 +39,7 @@ def build_onboarding_fixture(mode):
         else LoginStatus.NOT_LOGGED_IN
     )
     settings = Settings(
+        asr_provider="voxtype" if mode == "voxtype-settings" else "doubao",
         polish_enabled=True,
         polish_base_url="https://example.invalid/v1",
         polish_model="synthetic-model",
@@ -55,8 +57,8 @@ def build_onboarding_fixture(mode):
             "shortcut-capture",
         },
         "onboarding_complete": False,
-        "asr_provider": "voxtype" if mode == "voxtype-live" else "doubao",
-        "asr_provider_name": "Voxtype (local)" if mode == "voxtype-live" else "Doubao",
+        "asr_provider": "voxtype" if mode in {"voxtype-live", "voxtype-settings"} else "doubao",
+        "asr_provider_name": "Voxtype (local)" if mode in {"voxtype-live", "voxtype-settings"} else "Doubao",
     }
     holder = {
         "asr_key": False,
@@ -64,6 +66,7 @@ def build_onboarding_fixture(mode):
         "login": None,
         "preview": False,
         "voxtype_manager": None,
+        "settings_window": None,
     }
     overlay = Overlay(state)
 
@@ -319,6 +322,25 @@ def build_onboarding_fixture(mode):
 
         GLib.timeout_add(350, finish)
 
+    def open_settings():
+        if mode != "voxtype-settings":
+            return
+        if holder["settings_window"]:
+            holder["settings_window"].show()
+            return
+        from doubao_input.ui.settings_window import SettingsWindow
+        from doubao_input.voxtype.control import inspect_details
+
+        window = SettingsWindow(
+            holder["control"].window,
+            settings,
+            lambda _updated: None,
+            voxtype_details=inspect_details,
+            configure_voxtype=lambda: None,
+        )
+        holder["settings_window"] = window
+        window.show()
+
     def complete_setup():
         summary["onboarding_complete"] = True
         control = holder["control"]
@@ -330,7 +352,7 @@ def build_onboarding_fixture(mode):
     actions = SetupActions(
         test_voice=test_voice,
         cancel_preview=cancel_preview,
-        open_settings=lambda: None,
+        open_settings=open_settings,
         is_preview_testing=lambda: holder["preview"],
         summary=lambda: summary,
         complete_setup=complete_setup,
@@ -358,6 +380,8 @@ def build_onboarding_fixture(mode):
     control.show()
 
     def cleanup():
+        if holder["settings_window"]:
+            holder["settings_window"].window.destroy()
         if holder["voxtype_manager"]:
             holder["voxtype_manager"].handle_cancel()
         cancel_key_capture()
