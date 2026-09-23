@@ -195,7 +195,8 @@ cases:
     tags: [shard-3, provider]
     steps:
       - fixture.prepare: { mode: voxtype }
-      - aiAct: In Recognition service, select Voxtype local exactly once.
+      - aiTap: Recognition service dropdown currently showing Doubao account
+      - aiTap: Voxtype (local) option in the opened dropdown
       - aiAssert: The page explains that Voxtype owns local recording and transcription, no API Key field or Doubao sign-in button is visible, and Refresh Voxtype status is available.
       - aiAssert: The page says Voxtype 1.0.0 or newer must be installed, configured with a model, and running.
   - name: Complete a Voxtype CLI voice test
