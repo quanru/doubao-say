@@ -19,9 +19,9 @@ cases:
       - aiAssert: The visible microphone result says Microphone is working.
       - aiTap: Right-arrow Next button in the fixed top navigation
       - aiScroll:
-        direction: down
-        scrollType: singleAction
-        distance: 500
+          direction: down
+          scrollType: singleAction
+          distance: 500
       - aiWaitFor:
           prompt: The Trigger key page is visible and the complete Voice polishing model guidance can be read.
           options: { timeoutMs: 30000, checkIntervalMs: 1000 }
