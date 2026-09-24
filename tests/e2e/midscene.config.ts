@@ -221,6 +221,9 @@ const tapPoint = z.strictObject({
   target: z.string().min(1),
   point: z.strictObject({ x: z.number(), y: z.number() }),
 });
+const triggerPreset = z.strictObject({
+  preset: z.enum(['Disabled', 'F8']),
+});
 const prepareFixture = defineNode<typeof fixtureMode, void, DesktopContext>({
   name: 'fixture.prepare',
   description: 'Select deterministic synthetic state for this test case.',
@@ -278,6 +281,21 @@ const tapFixedPoint = defineNode<typeof tapPoint, void, DesktopContext>({
   async execute({ context, input }) {
     if (!context.agent) throw new Error('Midscene Computer Agent is not active');
     await context.agent.interface.inputPrimitives.pointer.tap(input.point);
+  },
+});
+const selectTriggerPreset = defineNode<typeof triggerPreset, void, DesktopContext>({
+  name: 'computer.selectTriggerPreset',
+  description: 'Select a trigger preset through the GTK dropdown in the fixed Omarchy fixture.',
+  inputSchema: triggerPreset,
+  async execute({ context, input }) {
+    if (!context.agent || context.environment !== 'omarchy') {
+      throw new Error('Omarchy Computer Agent is not active');
+    }
+    await context.agent.interface.inputPrimitives.pointer.tap({ x: 640, y: 498 });
+    await sleep(250);
+    const keys = ['Home', ...Array(input.preset === 'F8' ? 6 : 0).fill('Down'), 'Return'];
+    guest(keys.map((key) => `wtype -k ${key}`).join('; '));
+    await sleep(250);
   },
 });
 const openSystemMenu = defineNode<typeof empty, void, DesktopContext>({
@@ -392,6 +410,7 @@ export default defineTestProject<DesktopContext>({
     pressKeyboardKey,
     inputTextField,
     tapFixedPoint,
+    selectTriggerPreset,
     openSystemMenu,
     closeSystemMenu,
     moveBarLeft,

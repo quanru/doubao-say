@@ -47,19 +47,17 @@ cases:
     steps:
       - fixture.prepare: { mode: trigger-settings }
       - aiAssert: The Trigger key step shows Choose how to start speaking and Voice polishing is enabled.
-      - aiTap: The trigger selection dropdown currently showing fn
-      - aiTap: Disabled option in the open trigger selection dropdown
-      - aiAssert: Active trigger says Disabled and Voice polishing has not changed.
-      - aiTap: Right-arrow Next button in the fixed top navigation
+      - computer.selectTriggerPreset: { preset: Disabled }
+      - aiAssert: Active trigger says Disabled, and the Voice polishing switch remains enabled.
+      - computer.tapPoint: { target: Right-arrow Next button in the fixed top navigation, point: { x: 1038, y: 203 } }
       - aiAssert: The current step is still Trigger key and the message Choose an enabled trigger to continue is visible.
-      - aiTap: The trigger selection dropdown currently showing Disabled
-      - aiTap: F8 option in the open trigger selection dropdown
+      - computer.selectTriggerPreset: { preset: F8 }
       - aiAssert: Active trigger shows F8 and F8 is selected in the trigger dropdown.
-      - aiAct: Continue to Voice test.
+      - computer.tapPoint: { target: Right-arrow Next button in the fixed top navigation, point: { x: 1038, y: 203 } }
       - aiWaitFor:
           prompt: Voice test shows Try a sentence. Nothing gets pasted and the right-arrow Next button is disabled.
           options: { timeoutMs: 30000, checkIntervalMs: 1000 }
-      - aiTap: Left-arrow Previous button in the fixed top navigation
+      - computer.tapPoint: { target: Left-arrow Previous button in the fixed top navigation, point: { x: 240, y: 203 } }
       - aiWaitFor:
           prompt: The Trigger key step is visible again.
           options: { timeoutMs: 30000, checkIntervalMs: 1000 }

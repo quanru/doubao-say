@@ -142,7 +142,7 @@ test('keeps visual E2E interactions at task level with proven tap exceptions', a
       'utf8',
     );
     const oneShotActions = source.match(
-      /^\s+-\s+(?:aiTap|aiScroll|aiInput|computer\.inputText|computer\.tapPoint):.*$/gm,
+      /^\s+-\s+(?:aiTap|aiScroll|aiInput|computer\.inputText|computer\.tapPoint|computer\.selectTriggerPreset):.*$/gm,
     ) ?? [];
     assert.deepEqual(
       oneShotActions.map((line) => line.trim()),
@@ -167,12 +167,11 @@ test('keeps visual E2E interactions at task level with proven tap exceptions', a
               '- aiTap: The large blue full-width Open Doubao sign-in button near the bottom of the central Sign in panel, around 50% width and 73% screen height',
               '- aiTap: The blue Simulate successful sign-in button in the CI-only modal, around 50% width and 43% screen height',
               '- aiTap: Left-arrow Previous button in the fixed top navigation',
-              '- aiTap: The trigger selection dropdown currently showing fn',
-              '- aiTap: Disabled option in the open trigger selection dropdown',
-              '- aiTap: Right-arrow Next button in the fixed top navigation',
-              '- aiTap: The trigger selection dropdown currently showing Disabled',
-              '- aiTap: F8 option in the open trigger selection dropdown',
-              '- aiTap: Left-arrow Previous button in the fixed top navigation',
+              '- computer.selectTriggerPreset: { preset: Disabled }',
+              '- computer.tapPoint: { target: Right-arrow Next button in the fixed top navigation, point: { x: 1038, y: 203 } }',
+              '- computer.selectTriggerPreset: { preset: F8 }',
+              '- computer.tapPoint: { target: Right-arrow Next button in the fixed top navigation, point: { x: 1038, y: 203 } }',
+              '- computer.tapPoint: { target: Left-arrow Previous button in the fixed top navigation, point: { x: 240, y: 203 } }',
               '- aiScroll:',
               '- computer.tapPoint: { target: Enabled Voice polishing switch, point: { x: 1180, y: 316 } }',
               '- computer.tapPoint: { target: Disabled Voice polishing switch, point: { x: 1180, y: 316 } }',
