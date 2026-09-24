@@ -1110,6 +1110,62 @@ test('restores retained history before adding the new run', async (context) => {
   );
 });
 
+test('restores large report histories with bounded parallel downloads', async (context) => {
+  const root = await mkdtemp(path.join(os.tmpdir(), 'pages-parallel-history-'));
+  const reportDirectory = await fixtureDirectory(root);
+  const siteDirectory = path.join(root, 'site');
+  const files = [
+    'reports/100/index.html',
+    ...Array.from({ length: 15 }, (_, index) =>
+      `reports/100/screenshots/shot-${index}.jpeg`,
+    ),
+  ];
+  let active = 0;
+  let peak = 0;
+  const server = await startServer((request, response) => {
+    if (request.url === '/reports/manifest.json') {
+      response.setHeader('content-type', 'application/json');
+      response.end(JSON.stringify({
+        version: 7,
+        reports: [{
+          runId: '100',
+          generatedAt: '2026-09-14T12:00:00.000Z',
+          label: 'Omarchy 4.0.3',
+          successRate: 100,
+          testCount: 1,
+          averageDurationMs: 4000,
+          modelCallCount: 1,
+          tokenUsage: null,
+          workflowUrl: 'https://github.com/quanru/doubao-say/actions/runs/100',
+          reportPath: 'reports/100/index.html',
+          files,
+        }],
+      }));
+      return;
+    }
+    active++;
+    peak = Math.max(peak, active);
+    setTimeout(() => {
+      response.setHeader(
+        'content-type',
+        request.url.endsWith('.html') ? 'text/html' : 'image/jpeg',
+      );
+      response.end(request.url);
+      active--;
+    }, 30);
+  });
+  context.after(server.close);
+
+  await buildPagesReport(options(reportDirectory, siteDirectory, server.url));
+
+  assert.ok(peak > 1, `expected parallel requests, saw ${peak}`);
+  assert.ok(peak <= 8, `expected at most 8 requests, saw ${peak}`);
+  assert.equal(
+    await readFile(path.join(siteDirectory, files.at(-1)), 'utf8'),
+    `/${files.at(-1)}`,
+  );
+});
+
 test('restores version 4 history created before node text evidence', async (context) => {
   const root = await mkdtemp(path.join(os.tmpdir(), 'pages-v4-history-'));
   const reportDirectory = await fixtureDirectory(root);

@@ -496,32 +496,53 @@ async function fetchHistory(baseUrl) {
 }
 
 async function restoreReport(baseUrl, siteDirectory, report) {
-  for (const file of report.files ?? [report.reportPath]) {
-    let response;
-    for (let attempt = 0; attempt < 3; attempt++) {
-      response = await fetch(new URL(file, baseUrl), { redirect: 'follow' });
-      if (response.status !== 503 || attempt === 2) break;
-      await response.body?.cancel();
-      await new Promise((done) => setTimeout(done, 1000 * (attempt + 1)));
+  const files = report.files ?? [report.reportPath];
+  let nextFile = 0;
+  let failure;
+  async function restoreNextFiles() {
+    while (nextFile < files.length && !failure) {
+      const file = files[nextFile++];
+      try {
+        await restoreFile(baseUrl, siteDirectory, report, file);
+      } catch (error) {
+        failure ??= error;
+      }
     }
-    if (!response.ok) {
-      throw new Error(
-        `Cannot restore report for run ${report.runId}: HTTP ${response.status}`,
-      );
-    }
-    const contentType = response.headers.get('content-type') ?? '';
-    if (
-      file.endsWith('.html') &&
-      !contentType.toLowerCase().includes('text/html')
-    ) {
-      throw new Error(
-        `Cannot restore report for run ${report.runId}: expected text/html, got ${contentType || 'no Content-Type'}`,
-      );
-    }
-    const destination = path.join(siteDirectory, file);
-    await mkdir(path.dirname(destination), { recursive: true });
-    await writeFile(destination, Buffer.from(await response.arrayBuffer()));
   }
+  await Promise.all(
+    Array.from({ length: Math.min(8, files.length) }, () => restoreNextFiles()),
+  );
+  if (failure) throw failure;
+}
+
+async function restoreFile(baseUrl, siteDirectory, report, file) {
+  let response;
+  for (let attempt = 0; attempt < 3; attempt++) {
+    response = await fetch(new URL(file, baseUrl), {
+      redirect: 'follow',
+      signal: AbortSignal.timeout(30_000),
+    });
+    if (response.status !== 503 || attempt === 2) break;
+    await response.body?.cancel();
+    await new Promise((done) => setTimeout(done, 1000 * (attempt + 1)));
+  }
+  if (!response.ok) {
+    throw new Error(
+      `Cannot restore report for run ${report.runId}: HTTP ${response.status}`,
+    );
+  }
+  const contentType = response.headers.get('content-type') ?? '';
+  if (
+    file.endsWith('.html') &&
+    !contentType.toLowerCase().includes('text/html')
+  ) {
+    throw new Error(
+      `Cannot restore report for run ${report.runId}: expected text/html, got ${contentType || 'no Content-Type'}`,
+    );
+  }
+  const destination = path.join(siteDirectory, file);
+  await mkdir(path.dirname(destination), { recursive: true });
+  await writeFile(destination, Buffer.from(await response.arrayBuffer()));
 }
 
 function escapeHtml(value) {
