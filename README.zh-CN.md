@@ -2,6 +2,8 @@
 
 [English](README.md)
 
+![豆包说在 Omarchy Linux 上运行的界面](images/readme-cn.jpeg)
+
 独立的 Linux GTK4 语音输入应用，支持 Hyprland / Wayland 和原生 X11。默认使用豆包网页账号识别，也可选择
 火山引擎官方 Seed ASR 2.0 API。
 默认英文，设置提供 **System（跟随系统）/ English / 简体中文**，选择后自动保存并立即生效。

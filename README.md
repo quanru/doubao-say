@@ -2,6 +2,8 @@
 
 [简体中文](README.zh-CN.md)
 
+![Doubao Say voice input running on Omarchy Linux](images/readme-en.jpeg)
+
 A standalone GTK4 voice-input application for Linux (Hyprland/Wayland and native X11). It uses Doubao
 web-account recognition by default and can optionally use the official Volcengine
 Seed ASR 2.0 API. English by default. Settings offers **System / English /
