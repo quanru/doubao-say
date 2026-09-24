@@ -165,10 +165,14 @@ test('keeps visual E2E interactions at task level with proven aiTap exceptions',
               '- aiTap: The large blue full-width Open Doubao sign-in button near the bottom of the central Sign in panel, around 50% width and 73% screen height',
               '- aiTap: The blue Simulate successful sign-in button in the CI-only modal, around 50% width and 43% screen height',
               '- aiTap: The large blue full-width Open Doubao sign-in button near the bottom of the central Sign in panel, around 50% width and 73% screen height',
+              '- aiTap: The blue Simulate successful sign-in button in the CI-only modal, around 50% width and 43% screen height',
               '- aiTap: The trigger selection dropdown currently showing fn',
               '- aiTap: Disabled option in the open trigger selection dropdown',
+              '- aiTap: Right-arrow Next button in the fixed top navigation',
               '- aiScroll:',
               '- aiTap: The enabled Voice polishing switch at the upper right of the Voice polishing section',
+              '- aiTap: The disabled Voice polishing switch at the upper right of the Voice polishing section',
+              '- aiScroll:',
               '- aiScroll:',
               '- computer.inputText: { target: The text entry to the right of Model containing synthetic-model, value: ci-fail-model, point: { x: 850, y: 477 } }',
               '- aiTap: Test endpoint button in the Voice polishing section',
@@ -177,6 +181,7 @@ test('keeps visual E2E interactions at task level with proven aiTap exceptions',
               '- aiTap: Right-arrow Next button in the fixed top navigation',
               '- aiScroll:',
               '- aiTap: Right-arrow Next button in the fixed top navigation',
+              '- aiScroll:',
               '- aiScroll:',
               '- aiTap: The Recognition service dropdown currently showing Doubao account',
               '- aiTap: Volcengine API option in the open Recognition service dropdown',
@@ -1050,11 +1055,14 @@ test('restores retained history before adding the new run', async (context) => {
     workflowUrl: 'https://github.com/quanru/doubao-say/actions/runs/100',
     reportPath: 'reports/100/index.html',
   };
+  let restoreAttempts = 0;
   const server = await startServer((request, response) => {
     if (request.url === '/reports/manifest.json') {
       response.setHeader('content-type', 'application/json');
       response.end(JSON.stringify({ version: 1, reports: [oldEntry] }));
     } else if (request.url === '/reports/100/index.html') {
+      restoreAttempts++;
+      if (restoreAttempts === 1) return response.writeHead(503).end();
       response.setHeader('content-type', 'text/html; charset=utf-8');
       response.end(oldReport);
     } else {
@@ -1071,6 +1079,7 @@ test('restores retained history before adding the new run', async (context) => {
     manifest.reports.map((report) => report.runId),
     ['200', '100'],
   );
+  assert.equal(restoreAttempts, 2);
   assert.equal(
     await readFile(
       path.join(siteDirectory, 'reports', '100', 'index.html'),

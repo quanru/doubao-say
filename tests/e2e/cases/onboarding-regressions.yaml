@@ -31,7 +31,7 @@ cases:
           prompt: The CI-only Synthetic Doubao sign-in window is visible.
           options: { timeoutMs: 30000, checkIntervalMs: 1000 }
       - aiAssert: The synthetic sign-in window says it makes no network request and uses no real credentials.
-      - aiAct: Simulate a successful sign-in.
+      - aiTap: The blue Simulate successful sign-in button in the CI-only modal, around 50% width and 43% screen height
       - aiWaitFor:
           prompt: The sign-in window is closed and Doubao Say has advanced to the Microphone step.
           options: { timeoutMs: 30000, checkIntervalMs: 1000 }
@@ -54,7 +54,7 @@ cases:
       - aiTap: The trigger selection dropdown currently showing fn
       - aiTap: Disabled option in the open trigger selection dropdown
       - aiAssert: Active trigger says Disabled and Voice polishing has not changed.
-      - aiAct: Try to continue to the next step.
+      - aiTap: Right-arrow Next button in the fixed top navigation
       - aiAssert: The current step is still Trigger key and the message Choose an enabled trigger to continue is visible.
       - aiAct: Choose F8 in the trigger selection dropdown.
       - aiAssert: Active trigger shows F8 and F8 is selected in the trigger dropdown.
@@ -79,7 +79,9 @@ cases:
           options: { timeoutMs: 30000, checkIntervalMs: 1000 }
       - aiTap: The enabled Voice polishing switch at the upper right of the Voice polishing section
       - aiAssert: Voice polishing disabled is visible, the switch is off, and the polishing Base URL and Model fields are hidden.
-      - aiAct: Turn Voice polishing on and reveal its Model input.
+      - aiTap: The disabled Voice polishing switch at the upper right of the Voice polishing section
+      - aiScroll:
+          options: { direction: down, scrollType: singleAction, distance: 500 }
       - aiWaitFor:
           prompt: Voice polishing is enabled and its Model input is visible.
           options: { timeoutMs: 30000, checkIntervalMs: 1000 }
@@ -133,7 +135,8 @@ cases:
     tags: [shard-3]
     steps:
       - fixture.prepare: { mode: voice-test }
-      - aiAct: Reveal Finish setup.
+      - aiScroll:
+          options: { direction: down, scrollType: singleAction, distance: 500 }
       - aiWaitFor:
           prompt: Voice test is visible and the disabled Finish setup control is fully visible.
           options: { timeoutMs: 30000, checkIntervalMs: 1000 }

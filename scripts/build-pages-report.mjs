@@ -497,9 +497,13 @@ async function fetchHistory(baseUrl) {
 
 async function restoreReport(baseUrl, siteDirectory, report) {
   for (const file of report.files ?? [report.reportPath]) {
-    const response = await fetch(new URL(file, baseUrl), {
-      redirect: 'follow',
-    });
+    let response;
+    for (let attempt = 0; attempt < 3; attempt++) {
+      response = await fetch(new URL(file, baseUrl), { redirect: 'follow' });
+      if (response.status !== 503 || attempt === 2) break;
+      await response.body?.cancel();
+      await new Promise((done) => setTimeout(done, 1000 * (attempt + 1)));
+    }
     if (!response.ok) {
       throw new Error(
         `Cannot restore report for run ${report.runId}: HTTP ${response.status}`,
