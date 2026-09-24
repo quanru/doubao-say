@@ -130,7 +130,7 @@ test('assigns every product case to exactly one balanced shard', async () => {
   });
 });
 
-test('keeps visual E2E interactions at task level with proven aiTap exceptions', async () => {
+test('keeps visual E2E interactions at task level with proven tap exceptions', async () => {
   for (const file of [
     'onboarding.yaml',
     'onboarding-regressions.yaml',
@@ -142,7 +142,7 @@ test('keeps visual E2E interactions at task level with proven aiTap exceptions',
       'utf8',
     );
     const oneShotActions = source.match(
-      /^\s+-\s+(?:aiTap|aiScroll|aiInput|computer\.inputText):.*$/gm,
+      /^\s+-\s+(?:aiTap|aiScroll|aiInput|computer\.inputText|computer\.tapPoint):.*$/gm,
     ) ?? [];
     assert.deepEqual(
       oneShotActions.map((line) => line.trim()),
@@ -174,8 +174,8 @@ test('keeps visual E2E interactions at task level with proven aiTap exceptions',
               '- aiTap: F8 option in the open trigger selection dropdown',
               '- aiTap: Left-arrow Previous button in the fixed top navigation',
               '- aiScroll:',
-              '- aiTap: The enabled Voice polishing switch at the upper right of the Voice polishing section',
-              '- aiTap: The disabled Voice polishing switch at the upper right of the Voice polishing section',
+              '- computer.tapPoint: { target: Enabled Voice polishing switch, point: { x: 1180, y: 316 } }',
+              '- computer.tapPoint: { target: Disabled Voice polishing switch, point: { x: 1180, y: 316 } }',
               '- aiScroll:',
               '- aiScroll:',
               '- computer.inputText: { target: The text entry to the right of Model containing synthetic-model, value: ci-fail-model, point: { x: 850, y: 477 } }',
@@ -186,11 +186,10 @@ test('keeps visual E2E interactions at task level with proven aiTap exceptions',
               '- aiScroll:',
               '- aiTap: Right-arrow Next button in the fixed top navigation',
               '- aiScroll:',
-              '- aiScroll:',
               '- aiTap: Start voice test button in the Voice test section',
               '- aiTap: Cancel test button in the active voice test',
-              '- aiScroll:',
               '- aiTap: Start voice test button in the Voice test section',
+              '- aiTap: Finish & check result button in the active voice test',
               '- aiTap: The Recognition service dropdown currently showing Doubao account',
               '- aiTap: Volcengine API option in the open Recognition service dropdown',
               '- aiTap: Test API key button on the Recognition step',

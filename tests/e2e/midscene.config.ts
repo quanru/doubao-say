@@ -115,6 +115,9 @@ const setup = defineProjectSetup<DesktopContext>({
       onTeardown(() => stop(viewer));
       await sleep(4000);
       if (!shell) {
+        // Long model retries can outlast Omarchy's idle screensaver and hide
+        // the GTK fixture from the VNC screenshots used by visual assertions.
+        guest('omarchy-shell idle disable');
         const stopGuestFixture = () => {
           guest([
             'if test -s /tmp/doubao-midscene-fixture.pid; then',
@@ -214,6 +217,10 @@ const inputText = z.strictObject({
   value: z.string(),
   point: z.strictObject({ x: z.number(), y: z.number() }).optional(),
 });
+const tapPoint = z.strictObject({
+  target: z.string().min(1),
+  point: z.strictObject({ x: z.number(), y: z.number() }),
+});
 const prepareFixture = defineNode<typeof fixtureMode, void, DesktopContext>({
   name: 'fixture.prepare',
   description: 'Select deterministic synthetic state for this test case.',
@@ -262,6 +269,15 @@ const inputTextField = defineNode<typeof inputText, void, DesktopContext>({
         mode: 'replace',
       });
     }
+  },
+});
+const tapFixedPoint = defineNode<typeof tapPoint, void, DesktopContext>({
+  name: 'computer.tapPoint',
+  description: 'Tap a fixed point in the 1280x800 Omarchy fixture.',
+  inputSchema: tapPoint,
+  async execute({ context, input }) {
+    if (!context.agent) throw new Error('Midscene Computer Agent is not active');
+    await context.agent.interface.inputPrimitives.pointer.tap(input.point);
   },
 });
 const openSystemMenu = defineNode<typeof empty, void, DesktopContext>({
@@ -375,6 +391,7 @@ export default defineTestProject<DesktopContext>({
     prepareFixture,
     pressKeyboardKey,
     inputTextField,
+    tapFixedPoint,
     openSystemMenu,
     closeSystemMenu,
     moveBarLeft,

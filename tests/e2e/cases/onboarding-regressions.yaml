@@ -74,9 +74,9 @@ cases:
       - aiWaitFor:
           prompt: The Trigger key step and the Voice polishing switch are visible.
           options: { timeoutMs: 30000, checkIntervalMs: 1000 }
-      - aiTap: The enabled Voice polishing switch at the upper right of the Voice polishing section
+      - computer.tapPoint: { target: Enabled Voice polishing switch, point: { x: 1180, y: 316 } }
       - aiAssert: Voice polishing disabled is visible, the switch is off, and the polishing Base URL and Model fields are hidden.
-      - aiTap: The disabled Voice polishing switch at the upper right of the Voice polishing section
+      - computer.tapPoint: { target: Disabled Voice polishing switch, point: { x: 1180, y: 316 } }
       - aiScroll:
           options: { direction: down, scrollType: singleAction, distance: 500 }
       - aiWaitFor:
@@ -132,8 +132,6 @@ cases:
     tags: [shard-3]
     steps:
       - fixture.prepare: { mode: voice-test }
-      - aiScroll:
-          options: { direction: down, scrollType: singleAction, distance: 500 }
       - aiWaitFor:
           prompt: Voice test is visible and the disabled Finish setup control is fully visible.
           options: { timeoutMs: 30000, checkIntervalMs: 1000 }
@@ -148,8 +146,6 @@ cases:
           prompt: The Listening overlay is gone and the visible feedback says Voice test cancelled and nothing was pasted or sent.
           options: { timeoutMs: 30000, checkIntervalMs: 1000 }
       - aiAssert: Start voice test is available again, the transcript is empty, and the visible feedback says Voice test cancelled and nothing was pasted or sent.
-      - aiScroll:
-          options: { direction: down, scrollType: singleAction, distance: 500 }
       - aiWaitFor:
           prompt: The cancelled voice-test result and the disabled Finish setup control are fully visible.
           options: { timeoutMs: 30000, checkIntervalMs: 1000 }
@@ -158,7 +154,7 @@ cases:
       - aiWaitFor:
           prompt: Synthetic voice test transcript is visible and Finish & check result is available again.
           options: { timeoutMs: 30000, checkIntervalMs: 1000 }
-      - aiAct: Finish the active voice test and check its result.
+      - aiTap: Finish & check result button in the active voice test
       - aiWaitFor:
           prompt: The Listening overlay is gone and the visible feedback says Voice test passed and nothing was pasted or sent.
           options: { timeoutMs: 30000, checkIntervalMs: 1000 }
