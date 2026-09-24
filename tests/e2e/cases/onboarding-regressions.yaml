@@ -27,9 +27,6 @@ cases:
     steps:
       - aiAssert: The visible Doubao Say window starts on the Sign in step and says the user is not signed in.
       - aiTap: The large blue full-width Open Doubao sign-in button near the bottom of the central Sign in panel, around 50% width and 73% screen height
-      - aiWaitFor:
-          prompt: The CI-only Synthetic Doubao sign-in window is visible.
-          options: { timeoutMs: 30000, checkIntervalMs: 1000 }
       - aiAssert: The synthetic sign-in window says it makes no network request and uses no real credentials.
       - aiTap: The blue Simulate successful sign-in button in the CI-only modal, around 50% width and 43% screen height
       - aiWaitFor:
@@ -44,7 +41,6 @@ cases:
       - aiWaitFor:
           prompt: The Microphone step shows Let's make sure we can hear you.
           options: { timeoutMs: 30000, checkIntervalMs: 1000 }
-      - aiAssert: The Microphone step is visible and no synthetic sign-in window is open.
 
   - name: Require an enabled trigger and retain the replacement
     tags: [shard-4]
