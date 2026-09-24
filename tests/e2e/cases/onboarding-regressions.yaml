@@ -158,7 +158,7 @@ cases:
           prompt: The cancelled voice-test result and the disabled Finish setup control are fully visible.
           options: { timeoutMs: 30000, checkIntervalMs: 1000 }
       - aiAssert: The Finish setup button is visibly disabled, and the voice-test feedback says Voice test cancelled and nothing was pasted or sent.
-      - aiAct: Start another voice test.
+      - aiTap: Start voice test button in the Voice test section
       - aiWaitFor:
           prompt: Synthetic voice test transcript is visible and Finish & check result is available again.
           options: { timeoutMs: 30000, checkIntervalMs: 1000 }
