@@ -62,7 +62,7 @@ cases:
       - aiWaitFor:
           prompt: Voice test shows Try a sentence. Nothing gets pasted and the right-arrow Next button is disabled.
           options: { timeoutMs: 30000, checkIntervalMs: 1000 }
-      - aiAct: Return to Trigger key.
+      - aiTap: Left-arrow Previous button in the fixed top navigation
       - aiWaitFor:
           prompt: The Trigger key step is visible again.
           options: { timeoutMs: 30000, checkIntervalMs: 1000 }
