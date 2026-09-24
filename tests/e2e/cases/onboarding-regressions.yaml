@@ -35,7 +35,7 @@ cases:
       - aiWaitFor:
           prompt: The sign-in window is closed and Doubao Say has advanced to the Microphone step.
           options: { timeoutMs: 30000, checkIntervalMs: 1000 }
-      - aiAct: Return to the Sign in step.
+      - aiTap: Left-arrow Previous button in the fixed top navigation
       - aiWaitFor:
           prompt: The Sign in step shows the signed-in account status and Sign in again or change account.
           options: { timeoutMs: 30000, checkIntervalMs: 1000 }
@@ -56,7 +56,8 @@ cases:
       - aiAssert: Active trigger says Disabled and Voice polishing has not changed.
       - aiTap: Right-arrow Next button in the fixed top navigation
       - aiAssert: The current step is still Trigger key and the message Choose an enabled trigger to continue is visible.
-      - aiAct: Choose F8 in the trigger selection dropdown.
+      - aiTap: The trigger selection dropdown currently showing Disabled
+      - aiTap: F8 option in the open trigger selection dropdown
       - aiAssert: Active trigger shows F8 and F8 is selected in the trigger dropdown.
       - aiAct: Continue to Voice test.
       - aiWaitFor:
@@ -146,12 +147,13 @@ cases:
           prompt: Synthetic voice test transcript is visible, and both Finish & check result and Cancel test are available.
           options: { timeoutMs: 30000, checkIntervalMs: 1000 }
       - aiAssert: The listening voice test has a synthetic transcript and offers both finish and cancel actions.
-      - aiAct: Cancel the active voice test.
+      - aiTap: Cancel test button in the active voice test
       - aiWaitFor:
           prompt: The Listening overlay is gone and the visible feedback says Voice test cancelled and nothing was pasted or sent.
           options: { timeoutMs: 30000, checkIntervalMs: 1000 }
       - aiAssert: Start voice test is available again, the transcript is empty, and the visible feedback says Voice test cancelled and nothing was pasted or sent.
-      - aiAct: Reveal the voice-test result and Finish setup control.
+      - aiScroll:
+          options: { direction: down, scrollType: singleAction, distance: 500 }
       - aiWaitFor:
           prompt: The cancelled voice-test result and the disabled Finish setup control are fully visible.
           options: { timeoutMs: 30000, checkIntervalMs: 1000 }
