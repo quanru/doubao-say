@@ -92,9 +92,12 @@ class TranscriptionSessionTest(TestCase):
         manager.app_state.login_status = LoginStatus.LOGGED_IN
         manager.credential_store = Mock()
         manager.credential_store.load.return_value = object()
+        from doubao_input.diagnostics import DiagnosticTrace
+        manager.on_diagnostic = DiagnosticTrace().add
+        manager.on_overlay_show = Mock()
 
-        self.assertTrue(manager.prime_recording())
         manager._start_recording()
+        manager.on_overlay_show.assert_called_once_with()
         manager._later = Mock(return_value=1)
         manager._stop_recording()
 
