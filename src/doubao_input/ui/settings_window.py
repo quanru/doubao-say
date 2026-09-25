@@ -1,5 +1,7 @@
 """Grouped preferences, safe hardware-key capture and allowlisted diagnostics."""
 from dataclasses import replace
+import subprocess
+import threading
 from gi.repository import GLib, Gtk, Gdk
 from doubao_input.ui.trigger_picker import TriggerPicker
 from doubao_input.i18n import LANGUAGES, tr
@@ -39,6 +41,7 @@ class SettingsWindow:
         self._test_asr = test_asr
         self._voxtype_details = voxtype_details
         self._configure_voxtype = configure_voxtype
+        self._voxtype_request_id = 0
         self._asr_save_source = 0
         self._asr_testing = False
         self._diagnostic_report = diagnostic_report or (lambda: report(self._settings))
@@ -494,18 +497,40 @@ class SettingsWindow:
         self.voxtype_details.set_visible(provider.is_local)
         if provider.is_local:
             self._refresh_voxtype_details()
+        else:
+            self._voxtype_request_id += 1
+            self.voxtype_refresh.set_sensitive(True)
         self.privacy_copy.set_text(provider.privacy)
 
     def _refresh_voxtype_details(self, *_):
-        try:
-            details = self._voxtype_details()
-            if details is None:
-                raise RuntimeError("Voxtype details are unavailable")
-        except (OSError, RuntimeError) as error:
+        self._voxtype_request_id += 1
+        request_id = self._voxtype_request_id
+        self.voxtype_refresh.set_sensitive(False)
+        self.voxtype_summary.set_text(tr(
+            "Reading Voxtype status…", "正在读取 Voxtype 状态…"))
+
+        def read_details():
+            try:
+                details = self._voxtype_details()
+                if details is None:
+                    raise RuntimeError("Voxtype details are unavailable")
+                error = None
+            except (OSError, RuntimeError, subprocess.SubprocessError) as exc:
+                details, error = None, str(exc)
+            GLib.idle_add(self._show_voxtype_details, request_id, details, error)
+
+        threading.Thread(target=read_details, name="voxtype-status",
+                         daemon=True).start()
+
+    def _show_voxtype_details(self, request_id, details, error):
+        if request_id != self._voxtype_request_id:
+            return GLib.SOURCE_REMOVE
+        self.voxtype_refresh.set_sensitive(True)
+        if error:
             self.voxtype_summary.set_text(tr(
                 "Voxtype status unavailable: ",
-                "无法读取 Voxtype 状态：") + str(error))
-            return
+                "无法读取 Voxtype 状态：") + error)
+            return GLib.SOURCE_REMOVE
         self.voxtype_summary.set_text("\n".join((
             tr("CLI version: ", "CLI 版本：") + details.cli_version,
             tr("Daemon version: ", "Daemon 版本：") + details.daemon_version,
@@ -517,6 +542,7 @@ class SettingsWindow:
             tr("Config schema: ", "配置 Schema：") + str(details.schema_version),
             tr("Config file: ", "配置文件：") + details.config_path,
         )))
+        return GLib.SOURCE_REMOVE
 
     def _open_voxtype_configuration(self, *_):
         try:

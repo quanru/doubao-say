@@ -1,4 +1,6 @@
 """Setup interaction contracts without a desktop, microphone or account."""
+import threading
+import time
 from types import SimpleNamespace
 import unittest
 from unittest.mock import Mock, patch
@@ -265,16 +267,46 @@ class SetupActionsTest(unittest.TestCase):
             config_path="/home/test/.config/voxtype/config.toml",
         )
         view = SimpleNamespace(
-            _voxtype_details=Mock(return_value=details),
+            _voxtype_request_id=1,
+            voxtype_refresh=Mock(),
             voxtype_summary=Mock(),
         )
 
-        SettingsWindow._refresh_voxtype_details(view)
+        SettingsWindow._show_voxtype_details(view, 1, details, None)
 
         rendered = view.voxtype_summary.set_text.call_args.args[0]
         self.assertIn("large-v3-turbo", rendered)
         self.assertIn("Vulkan", rendered)
         self.assertIn("config.toml", rendered)
+
+    def test_voxtype_status_request_does_not_block_settings(self):
+        started = threading.Event()
+        release = threading.Event()
+        delivered = threading.Event()
+
+        def read_details():
+            started.set()
+            release.wait(2)
+            return None
+
+        view = SimpleNamespace(
+            _voxtype_details=read_details,
+            _voxtype_request_id=0,
+            _show_voxtype_details=Mock(),
+            voxtype_refresh=Mock(),
+            voxtype_summary=Mock(),
+        )
+        try:
+            with patch("doubao_input.ui.settings_window.GLib.idle_add",
+                       side_effect=lambda *args: delivered.set()):
+                start = time.monotonic()
+                SettingsWindow._refresh_voxtype_details(view)
+                self.assertLess(time.monotonic() - start, 0.2)
+                self.assertTrue(started.wait(1))
+                release.set()
+                self.assertTrue(delivered.wait(1))
+        finally:
+            release.set()
 
     def test_voxtype_configure_failure_stays_in_settings(self):
         view = SimpleNamespace(
@@ -285,3 +317,13 @@ class SetupActionsTest(unittest.TestCase):
         SettingsWindow._open_voxtype_configuration(view)
 
         view.voxtype_summary.set_text.assert_called_once_with("no terminal")
+
+    def test_stale_voxtype_status_does_not_replace_newer_selection(self):
+        view = SimpleNamespace(
+            _voxtype_request_id=2,
+            voxtype_refresh=Mock(),
+            voxtype_summary=Mock(),
+        )
+        SettingsWindow._show_voxtype_details(view, 1, None, "old failure")
+        view.voxtype_summary.set_text.assert_not_called()
+        view.voxtype_refresh.set_sensitive.assert_not_called()
