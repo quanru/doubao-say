@@ -64,8 +64,9 @@ API Key 保存在 `~/.config/doubao-say/deepgram_api_key`（或对应的
 选择 **Voxtype（本地）** 后，麦克风采集和转写由正在运行的 Voxtype daemon 负责。
 豆包说要求 Voxtype 1.0.0 或更高版本，并使用它稳定的文件输出完成接口。请单独安装
 Voxtype，运行 `voxtype setup --download`，启动 daemon，再在首次设置中点击
-**刷新 Voxtype 状态**。引擎、模型、语言、音频设备和加速方式仍在 Voxtype 中配置；
-该接入不会改写 Voxtype 配置。
+**刷新 Voxtype 状态**。设置页会显示当前引擎和模型，还可以选择当前引擎已安装的模型。
+选择后会更新 Voxtype 配置并重启 daemon，因此 Voxtype 自身的快捷键也会使用该模型；
+默认跟随当前 Voxtype 模型。引擎、语言、音频设备和加速方式仍由 Voxtype 管理。
 设置窗口会读取 Voxtype 的版本化 Schema 和扩展状态，显示 daemon 版本、状态、引擎、
 模型、音频设备、计算后端、Schema 版本和配置文件路径。点击**打开 Voxtype 配置**后，
 应用会在可用终端里启动 `voxtype configure`，所有配置仍由 Voxtype 自己校验和写入。

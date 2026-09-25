@@ -218,7 +218,7 @@ cases:
     steps:
       - fixture.prepare: { mode: voxtype-settings }
       - aiAssert: The Doubao Say Settings window is open with the Voxtype status and action buttons visible.
-      - aiAssert: The Voxtype status shows CLI version 1.0.1, daemon version 1.0.1, idle state, whisper engine, synthetic-english-model, CI-only synthetic microphone, CPU backend, and config schema 1. The API Key field is hidden.
+      - aiAssert: The Voxtype status shows CLI version 1.0.1, daemon version 1.0.1, idle state, whisper engine, synthetic-english-model, CI-only synthetic microphone, CPU backend, and config schema 1. The model selector offers synthetic-english-model. The API Key field is hidden.
       - aiTap: Refresh Voxtype status button in the Settings window
       - aiAssert: The Voxtype status still shows idle and synthetic-english-model, and Open Voxtype configuration is available.
       - aiTap: Open Voxtype configuration button in the Settings window
