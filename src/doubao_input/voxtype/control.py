@@ -1,0 +1,119 @@
+"""Read Voxtype's stable GUI-facing contracts and open its own configurator."""
+
+from __future__ import annotations
+
+from dataclasses import dataclass
+import json
+import os
+import shlex
+import shutil
+import subprocess
+
+from doubao_input.voxtype.runtime import VoxtypeRuntime, inspect_runtime
+
+
+def _run(command, *, timeout=3):
+    return subprocess.run(
+        command,
+        capture_output=True,
+        text=True,
+        timeout=timeout,
+        check=False,
+    )
+
+
+@dataclass(frozen=True)
+class VoxtypeDetails:
+    cli_version: str
+    daemon_version: str
+    state: str
+    engine: str
+    model: str
+    device: str
+    backend: str
+    schema_version: int | str
+    config_path: str
+
+
+def inspect_details(*, runtime=None, runner=_run) -> VoxtypeDetails:
+    runtime = runtime or inspect_runtime(runner=runner)
+    status = _json_command([
+        runtime.executable, "status", "--extended", "--format", "json",
+    ], runner)
+    state = status.get("alt") or status.get("class")
+    if state == "stopped":
+        raise RuntimeError("Voxtype daemon is not running")
+    schema = _json_command([
+        runtime.executable, "config", "schema", "--json",
+    ], runner)
+    return VoxtypeDetails(
+        cli_version=str(schema.get("voxtype_version") or runtime.version),
+        daemon_version=str(schema.get("daemon_version_label") or "unknown"),
+        state=str(state or "unknown"),
+        engine=str(schema.get("engine") or "unknown"),
+        model=str(status.get("model") or "unknown"),
+        device=str(status.get("device") or "system default"),
+        backend=str(status.get("backend") or "unknown"),
+        schema_version=schema.get("schema_version", "unknown"),
+        config_path=str(schema.get("config_path") or "unknown"),
+    )
+
+
+def _json_command(command, runner):
+    result = runner(command)
+    if result.returncode:
+        message = (result.stderr or result.stdout or "").strip()
+        raise RuntimeError(message[:500] or "Voxtype command failed")
+    try:
+        payload = json.loads(result.stdout)
+    except (TypeError, ValueError) as error:
+        raise RuntimeError("Voxtype returned invalid JSON") from error
+    if not isinstance(payload, dict):
+        raise RuntimeError("Voxtype returned invalid JSON")
+    return payload
+
+
+def launch_configure(*, runtime: VoxtypeRuntime | None = None,
+                     which=shutil.which, popen=subprocess.Popen,
+                     environment=None) -> None:
+    runtime = runtime or inspect_runtime()
+    if environment is None:
+        environment = os.environ
+    terminal = environment.get("TERMINAL", "").strip()
+    if terminal:
+        prefix = shlex.split(terminal)
+        executable = which(prefix[0]) if prefix else None
+        if executable:
+            _launch([
+                executable, *prefix[1:], "-e",
+                runtime.executable, "configure",
+            ], popen)
+            return
+    candidates = (
+        ("kitty", "-e"),
+        ("alacritty", "-e"),
+        ("foot", "-e"),
+        ("wezterm", "start", "--"),
+        ("gnome-terminal", "--"),
+        ("konsole", "-e"),
+        ("xfce4-terminal", "-e"),
+        ("xterm", "-e"),
+    )
+    for candidate in candidates:
+        executable = which(candidate[0])
+        if executable:
+            _launch([
+                executable, *candidate[1:], runtime.executable, "configure",
+            ], popen)
+            return
+    raise RuntimeError("No supported terminal was found for Voxtype configure")
+
+
+def _launch(command, popen):
+    popen(
+        command,
+        stdin=subprocess.DEVNULL,
+        stdout=subprocess.DEVNULL,
+        stderr=subprocess.DEVNULL,
+        start_new_session=True,
+    )

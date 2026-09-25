@@ -87,6 +87,11 @@ file-mode completion API. Install Voxtype separately, run
 `voxtype setup --download`, start its daemon, then use **Refresh Voxtype status**
 in onboarding. The engine, model, language, audio device, and acceleration remain
 configured in Voxtype; this integration does not rewrite its configuration.
+The Settings window reads Voxtype's versioned schema and extended status to show
+the running daemon version, state, engine, model, audio device, compute backend,
+schema version, and config path. **Open Voxtype configuration** launches
+`voxtype configure` in an available terminal, so Voxtype still validates and
+writes every setting itself.
 
 For each confirmed dictation, Doubao Say asks Voxtype to write one transcript in
 a private per-user runtime directory, waits for the `.done` completion signal,

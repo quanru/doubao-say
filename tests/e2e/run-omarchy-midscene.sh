@@ -197,7 +197,7 @@ for _xvfb_attempt in {1..200}; do
 done
 
 case "$MIDSCENE_PROJECT" in
-  omarchy-shard-[1-4]|omarchy-providers)
+  omarchy-shard-[1-4]|omarchy-providers|omarchy-voxtype-settings)
     npm --prefix tests/e2e test -- --project "$MIDSCENE_PROJECT"
     ;;
   omarchy-shell)
