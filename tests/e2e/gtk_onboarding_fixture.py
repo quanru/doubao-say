@@ -235,13 +235,18 @@ def build_onboarding_fixture(mode):
         )
 
     def apply_asr_provider(provider):
+        provider_names = {
+            "doubao": "Doubao",
+            "volcengine": "Volcengine",
+            "deepgram": "Deepgram Nova-3 (English)",
+        }
         summary.update(
             asr_provider=provider,
-            asr_provider_name=("Volcengine" if provider == "volcengine" else "Doubao"),
+            asr_provider_name=provider_names[provider],
         )
         state.login_status = (
             LoginStatus.LOGGED_IN
-            if provider == "volcengine" and holder["asr_key"]
+            if provider != "doubao" and holder["asr_key"]
             else LoginStatus.NOT_LOGGED_IN
         )
         GLib.idle_add(refresh)

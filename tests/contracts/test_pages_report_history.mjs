@@ -115,17 +115,20 @@ test('assigns every product case to exactly one balanced shard', async () => {
       .split(/(?=^  - name:)/m)
       .filter((section) => section.startsWith('  - name:'));
     for (const testCase of cases) {
-      const tags = [...testCase.matchAll(/^    tags: \[(shard-[1-4])\]$/gm)];
+      const tags = [...testCase.matchAll(/^    tags: \[([^\]]+)\]$/gm)];
       assert.equal(tags.length, 1, testCase.split('\n')[0]);
-      shardCounts.set(tags[0][1], (shardCounts.get(tags[0][1]) ?? 0) + 1);
+      const shards = tags[0][1].split(',').map((tag) => tag.trim())
+        .filter((tag) => /^shard-[1-4]$/.test(tag));
+      assert.equal(shards.length, 1, testCase.split('\n')[0]);
+      shardCounts.set(shards[0], (shardCounts.get(shards[0]) ?? 0) + 1);
       caseCount += 1;
     }
   }
-  assert.equal(caseCount, 13);
+  assert.equal(caseCount, 14);
   assert.deepEqual(Object.fromEntries(shardCounts), {
     'shard-1': 2,
     'shard-2': 3,
-    'shard-3': 4,
+    'shard-3': 5,
     'shard-4': 4,
   });
 });

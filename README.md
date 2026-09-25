@@ -6,7 +6,7 @@
 
 A standalone GTK4 voice-input application for Linux (Hyprland/Wayland and native X11). It uses Doubao
 web-account recognition by default and can optionally use the official Volcengine
-Seed ASR 2.0 API. English by default. Settings offers **System / English /
+Seed ASR 2.0 API or Deepgram Nova-3 for English dictation. English by default. Settings offers **System / English /
 简体中文** and saves each choice automatically. System follows the session's language preferences,
 uses Simplified Chinese for Chinese locales, and falls back to English otherwise.
 Optional Omarchy integration manages the **same application**, not another engine.
@@ -28,7 +28,8 @@ then finish onboarding. Removal differs from the offline archive. Do not mix bot
 Open **Doubao Say** from your application launcher:
 
 1. **Recognition** — use the default Doubao web sign-in, or select
-   **Volcengine official API** in Settings and add your own speech API key.
+   **Volcengine official API** or **Deepgram Nova-3 (English)** in Settings and
+   add your own speech API key.
    Credentials stay on this device.
 2. **Microphone** — choose a PipeWire input, then run a three-second,
    device-only check with actionable feedback. Device changes save immediately.
@@ -64,6 +65,21 @@ is not ready yet.
 See [Doubao and the official Volcengine speech API](docs/volcengine-asr.md) for
 backend differences, new-console activation, bidirectional streaming limitations,
 and troubleshooting.
+
+### Optional Deepgram English recognition
+
+Open **Settings → Recognition service**, select **Deepgram Nova-3 (English)**,
+and enter an API key from the Deepgram console. Use **Test API key** before the
+voice test. Doubao Say streams 16 kHz mono PCM to Deepgram's Nova-3 live endpoint
+with US English, interim results, punctuation, and smart formatting enabled.
+Partial text appears while you speak and the finalized transcript is returned
+after recording stops. Deepgram bills usage to your account.
+
+The API key is stored in `~/.config/doubao-say/deepgram_api_key` (or the
+equivalent `XDG_CONFIG_HOME` path) with owner-only permissions. It is excluded
+from settings, diagnostics, logs, bundles, and reports. The app currently fixes
+this provider to US English; other Deepgram languages and multilingual mode are
+not exposed yet.
 
 ### Optional voice polishing
 
@@ -245,8 +261,8 @@ Automatic detection of every desktop shortcut conflict is not supported.
 
 After a recording gesture is confirmed, the default unofficial backend sends the
 locally buffered and live microphone audio to Doubao and depends on its web protocol.
-The optional official backend sends it to Volcengine under the user's API account
-and terms. Cancelled, double-tap and microphone-only checks do not upload audio.
+The optional API backends send it to Volcengine or Deepgram under the user's API
+account and terms. Cancelled, double-tap and microphone-only checks do not upload audio.
 The hosted sign-in website controls its own language.
 When optional polishing is enabled, recognized text—including provisional text
 sent after a pause—is transmitted to the OpenAI-compatible endpoint configured by
