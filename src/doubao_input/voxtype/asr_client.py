@@ -10,6 +10,7 @@ import stat
 import subprocess
 import tempfile
 import threading
+import time
 
 from doubao_input.voxtype.runtime import VoxtypeRuntime, daemon_state
 
@@ -100,6 +101,7 @@ class VoxtypeASRClient:
         worker.start()
 
     def _start_recording(self, session) -> None:
+        start_accepted = False
         try:
             with self._lock:
                 if session.cancelled or self._session is not session:
@@ -121,6 +123,25 @@ class VoxtypeASRClient:
             result = self._runner(command, timeout=5)
             if result.returncode:
                 raise RuntimeError(_command_error(result, "Voxtype could not start recording"))
+            start_accepted = True
+            # `record start` only sends a signal. The daemon publishes
+            # "recording" after device lookup and capture thread launch.
+            deadline = time.monotonic() + 5
+            while True:
+                with self._lock:
+                    if session.cancelled or self._session is not session:
+                        break
+                state = self._state_reader(
+                    session.runtime,
+                    runner=lambda command: self._runner(command, timeout=2),
+                )
+                if state == "recording":
+                    break
+                if state != "idle":
+                    raise RuntimeError(f"Voxtype entered unexpected state: {state}")
+                if time.monotonic() >= deadline:
+                    raise TimeoutError("Voxtype microphone did not become ready")
+                time.sleep(0.05)
             with self._lock:
                 abandoned = session.cancelled or self._session is not session
                 if abandoned:
@@ -137,6 +158,13 @@ class VoxtypeASRClient:
             self._emit(session, "on_open")
         except Exception as error:
             session.started.set()
+            if start_accepted:
+                try:
+                    self._runner([
+                        session.runtime.executable, "record", "cancel",
+                    ], timeout=5)
+                except (OSError, subprocess.SubprocessError):
+                    pass
             self._emit(session, "on_error", error)
 
     def send_audio(self, _data: bytes) -> None:

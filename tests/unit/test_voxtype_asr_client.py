@@ -20,7 +20,8 @@ class FakeCommands:
     def __call__(self, command, *, timeout):
         self.commands.append(command)
         if command[1] == "status":
-            return SimpleNamespace(returncode=0, stdout='{"alt":"idle"}', stderr="")
+            state = "recording" if self.path else "idle"
+            return SimpleNamespace(returncode=0, stdout=f'{{"alt":"{state}"}}', stderr="")
         if command[1:3] == ["record", "start"]:
             file_arg = next(value for value in command if value.startswith("--file="))
             self.path = Path(file_arg.removeprefix("--file="))
@@ -50,7 +51,9 @@ class VoxtypeASRClientTest(TestCase):
     def client(self, commands, state="idle"):
         client = VoxtypeASRClient(
             commands,
-            lambda _runtime, **_kwargs: state,
+            lambda _runtime, **_kwargs: (
+                state if state != "idle" or commands.path is None else "recording"
+            ),
         )
         self.addCleanup(client.disconnect)
         return client
@@ -90,6 +93,28 @@ class VoxtypeASRClientTest(TestCase):
         self.assertFalse(errors)
         self.assertEqual(commands.commands[0][1], "status")
 
+    def test_open_waits_until_daemon_reports_microphone_ready(self):
+        commands = FakeCommands()
+        ready = threading.Event()
+        client = VoxtypeASRClient(
+            commands,
+            lambda _runtime, **_kwargs: (
+                "recording" if commands.path and ready.is_set() else "idle"
+            ),
+        )
+        self.addCleanup(client.disconnect)
+        opened = threading.Event()
+        client.on_open = opened.set
+
+        client.connect(self.runtime)
+        deadline = time.monotonic() + 2
+        while commands.path is None and time.monotonic() < deadline:
+            time.sleep(0.01)
+        self.assertIsNotNone(commands.path)
+        self.assertFalse(opened.wait(0.2))
+        ready.set()
+        self.assertTrue(opened.wait(2))
+
     def test_empty_completion_finishes_without_result(self):
         commands = FakeCommands(stop_code=3)
         client = self.client(commands)
@@ -128,7 +153,9 @@ class VoxtypeASRClientTest(TestCase):
         start_gate = threading.Event()
         client = VoxtypeASRClient(
             commands,
-            lambda _runtime, **_kwargs: start_gate.wait(10) and "idle",
+            lambda _runtime, **_kwargs: (
+                "idle" if start_gate.wait(10) and commands.path is None else "recording"
+            ),
         )
         self.addCleanup(client.disconnect)
         finished = threading.Event()
