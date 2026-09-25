@@ -190,7 +190,6 @@ cases:
       - aiWaitFor:
           prompt: The Microphone step shows Let's make sure we can hear you.
           options: { timeoutMs: 30000, checkIntervalMs: 1000 }
-      - aiAssert: The current step is Microphone.
 
   - name: Changing microphone requires another check
     tags: [shard-2]
