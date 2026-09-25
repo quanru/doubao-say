@@ -85,8 +85,11 @@ Select **Voxtype (local)** to let a running Voxtype daemon own microphone captur
 and transcription. Doubao Say requires Voxtype 1.0.0 or newer and its stable
 file-mode completion API. Install Voxtype separately, run
 `voxtype setup --download`, start its daemon, then use **Refresh Voxtype status**
-in onboarding. The engine, model, language, audio device, and acceleration remain
-configured in Voxtype; this integration does not rewrite its configuration.
+in onboarding. The engine, language, audio device, and acceleration remain
+configured in Voxtype. Settings shows the active engine and model and lets you
+choose an installed model. Selecting one updates Voxtype's configuration and
+restarts its daemon, so its own hotkey uses that model too. The default follows
+the currently active Voxtype model.
 The Settings window reads Voxtype's versioned schema and extended status to show
 the running daemon version, state, engine, model, audio device, compute backend,
 schema version, and config path. **Open Voxtype configuration** launches

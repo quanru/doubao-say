@@ -3,7 +3,7 @@ from types import SimpleNamespace
 from unittest import TestCase
 from unittest.mock import Mock
 
-from doubao_input.voxtype.control import inspect_details, launch_configure
+from doubao_input.voxtype.control import inspect_details, launch_configure, select_model
 from doubao_input.voxtype.runtime import VoxtypeRuntime
 
 
@@ -19,6 +19,15 @@ class VoxtypeControlTest(TestCase):
                     "device": "Desk microphone",
                     "backend": "Vulkan",
                 }
+            elif "models" in command:
+                payload = {"engines": {"whisper": {"models": [
+                    {"name": "base", "download_arg": "base",
+                     "installed": True},
+                    {"name": "large-v3-turbo",
+                     "download_arg": "large-v3-turbo", "installed": True},
+                    {"name": "small", "download_arg": "small",
+                     "installed": False},
+                ]}}}
             else:
                 payload = {
                     "schema_version": 1,
@@ -37,6 +46,7 @@ class VoxtypeControlTest(TestCase):
         self.assertEqual(details.model, "large-v3-turbo")
         self.assertEqual(details.backend, "Vulkan")
         self.assertEqual(details.schema_version, 1)
+        self.assertEqual(details.installed_models, ("base", "large-v3-turbo"))
 
     def test_rejects_stopped_daemon(self):
         runner = lambda _command: SimpleNamespace(
@@ -46,6 +56,36 @@ class VoxtypeControlTest(TestCase):
         )
         with self.assertRaisesRegex(RuntimeError, "not running"):
             inspect_details(runtime=self.runtime, runner=runner)
+
+    def test_selected_model_updates_config_and_restarts_daemon(self):
+        state = {"model": "sensevoice-small", "pending": None}
+        commands = []
+
+        def run(command):
+            commands.append(command)
+            if "status" in command:
+                payload = {"alt": "idle", "model": state["model"]}
+            elif "schema" in command:
+                payload = {"engine": "sensevoice"}
+            elif "models" in command:
+                payload = {"engines": {"sensevoice": {"models": [
+                    {"download_arg": "sensevoice-small", "installed": True},
+                    {"download_arg": "sensevoice-small-fp32", "installed": True},
+                ]}}}
+            else:
+                state["pending"] = command[-1]
+                return SimpleNamespace(returncode=0, stdout="", stderr="")
+            return SimpleNamespace(returncode=0, stdout=json.dumps(payload), stderr="")
+
+        def restart():
+            state["model"] = state["pending"]
+            return SimpleNamespace(returncode=0, stdout="", stderr="")
+
+        select_model("sensevoice-small-fp32", runtime=self.runtime,
+                     runner=run, restart=restart)
+        self.assertEqual(state["model"], "sensevoice-small-fp32")
+        self.assertIn([self.runtime.executable, "config", "set",
+                       "sensevoice.model", "sensevoice-small-fp32"], commands)
 
     def test_opens_voxtype_configure_in_available_terminal(self):
         popen = Mock()

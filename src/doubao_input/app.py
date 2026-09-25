@@ -322,6 +322,10 @@ class DoubaoInputApp(Gtk.Application):
         if self._busy() or self._triggers.busy:
             raise ValueError(tr("Finish recording and release the trigger before saving", "请先结束录音并松开触发键，再保存设置"))
         previous = self.settings
+        if (settings.asr_provider == "voxtype" and settings.voxtype_model
+                and settings.voxtype_model != previous.voxtype_model):
+            from doubao_input.voxtype.control import select_model
+            select_model(settings.voxtype_model)
 
         def apply_runtime(value, strict):
             self._triggers.configure(value, strict=strict)
@@ -333,7 +337,8 @@ class DoubaoInputApp(Gtk.Application):
             lambda value: apply_runtime(value, True),
             lambda value: apply_runtime(value, False))
         self.settings = settings
-        if previous.asr_provider != settings.asr_provider:
+        if (previous.asr_provider != settings.asr_provider
+                or previous.voxtype_model != settings.voxtype_model):
             self._configure_recognition_backend()
             self._sync_recognition_status()
             self._setup_session.voice_ok = False
@@ -345,7 +350,7 @@ class DoubaoInputApp(Gtk.Application):
         provider = recognition_provider(self.settings.asr_provider)
         return TranscriptionManager(
             self.app_state,
-            asr_client=provider.new_client(),
+            asr_client=DoubaoInputApp._new_asr_client(self, provider),
             credential_store=provider.credential_store,
             interactive_auth=provider.interactive_auth,
             clear_rejected_credentials=provider.clear_rejected_credentials,
@@ -355,12 +360,15 @@ class DoubaoInputApp(Gtk.Application):
     def _configure_recognition_backend(self):
         provider = recognition_provider(self.settings.asr_provider)
         self._tm.configure_backend(
-            provider.new_client(),
+            DoubaoInputApp._new_asr_client(self, provider),
             provider.credential_store,
             interactive_auth=provider.interactive_auth,
             clear_rejected_credentials=provider.clear_rejected_credentials,
             failure_message=provider.failure_message,
         )
+
+    def _new_asr_client(self, provider):
+        return provider.new_client()
 
     def _recognition_ready(self):
         try:
