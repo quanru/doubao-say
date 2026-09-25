@@ -10,6 +10,7 @@ from doubao_input.ui.polish_settings import PolishSettings
 from doubao_input.ui.style import apply_window_style
 from doubao_input.product import VERSION
 from doubao_input.settings import ASR_PROVIDERS
+from doubao_input.recognition_providers import recognition_providers
 
 
 class ControlWindow:
@@ -324,10 +325,8 @@ class ControlWindow:
         provider_row.append(Gtk.Label(
             label=tr("Recognition service", "语音识别服务"),
             xalign=0, hexpand=True, wrap=True))
-        self._asr_provider = Gtk.DropDown.new_from_strings([
-            tr("Doubao account", "豆包账号"),
-            tr("Volcengine API", "火山引擎 API"),
-        ])
+        self._asr_provider = Gtk.DropDown.new_from_strings(
+            [provider.name for provider in recognition_providers()])
         self._asr_provider.set_selected(ASR_PROVIDERS.index(
             self._actions.summary().get("asr_provider", "doubao")))
         self._asr_provider.connect("notify::selected", self._asr_provider_changed)
