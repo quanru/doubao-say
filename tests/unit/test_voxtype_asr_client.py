@@ -11,25 +11,28 @@ from doubao_input.voxtype.runtime import VoxtypeRuntime
 
 
 class FakeCommands:
-    def __init__(self, transcript="local transcript", stop_code=0):
+    def __init__(self, transcript="local transcript", stop_code=0,
+                 streaming=False):
         self.transcript = transcript
         self.stop_code = stop_code
+        self.streaming = streaming
         self.commands = []
         self.path = None
 
     def __call__(self, command, *, timeout):
         self.commands.append(command)
         if command[1] == "status":
-            state = "recording" if self.path else "idle"
+            state = ("streaming" if self.streaming else "recording") if self.path else "idle"
             return SimpleNamespace(returncode=0, stdout=f'{{"alt":"{state}"}}', stderr="")
         if command[1:3] == ["record", "start"]:
             file_arg = next(value for value in command if value.startswith("--file="))
             self.path = Path(file_arg.removeprefix("--file="))
             return SimpleNamespace(returncode=0, stdout="", stderr="")
         if command[1:3] == ["record", "stop"]:
-            if self.stop_code == 0:
+            if self.stop_code == 0 or self.streaming:
                 self.path.write_text(self.transcript)
-                Path(f"{self.path}.done").write_text("ok")
+                if not self.streaming:
+                    Path(f"{self.path}.done").write_text("ok")
             return SimpleNamespace(
                 returncode=self.stop_code, stdout="", stderr="")
         return SimpleNamespace(returncode=0, stdout="", stderr="")
@@ -52,7 +55,8 @@ class VoxtypeASRClientTest(TestCase):
         client = VoxtypeASRClient(
             commands,
             lambda _runtime, **_kwargs: (
-                state if state != "idle" or commands.path is None else "recording"
+                state if state != "idle" or commands.path is None
+                else ("streaming" if commands.streaming else "recording")
             ),
         )
         self.addCleanup(client.disconnect)
@@ -127,6 +131,24 @@ class VoxtypeASRClientTest(TestCase):
         client.finish_sending()
         self.assertTrue(finished.wait(2))
         result.assert_not_called()
+
+    def test_streaming_file_output_delivers_final_without_sidecar(self):
+        commands = FakeCommands(transcript="streamed final", stop_code=3,
+                                streaming=True)
+        client = self.client(commands)
+        opened, finished = threading.Event(), threading.Event()
+        results, errors = [], []
+        client.on_open = opened.set
+        client.on_result = results.append
+        client.on_finish = finished.set
+        client.on_error = errors.append
+        client.connect(VoxtypeRuntime("/usr/bin/voxtype", "1.1.0", True, True))
+        self.assertTrue(opened.wait(2), errors)
+        client.finish_sending()
+        self.assertTrue(finished.wait(2), errors)
+        self.assertEqual(results, ["streamed final"])
+        self.assertIn("--wait-file", commands.commands[1])
+        self.assertFalse(commands.path.exists())
 
     def test_does_not_take_over_an_existing_voxtype_session(self):
         commands = FakeCommands()

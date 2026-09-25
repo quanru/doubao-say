@@ -97,11 +97,14 @@ schema version, and config path. **Open Voxtype configuration** launches
 writes every setting itself.
 
 For each confirmed dictation, Doubao Say asks Voxtype to write one transcript in
-a private per-user runtime directory, waits for the `.done` completion signal,
-reads the atomic final text, and deletes both files. It refuses to take over when
-Voxtype is already recording or transcribing. Cancel only targets a recording
-started by this app. Voxtype 1.0.1 and newer can suppress its own OSD for these
-sessions; 1.0.0 remains compatible but may show both overlays.
+a private per-user runtime directory. It reads the completed file and removes
+it; Voxtype 1.0.x also publishes a `.done` completion record. Voxtype 1.1
+streaming sessions are accepted and their final transcript can be polished in
+Doubao Say. Voxtype does not expose interim streaming text through its file or
+status interface, so Doubao Say's overlay still shows only the final text.
+The app refuses to take over an existing recording, and cancellation only
+targets one it started. Voxtype 1.0.1 and newer can suppress its own OSD for
+these sessions; 1.0.0 remains compatible but may show both overlays.
 
 Voxtype currently returns only the final transcript through this integration.
 Its microphone audio and live level meter are not exposed to Doubao Say, so the
