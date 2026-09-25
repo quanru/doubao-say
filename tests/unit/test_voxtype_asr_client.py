@@ -19,6 +19,8 @@ class FakeCommands:
 
     def __call__(self, command, *, timeout):
         self.commands.append(command)
+        if command[1] == "status":
+            return SimpleNamespace(returncode=0, stdout='{"alt":"idle"}', stderr="")
         if command[1:3] == ["record", "start"]:
             file_arg = next(value for value in command if value.startswith("--file="))
             self.path = Path(file_arg.removeprefix("--file="))
@@ -72,6 +74,21 @@ class VoxtypeASRClientTest(TestCase):
         self.assertFalse(commands.path.exists())
         self.assertFalse(Path(f"{commands.path}.done").exists())
         self.assertFalse(any(command[-1] == "cancel" for command in commands.commands))
+
+    def test_real_state_reader_accepts_client_command_runner(self):
+        commands = FakeCommands()
+        client = VoxtypeASRClient(commands)
+        self.addCleanup(client.disconnect)
+        opened = threading.Event()
+        errors = []
+        client.on_open = opened.set
+        client.on_error = errors.append
+
+        client.connect(self.runtime)
+
+        self.assertTrue(opened.wait(2), errors)
+        self.assertFalse(errors)
+        self.assertEqual(commands.commands[0][1], "status")
 
     def test_empty_completion_finishes_without_result(self):
         commands = FakeCommands(stop_code=3)

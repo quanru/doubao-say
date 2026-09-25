@@ -105,7 +105,10 @@ class VoxtypeASRClient:
                 if session.cancelled or self._session is not session:
                     session.started.set()
                     return
-            if self._state_reader(session.runtime, runner=self._runner) != "idle":
+            if self._state_reader(
+                session.runtime,
+                runner=lambda command: self._runner(command, timeout=2),
+            ) != "idle":
                 raise RuntimeError("Voxtype is already recording or transcribing")
             command = [
                 session.runtime.executable,
