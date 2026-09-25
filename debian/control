@@ -13,16 +13,16 @@ Architecture: all
 Depends:
  ${misc:Depends},
  python3-gi,
+ python3-cairo,
+ python3-websockets,
+ python3-evdev,
  gir1.2-gtk-4.0,
  gir1.2-webkit-6.0,
  libgtk-4-1,
  libwebkitgtk-6.0-4,
- wl-clipboard
-Recommends:
- python3-pip,
- python3-venv
+ wl-clipboard,
+ pipewire-bin
 Suggests:
- python3-numpy,
  xclip,
  xdotool
 Description: Doubao Say voice input for Linux desktops
@@ -30,9 +30,6 @@ Description: Doubao Say voice input for Linux desktops
  into the focused input field. Backed by Doubao's streaming ASR.
  .
  This package installs the Python application, a systemd --user service
- for auto-start, and a postinst hook that:
-   * adds the installing user to the 'input' group so /dev/input/event*
-     and /dev/uinput are reachable without sudo, and
-   * creates a user-level venv at ~/.local/share/doubao-say/.venv
-     containing the pure-Python deps (websockets, sounddevice, evdev),
-     because those are not in Ubuntu's apt repos for python3-* .
+ for auto-start. The postinst hook adds the installing user to the 'input'
+ group so /dev/input/event* and /dev/uinput are reachable without sudo.
+ Python dependencies are installed from the distribution repository.

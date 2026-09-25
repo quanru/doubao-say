@@ -1,3 +1,10 @@
+doubao-say (1.2.0-1) noble; urgency=medium
+
+  * Install Python runtime dependencies through apt, with no pip invocation
+    from postinst. Use system Python and PipeWire for audio capture.
+
+ -- doubao-say contributors <code-dream@qq.com>  Wed, 23 Sep 2026 12:00:00 +0800
+
 doubao-say (1.0.2-1) noble; urgency=medium
 
   * Logo: replaced white-backed assets with transparent-background
