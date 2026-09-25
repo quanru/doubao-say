@@ -184,6 +184,8 @@ test('keeps visual E2E interactions at task level with proven tap exceptions', a
               '- aiTap: Test failed — try again button in the Voice polishing section',
               '- aiTap: Right-arrow Next button in the fixed top navigation',
               '- aiScroll:',
+              '- computer.tapPoint: { target: Left-arrow Previous button in the fixed top navigation, point: { x: 240, y: 203 } }',
+              '- aiTap: Check microphone · 3 seconds button on the Microphone step',
               '- aiTap: Right-arrow Next button in the fixed top navigation',
               '- aiScroll:',
               '- aiTap: Start voice test button in the Voice test section',

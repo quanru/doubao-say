@@ -15,6 +15,7 @@ on:
       - "scripts/verify-omarchy-evidence.mjs"
       - "scripts/omarchy-shell-evidence.mjs"
       - "tests/contracts/test_pages_report_history.mjs"
+      - "tests/contracts/test_model_rate_gate.mjs"
       - "tests/e2e/package.json"
       - "tests/e2e/package-lock.json"
       - "tests/e2e/gtk_fixture.py"
@@ -23,6 +24,7 @@ on:
       - "tests/e2e/capture-report-preview.mjs"
       - "tests/e2e/cases/**"
       - "tests/e2e/midscene.config.ts"
+      - "tests/e2e/model-rate-gate.mjs"
       - "tests/e2e/run-omarchy-midscene.sh"
       - "tests/e2e/restore-omarchy-vm.sh"
       - "tests/e2e/omarchy-vm.env"
@@ -54,8 +56,8 @@ jobs:
     strategy:
       # Each shard restores an independent disposable VM. Sharing one Hyprland
       # session would make fixture resets, focus and screenshots race.
-      # Run independent VMs concurrently. The current Ark endpoint may still
-      # return 429 under this load; MIDSCENE_MODEL_RETRY_* handles short bursts.
+      # Run independent VMs concurrently. Each worker paces model requests to
+      # one every 20s, keeping the aggregate below the Ark endpoint RPM.
       fail-fast: false
       max-parallel: 5
       matrix:

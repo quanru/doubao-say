@@ -18,9 +18,9 @@ cases:
           options: { timeoutMs: 30000, checkIntervalMs: 1000 }
       - aiTap: The blue Simulate successful sign-in button in the CI-only modal, around 50% width and 43% screen height
       - aiWaitFor:
-          prompt: The sign-in window is closed and Doubao Say has advanced to the Microphone step.
+          prompt: The Doubao Say page heading says Microphone and the page offers Check microphone · 3 seconds.
           options: { timeoutMs: 30000, checkIntervalMs: 1000 }
-      - aiAssert: Doubao Say is on the Microphone step and no synthetic sign-in window is open.
+      - aiAssert: The visible Doubao Say page is the Microphone step with Synthetic microphone one selected.
 
   - name: Preserve signed-in account across backward navigation
     tags: [shard-4]
@@ -80,7 +80,7 @@ cases:
       - aiWaitFor:
           prompt: Voice polishing is enabled and its Model input is visible.
           options: { timeoutMs: 30000, checkIntervalMs: 1000 }
-      - aiAssert: The Voice polishing switch is on and the Model input contains exactly synthetic-model.
+      - aiAssert: The blue Voice polishing switch is on, and the Model text field visibly reads synthetic-model.
 
   - name: Recover from an endpoint failure
     tags: [shard-2]
@@ -113,7 +113,11 @@ cases:
           prompt: Voice test is visible and Finish setup is fully visible.
           options: { timeoutMs: 30000, checkIntervalMs: 1000 }
       - aiAssert: The Finish setup button is visibly disabled.
-      - aiAct: Return to Microphone and run Check microphone · 3 seconds.
+      - computer.tapPoint: { target: Left-arrow Previous button in the fixed top navigation, point: { x: 240, y: 203 } }
+      - aiWaitFor:
+          prompt: The Microphone step and Check microphone · 3 seconds button are visible.
+          options: { timeoutMs: 30000, checkIntervalMs: 1000 }
+      - aiTap: Check microphone · 3 seconds button on the Microphone step
       - aiWaitFor:
           prompt: The visible feedback says Microphone is working and instructs the user to continue to the trigger key step.
           options: { timeoutMs: 30000, checkIntervalMs: 1000 }

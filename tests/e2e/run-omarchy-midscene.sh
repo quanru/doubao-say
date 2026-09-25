@@ -19,8 +19,12 @@ export OMARCHY_SSH_KEY="$SSH_KEY"
 
 VM_PID=""
 XVFB_PID=""
+MODEL_GATE_PID=""
 
 cleanup() {
+  if [[ -n $MODEL_GATE_PID ]]; then
+    kill "$MODEL_GATE_PID" 2>/dev/null || true
+  fi
   if [[ -n $XVFB_PID ]]; then
     kill "$XVFB_PID" 2>/dev/null || true
   fi
@@ -191,6 +195,21 @@ for _xvfb_attempt in {1..200}; do
   if ((_xvfb_attempt == 200)); then
     cat "$WORK_DIR/xvfb.log" >&2
     echo "Host Xvfb did not become ready." >&2
+    exit 1
+  fi
+  sleep 0.2
+done
+
+export MIDSCENE_RATE_GATE_UPSTREAM="$MIDSCENE_MODEL_BASE_URL"
+export MIDSCENE_MODEL_BASE_URL="http://127.0.0.1:18783"
+node "$ROOT_DIR/tests/e2e/model-rate-gate.mjs" >"$WORK_DIR/model-rate-gate.log" 2>&1 &
+MODEL_GATE_PID=$!
+for _gate_attempt in {1..100}; do
+  if curl --silent --fail --max-time 1 "$MIDSCENE_MODEL_BASE_URL/healthz" >/dev/null; then
+    break
+  fi
+  if ! kill -0 "$MODEL_GATE_PID" 2>/dev/null || ((_gate_attempt == 100)); then
+    echo "Model rate gate did not become ready." >&2
     exit 1
   fi
   sleep 0.2
