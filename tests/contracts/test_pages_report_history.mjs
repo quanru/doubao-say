@@ -175,7 +175,7 @@ test('keeps visual E2E interactions at task level with proven tap exceptions', a
               '- computer.tapPoint: { target: Left-arrow Previous button in the fixed top navigation, point: { x: 240, y: 203 } }',
               '- aiScroll:',
               '- computer.tapPoint: { target: Enabled Voice polishing switch, point: { x: 1180, y: 316 } }',
-              '- computer.tapPoint: { target: Disabled Voice polishing switch, point: { x: 1180, y: 316 } }',
+              '- computer.tapPoint: { target: Disabled Voice polishing switch in the collapsed card, point: { x: 1166, y: 554 } }',
               '- aiScroll:',
               '- aiScroll:',
               '- computer.inputText: { target: The text entry to the right of Model containing synthetic-model, value: ci-fail-model, point: { x: 850, y: 477 } }',

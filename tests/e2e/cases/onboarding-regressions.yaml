@@ -73,8 +73,11 @@ cases:
           prompt: The Trigger key step and the Voice polishing switch are visible.
           options: { timeoutMs: 30000, checkIntervalMs: 1000 }
       - computer.tapPoint: { target: Enabled Voice polishing switch, point: { x: 1180, y: 316 } }
-      - aiAssert: Voice polishing disabled is visible, the switch is off, and the polishing Base URL and Model fields are hidden.
-      - computer.tapPoint: { target: Disabled Voice polishing switch, point: { x: 1180, y: 316 } }
+      - aiWaitFor:
+          prompt: The Voice polishing switch is gray and off, and the text Voice polishing disabled. appears below it; the Base URL and Model inputs are not shown.
+          options: { timeoutMs: 30000, checkIntervalMs: 1000 }
+      - aiAssert: Voice polishing disabled. is visible and the polishing settings are collapsed.
+      - computer.tapPoint: { target: Disabled Voice polishing switch in the collapsed card, point: { x: 1166, y: 554 } }
       - aiScroll:
           options: { direction: down, scrollType: singleAction, distance: 500 }
       - aiWaitFor:
