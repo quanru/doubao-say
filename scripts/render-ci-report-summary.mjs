@@ -47,22 +47,20 @@ function inlineCell(value) {
     .replaceAll('|', '\\|')
     .replaceAll('[', '\\[')
     .replaceAll(']', '\\]')
-    .replaceAll('\n', ' ');
+    .replaceAll('<', '&lt;')
+    .replaceAll('>', '&gt;')
+    .replaceAll(/[\r\n]+/g, ' ');
 }
 
-function entryCounts(entry) {
-  const parts = [];
-  if (entry.scenarios.total > 0) {
-    parts.push(
-      `${entry.scenarios.passed}/${entry.scenarios.total} cases`,
-    );
-  }
-  if (entry.assertions.total > 0) {
-    parts.push(
-      `${entry.assertions.passed}/${entry.assertions.total} assertions`,
-    );
-  }
-  return `**${entry.label}: ${parts.join(' · ') || 'report captured'}.**`;
+function htmlAttribute(value) {
+  return String(value)
+    .replaceAll('&', '&amp;')
+    .replaceAll('<', '&lt;')
+    .replaceAll('>', '&gt;')
+    .replaceAll('"', '&quot;')
+    .replaceAll("'", '&#39;')
+    .replaceAll('|', '&#124;')
+    .replaceAll(/[\r\n]+/g, ' ');
 }
 
 function caseTarget(pagesUrl, entry, testCase) {
@@ -75,37 +73,28 @@ function caseTarget(pagesUrl, entry, testCase) {
 
 function failureReason(testCase) {
   if (testCase.selection === 'workflow-failure') {
-    return inlineCell(
-      `CI failure before node capture — ${testCase.description ?? ''}`,
-    );
+    return `CI failure before node capture — ${testCase.description ?? ''}`;
   }
   const label = {
     ai: 'AI: ',
     error: 'Error: ',
     result: 'Result: ',
   }[testCase.descriptionKind];
-  return inlineCell(`${label ?? ''}${testCase.description ?? ''}`);
+  return `${label ?? ''}${testCase.description ?? ''}`;
 }
 
-// GFM has no layout grid, so a 3-column table of linked thumbnails acts as
-// one. Each cell is the screenshot with the case name as caption below it.
-function screenshotGrid(pagesUrl, entries, cases) {
-  const cells = cases
-    .filter(({ testCase }) => testCase.previewPath)
-    .map(({ entry, testCase }) => {
-    const target = caseTarget(pagesUrl, entry, testCase);
-    const image = reportUrl(pagesUrl, testCase.previewPath);
-    const name = inlineCell(testCase.name);
-    return `[![${name}](${image})](${target})<br>[${name}](${target})`;
-    });
-  const rows = [];
-  for (let index = 0; index < cells.length; index += 3) {
-    const row = cells.slice(index, index + 3);
-    while (row.length < 3) row.push('');
-    rows.push(`| ${row.join(' | ')} |`);
-  }
-  if (rows.length === 0) return '';
-  return ['| | | |', '|:--|:--|:--|', ...rows].join('\n');
+function caseProject(entry, testCase) {
+  return entry.project ??
+    entry.reports?.find((item) => item.reportPath === testCase.reportPath)
+      ?.project ?? entry.label;
+}
+
+function caseRow(pagesUrl, { entry, testCase }, detail) {
+  const target = caseTarget(pagesUrl, entry, testCase);
+  const screenshot = testCase.previewPath
+    ? `<a href="${htmlAttribute(target)}"><img src="${htmlAttribute(reportUrl(pagesUrl, testCase.previewPath))}" alt="${htmlAttribute(testCase.name)}" width="160"></a>`
+    : '—';
+  return `| ${inlineCell(caseProject(entry, testCase))} | [${inlineCell(testCase.name)}](${target}) | ${screenshot} | ${inlineCell(detail)} | ${formatDuration(testCase.durationMs) || '—'} |`;
 }
 
 export function renderReportSummary({
@@ -129,10 +118,6 @@ export function renderReportSummary({
         entry.scenarios.passed === entry.scenarios.total &&
         entry.assertions.passed === entry.assertions.total,
     );
-  const title = `${summaryTitle} × Midscene · ${
-    allPassed ? 'passed' : 'failure captured'
-  }`;
-
   const groupedCases = report.entries.flatMap((entry) => {
     if (!Array.isArray(entry.cases) || entry.cases.length === 0) {
       throw new Error(`${entry.label} does not contain case evidence`);
@@ -151,94 +136,78 @@ export function renderReportSummary({
   const failedCases = groupedCases.filter(
     ({ testCase }) => testCase.status !== 'success',
   );
-  const failedScreenshots = failedCases.filter(
-    ({ testCase }) => testCase.previewPath,
+  const incompleteEntries = report.entries.filter(
+    (entry) =>
+      entry.status !== 'success' &&
+      !failedCases.some(({ entry: failedEntry }) => failedEntry === entry),
   );
-  const screenshotCases = groupedCases.filter(
-    ({ testCase }) => testCase.previewPath,
-  );
-  const totalCases = groupedCases.length;
-  const passedCount = passedCases.length;
-  const passRate =
-    totalCases === 0 ? 0 : Math.round((passedCount / totalCases) * 100);
-
-  const historyUrl = normalizedBaseUrl(pagesUrl).href;
+  const unreportedFailure =
+    !allPassed &&
+    failedCases.length === 0 &&
+    incompleteEntries.length === 0;
+  const needsAttention =
+    failedCases.length + incompleteEntries.length + Number(unreportedFailure);
+  const runUrl = report.workflowUrl;
   const links = [
-    ...report.entries.flatMap((entry) => {
-      const reports = entry.reports ?? [entry];
-      return reports.map((nativeReport, index) => {
-        const suffix = reports.length > 1 ? ` ${index + 1}` : '';
-        return `[Open ${entry.label}${suffix}](${reportUrl(pagesUrl, nativeReport.reportPath)})`;
-      });
-    }),
-    `[Report history](${historyUrl})`,
+    `**[Open the published HTML report](${reportUrl(pagesUrl, report.reportPath ?? `reports/${runId}/index.html`)})**`,
+    ...(runUrl ? [`[Download the artifact](${runUrl}#artifacts)`] : []),
+    `[Report history](${normalizedBaseUrl(pagesUrl).href})`,
   ].join(' · ');
 
   const sections = [
-    `## ${title}`,
+    `## ${summaryTitle} × Midscene · ${allPassed ? 'passed' : 'failure captured'}`,
     '',
-    `**${passedCount}/${totalCases} cases · ${passRate}% passed**`,
+    `**${allPassed ? '✅ ' : ''}${needsAttention} need attention · ${passedCases.length} passed**`,
     '',
-    report.entries.map(entryCounts).join('\n\n'),
+    '**Models:** configured in Actions Secrets',
     '',
     links,
     '',
   ];
 
-  if (failedCases.length === 0) {
-    sections.push(`**All ${totalCases} cases passed.**`, '');
-  } else {
+  if (needsAttention > 0) {
     sections.push(
-      `### Failures (${failedCases.length})`,
+      '### Needs attention',
       '',
-      '| Case | Duration | Reason |',
-      '|:--|:--|:--|',
-      ...failedCases.map(({ entry, testCase }) => {
-        const target = caseTarget(pagesUrl, entry, testCase);
-        const duration = formatDuration(testCase.durationMs) || '—';
-        return `| ❌ [${inlineCell(testCase.name)}](${target}) | ${duration} | ${failureReason(testCase)} |`;
-      }),
-      '',
-      `### Failed screenshots (${failedScreenshots.length})`,
-      '',
-      screenshotGrid(pagesUrl, report.entries, failedScreenshots) ||
-        '_No failed-case screenshots were produced._',
+      '| Shard | Case | Screenshot | Status / reason | Duration |',
+      '|:--|:--|:--|:--|--:|',
+      ...incompleteEntries.map((entry) =>
+        `| ${inlineCell(entry.label)} | — | — | ❌ ${inlineCell(entry.status)}${runUrl ? ` · [Workflow run](${runUrl})` : ''} | — |`,
+      ),
+      ...(unreportedFailure
+        ? [`| Workflow | — | — | ❌ ${inlineCell(producerResult === 'success' ? 'incomplete report' : producerResult)}${runUrl ? ` · [Workflow run](${runUrl})` : ''} | — |`]
+        : []),
+      ...failedCases
+        .sort((left, right) =>
+          Number(left.testCase.status === 'not-run') -
+          Number(right.testCase.status === 'not-run'),
+        )
+        .map((item) =>
+          caseRow(
+            pagesUrl,
+            item,
+            `${item.testCase.status === 'not-run' ? '⏭️ Not run' : '❌ Failed'}: ${failureReason(item.testCase)}`,
+          ),
+        ),
       '',
     );
+  } else if (allPassed) {
+    sections.push(`🎉 All ${passedCases.length} cases passed.`, '');
+  } else {
+    sections.push('No cases were reported.', '');
   }
 
   sections.push(
-    `<details>`,
-    `<summary>All screenshots (${screenshotCases.length})</summary>`,
+    '<details>',
+    `<summary>Appendix: passed cases (${passedCases.length})</summary>`,
     '',
-    screenshotGrid(pagesUrl, report.entries, screenshotCases),
+    '| Shard | Case | Screenshot | Status | Duration |',
+    '|:--|:--|:--|:--|--:|',
+    ...passedCases.map((item) => caseRow(pagesUrl, item, '✅ Passed')),
     '',
-    `</details>`,
+    '</details>',
     '',
-    `<details>`,
-    `<summary>Passed cases (${passedCount})</summary>`,
-    '',
-    ...report.entries.flatMap((entry) => {
-      const passed = (entry.cases ?? []).filter(
-        (testCase) => testCase.status === 'success',
-      );
-      if (passed.length === 0) return [];
-      return [
-        `**${entry.label}**`,
-        '',
-        ...passed.map((testCase) => {
-          const target = caseTarget(pagesUrl, entry, testCase);
-          const duration = formatDuration(testCase.durationMs);
-          return `- ✅ [${inlineCell(testCase.name)}](${target})${
-            duration ? ` — ${duration}` : ''
-          }`;
-        }),
-        '',
-      ];
-    }),
-    `</details>`,
-    '',
-    'Each image is the original page screenshot used by that node. Cases remain linked to their native report when Midscene stops before producing a node screenshot. A CI failure card is shown only when a shard stops before Midscene can capture a report. Click a case name or image to open its evidence.',
+    'Click a screenshot or case name to open its exact step in the native Midscene report. A CI failure card appears when a shard stops before Midscene can capture a report.',
     '',
   );
 

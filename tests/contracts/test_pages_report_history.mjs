@@ -669,6 +669,8 @@ test('combines independently executed shards into one report table', async (cont
     summary,
     /native-report-ubuntu-shard-2\.html#runner-step=assert-0-0/,
   );
+  assert.match(summary, /\| ubuntu-shard-1 \| \[ubuntu-shard-1 visual case\]/);
+  assert.match(summary, /\| ubuntu-shard-2 \| \[ubuntu-shard-2 visual case\]/);
 });
 
 test('keeps a complete Markdown table when a shard produces no native report', async (context) => {
@@ -1361,7 +1363,7 @@ test('rejects an undeclared report project', async (context) => {
   );
 });
 
-test('renders one full-width section per structured report entry', () => {
+test('renders Rome-style passed-case appendix with linked screenshots', () => {
   const manifest = {
     reports: [
       {
@@ -1430,28 +1432,22 @@ test('renders one full-width section per structured report entry', () => {
   });
 
   assert.match(summary, /Ubuntu × Midscene · passed/);
-  assert.match(summary, /\*\*2\/2 cases · 100% passed\*\*/);
-  assert.match(summary, /Doubao Say: 6\/6 cases · 5\/5 assertions\./);
-  assert.match(
-    summary,
-    /Polishing overlay report: 1\/1 cases · 8\/8 assertions\./,
-  );
-  assert.match(summary, /\*\*All 2 cases passed\.\*\*/);
-  assert.doesNotMatch(summary, /### Failures/);
+  assert.match(summary, /\*\*✅ 0 need attention · 2 passed\*\*/);
+  assert.match(summary, /🎉 All 2 cases passed\./);
+  assert.doesNotMatch(summary, /### Needs attention/);
   assert.match(
     summary,
     /index\.html#runner-step=case-ubuntu%3Asteps%3A8/,
   );
-  assert.match(summary, /✅ \[Launch and finish onboarding\].*— 1m13s/);
-  assert.match(summary, /— 52s/);
+  assert.match(summary, /\| Shard \| Case \| Screenshot \| Status \| Duration \|/);
+  assert.match(summary, /\| ubuntu \| \[Launch and finish onboarding\].*\| ✅ Passed \| 1m13s \|/);
+  assert.match(summary, /\| ubuntu-polishing \| \[Polish selected text\].*\| ✅ Passed \| 52s \|/);
   assert.match(
     summary,
-    /case-preview-ubuntu-case-ubuntu\.jpg/,
+    /<img src="[^"]*case-preview-ubuntu-case-ubuntu\.jpg"[^>]*width="160">/,
   );
-  assert.match(summary, /<summary>All screenshots \(2\)<\/summary>/);
-  assert.match(summary, /<summary>Passed cases \(2\)<\/summary>/);
-  assert.doesNotMatch(summary, /report report/);
-  assert.match(summary, /Each image is the original page screenshot/);
+  assert.match(summary, /<summary>Appendix: passed cases \(2\)<\/summary>/);
+  assert.match(summary, /Open the published HTML report/);
 });
 
 test('renders singular failure copy for one available report', () => {
@@ -1497,10 +1493,11 @@ test('renders singular failure copy for one available report', () => {
   });
 
   assert.match(summary, /Ubuntu × Midscene · failure captured/);
-  assert.match(summary, /\*\*0\/1 cases · 0% passed\*\*/);
-  assert.match(summary, /### Failures \(1\)/);
-  assert.match(summary, /\| Case \| Duration \| Reason \|/);
-  assert.match(summary, /❌ \[Broken flow\]/);
+  assert.match(summary, /\*\*1 need attention · 0 passed\*\*/);
+  assert.match(summary, /### Needs attention/);
+  assert.match(summary, /\| Shard \| Case \| Screenshot \| Status \/ reason \| Duration \|/);
+  assert.match(summary, /\| ubuntu \| \[Broken flow\]/);
+  assert.match(summary, /<img src="[^"]*case-preview-ubuntu-case-fail\.jpg"[^>]*width="160">/);
   assert.match(
     summary,
     /Error: Node "aiAssert" failed: expected state missing\./,
@@ -1509,9 +1506,8 @@ test('renders singular failure copy for one available report', () => {
     summary,
     /index\.html#runner-step=case-fail%3Asteps%3A2/,
   );
-  assert.match(summary, /### Failed screenshots \(1\)/);
   assert.match(summary, /case-preview-ubuntu-case-fail\.jpg/);
-  assert.match(summary, /Each image is the original page screenshot/);
+  assert.match(summary, /<summary>Appendix: passed cases \(0\)<\/summary>/);
 });
 
 test('selects the last screenshot for success and first failed screenshot for failure', async () => {
@@ -1670,10 +1666,10 @@ test('publishes all case metadata when one report has no node screenshot', async
     runId: '200',
     summaryTitle: 'Ubuntu',
   });
-  assert.match(summary, /Failures \(1\)/);
-  assert.match(summary, /Failed screenshots \(0\)/);
-  assert.match(summary, /No failed-case screenshots were produced/);
-  assert.match(summary, /All screenshots \(0\)/);
+  assert.match(summary, /1 need attention · 0 passed/);
+  assert.match(summary, /### Needs attention/);
+  assert.match(summary, /\| ubuntu \| \[ubuntu damaged-agent case\].*\| — \| ❌ Failed:/);
+  assert.match(summary, /Appendix: passed cases \(0\)/);
   assert.match(summary, /ubuntu damaged-agent case/);
 });
 
