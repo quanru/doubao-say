@@ -59,6 +59,8 @@ class VoxtypeASRClient:
     """Use a running Voxtype daemon as a local, final-result ASR backend."""
 
     owns_audio_capture = True
+    # The CLI can spend up to 5s starting and 35s waiting for transcription.
+    stop_safety_timeout = 45.0
 
     def __init__(self, runner=_run, state_reader=daemon_state) -> None:
         self._runner = runner
@@ -146,7 +148,8 @@ class VoxtypeASRClient:
         self._start_worker(session, self._finish_recording, "voxtype-stop")
 
     def _finish_recording(self, session) -> None:
-        if not session.started.wait(5) or not session.owns_recording:
+        session.started.wait()
+        if not session.owns_recording:
             return
         try:
             result = self._runner([

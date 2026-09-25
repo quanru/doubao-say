@@ -2,6 +2,7 @@ from unittest import TestCase
 from unittest.mock import Mock, patch
 from doubao_input.doubao.app_state import AppState, LoginStatus, RecordingState
 from doubao_input.doubao.transcription import TranscriptionManager
+from doubao_input.voxtype.asr_client import VoxtypeASRClient
 
 
 class TranscriptionSessionTest(TestCase):
@@ -124,6 +125,7 @@ class TranscriptionSessionTest(TestCase):
     def manager(self):
         manager = TranscriptionManager(AppState())
         manager.asr_client = Mock()
+        manager.asr_client.stop_safety_timeout = 1.0
         manager.audio_capture = Mock()
         manager._wire_asr_callbacks()
         return manager
@@ -213,6 +215,16 @@ class TranscriptionSessionTest(TestCase):
         manager._later = Mock(return_value=11)
         manager._stop_recording()
         manager._later.assert_called_once_with(1000, manager._safety_timeout)
+
+    def test_delegated_backend_can_wait_for_final_file_result(self):
+        manager = self.manager()
+        manager.asr_client.owns_audio_capture = True
+        manager.asr_client.stop_safety_timeout = VoxtypeASRClient.stop_safety_timeout
+        manager._later = Mock(return_value=11)
+
+        manager._stop_recording()
+
+        manager._later.assert_called_once_with(45000, manager._safety_timeout)
 
     def test_quiet_timer_does_not_finish_with_unsent_audio(self):
         manager = self.manager()

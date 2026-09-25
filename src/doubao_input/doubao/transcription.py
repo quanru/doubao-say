@@ -304,7 +304,9 @@ class TranscriptionManager:
 
         # Safety timeout
         self.safety_timer_id = self._later(
-            int(STOP_SAFETY_TIMEOUT * 1000), self._safety_timeout
+            int(getattr(self.asr_client, "stop_safety_timeout",
+                        STOP_SAFETY_TIMEOUT) * 1000),
+            self._safety_timeout,
         )
         # A result may already be complete before the key is released. Without
         # this timer, silence after release needlessly takes the full safety timeout.

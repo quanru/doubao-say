@@ -1,5 +1,6 @@
 import tempfile
 import threading
+import time
 from pathlib import Path
 from types import SimpleNamespace
 from unittest import TestCase
@@ -104,3 +105,26 @@ class VoxtypeASRClientTest(TestCase):
         self.assertTrue(opened.wait(2))
         client.disconnect()
         self.assertTrue(any(command[-1] == "cancel" for command in commands.commands))
+
+    def test_stop_waits_for_slow_start_instead_of_losing_completion(self):
+        commands = FakeCommands()
+        start_gate = threading.Event()
+        client = VoxtypeASRClient(
+            commands,
+            lambda _runtime, **_kwargs: start_gate.wait(10) and "idle",
+        )
+        self.addCleanup(client.disconnect)
+        finished = threading.Event()
+        client.on_finish = finished.set
+        client.connect(self.runtime)
+        client.finish_sending()
+
+        try:
+            time.sleep(5.1)
+            start_gate.set()
+            self.assertTrue(finished.wait(2))
+            self.assertTrue(any(
+                command[1:3] == ["record", "stop"] for command in commands.commands
+            ))
+        finally:
+            start_gate.set()
