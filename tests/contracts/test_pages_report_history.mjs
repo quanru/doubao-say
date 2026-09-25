@@ -54,8 +54,8 @@ test('records every shard and renders the Summary before Pages deployment', asyn
     );
     assert.match(
       source,
-      /^\s*max-parallel: [1-5]$/m,
-      `${workflow} must declare an explicit matrix concurrency (1 while the model endpoint is rate-limited, 5 otherwise)`,
+      /^\s*max-parallel: 5$/m,
+      `${workflow} must run its independent VM shards in parallel`,
     );
     assert.match(source, /if-no-files-found: error/);
     assert.match(source, /Create bundle even when every shard failed early/);

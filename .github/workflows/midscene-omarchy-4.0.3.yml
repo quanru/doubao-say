@@ -54,11 +54,10 @@ jobs:
     strategy:
       # Each shard restores an independent disposable VM. Sharing one Hyprland
       # session would make fixture resets, focus and screenshots race.
-      # TEMPORARY: max-parallel is 1 while the Ark model endpoint is limited
-      # to ~25-35 RPM; the MIDSCENE_MODEL_RETRY_* env below absorbs short
-      # bursts. Restore max-parallel: 5 once RPM is raised.
+      # Run independent VMs concurrently. The current Ark endpoint may still
+      # return 429 under this load; MIDSCENE_MODEL_RETRY_* handles short bursts.
       fail-fast: false
-      max-parallel: 1
+      max-parallel: 5
       matrix:
         project:
           - omarchy-shard-1
