@@ -166,7 +166,8 @@ test('keeps visual E2E interactions at task level with proven tap exceptions', a
               '- aiTap: The blue Simulate successful sign-in button in the CI-only modal, around 50% width and 43% screen height',
               '- aiTap: The large blue full-width Open Doubao sign-in button near the bottom of the central Sign in panel, around 50% width and 73% screen height',
               '- aiTap: The blue Simulate successful sign-in button in the CI-only modal, around 50% width and 43% screen height',
-              '- aiTap: Left-arrow Previous button in the fixed top navigation',
+              '- computer.tapPoint: { target: Left-arrow Previous button in the fixed top navigation, point: { x: 240, y: 203 } }',
+              '- computer.tapPoint: { target: Right-arrow Next button in the fixed top navigation, point: { x: 1038, y: 203 } }',
               '- computer.selectTriggerPreset: { preset: Disabled }',
               '- computer.tapPoint: { target: Right-arrow Next button in the fixed top navigation, point: { x: 1038, y: 203 } }',
               '- computer.selectTriggerPreset: { preset: F8 }',
@@ -1697,6 +1698,24 @@ test('finds Omarchy evidence by project instead of assertion wording', async () 
       { key: 'bar', passed: true },
     ],
   );
+});
+
+test('uses the successful Omarchy retry instead of failed earlier assertions', async () => {
+  const root = await mkdtemp(path.join(os.tmpdir(), 'shell-retry-'));
+  const reportDirectory = path.join(root, 'report');
+  await mkdir(reportDirectory, { recursive: true });
+  const failedAttempt = `<script type="midscene_web_dump">${JSON.stringify({
+    executions: [true, false].map((output) => ({
+      tasks: [{ status: 'finished', subType: 'Assert', output }],
+    })),
+  })}</script>`;
+  await writeFile(
+    path.join(reportDirectory, 'test-run-shell.html'),
+    shellFixtureHtml.replace('<body>', `<body>${failedAttempt}`),
+  );
+
+  const report = await findShellReport(root);
+  assert.deepEqual(report.checks.map(({ passed }) => passed), [true, true, true]);
 });
 
 test('reads Midscene Test 1.13.0 node screenshots from the screenshots directory', async () => {

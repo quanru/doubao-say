@@ -32,12 +32,12 @@ cases:
       - aiWaitFor:
           prompt: The sign-in window is closed and Doubao Say has advanced to the Microphone step.
           options: { timeoutMs: 30000, checkIntervalMs: 1000 }
-      - aiTap: Left-arrow Previous button in the fixed top navigation
+      - computer.tapPoint: { target: Left-arrow Previous button in the fixed top navigation, point: { x: 240, y: 203 } }
       - aiWaitFor:
           prompt: The Sign in step shows the signed-in account status and Sign in again or change account.
           options: { timeoutMs: 30000, checkIntervalMs: 1000 }
       - aiAssert: The Sign in step shows the heading Your voice, wherever you type; left-arrow Previous is disabled, right-arrow Next is enabled, and the account status says Signed in.
-      - aiAct: Continue to the Microphone step.
+      - computer.tapPoint: { target: Right-arrow Next button in the fixed top navigation, point: { x: 1038, y: 203 } }
       - aiWaitFor:
           prompt: The Microphone step shows Let's make sure we can hear you.
           options: { timeoutMs: 30000, checkIntervalMs: 1000 }

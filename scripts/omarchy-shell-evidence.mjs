@@ -178,14 +178,21 @@ export function extractShellEvidence(
   for (const dump of reportDumps(html)) {
     for (const execution of dump.executions ?? []) {
       for (const task of execution.tasks ?? []) {
-        if (task.status !== 'finished' || task.subType !== 'Assert') continue;
+        if (
+          task.status !== 'finished' ||
+          task.subType !== 'Assert' ||
+          typeof task.output !== 'boolean'
+        ) continue;
         finished.push(task);
       }
     }
   }
 
   return SHELL_CHECKS.map((check, index) => {
-    const task = finished[index];
+    // The report embeds assertions from every retry. A successful shell case
+    // contributes the final three assertions; earlier failed attempts must not
+    // displace them in the post-run visual verifier.
+    const task = finished.slice(-SHELL_CHECKS.length)[index];
     if (!task) {
       if (allowIncomplete)
         return { ...check, passed: false, screenshot: null, missing: true };
