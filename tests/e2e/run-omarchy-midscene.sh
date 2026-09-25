@@ -119,7 +119,7 @@ echo "Creating the Omarchy plugin test payload."
 tar -C "$ROOT_DIR" --exclude='__pycache__' -cf "$PLUGIN_ARCHIVE" \
   LICENSE README.md manifest.json install.sh setup-omarchy.sh start.sh \
   omarchy src tests/e2e/gtk_fixture.py tests/e2e/gtk_onboarding_fixture.py \
-  tests/e2e/gtk_runtime_fixture.py
+  tests/e2e/gtk_runtime_fixture.py tests/e2e/fakes/voxtype
 
 for _copy_attempt in 1 2 3 4 5; do
   if scp -i "$SSH_KEY" -P "$SSH_PORT" \
@@ -197,7 +197,7 @@ for _xvfb_attempt in {1..200}; do
 done
 
 case "$MIDSCENE_PROJECT" in
-  omarchy-shard-[1-4])
+  omarchy-shard-[1-4]|omarchy-providers)
     npm --prefix tests/e2e test -- --project "$MIDSCENE_PROJECT"
     ;;
   omarchy-shell)

@@ -11,7 +11,7 @@ from doubao_input.product import VERSION
 
 
 DIAGNOSTIC_STAGES = frozenset({
-    "audio_buffering", "gesture_confirmed", "connection_requested", "connected",
+    "audio_buffering", "audio_delegated", "gesture_confirmed", "connection_requested", "connected",
     "first_result", "audio_drained", "server_finished", "quiet_finished",
     "empty_result", "delivery_pending", "delivery_finished", "cancelled",
     "failed", "timed_out",

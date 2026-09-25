@@ -170,6 +170,15 @@ class ControlWindow:
                     "No API key saved. Add one in Settings to continue.",
                     "尚未保存 API Key，请前往设置填写后继续。"))
                 self._login_button.set_visible(False)
+            elif provider.is_local:
+                self._account_status.set_text(tr(
+                    "Voxtype is ready · its configured engine and model will be used.",
+                    "Voxtype 已就绪 · 将使用其中已配置的引擎和模型。") if logged_in else tr(
+                    "Voxtype is not ready. Install version 1.0.0 or newer, configure a model, and start its daemon.",
+                    "Voxtype 尚未就绪。请安装 1.0.0 或更高版本，配置模型并启动 daemon。"))
+                self._login_button.set_label(tr(
+                    "Refresh Voxtype status", "刷新 Voxtype 状态"))
+                self._login_button.set_visible(True)
             else:
                 self._account_status.set_text(tr("Signed in · saved on this device. Continue without signing in again; the voice test checks whether the session is still valid.",
                                                  "已登录 · 登录信息保存在本机。无需重复登录，可直接继续；语音测试会验证登录是否仍有效。") if logged_in else
@@ -180,7 +189,13 @@ class ControlWindow:
             self._asr_details.set_visible(uses_api_key)
             if self._asr_help:
                 self._asr_help.set_text(provider.credential_help)
-        if uses_api_key:
+        if provider.is_local:
+            self._status_label.set_text(tr(
+                "Local recognition ready · test your voice to verify",
+                "本地识别已就绪 · 请试说一句验证") if logged_in else tr(
+                "Start and configure Voxtype to continue",
+                "请先启动并配置 Voxtype"))
+        elif uses_api_key:
             self._status_label.set_text(tr("Speech API ready · test your voice to verify", "语音 API 已就绪 · 请试说一句验证")
                                         if logged_in else tr("Add an API key to get started", "请先填写 API Key"))
         else:
@@ -194,8 +209,10 @@ class ControlWindow:
         if self._trigger_picker:
             self._trigger_picker.sync(summary.get("key_code", 464), summary.get("key_modifiers", ()))
         if self._summary_label:
-            requirement = (tr("Credentials required", "需要配置凭证") if uses_api_key else
-                           tr("Sign-in required", "需要登录"))
+            requirement = (tr("Local service required", "需要本地服务")
+                           if provider.is_local else
+                           tr("Credentials required", "需要配置凭证")
+                           if uses_api_key else tr("Sign-in required", "需要登录"))
             self._summary_label.set_text((state_names[state] if logged_in else requirement) + " · " +
                 tr("Service: ", "服务：") + summary.get("asr_provider_name", "Doubao") + "\n" +
                 tr("Key: ", "按键：") + summary.get("key", "Fn") + "\n" +

@@ -2,6 +2,7 @@ from unittest import TestCase
 from unittest.mock import Mock, patch
 from doubao_input.doubao.app_state import AppState, LoginStatus, RecordingState
 from doubao_input.doubao.transcription import TranscriptionManager
+from doubao_input.voxtype.asr_client import VoxtypeASRClient
 
 
 class TranscriptionSessionTest(TestCase):
@@ -85,6 +86,25 @@ class TranscriptionSessionTest(TestCase):
         manager._stop_recording()
         self.assertEqual([call[0] for call in order.mock_calls], ["drain", "end"])
 
+    def test_delegated_backend_owns_capture_without_opening_app_microphone(self):
+        manager = self.manager()
+        manager.asr_client.owns_audio_capture = True
+        manager.app_state.login_status = LoginStatus.LOGGED_IN
+        manager.credential_store = Mock()
+        manager.credential_store.load.return_value = object()
+        from doubao_input.diagnostics import DiagnosticTrace
+        manager.on_diagnostic = DiagnosticTrace().add
+        manager.on_overlay_show = Mock()
+
+        manager._start_recording()
+        manager.on_overlay_show.assert_called_once_with()
+        manager._later = Mock(return_value=1)
+        manager._stop_recording()
+
+        manager.audio_capture.start.assert_not_called()
+        manager.audio_capture.finish.assert_not_called()
+        manager.asr_client.finish_sending.assert_called_once()
+
     def test_failed_drain_recovers_instead_of_completing(self):
         manager = self.manager()
         manager.app_state.transcription_text = "partial"
@@ -108,6 +128,7 @@ class TranscriptionSessionTest(TestCase):
     def manager(self):
         manager = TranscriptionManager(AppState())
         manager.asr_client = Mock()
+        manager.asr_client.stop_safety_timeout = 1.0
         manager.audio_capture = Mock()
         manager._wire_asr_callbacks()
         return manager
@@ -197,6 +218,16 @@ class TranscriptionSessionTest(TestCase):
         manager._later = Mock(return_value=11)
         manager._stop_recording()
         manager._later.assert_called_once_with(1000, manager._safety_timeout)
+
+    def test_delegated_backend_can_wait_for_final_file_result(self):
+        manager = self.manager()
+        manager.asr_client.owns_audio_capture = True
+        manager.asr_client.stop_safety_timeout = VoxtypeASRClient.stop_safety_timeout
+        manager._later = Mock(return_value=11)
+
+        manager._stop_recording()
+
+        manager._later.assert_called_once_with(45000, manager._safety_timeout)
 
     def test_quiet_timer_does_not_finish_with_unsent_audio(self):
         manager = self.manager()

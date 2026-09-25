@@ -1,6 +1,9 @@
 """Synthetic onboarding behavior for Midscene E2E."""
 
 import gi
+import os
+from pathlib import Path
+import tempfile
 
 gi.require_version("Gtk", "4.0")
 gi.require_version("Gdk", "4.0")
@@ -23,6 +26,7 @@ LOGGED_IN_MODES = {
     "voice-test",
     "microphone-change",
     "shortcut-capture",
+    "voxtype-live",
 }
 
 
@@ -51,14 +55,15 @@ def build_onboarding_fixture(mode):
             "shortcut-capture",
         },
         "onboarding_complete": False,
-        "asr_provider": "doubao",
-        "asr_provider_name": "Doubao",
+        "asr_provider": "voxtype" if mode == "voxtype-live" else "doubao",
+        "asr_provider_name": "Voxtype (local)" if mode == "voxtype-live" else "Doubao",
     }
     holder = {
         "asr_key": False,
         "capture_sources": [],
         "login": None,
         "preview": False,
+        "voxtype_manager": None,
     }
     overlay = Overlay(state)
 
@@ -182,6 +187,52 @@ def build_onboarding_fixture(mode):
 
     def test_voice():
         control = holder["control"]
+        if mode == "voxtype-live":
+            if holder["voxtype_manager"] is None:
+                from doubao_input.doubao.transcription import TranscriptionManager
+                from doubao_input.voxtype.asr_client import VoxtypeASRClient
+                from doubao_input.voxtype.runtime import VoxtypeRuntimeStore
+
+                manager = TranscriptionManager(
+                    state,
+                    asr_client=VoxtypeASRClient(),
+                    credential_store=VoxtypeRuntimeStore,
+                    interactive_auth=False,
+                    clear_rejected_credentials=False,
+                    failure_message="Synthetic Voxtype CLI failed.",
+                )
+                manager.on_overlay_show = overlay.show
+                manager.on_overlay_update = overlay.set_text
+
+                def hide_overlay():
+                    overlay.hide()
+                    holder["preview"] = False
+
+                def complete(text):
+                    directory = Path(os.environ.get("XDG_RUNTIME_DIR", tempfile.gettempdir())) / (
+                        f"doubao-say-{os.getuid()}/voxtype"
+                    )
+                    if list(directory.glob("transcript-*")):
+                        control.set_feedback("Synthetic Voxtype left transcript files behind.")
+                        return
+                    summary["voice_test_ok"] = True
+                    control.set_preview(text)
+                    control.set_feedback(
+                        "Synthetic Voxtype CLI completed; transcript files removed. "
+                        "Nothing was pasted or sent."
+                    )
+                    control._start_button.set_label(
+                        "Finish setup · Voice test passed · nothing pasted or sent"
+                    )
+
+                manager.on_overlay_hide = hide_overlay
+                manager.on_paste = complete
+                holder["voxtype_manager"] = manager
+            manager = holder["voxtype_manager"]
+            if state.recording_state == RecordingState.IDLE:
+                holder["preview"] = True
+            manager.handle_toggle()
+            return
         if state.recording_state == RecordingState.IDLE:
             holder["preview"] = True
             control._start_button.set_label("Finish setup")
@@ -221,6 +272,8 @@ def build_onboarding_fixture(mode):
         GLib.timeout_add(350, finish)
 
     def cancel_preview():
+        if holder["voxtype_manager"]:
+            holder["voxtype_manager"].handle_cancel()
         holder["preview"] = False
         state.recording_state = RecordingState.IDLE
         state.transcription_text = ""
@@ -239,6 +292,7 @@ def build_onboarding_fixture(mode):
             "doubao": "Doubao",
             "volcengine": "Volcengine",
             "deepgram": "Deepgram Nova-3 (English)",
+            "voxtype": "Voxtype (local)",
         }
         summary.update(
             asr_provider=provider,
@@ -304,6 +358,8 @@ def build_onboarding_fixture(mode):
     control.show()
 
     def cleanup():
+        if holder["voxtype_manager"]:
+            holder["voxtype_manager"].handle_cancel()
         cancel_key_capture()
         overlay.hide()
         if overlay._window:

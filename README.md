@@ -81,6 +81,29 @@ from settings, diagnostics, logs, bundles, and reports. The app currently fixes
 this provider to US English; other Deepgram languages and multilingual mode are
 not exposed yet.
 
+### Optional local Voxtype recognition
+
+Select **Voxtype (local)** to let a running Voxtype daemon own microphone capture
+and transcription. Doubao Say requires Voxtype 1.0.0 or newer and its stable
+file-mode completion API. Install Voxtype separately, run
+`voxtype setup --download`, start its daemon, then use **Refresh Voxtype status**
+in onboarding. The engine, model, language, audio device, and acceleration remain
+configured in Voxtype; this integration does not rewrite its configuration.
+
+For each confirmed dictation, Doubao Say asks Voxtype to write one transcript in
+a private per-user runtime directory, waits for the `.done` completion signal,
+reads the atomic final text, and deletes both files. It refuses to take over when
+Voxtype is already recording or transcribing. Cancel only targets a recording
+started by this app. Voxtype 1.0.1 and newer can suppress its own OSD for these
+sessions; 1.0.0 remains compatible but may show both overlays.
+
+Voxtype currently returns only the final transcript through this integration.
+Its microphone audio and live level meter are not exposed to Doubao Say, so the
+app cannot provide local pre-roll or a live waveform. With hold-to-talk, wait for
+the listening overlay before speaking so the beginning is not clipped. Local
+Voxtype engines keep audio on the device; any cloud engine configured inside
+Voxtype follows that provider's terms.
+
 ### Optional voice polishing
 
 During polishing, a separate status row and softly pulsing stars sit above the
@@ -262,7 +285,9 @@ Automatic detection of every desktop shortcut conflict is not supported.
 After a recording gesture is confirmed, the default unofficial backend sends the
 locally buffered and live microphone audio to Doubao and depends on its web protocol.
 The optional API backends send it to Volcengine or Deepgram under the user's API
-account and terms. Cancelled, double-tap and microphone-only checks do not upload audio.
+account and terms. The Voxtype backend delegates microphone capture to Voxtype;
+its own configured engine determines whether audio stays local. Cancelled,
+double-tap and microphone-only checks do not upload audio through Doubao Say.
 The hosted sign-in website controls its own language.
 When optional polishing is enabled, recognized text—including provisional text
 sent after a pause—is transmitted to the OpenAI-compatible endpoint configured by

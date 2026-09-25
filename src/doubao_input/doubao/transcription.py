@@ -38,12 +38,16 @@ class TranscriptionManager:
 
     def __init__(self, app_state: AppState, *, asr_client=None,
                  credential_store=ParamsStore, interactive_auth=True,
-                 clear_rejected_credentials=True) -> None:
+                 clear_rejected_credentials=True,
+                 failure_message=None) -> None:
         self.app_state = app_state
         self.asr_client = asr_client or ASRClient()
         self.credential_store = credential_store
         self.interactive_auth = interactive_auth
         self.clear_rejected_credentials = clear_rejected_credentials
+        self.failure_message = failure_message or tr(
+            "Connection failed; check your network and retry",
+            "连接出错，请检查网络后重试")
         self.audio_capture = AudioCapture()
 
         self.using_cached_params = False
@@ -75,7 +79,8 @@ class TranscriptionManager:
         self._wire_asr_callbacks()
 
     def configure_backend(self, asr_client, credential_store, *,
-                          interactive_auth, clear_rejected_credentials) -> None:
+                          interactive_auth, clear_rejected_credentials,
+                          failure_message=None) -> None:
         """Replace the idle recognition backend without replacing the state machine."""
         if self.app_state.recording_state != RecordingState.IDLE:
             raise RuntimeError("Cannot change recognition service while recording")
@@ -85,6 +90,9 @@ class TranscriptionManager:
         self.credential_store = credential_store
         self.interactive_auth = interactive_auth
         self.clear_rejected_credentials = clear_rejected_credentials
+        self.failure_message = failure_message or tr(
+            "Connection failed; check your network and retry",
+            "连接出错，请检查网络后重试")
         self._wire_asr_callbacks()
 
     def _wire_asr_callbacks(self) -> None:
@@ -123,6 +131,9 @@ class TranscriptionManager:
             self._priming = True
             self._primed_audio = []
             self._primed_bytes = 0
+        if getattr(self.asr_client, "owns_audio_capture", False) is True:
+            self._trace("audio_delegated")
+            return True
         try:
             self.audio_capture.start(
                 on_audio_data=self._capture_audio,
@@ -246,9 +257,13 @@ class TranscriptionManager:
         if self.on_overlay_show:
             self.on_overlay_show()
 
-        # Only confirmed gestures move locally buffered PCM into the ASR queue.
-        # New capture callbacks cannot overtake the pre-roll while this lock is held.
-        self._commit_primed_audio()
+        if getattr(self.asr_client, "owns_audio_capture", False) is True:
+            with self._prime_lock:
+                self._priming = False
+        else:
+            # Only confirmed gestures move locally buffered PCM into the ASR queue.
+            # New callbacks cannot overtake the pre-roll while this lock is held.
+            self._commit_primed_audio()
 
         # Try provider credentials first. Only the web-account provider can
         # recover missing credentials through WebView extraction.
@@ -277,18 +292,21 @@ class TranscriptionManager:
         logger.info("Stopping recording...")
         self._stopped_at = time.monotonic()
         self._set_state(RecordingState.STOPPING)
-        try:
-            self.audio_capture.finish()
-        except Exception as error:
-            self._on_asr_error(error)
-            return
+        if getattr(self.asr_client, "owns_audio_capture", False) is not True:
+            try:
+                self.audio_capture.finish()
+            except Exception as error:
+                self._on_asr_error(error)
+                return
         self.asr_client.finish_sending()
         self._trace("audio_drained")
         self.awaiting_final_result = True
 
         # Safety timeout
         self.safety_timer_id = self._later(
-            int(STOP_SAFETY_TIMEOUT * 1000), self._safety_timeout
+            int(getattr(self.asr_client, "stop_safety_timeout",
+                        STOP_SAFETY_TIMEOUT) * 1000),
+            self._safety_timeout,
         )
         # A result may already be complete before the key is released. Without
         # this timer, silence after release needlessly takes the full safety timeout.
@@ -379,7 +397,7 @@ class TranscriptionManager:
         # treated as auth failure — doing so wipes cached cookies and pops the
         # login window every time the network/proxy is unavailable.
         self._reset_to_idle()
-        self.app_state.error_message = tr("Connection failed; check your network and retry", "连接出错,请检查网络后重试")
+        self.app_state.error_message = self.failure_message
         return GLib.SOURCE_REMOVE
 
     def _on_auth_error(self) -> bool:
