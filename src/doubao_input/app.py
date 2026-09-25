@@ -260,6 +260,7 @@ class DoubaoInputApp(Gtk.Application):
             enter=self._voice_enter, cancel_input=self._cancel_input,
             shortcut=self._injector.send_shortcut,
             prime=self._voice_prime, discard=self._tm.discard_primed_audio,
+            is_recording=lambda: self.app_state.is_recording,
             debug_edge=self._debug_edge, error=lambda message: logger.warning("PTT error: %s", message))
 
         # ---- Initial state: cached params? ----
