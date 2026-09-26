@@ -137,8 +137,26 @@ if [[ $MIDSCENE_PROJECT == omarchy-plugin-review ]]; then
   ssh_session "tar -C '$REVIEW_PLUGIN_DIR' --strip-components=1 -xzf /tmp/omarchy-review-plugin.tar.gz && \
     test \"\$(jq -r .id '$REVIEW_PLUGIN_DIR/manifest.json')\" = '$REVIEW_PLUGIN_ID' && \
     omarchy plugin validate '$REVIEW_PLUGIN_DIR' && \
-    omarchy-shell shell rescanPlugins && \
-    omarchy plugin enable '$REVIEW_PLUGIN_ID' --section right"
+    omarchy-shell shell rescanPlugins"
+  review_enable_output=""
+  review_enabled=false
+  for _review_attempt in {1..30}; do
+    if review_enable_output="$(ssh_session "omarchy plugin enable '$REVIEW_PLUGIN_ID' --section right" 2>&1)"; then
+      echo "$review_enable_output"
+      review_enabled=true
+      break
+    fi
+    if [[ $review_enable_output != *"is not known"* ]]; then
+      echo "Checklist Todo enable failed: $review_enable_output" >&2
+      exit 1
+    fi
+    ssh_session "omarchy-shell shell rescanPlugins" || true
+    sleep 1
+  done
+  if [[ $review_enabled != true ]]; then
+    echo "Checklist Todo was not recognized after rescan: $review_enable_output" >&2
+    exit 1
+  fi
   # The widget registers its IPC target on a timer after the bar mounts it.
   review_status=""
   for _review_attempt in {1..30}; do
