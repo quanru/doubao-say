@@ -1,0 +1,9 @@
+cases:
+  - name: Checklist Todo 0b8dfdb can show and complete an item on Omarchy
+    steps:
+      - review.seedTodo: {}
+      - review.openTodo: {}
+      - aiAssert: The Checklist Todo panel is open and shows a row named "Midscene review item" with a checkbox next to it.
+      - aiTap: Click the checkbox next to "Midscene review item" to complete and remove that item.
+      - aiAssert: The Checklist Todo panel no longer shows "Midscene review item".
+      - review.assertEmpty: {}

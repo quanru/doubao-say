@@ -12,8 +12,12 @@ readonly BASE_DIR="$HARNESS_DIR/test-runs/omarchy-${OMARCHY_ISO_VERSION}"
 readonly SSH_KEY="$BASE_DIR/id_ed25519"
 readonly SSH_PORT=2222
 readonly PLUGIN_DIR="/home/omarchy/.config/omarchy/plugins/md.lifeos.doubao-say"
+readonly REVIEW_PLUGIN_ID="tathagat11.checklist-todo"
+readonly REVIEW_PLUGIN_SHA="0b8dfdbdc5dc1deaff178ad727fa22f6e289423a"
+readonly REVIEW_PLUGIN_DIR="/home/omarchy/.config/omarchy/plugins/$REVIEW_PLUGIN_ID"
 readonly SHIM_DIR="$(mktemp -d)"
 readonly PLUGIN_ARCHIVE="$(mktemp /tmp/doubao-say-omarchy-plugin-XXXXXX.tar)"
+readonly REVIEW_PLUGIN_ARCHIVE="$(mktemp /tmp/omarchy-review-plugin-XXXXXX.tar.gz)"
 export NODE_OPTIONS="${NODE_OPTIONS:-} --require=$ROOT_DIR/tests/e2e/node_modules/@computer-use/libnut/dist/import_libnut.js"
 export OMARCHY_SSH_KEY="$SSH_KEY"
 
@@ -33,6 +37,7 @@ cleanup() {
   fi
   rm -rf "$SHIM_DIR"
   rm -f "$PLUGIN_ARCHIVE"
+  rm -f "$REVIEW_PLUGIN_ARCHIVE"
 }
 trap cleanup EXIT
 
@@ -116,54 +121,74 @@ VM_PID="$(cat "$RUN_DIR/qemu.pid")"
 kill -0 "$VM_PID"
 ssh_guest true
 
-# Put this exact checkout at its real Omarchy plugin location and validate the
-# manifest. The Midscene project lifecycle starts its deterministic GTK fixture
-# in the guest's actual Hyprland session for every case attempt.
-echo "Creating the Omarchy plugin test payload."
-tar -C "$ROOT_DIR" --exclude='__pycache__' -cf "$PLUGIN_ARCHIVE" \
-  LICENSE README.md manifest.json install.sh setup-omarchy.sh start.sh \
-  omarchy src tests/e2e/gtk_fixture.py tests/e2e/gtk_onboarding_fixture.py \
-  tests/e2e/gtk_runtime_fixture.py
+# Put either the product checkout or one public, exact-commit review subject in
+# the disposable Omarchy guest. Third-party code never runs on the host.
+if [[ $MIDSCENE_PROJECT == omarchy-plugin-review ]]; then
+  curl --fail --location --silent --show-error --retry 3 \
+    --max-time 90 \
+    "https://github.com/tathagat11/omarchy-checklist-todo/archive/$REVIEW_PLUGIN_SHA.tar.gz" \
+    --output "$REVIEW_PLUGIN_ARCHIVE"
+  ssh_guest "mkdir -p '$REVIEW_PLUGIN_DIR'"
+  scp -i "$SSH_KEY" -P "$SSH_PORT" \
+    -o BatchMode=yes -o IdentitiesOnly=yes \
+    -o StrictHostKeyChecking=no -o UserKnownHostsFile=/dev/null \
+    -o ConnectTimeout=10 -o LogLevel=ERROR \
+    "$REVIEW_PLUGIN_ARCHIVE" omarchy@127.0.0.1:/tmp/omarchy-review-plugin.tar.gz
+  ssh_session "tar -C '$REVIEW_PLUGIN_DIR' --strip-components=1 -xzf /tmp/omarchy-review-plugin.tar.gz && \
+    test \"\$(jq -r .id '$REVIEW_PLUGIN_DIR/manifest.json')\" = '$REVIEW_PLUGIN_ID' && \
+    omarchy plugin validate '$REVIEW_PLUGIN_DIR' && \
+    omarchy-shell shell rescanPlugins && \
+    omarchy plugin enable '$REVIEW_PLUGIN_ID' --section right && \
+    omarchy-shell '$REVIEW_PLUGIN_ID' status"
+else
+  # The Midscene project lifecycle starts its synthetic GTK fixture in the
+  # guest's actual Hyprland session for every product case attempt.
+  echo "Creating the Omarchy plugin test payload."
+  tar -C "$ROOT_DIR" --exclude='__pycache__' -cf "$PLUGIN_ARCHIVE" \
+    LICENSE README.md manifest.json install.sh setup-omarchy.sh start.sh \
+    omarchy src tests/e2e/gtk_fixture.py tests/e2e/gtk_onboarding_fixture.py \
+    tests/e2e/gtk_runtime_fixture.py
 
-for _copy_attempt in 1 2 3 4 5; do
-  if scp -i "$SSH_KEY" -P "$SSH_PORT" \
-      -o BatchMode=yes \
-      -o IdentitiesOnly=yes \
-      -o StrictHostKeyChecking=no \
-      -o UserKnownHostsFile=/dev/null \
-      -o ConnectTimeout=10 \
-      -o LogLevel=ERROR \
-      "$PLUGIN_ARCHIVE" omarchy@127.0.0.1:/tmp/doubao-say-plugin.tar; then
-    break
-  fi
-  if ((_copy_attempt == 5)); then
-    echo "Could not upload the plugin payload after five attempts." >&2
-    exit 1
-  fi
-  echo "Guest SCP attempt $_copy_attempt failed; retrying." >&2
-  sleep 3
-done
+  for _copy_attempt in 1 2 3 4 5; do
+    if scp -i "$SSH_KEY" -P "$SSH_PORT" \
+        -o BatchMode=yes \
+        -o IdentitiesOnly=yes \
+        -o StrictHostKeyChecking=no \
+        -o UserKnownHostsFile=/dev/null \
+        -o ConnectTimeout=10 \
+        -o LogLevel=ERROR \
+        "$PLUGIN_ARCHIVE" omarchy@127.0.0.1:/tmp/doubao-say-plugin.tar; then
+      break
+    fi
+    if ((_copy_attempt == 5)); then
+      echo "Could not upload the plugin payload after five attempts." >&2
+      exit 1
+    fi
+    echo "Guest SCP attempt $_copy_attempt failed; retrying." >&2
+    sleep 3
+  done
 
-ssh_guest "rm -rf '$PLUGIN_DIR' && mkdir -p '$PLUGIN_DIR' && \
-  tar -C '$PLUGIN_DIR' -xf /tmp/doubao-say-plugin.tar"
+  ssh_guest "rm -rf '$PLUGIN_DIR' && mkdir -p '$PLUGIN_DIR' && \
+    tar -C '$PLUGIN_DIR' -xf /tmp/doubao-say-plugin.tar"
 
-echo "Validating md.lifeos.doubao-say with Omarchy."
-ssh_session "omarchy plugin validate '$PLUGIN_DIR'"
+  echo "Validating md.lifeos.doubao-say with Omarchy."
+  ssh_session "omarchy plugin validate '$PLUGIN_DIR'"
 
-echo "Installing the source checkout through its unified installer."
-# The official ISO harness creates this disposable account with password
-# "omarchy". Authorize sudo inside the same PTY that install.sh and
-# omarchy-pkg-add use, matching a user who has just authenticated in a terminal.
-# The compact prebuilt VM omits Pacman's sync databases, so refresh metadata in
-# this disposable guest before asking the unchanged installer to resolve packages.
-ssh_session_tty "printf '%s\\n' omarchy | sudo -S -v && \
-  sudo pacman -Sy --noconfirm && '$PLUGIN_DIR/install.sh' --yes"
-ssh_guest "test -f /home/omarchy/.local/share/applications/doubao-say.desktop && \
-  grep -Fq '$PLUGIN_DIR/start.sh' /home/omarchy/.local/share/applications/doubao-say.desktop"
+  echo "Installing the source checkout through its unified installer."
+  # The official ISO harness creates this disposable account with password
+  # "omarchy". Authorize sudo inside the same PTY that install.sh and
+  # omarchy-pkg-add use, matching a user who has just authenticated in a terminal.
+  # The compact prebuilt VM omits Pacman's sync databases, so refresh metadata in
+  # this disposable guest before asking the unchanged installer to resolve packages.
+  ssh_session_tty "printf '%s\\n' omarchy | sudo -S -v && \
+    sudo pacman -Sy --noconfirm && '$PLUGIN_DIR/install.sh' --yes"
+  ssh_guest "test -f /home/omarchy/.local/share/applications/doubao-say.desktop && \
+    grep -Fq '$PLUGIN_DIR/start.sh' /home/omarchy/.local/share/applications/doubao-say.desktop"
 
-# First-run Omarchy notifications are unrelated to the plugin and visually
-# overlap the product's own recording overlay in VNC screenshots.
-ssh_session "omarchy-shell notifications dismissAll"
+  # First-run Omarchy notifications are unrelated to the plugin and visually
+  # overlap the product's own recording overlay in VNC screenshots.
+  ssh_session "omarchy-shell notifications dismissAll"
+fi
 
 # Start the host display ourselves and verify it before libnut connects. The
 # ComputerAgent's built-in Xvfb launcher only waits a fixed 500 ms, which can
@@ -219,7 +244,7 @@ case "$MIDSCENE_PROJECT" in
   omarchy-shard-[1-4])
     npm --prefix tests/e2e test -- --project "$MIDSCENE_PROJECT"
     ;;
-  omarchy-shell)
+  omarchy-shell|omarchy-plugin-review)
     npm --prefix tests/e2e test -- --project "$MIDSCENE_PROJECT"
     ;;
   *)

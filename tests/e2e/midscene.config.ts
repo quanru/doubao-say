@@ -76,7 +76,7 @@ const setup = defineProjectSetup<DesktopContext>({
   name: 'desktop',
   async setup({ project, onTeardown }) {
     const omarchy = project.name.startsWith('omarchy-');
-    const shell = project.name === 'omarchy-shell';
+    const shell = project.name === 'omarchy-shell' || project.name === 'omarchy-plugin-review';
     const polishing = project.name === 'ubuntu-polishing';
     let desktopReady = false;
     const createAgent = async () => {
@@ -331,6 +331,30 @@ const moveBarLeft = defineNode<typeof empty, void, DesktopContext>({
     await sleep(2000);
   },
 });
+const seedReviewPlugin = defineNode<typeof empty, void, DesktopContext>({
+  name: 'review.seedTodo', description: 'Seed one item through the plugin IPC before checking its visible behavior.', inputSchema: empty,
+  execute() {
+    const result = guest('omarchy-shell tathagat11.checklist-todo add "Midscene review item" "Visual review description"');
+    if (!result || result === 'unavailable') throw new Error(`Could not seed Checklist Todo: ${result}`);
+    if (guest('omarchy-shell tathagat11.checklist-todo status') !== '1 todo') {
+      throw new Error('Checklist Todo did not persist the seeded item');
+    }
+  },
+});
+const openReviewPlugin = defineNode<typeof empty, void, DesktopContext>({
+  name: 'review.openTodo', description: 'Open the reviewed plugin in the real Omarchy shell.', inputSchema: empty,
+  async execute() {
+    guest('omarchy-shell tathagat11.checklist-todo open');
+    await sleep(1000);
+  },
+});
+const assertReviewPluginEmpty = defineNode<typeof empty, void, DesktopContext>({
+  name: 'review.assertEmpty', description: 'Confirm the visual deletion persisted in plugin state.', inputSchema: empty,
+  execute() {
+    const status = guest('omarchy-shell tathagat11.checklist-todo status');
+    if (status !== '0 todos') throw new Error(`Checklist Todo item remains after the visual action: ${status}`);
+  },
+});
 
 const productCaseFiles = [
   'cases/onboarding.yaml',
@@ -379,6 +403,12 @@ export default defineTestProject<DesktopContext>({
       retry: 2,
       setup,
       files: { include: ['cases/omarchy-shell.yaml'] },
+    },
+    {
+      name: 'omarchy-plugin-review',
+      retry: 1,
+      setup,
+      files: { include: ['cases/omarchy-plugin-review.yaml'] },
     },
   ],
   nodes: [
@@ -429,5 +459,8 @@ export default defineTestProject<DesktopContext>({
     openSystemMenu,
     closeSystemMenu,
     moveBarLeft,
+    seedReviewPlugin,
+    openReviewPlugin,
+    assertReviewPluginEmpty,
   ],
 });

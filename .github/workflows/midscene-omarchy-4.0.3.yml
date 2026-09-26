@@ -50,6 +50,7 @@ on:
           - omarchy-shard-3
           - omarchy-shard-4
           - omarchy-shell
+          - omarchy-plugin-review
           - omarchy-providers
 
 permissions:
