@@ -76,7 +76,7 @@ const setup = defineProjectSetup<DesktopContext>({
   name: 'desktop',
   async setup({ project, onTeardown }) {
     const omarchy = project.name.startsWith('omarchy-');
-    const shell = project.name === 'omarchy-shell' || project.name === 'omarchy-plugin-review';
+    const shell = project.name === 'omarchy-shell' || project.name === 'omarchy-plugin-review' || project.name === 'omarchy-plugin-smoke';
     const polishing = project.name === 'ubuntu-polishing';
     let desktopReady = false;
     const createAgent = async () => {
@@ -366,6 +366,36 @@ const assertReviewPluginEmpty = defineNode<typeof empty, void, DesktopContext>({
     throw new Error('Checklist Todo did not persist the empty list after the visual action');
   },
 });
+const openConfiguredReviewPlugin = defineNode<typeof empty, void, DesktopContext>({
+  name: 'review.openConfigured', description: 'Open the exact-commit plugin through its declared shell IPC method.', inputSchema: empty,
+  async execute() {
+    const id = process.env.REVIEW_PLUGIN_ID;
+    const method = process.env.REVIEW_PLUGIN_OPEN_METHOD || 'open';
+    if (!id || !/^[a-z0-9][a-z0-9._-]{2,127}$/.test(id)) throw new Error('Valid REVIEW_PLUGIN_ID is required');
+    if (!/^[A-Za-z][A-Za-z0-9_]*$/.test(method)) throw new Error('Invalid REVIEW_PLUGIN_OPEN_METHOD');
+    let lastError: unknown;
+    for (let attempt = 0; attempt < 20; attempt++) {
+      try {
+        guest(`omarchy-shell ${shellQuote(id)} ${shellQuote(method)}`);
+        await sleep(1000);
+        return;
+      } catch (error) {
+        lastError = error;
+        await sleep(1000);
+      }
+    }
+    throw new Error(`Plugin IPC did not become ready: ${String(lastError)}`);
+  },
+});
+const assertConfiguredReviewPlugin = defineNode<typeof empty, void, DesktopContext>({
+  name: 'review.assertConfiguredVisual', description: 'Assert the caller-provided visible behavior on the real Omarchy desktop.', inputSchema: empty,
+  async execute({ context }) {
+    const assertion = process.env.REVIEW_VISIBLE_ASSERTION;
+    if (!assertion || assertion.length > 500) throw new Error('REVIEW_VISIBLE_ASSERTION must be 1–500 characters');
+    if (!context.agent) throw new Error('Midscene Computer Agent is not active');
+    await context.agent.aiAssert(assertion);
+  },
+});
 
 const productCaseFiles = [
   'cases/onboarding.yaml',
@@ -421,6 +451,12 @@ export default defineTestProject<DesktopContext>({
       setup,
       files: { include: ['cases/omarchy-plugin-review.yaml'] },
     },
+    {
+      name: 'omarchy-plugin-smoke',
+      retry: 1,
+      setup,
+      files: { include: ['cases/omarchy-plugin-smoke.yaml'] },
+    },
   ],
   nodes: [
     ...createMidsceneNodes<DesktopContext>({
@@ -473,5 +509,7 @@ export default defineTestProject<DesktopContext>({
     seedReviewPlugin,
     openReviewPlugin,
     assertReviewPluginEmpty,
+    openConfiguredReviewPlugin,
+    assertConfiguredReviewPlugin,
   ],
 });

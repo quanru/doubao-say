@@ -1,5 +1,8 @@
 # Midscene E2E by Linux distribution
 
+For the parameterized community plugin pilot on a GitHub-hosted Omarchy VM,
+see [Omarchy plugin review](OMARCHY_PLUGIN_REVIEW.md).
+
 GitHub Actions exposes two distribution-named suites: `Ubuntu 22.04` and
 `Omarchy 4.0.3`. The Omarchy suite also checks the real desktop shell visually.
 

@@ -51,7 +51,29 @@ on:
           - omarchy-shard-4
           - omarchy-shell
           - omarchy-plugin-review
+          - omarchy-plugin-smoke
           - omarchy-providers
+      plugin_repository:
+        description: Public GitHub owner/repository for omarchy-plugin-smoke
+        type: string
+        required: false
+      plugin_sha:
+        description: Exact 40-character commit SHA for omarchy-plugin-smoke
+        type: string
+        required: false
+      plugin_id:
+        description: Plugin manifest ID for omarchy-plugin-smoke
+        type: string
+        required: false
+      plugin_open_method:
+        description: Plugin IPC method that opens its UI, usually open
+        type: string
+        required: false
+        default: open
+      visible_assertion:
+        description: What should be visible after opening the plugin
+        type: string
+        required: false
 
 permissions:
   contents: read
@@ -94,6 +116,11 @@ jobs:
       # The configured model endpoint is reachable over IPv4; disabling Node's
       # family race avoids intermittent runner-side IPv6 connection timeouts.
       NODE_OPTIONS: "--dns-result-order=ipv4first --no-network-family-autoselection"
+      REVIEW_PLUGIN_REPOSITORY: ${{ inputs.plugin_repository }}
+      REVIEW_PLUGIN_SHA: ${{ inputs.plugin_sha }}
+      REVIEW_PLUGIN_ID: ${{ inputs.plugin_id }}
+      REVIEW_PLUGIN_OPEN_METHOD: ${{ inputs.plugin_open_method }}
+      REVIEW_VISIBLE_ASSERTION: ${{ inputs.visible_assertion }}
     steps:
       - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
         with:
@@ -105,6 +132,16 @@ jobs:
           test -n "$MIDSCENE_MODEL_NAME"
           test -n "$MIDSCENE_MODEL_BASE_URL"
           test -n "$MIDSCENE_MODEL_FAMILY"
+
+      - name: Validate plugin review request
+        if: matrix.project == 'omarchy-plugin-smoke'
+        run: |
+          [[ "$REVIEW_PLUGIN_REPOSITORY" =~ ^[A-Za-z0-9_.-]+/[A-Za-z0-9_.-]+$ ]]
+          [[ "$REVIEW_PLUGIN_SHA" =~ ^[a-fA-F0-9]{40}$ ]]
+          [[ "$REVIEW_PLUGIN_ID" =~ ^[a-z0-9][a-z0-9._-]{2,127}$ ]]
+          [[ "$REVIEW_PLUGIN_OPEN_METHOD" =~ ^[A-Za-z][A-Za-z0-9_]*$ ]]
+          test -n "$REVIEW_VISIBLE_ASSERTION"
+          test "${#REVIEW_VISIBLE_ASSERTION}" -le 500
 
       - name: Check Midscene model before the expensive VM install
         run: |

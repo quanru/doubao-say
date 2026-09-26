@@ -12,8 +12,9 @@ readonly BASE_DIR="$HARNESS_DIR/test-runs/omarchy-${OMARCHY_ISO_VERSION}"
 readonly SSH_KEY="$BASE_DIR/id_ed25519"
 readonly SSH_PORT=2222
 readonly PLUGIN_DIR="/home/omarchy/.config/omarchy/plugins/md.lifeos.doubao-say"
-readonly REVIEW_PLUGIN_ID="tathagat11.checklist-todo"
-readonly REVIEW_PLUGIN_SHA="0b8dfdbdc5dc1deaff178ad727fa22f6e289423a"
+readonly REVIEW_PLUGIN_REPOSITORY="${REVIEW_PLUGIN_REPOSITORY:-tathagat11/omarchy-checklist-todo}"
+readonly REVIEW_PLUGIN_ID="${REVIEW_PLUGIN_ID:-tathagat11.checklist-todo}"
+readonly REVIEW_PLUGIN_SHA="${REVIEW_PLUGIN_SHA:-0b8dfdbdc5dc1deaff178ad727fa22f6e289423a}"
 readonly REVIEW_PLUGIN_DIR="/home/omarchy/.config/omarchy/plugins/$REVIEW_PLUGIN_ID"
 readonly SHIM_DIR="$(mktemp -d)"
 readonly PLUGIN_ARCHIVE="$(mktemp /tmp/doubao-say-omarchy-plugin-XXXXXX.tar)"
@@ -123,10 +124,13 @@ ssh_guest true
 
 # Put either the product checkout or one public, exact-commit review subject in
 # the disposable Omarchy guest. Third-party code never runs on the host.
-if [[ $MIDSCENE_PROJECT == omarchy-plugin-review ]]; then
+if [[ $MIDSCENE_PROJECT == omarchy-plugin-review || $MIDSCENE_PROJECT == omarchy-plugin-smoke ]]; then
+  [[ $REVIEW_PLUGIN_REPOSITORY =~ ^[A-Za-z0-9_.-]+/[A-Za-z0-9_.-]+$ ]]
+  [[ $REVIEW_PLUGIN_SHA =~ ^[a-fA-F0-9]{40}$ ]]
+  [[ $REVIEW_PLUGIN_ID =~ ^[a-z0-9][a-z0-9._-]{2,127}$ ]]
   curl --fail --location --silent --show-error --retry 3 \
-    --max-time 90 \
-    "https://github.com/tathagat11/omarchy-checklist-todo/archive/$REVIEW_PLUGIN_SHA.tar.gz" \
+    --max-time 90 --max-filesize 50000000 \
+    "https://github.com/$REVIEW_PLUGIN_REPOSITORY/archive/$REVIEW_PLUGIN_SHA.tar.gz" \
     --output "$REVIEW_PLUGIN_ARCHIVE"
   ssh_guest "mkdir -p '$REVIEW_PLUGIN_DIR'"
   scp -i "$SSH_KEY" -P "$SSH_PORT" \
@@ -157,19 +161,21 @@ if [[ $MIDSCENE_PROJECT == omarchy-plugin-review ]]; then
     echo "Checklist Todo was not recognized after rescan: $review_enable_output" >&2
     exit 1
   fi
-  # The widget registers its IPC target on a timer after the bar mounts it.
-  review_status=""
-  for _review_attempt in {1..30}; do
-    if review_status="$(ssh_session "omarchy-shell '$REVIEW_PLUGIN_ID' status" 2>/dev/null)" &&
-        [[ $review_status == '0 todos' ]]; then
-      break
+  if [[ $MIDSCENE_PROJECT == omarchy-plugin-review ]]; then
+    # The pinned Checklist Todo widget registers its IPC target after mounting.
+    review_status=""
+    for _review_attempt in {1..30}; do
+      if review_status="$(ssh_session "omarchy-shell '$REVIEW_PLUGIN_ID' status" 2>/dev/null)" &&
+          [[ $review_status == '0 todos' ]]; then
+        break
+      fi
+      sleep 1
+    done
+    if [[ $review_status != '0 todos' ]]; then
+      echo "Checklist Todo IPC did not become ready: $review_status" >&2
+      ssh_session "journalctl --user -u omarchy-shell -n 80 --no-pager" || true
+      exit 1
     fi
-    sleep 1
-  done
-  if [[ $review_status != '0 todos' ]]; then
-    echo "Checklist Todo IPC did not become ready: $review_status" >&2
-    ssh_session "journalctl --user -u omarchy-shell -n 80 --no-pager" || true
-    exit 1
   fi
 else
   # The Midscene project lifecycle starts its synthetic GTK fixture in the
@@ -275,7 +281,7 @@ case "$MIDSCENE_PROJECT" in
   omarchy-shard-[1-4])
     npm --prefix tests/e2e test -- --project "$MIDSCENE_PROJECT"
     ;;
-  omarchy-shell|omarchy-plugin-review)
+  omarchy-shell|omarchy-plugin-review|omarchy-plugin-smoke)
     npm --prefix tests/e2e test -- --project "$MIDSCENE_PROJECT"
     ;;
   *)
