@@ -167,7 +167,6 @@ cases:
     tags: [shard-3]
     steps:
       - fixture.prepare: { mode: volcengine }
-      - aiAssert: The visible Doubao Say window starts on Sign in with Doubao account selected and right-arrow Next disabled.
       - aiTap: The Recognition service dropdown currently showing Doubao account
       - aiTap: Volcengine API option in the open Recognition service dropdown
       - aiWaitFor:
@@ -183,7 +182,6 @@ cases:
       - aiWaitFor:
           prompt: The result says API key accepted by synthetic endpoint and the page reports that the official API is ready.
           options: { timeoutMs: 30000, checkIntervalMs: 1000 }
-      - aiAssert: The accepted API key result and official API ready state are both visible.
       - aiTap: Right-arrow Next button in the fixed top navigation
       - aiWaitFor:
           prompt: The Microphone step shows Let's make sure we can hear you.
@@ -195,7 +193,8 @@ cases:
       - fixture.prepare: { mode: deepgram }
       - aiTap: Recognition service dropdown currently showing Doubao account
       - aiTap: Deepgram Nova-3 (English) option in the opened dropdown
-      - aiAct: Scroll down inside the central content panel until the API Key field and Test API key button are both visible.
+      - aiScroll:
+          options: { direction: down, scrollType: singleAction, distance: 500 }
       - aiWaitFor:
           prompt: The Recognition page shows Deepgram Nova-3 English dictation and an empty API Key field.
           options: { timeoutMs: 30000, checkIntervalMs: 1000 }

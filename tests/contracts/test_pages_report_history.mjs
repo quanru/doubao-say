@@ -210,6 +210,7 @@ test('keeps visual E2E interactions at task level with proven tap exceptions', a
               '- aiTap: Right-arrow Next button in the fixed top navigation',
               '- aiTap: Recognition service dropdown currently showing Doubao account',
               '- aiTap: Deepgram Nova-3 (English) option in the opened dropdown',
+              '- aiScroll:',
               '- computer.inputText:',
               '- aiTap: Test API key button below the API Key field',
               '- aiTap: The microphone dropdown currently showing Synthetic microphone one',
