@@ -1667,6 +1667,106 @@ test('pairs an original node screenshot with its AI text or error', async () => 
   assert.deepEqual(failure.screenshot.bytes, Buffer.from('/9j/2Q==', 'base64'));
 });
 
+test('recovers a sole Agent screenshot from an unlinked custom visual step', async () => {
+  const html = runnerScript({
+    project: 'ubuntu',
+    startedAt: '2026-09-26T07:32:45Z',
+  });
+  const run = testRunDump(html);
+  const step = run.projects[0].documents[0].cases[0].attempts[0].steps[0];
+  step.node = 'review.assertConfiguredVisual';
+  delete step.agentDetails;
+
+  const [testCase] = await reportCases(run, 'ubuntu', { reportHtml: html });
+  assert.equal(testCase.selection, 'last-screenshot');
+  assert.equal(testCase.descriptionKind, 'ai');
+  assert.equal(testCase.description, 'AI explanation 0-0');
+  assert.deepEqual(testCase.screenshot.bytes, Buffer.from('/9j/2Q==', 'base64'));
+});
+
+test('matches unlinked custom-step screenshots by execution time', async () => {
+  const html = runnerScript({
+    assertionCount: 2,
+    project: 'ubuntu',
+    startedAt: '2026-09-26T07:32:45Z',
+  });
+  const run = testRunDump(html);
+  const steps = run.projects[0].documents[0].cases[0].attempts[0].steps;
+  for (const [index, step] of steps.entries()) {
+    step.node = 'review.assertConfiguredVisual';
+    step.startedAt = `2026-09-26T07:32:${index ? '55' : '45'}.000Z`;
+    step.endedAt = `2026-09-26T07:33:${index ? '05' : '00'}.000Z`;
+    delete step.agentDetails;
+  }
+  const dumpMatch = html.match(/<script type="midscene_web_dump"[^>]*>(\{[\s\S]*?)<\/script>/);
+  const dump = JSON.parse(dumpMatch[1]);
+  dump.executions[0].logTime = Date.parse('2026-09-26T07:32:47.000Z');
+  dump.executions[1].logTime = Date.parse('2026-09-26T07:32:57.000Z');
+  const reportHtml = html.replace(dumpMatch[1], JSON.stringify(dump));
+
+  const [testCase] = await reportCases(run, 'ubuntu', { reportHtml });
+  assert.equal(testCase.stepId, steps[1].id);
+  assert.equal(testCase.selection, 'last-screenshot');
+  assert.equal(testCase.description, 'AI explanation 0-1');
+});
+
+test('keeps an ambiguous custom-step success in the table without inventing a screenshot', async (context) => {
+  const html = runnerScript({
+    assertionCount: 2,
+    project: 'ubuntu',
+    startedAt: '2026-09-26T07:32:45Z',
+  });
+  const run = testRunDump(html);
+  for (const step of run.projects[0].documents[0].cases[0].attempts[0].steps) {
+    step.node = 'review.assertConfiguredVisual';
+    delete step.agentDetails;
+  }
+  const reportHtml = html.replace(
+    /<script type="midscene_test_run_dump">[\s\S]*?<\/script>/,
+    `<script type="midscene_test_run_dump">${JSON.stringify(run)}</script>`,
+  );
+  const [testCase] = await reportCases(run, 'ubuntu', { reportHtml });
+  assert.equal(testCase.selection, 'last-no-screenshot');
+  assert.equal(testCase.screenshot, undefined);
+  assert.equal(testCase.descriptionKind, 'result');
+
+  const root = await mkdtemp(path.join(os.tmpdir(), 'pages-unlinked-step-'));
+  const reportDirectory = path.join(root, 'artifact');
+  await mkdir(path.join(reportDirectory, 'report'), { recursive: true });
+  await writeFile(path.join(reportDirectory, 'report', 'test-run-ubuntu.html'), reportHtml);
+  await writeFile(path.join(reportDirectory, 'report-preview.png'), 'preview');
+  const server = await startServer((_request, response) => response.writeHead(404).end());
+  context.after(server.close);
+  const manifest = await buildPagesReport(
+    options(reportDirectory, path.join(root, 'site'), server.url),
+  );
+  const [publishedCase] = manifest.reports[0].entries[0].cases;
+  assert.equal(publishedCase.status, 'success');
+  assert.equal(publishedCase.selection, 'last-no-screenshot');
+  assert.equal(publishedCase.previewPath, undefined);
+  assert.equal(publishedCase.description, 'Step passed; no per-step AI response was recorded.');
+  const summary = renderReportSummary({
+    manifest,
+    pagesUrl: server.url,
+    producerResult: 'success',
+    runId: '200',
+    summaryTitle: 'Ubuntu',
+  });
+  assert.match(summary, /Passed case|ubuntu visual case/);
+  assert.match(summary, /\| — \| ✅ Passed \|/);
+});
+
+test('still rejects missing screenshots from explicitly linked AI steps', async () => {
+  const html = runnerScript({
+    project: 'ubuntu',
+    startedAt: '2026-09-26T07:32:45Z',
+  }).replace(/<script type="midscene-image"[^>]*>[\s\S]*?<\/script>/g, '');
+  await assert.rejects(
+    reportCases(testRunDump(html), 'ubuntu', { reportHtml: html }),
+    /has no embedded node screenshot/,
+  );
+});
+
 test('preserves a failed case and skips a not-run case after agent damage', async () => {
   const html = runnerWithoutScreenshot({
     project: 'ubuntu',
