@@ -3,7 +3,7 @@ cases:
     steps:
       - review.seedTodo: {}
       - review.openTodo: {}
-      - aiAssert: The Checklist Todo panel is open and shows a row named "Midscene review item" with a checkbox next to it.
-      - aiTap: Click the checkbox next to "Midscene review item" to complete and remove that item.
-      - aiAssert: The Checklist Todo panel no longer shows "Midscene review item".
+      - aiAssert: At the top center of the desktop, the Todos popup is open. It shows one checklist row with a small square checkbox.
+      - aiTap: Click the small square checkbox next to the only item in the top-center Todos popup.
+      - aiAssert: The top-center Todos popup shows no checklist rows and reports zero items.
       - review.assertEmpty: {}

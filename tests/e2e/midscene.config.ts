@@ -334,10 +334,13 @@ const moveBarLeft = defineNode<typeof empty, void, DesktopContext>({
 const seedReviewPlugin = defineNode<typeof empty, void, DesktopContext>({
   name: 'review.seedTodo', description: 'Seed one item through the plugin IPC before checking its visible behavior.', inputSchema: empty,
   execute() {
+    const initialStatus = guest('omarchy-shell tathagat11.checklist-todo status');
+    if (initialStatus === '1 todo') return;
+    if (initialStatus !== '0 todos') throw new Error(`Unexpected Checklist Todo state before seeding: ${initialStatus}`);
     const result = guest('omarchy-shell tathagat11.checklist-todo add "Midscene review item" "Visual review description"');
     if (!result || result === 'unavailable') throw new Error(`Could not seed Checklist Todo: ${result}`);
     if (guest('omarchy-shell tathagat11.checklist-todo status') !== '1 todo') {
-      throw new Error('Checklist Todo did not persist the seeded item');
+      throw new Error('Checklist Todo did not accept the seeded item');
     }
   },
 });
