@@ -1,3 +1,10 @@
+doubao-say (1.3.0-1) noble; urgency=medium
+
+  * Add optional Deepgram Nova-3 English speech recognition.
+  * Keep Doubao and Volcengine recognition selectable in Settings.
+
+ -- doubao-say contributors <code-dream@qq.com>  Sat, 26 Sep 2026 10:00:00 +0800
+
 doubao-say (1.2.0-1) noble; urgency=medium
 
   * Install Python runtime dependencies through apt, with no pip invocation
