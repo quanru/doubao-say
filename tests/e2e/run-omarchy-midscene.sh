@@ -151,14 +151,14 @@ if [[ $MIDSCENE_PROJECT == omarchy-plugin-review || $MIDSCENE_PROJECT == omarchy
       break
     fi
     if [[ $review_enable_output != *"is not known"* ]]; then
-      echo "Checklist Todo enable failed: $review_enable_output" >&2
+      echo "Review plugin enable failed: $review_enable_output" >&2
       exit 1
     fi
     ssh_session "omarchy-shell shell rescanPlugins" || true
     sleep 1
   done
   if [[ $review_enabled != true ]]; then
-    echo "Checklist Todo was not recognized after rescan: $review_enable_output" >&2
+    echo "Review plugin was not recognized after rescan: $review_enable_output" >&2
     exit 1
   fi
   if [[ $MIDSCENE_PROJECT == omarchy-plugin-review ]]; then

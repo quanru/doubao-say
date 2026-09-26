@@ -1,0 +1,50 @@
+name: Omarchy plugin visual review (pilot)
+description: Request a real Omarchy desktop check on GitHub Actions
+title: "[Omarchy review] "
+body:
+  - type: markdown
+    attributes:
+      value: |
+        This pilot runs the exact plugin commit in a disposable Omarchy VM on GitHub Actions.
+        A maintainer starts the run by adding the `midscene-review` label after checking the request.
+        The result is behavioral evidence, not a security audit or Marketplace verification.
+  - type: input
+    id: repository
+    attributes:
+      label: Plugin repository URL
+      description: Public GitHub repository root URL
+      placeholder: https://github.com/owner/plugin
+    validations:
+      required: true
+  - type: input
+    id: sha
+    attributes:
+      label: Exact commit SHA
+      description: Full 40-character Git commit checked by the Marketplace
+      placeholder: 0123456789abcdef0123456789abcdef01234567
+    validations:
+      required: true
+  - type: input
+    id: plugin_id
+    attributes:
+      label: Plugin ID
+      description: The id field from manifest.json
+      placeholder: owner.plugin-name
+    validations:
+      required: true
+  - type: input
+    id: open_method
+    attributes:
+      label: Open IPC method
+      description: The omarchy-shell plugin method that opens the visible UI
+      value: open
+    validations:
+      required: true
+  - type: textarea
+    id: visible_assertion
+    attributes:
+      label: Expected visible result
+      description: One concrete statement the reviewer can judge from desktop pixels
+      placeholder: The plugin popup is open and shows its empty state.
+    validations:
+      required: true

@@ -14,8 +14,10 @@ on:
       - "scripts/verify-pages-report.mjs"
       - "scripts/verify-omarchy-evidence.mjs"
       - "scripts/omarchy-shell-evidence.mjs"
+      - "scripts/parse-omarchy-review-issue.mjs"
       - "tests/contracts/test_pages_report_history.mjs"
       - "tests/contracts/test_model_rate_gate.mjs"
+      - "tests/contracts/test_omarchy_review_issue.mjs"
       - "tests/e2e/package.json"
       - "tests/e2e/package-lock.json"
       - "tests/e2e/gtk_fixture.py"
@@ -38,6 +40,8 @@ on:
   pull_request:
     branches: [main]
     paths: *e2e-paths
+  issues:
+    types: [labeled]
   workflow_dispatch:
     inputs:
       project:
@@ -81,13 +85,16 @@ permissions:
   packages: read
 
 concurrency:
-  group: midscene-model-e2e-${{ github.workflow }}-${{ github.ref }}
+  group: midscene-model-e2e-${{ github.workflow }}-${{ github.event.issue.number || github.ref }}
   cancel-in-progress: ${{ github.event_name == 'pull_request' }}
 
 jobs:
   omarchy-e2e:
     name: Midscene visual (${{ matrix.project }})
-    if: github.event_name != 'pull_request' || github.event.pull_request.head.repo.full_name == github.repository
+    if: >-
+      (github.event_name != 'pull_request' || github.event.pull_request.head.repo.full_name == github.repository) &&
+      (github.event_name != 'issues' ||
+      (github.event.label.name == 'midscene-review' && startsWith(github.event.issue.title, '[Omarchy review] ')))
     runs-on: ubuntu-latest
     timeout-minutes: 60
     strategy:
@@ -99,7 +106,8 @@ jobs:
       max-parallel: 5
       matrix:
         project: >-
-          ${{ fromJSON((inputs.project != '' && inputs.project != 'all') &&
+          ${{ fromJSON(github.event_name == 'issues' && '["omarchy-plugin-smoke"]' ||
+          (inputs.project != '' && inputs.project != 'all') &&
           format('["{0}"]', inputs.project) ||
           '["omarchy-shard-1","omarchy-shard-2","omarchy-shard-3","omarchy-shard-4","omarchy-shell"]') }}
     env:
@@ -126,6 +134,10 @@ jobs:
       - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
         with:
           persist-credentials: false
+
+      - name: Read maintainer-approved review Issue
+        if: github.event_name == 'issues'
+        run: node scripts/parse-omarchy-review-issue.mjs
 
       - name: Require Midscene model configuration
         run: |
@@ -248,7 +260,7 @@ jobs:
     name: Assemble Midscene report bundle
     needs: omarchy-e2e
     if: >-
-      always() && !cancelled() &&
+      always() && !cancelled() && github.event_name != 'issues' &&
       (inputs.project == '' || inputs.project == 'all')
     runs-on: ubuntu-latest
     outputs:
@@ -284,7 +296,7 @@ jobs:
     name: GitHub Pages report
     needs: [omarchy-e2e, report-bundle]
     if: >-
-      always() &&
+      always() && github.event_name != 'issues' &&
       !cancelled() &&
       needs.report-bundle.outputs.report-artifact-id != '' &&
       (github.event_name != 'pull_request' ||
@@ -302,3 +314,29 @@ jobs:
       report-groups: >-
         [{"role":"primary","label":"Doubao Say","projects":["omarchy-shard-1","omarchy-shard-2","omarchy-shard-3","omarchy-shard-4"]},{"role":"auxiliary","label":"Omarchy visual checks","projects":["omarchy-shell"]}]
       run-result: ${{ needs.omarchy-e2e.result }}
+
+  review-issue-result:
+    name: Link visual evidence to review request
+    needs: omarchy-e2e
+    if: >-
+      always() && github.event_name == 'issues' &&
+      github.event.label.name == 'midscene-review' &&
+      startsWith(github.event.issue.title, '[Omarchy review] ')
+    runs-on: ubuntu-latest
+    permissions:
+      issues: write
+    env:
+      GH_TOKEN: ${{ github.token }}
+      ISSUE_NUMBER: ${{ github.event.issue.number }}
+      REVIEW_RESULT: ${{ needs.omarchy-e2e.result }}
+    steps:
+      - name: Comment with CI run and artifact
+        run: |
+          cat > "$RUNNER_TEMP/omarchy-review-comment.md" <<EOF
+          Midscene Omarchy visual review CI: **${REVIEW_RESULT}**.
+
+          [Open the GitHub Actions run](${GITHUB_SERVER_URL}/${GITHUB_REPOSITORY}/actions/runs/${GITHUB_RUN_ID}) and download the omarchy-midscene-omarchy-plugin-smoke artifact for the native report and screenshots.
+
+          This is behavioral evidence from a disposable VM. It does not change the Marketplace security baseline or Verified status. A failed run needs its logs reviewed before attributing the failure to the plugin.
+          EOF
+          gh issue comment "$ISSUE_NUMBER" --repo "$GITHUB_REPOSITORY" --body-file "$RUNNER_TEMP/omarchy-review-comment.md"
