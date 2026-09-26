@@ -1,4 +1,5 @@
 import assert from 'node:assert/strict';
+import { execFileSync } from 'node:child_process';
 import { mkdir, mkdtemp, readFile, writeFile } from 'node:fs/promises';
 import http from 'node:http';
 import os from 'node:os';
@@ -97,6 +98,43 @@ test('records every shard and renders the Summary before Pages deployment', asyn
     deploy,
     /name: \$\{\{ inputs\.artifact-name \}\}-manifest-\$\{\{ github\.run_attempt \}\}/,
   );
+});
+
+test('plugin smoke keeps its visual assertion as a reportable Midscene step', async () => {
+  const source = await readFile(
+    new URL('../e2e/cases/omarchy-plugin-smoke.yaml', import.meta.url),
+    'utf8',
+  );
+  const renderer = await readFile(
+    new URL('../e2e/render-omarchy-plugin-smoke.mjs', import.meta.url),
+    'utf8',
+  );
+  const runner = await readFile(
+    new URL('../e2e/run-omarchy-midscene.sh', import.meta.url),
+    'utf8',
+  );
+  assert.match(source, /- review\.openConfigured: \{\}[\s\S]*- aiAssert: __REVIEW_VISIBLE_ASSERTION__/);
+  assert.doesNotMatch(source, /review\.assertConfiguredVisual/);
+  assert.match(
+    runner,
+    /omarchy-plugin-smoke\)\s+node tests\/e2e\/render-omarchy-plugin-smoke\.mjs\s+npm --prefix tests\/e2e test/,
+  );
+
+  const root = await mkdtemp(path.join(os.tmpdir(), 'plugin-smoke-render-'));
+  await mkdir(path.join(root, 'cases'));
+  await writeFile(path.join(root, 'render-omarchy-plugin-smoke.mjs'), renderer);
+  await writeFile(path.join(root, 'cases/omarchy-plugin-smoke.yaml'), source);
+  const assertion = 'The Todos popup says "ready": #1\nNo text was delivered.';
+  execFileSync(process.execPath, [path.join(root, 'render-omarchy-plugin-smoke.mjs')], {
+    env: { ...process.env, REVIEW_VISIBLE_ASSERTION: assertion },
+  });
+  const rendered = await readFile(
+    path.join(root, 'cases/omarchy-plugin-smoke.yaml'),
+    'utf8',
+  );
+  assert.match(rendered, /- review\.openConfigured: \{\}/);
+  assert.ok(rendered.includes(`- aiAssert: ${JSON.stringify(assertion)}`));
+  assert.doesNotMatch(rendered, /__REVIEW_VISIBLE_ASSERTION__/);
 });
 
 test('rerun aggregation excludes the previous combined report artifact', async () => {
