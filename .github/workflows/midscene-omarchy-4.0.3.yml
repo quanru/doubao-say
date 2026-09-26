@@ -15,6 +15,7 @@ on:
       - "scripts/verify-omarchy-evidence.mjs"
       - "scripts/omarchy-shell-evidence.mjs"
       - "tests/contracts/test_pages_report_history.mjs"
+      - "tests/contracts/test_model_rate_gate.mjs"
       - "tests/e2e/package.json"
       - "tests/e2e/package-lock.json"
       - "tests/e2e/gtk_fixture.py"
@@ -23,6 +24,7 @@ on:
       - "tests/e2e/capture-report-preview.mjs"
       - "tests/e2e/cases/**"
       - "tests/e2e/midscene.config.ts"
+      - "tests/e2e/model-rate-gate.mjs"
       - "tests/e2e/run-omarchy-midscene.sh"
       - "tests/e2e/restore-omarchy-vm.sh"
       - "tests/e2e/omarchy-vm.env"
@@ -67,6 +69,8 @@ jobs:
     strategy:
       # Each shard restores an independent disposable VM. Sharing one Hyprland
       # session would make fixture resets, focus and screenshots race.
+      # Run independent VMs concurrently. Each worker paces model requests to
+      # one every 20s, keeping the aggregate below the Ark endpoint RPM.
       fail-fast: false
       max-parallel: 5
       matrix:
@@ -82,6 +86,10 @@ jobs:
       MIDSCENE_MODEL_REASONING_ENABLED: ${{ secrets.MIDSCENE_MODEL_REASONING_ENABLED }}
       MIDSCENE_COMPUTER_HEADLESS_LINUX: "true"
       MIDSCENE_REPLANNING_CYCLE_LIMIT: "40"
+      # The Ark endpoint answers bursts with 429; retry up to 3 extra times
+      # with a 65s fixed pause so the wait spans the 60s RPM window.
+      MIDSCENE_MODEL_RETRY_COUNT: "3"
+      MIDSCENE_MODEL_RETRY_INTERVAL: "65000"
       # The configured model endpoint is reachable over IPv4; disabling Node's
       # family race avoids intermittent runner-side IPv6 connection timeouts.
       NODE_OPTIONS: "--dns-result-order=ipv4first --no-network-family-autoselection"
@@ -217,7 +225,9 @@ jobs:
       - name: Download every shard report
         uses: actions/download-artifact@3e5f45b2cfb9172054b4087a40e8e0b5a5461e7c # v8.0.1
         with:
-          pattern: omarchy-midscene-*
+          # Exclude the previous attempt's combined omarchy-midscene-e2e-report
+          # artifact when rerunning failed shards of the same workflow run.
+          pattern: omarchy-midscene-omarchy-*
           path: ${{ runner.temp }}/midscene-report-shards
           merge-multiple: false
 

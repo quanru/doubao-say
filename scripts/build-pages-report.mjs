@@ -16,8 +16,25 @@ import {
 } from './omarchy-shell-evidence.mjs';
 import { reportCases } from './report-cases.mjs';
 
-const MANIFEST_VERSION = 5;
-const SUPPORTED_MANIFEST_VERSIONS = new Set([1, 2, 3, 4, MANIFEST_VERSION]);
+const MANIFEST_VERSION = 7;
+const SUPPORTED_MANIFEST_VERSIONS = new Set([
+  1,
+  2,
+  3,
+  4,
+  5,
+  6,
+  MANIFEST_VERSION,
+]);
+
+export function formatDuration(durationMs) {
+  if (!Number.isFinite(durationMs) || durationMs < 0) return '';
+  const totalSeconds = Math.round(durationMs / 1000);
+  const minutes = Math.floor(totalSeconds / 60);
+  const seconds = totalSeconds % 60;
+  if (minutes === 0) return `${seconds}s`;
+  return `${minutes}m${String(seconds).padStart(2, '0')}s`;
+}
 
 function parseArguments(argv) {
   const options = {};
@@ -196,7 +213,7 @@ function collectAssertionResults(run) {
   return { passed, total };
 }
 
-function buildReportEntry({
+async function buildReportEntry({
   includeCaseReportPath = false,
   label,
   previewPath,
@@ -206,17 +223,27 @@ function buildReportEntry({
   role,
 }) {
   const status = report.run?.status ?? 'unknown';
-  const cases = reportCases(report.run, project, {
-    reportHtml: report.html,
-  }).map((testCase) => ({
+  const cases = (
+    await reportCases(report.run, project, {
+      reportHtml: report.html,
+      reportFile: report.file,
+    })
+  ).map((testCase) => ({
     caseId: testCase.caseId,
     name: testCase.name,
     status: testCase.status,
+    ...(Number.isFinite(testCase.durationMs)
+      ? { durationMs: testCase.durationMs }
+      : {}),
     stepId: testCase.stepId,
     selection: testCase.selection,
     description: testCase.description,
     descriptionKind: testCase.descriptionKind,
-    previewPath: `${path.posix.dirname(reportPath)}/${testCase.previewFile}`,
+    ...(testCase.previewFile
+      ? {
+          previewPath: `${path.posix.dirname(reportPath)}/${testCase.previewFile}`,
+        }
+      : {}),
     ...(includeCaseReportPath ? { reportPath } : {}),
   }));
   return {
@@ -236,15 +263,17 @@ function buildReportEntry({
   };
 }
 
-function buildReportGroup({ label, reports, role }) {
-  const reportEntries = reports.map((item) =>
-    item.fallbackEntry ??
-    buildReportEntry({
-      ...item,
-      includeCaseReportPath: true,
-      label,
-      role,
-    }),
+async function buildReportGroup({ label, reports, role }) {
+  const reportEntries = await Promise.all(
+    reports.map((item) =>
+      item.fallbackEntry ??
+      buildReportEntry({
+        ...item,
+        includeCaseReportPath: true,
+        label,
+        role,
+      }),
+    ),
   );
   const sum = (field, nested) =>
     reportEntries.reduce((total, entry) => total + entry[field][nested], 0);
@@ -386,11 +415,16 @@ function validReportEntry(entry, files) {
             typeof testCase.caseId === 'string' &&
             typeof testCase.name === 'string' &&
             ['success', 'failed'].includes(testCase.status) &&
+            (testCase.durationMs === undefined ||
+              Number.isInteger(testCase.durationMs)) &&
             (typeof testCase.stepId === 'string' ||
               testCase.selection === 'workflow-failure') &&
-            ['last-screenshot', 'first-failing-screenshot', 'workflow-failure'].includes(
-              testCase.selection,
-            ) &&
+            [
+              'last-screenshot',
+              'first-failing-screenshot',
+              'first-failing-no-screenshot',
+              'workflow-failure',
+            ].includes(testCase.selection) &&
             (testCase.description === undefined ||
               (typeof testCase.description === 'string' &&
                 testCase.description.length > 0)) &&
@@ -398,7 +432,9 @@ function validReportEntry(entry, files) {
               ['ai', 'error', 'result'].includes(testCase.descriptionKind)) &&
             (testCase.description === undefined) ===
               (testCase.descriptionKind === undefined) &&
-            files?.includes(testCase.previewPath) &&
+            (testCase.selection === 'first-failing-no-screenshot'
+              ? testCase.previewPath === undefined
+              : files?.includes(testCase.previewPath)) &&
             (testCase.reportPath === undefined ||
               files?.includes(testCase.reportPath)),
         )))
@@ -424,7 +460,7 @@ function validateHistoryManifest(manifest) {
           report.files.some(
             (file) =>
               typeof file !== 'string' ||
-              !/^reports\/\d+\/[a-z0-9.-]+$/.test(file) ||
+              !/^reports\/\d+\/(?:screenshots\/)?[a-z0-9.-]+$/.test(file) ||
               !file.startsWith(`reports/${report.runId}/`),
           ))) ||
       (report.entries !== undefined &&
@@ -460,28 +496,53 @@ async function fetchHistory(baseUrl) {
 }
 
 async function restoreReport(baseUrl, siteDirectory, report) {
-  for (const file of report.files ?? [report.reportPath]) {
-    const response = await fetch(new URL(file, baseUrl), {
-      redirect: 'follow',
-    });
-    if (!response.ok) {
-      throw new Error(
-        `Cannot restore report for run ${report.runId}: HTTP ${response.status}`,
-      );
+  const files = report.files ?? [report.reportPath];
+  let nextFile = 0;
+  let failure;
+  async function restoreNextFiles() {
+    while (nextFile < files.length && !failure) {
+      const file = files[nextFile++];
+      try {
+        await restoreFile(baseUrl, siteDirectory, report, file);
+      } catch (error) {
+        failure ??= error;
+      }
     }
-    const contentType = response.headers.get('content-type') ?? '';
-    if (
-      file.endsWith('.html') &&
-      !contentType.toLowerCase().includes('text/html')
-    ) {
-      throw new Error(
-        `Cannot restore report for run ${report.runId}: expected text/html, got ${contentType || 'no Content-Type'}`,
-      );
-    }
-    const destination = path.join(siteDirectory, file);
-    await mkdir(path.dirname(destination), { recursive: true });
-    await writeFile(destination, Buffer.from(await response.arrayBuffer()));
   }
+  await Promise.all(
+    Array.from({ length: Math.min(8, files.length) }, () => restoreNextFiles()),
+  );
+  if (failure) throw failure;
+}
+
+async function restoreFile(baseUrl, siteDirectory, report, file) {
+  let response;
+  for (let attempt = 0; attempt < 3; attempt++) {
+    response = await fetch(new URL(file, baseUrl), {
+      redirect: 'follow',
+      signal: AbortSignal.timeout(30_000),
+    });
+    if (response.status !== 503 || attempt === 2) break;
+    await response.body?.cancel();
+    await new Promise((done) => setTimeout(done, 1000 * (attempt + 1)));
+  }
+  if (!response.ok) {
+    throw new Error(
+      `Cannot restore report for run ${report.runId}: HTTP ${response.status}`,
+    );
+  }
+  const contentType = response.headers.get('content-type') ?? '';
+  if (
+    file.endsWith('.html') &&
+    !contentType.toLowerCase().includes('text/html')
+  ) {
+    throw new Error(
+      `Cannot restore report for run ${report.runId}: expected text/html, got ${contentType || 'no Content-Type'}`,
+    );
+  }
+  const destination = path.join(siteDirectory, file);
+  await mkdir(path.dirname(destination), { recursive: true });
+  await writeFile(destination, Buffer.from(await response.arrayBuffer()));
 }
 
 function escapeHtml(value) {
@@ -493,7 +554,7 @@ function escapeHtml(value) {
     .replaceAll("'", '&#039;');
 }
 
-function formatDuration(durationMs) {
+function formatModelDuration(durationMs) {
   if (durationMs === null) return 'Unavailable';
   return `${(durationMs / 1000).toFixed(2)} s`;
 }
@@ -522,7 +583,9 @@ function buildRunIndex(report) {
       const rows = entry.cases
         .map((testCase) => {
           const target = runStepHref(entry, testCase);
-          const image = path.basename(testCase.previewPath);
+          const image = testCase.previewPath
+            ? path.basename(testCase.previewPath)
+            : null;
           const status = testCase.status === 'success' ? '✅ Passed' : '❌ Failed';
           const descriptionLabel = {
             ai: 'AI',
@@ -533,7 +596,8 @@ function buildRunIndex(report) {
             <tr>
               <td class="status">${status}</td>
               <td><a href="${escapeHtml(target)}">${escapeHtml(testCase.name)}</a></td>
-              <td><a href="${escapeHtml(target)}"><img src="${escapeHtml(image)}" alt="${escapeHtml(testCase.name)} node screenshot" loading="lazy"></a></td>
+              <td class="duration">${escapeHtml(formatDuration(testCase.durationMs))}</td>
+              <td>${image ? `<a href="${escapeHtml(target)}"><img src="${escapeHtml(image)}" alt="${escapeHtml(testCase.name)} node screenshot" loading="lazy"></a>` : '<span class="unavailable">Not available</span>'}</td>
               <td><strong>${escapeHtml(descriptionLabel)}:</strong> ${escapeHtml(testCase.description)}</td>
             </tr>`;
         })
@@ -549,7 +613,7 @@ function buildRunIndex(report) {
           </div>
           <div class="table-wrap">
             <table>
-              <thead><tr><th>Result</th><th>Case</th><th>Node screenshot</th><th>AI response / error</th></tr></thead>
+              <thead><tr><th>Result</th><th>Case</th><th>Duration</th><th>Node screenshot</th><th>AI response / error</th></tr></thead>
               <tbody>${rows}
               </tbody>
             </table>
@@ -579,9 +643,10 @@ function buildRunIndex(report) {
       th { font-size: .78rem; text-transform: uppercase; }
       th:nth-child(1) { width: 7rem; }
       th:nth-child(2) { width: 17rem; }
-      th:nth-child(3) { width: 34%; }
+      th:nth-child(3) { width: 6rem; }
+      th:nth-child(4) { width: 34%; }
       td { line-height: 1.45; }
-      td.status { white-space: nowrap; }
+      td.status, td.duration { white-space: nowrap; }
       img { border: 1px solid #8885; border-radius: .5rem; display: block; height: auto; width: 100%; }
       @media (max-width: 900px) {
         body { padding: 1rem .6rem 3rem; }
@@ -612,7 +677,7 @@ function buildIndex(reports) {
             <td>${escapeHtml(report.label ?? 'Midscene E2E')}</td>
             <td>${escapeHtml(report.generatedAt)}</td>
             <td>${escapeHtml(report.successRate.toFixed(1))}%</td>
-            <td>${escapeHtml(formatDuration(report.averageDurationMs))}</td>
+            <td>${escapeHtml(formatModelDuration(report.averageDurationMs))}</td>
             <td>${escapeHtml(report.modelCallCount)}</td>
             <td>${report.tokenUsage === null ? 'Unavailable' : escapeHtml(report.tokenUsage.toLocaleString('en-US'))}</td>
             <td><a href="${escapeHtml(report.workflowUrl)}">Actions run</a></td>
@@ -691,19 +756,29 @@ export async function buildPagesReport(options) {
     throw new Error('Site output directory must be empty');
   }
 
-  const reportCandidates = await Promise.all(
-    (await findHtmlFiles(reportDirectory)).map(async (file) => ({
-      file,
-      html: await readFile(file, 'utf8'),
-    })),
-  );
+  const reportCandidates = (
+    await Promise.all(
+      (await findHtmlFiles(reportDirectory)).map(async (file) => ({
+        file,
+        html: await readFile(file, 'utf8'),
+      })),
+    )
+  ).map((report) => ({
+    ...report,
+    run: testRunDump(report.html),
+  }))
+    // Midscene Test 1.13.0 writes its HTML to midscene-e2e-<run>/ instead of
+    // the legacy test-run-* location, so findHtmlFiles also returns the
+    // standalone computer-*.html agent reports. Those carry no runner dump;
+    // only Midscene Test reports participate in aggregation.
+    .filter((report) => report.run !== null);
   const latestByProject = new Map();
   for (const report of reportCandidates) {
-    report.run = testRunDump(report.html);
     report.startedAt = Date.parse(report.run?.startedAt ?? '') || 0;
-    const projectKey =
-      report.run?.projects?.map((project) => project.name).join(',') ||
-      path.basename(report.file);
+    const projectKey = report.run?.projects
+      ?.map((project) => project.name)
+      .join(',');
+    if (!projectKey) continue;
     const previous = latestByProject.get(projectKey);
     if (!previous || report.startedAt >= previous.startedAt) {
       latestByProject.set(projectKey, report);
@@ -757,7 +832,9 @@ export async function buildPagesReport(options) {
     selectedReports = groupedReports.flatMap((group) =>
       group.reports.map((item) => item.report).filter(Boolean),
     );
-    entries = groupedReports.map((group) => buildReportGroup(group));
+    entries = await Promise.all(
+      groupedReports.map((group) => buildReportGroup(group)),
+    );
     reportCopies = groupedReports.flatMap((group) =>
       group.reports.filter((item) => item.report).flatMap((item) => [
         {
@@ -805,28 +882,30 @@ export async function buildPagesReport(options) {
           primaryNativeReport,
           `${reportPrefix}/report-preview.png`,
         ];
-    entries = [
-      buildReportEntry({
-        role: 'primary',
-        project: primaryProject,
-        label: primaryReportLabel,
-        report: primaryReport,
-        reportPath: primaryNativeReport,
-        previewPath: `${reportPrefix}/report-preview.png`,
-      }),
-      ...(auxiliaryReport
-        ? [
-            buildReportEntry({
-              role: 'auxiliary',
-              project: auxiliaryProject,
-              label: auxiliaryReportLabel,
-              report: auxiliaryReport,
-              reportPath: auxiliaryNativeReport,
-              previewPath: `${reportPrefix}/auxiliary-report-preview.png`,
-            }),
-          ]
-        : []),
-    ];
+    entries = await Promise.all(
+      [
+        buildReportEntry({
+          role: 'primary',
+          project: primaryProject,
+          label: primaryReportLabel,
+          report: primaryReport,
+          reportPath: primaryNativeReport,
+          previewPath: `${reportPrefix}/report-preview.png`,
+        }),
+        ...(auxiliaryReport
+          ? [
+              buildReportEntry({
+                role: 'auxiliary',
+                project: auxiliaryProject,
+                label: auxiliaryReportLabel,
+                report: auxiliaryReport,
+                reportPath: auxiliaryNativeReport,
+                previewPath: `${reportPrefix}/auxiliary-report-preview.png`,
+              }),
+            ]
+          : []),
+      ],
+    );
     reportCopies = [
       {
         source: primaryReport.file,
@@ -851,6 +930,36 @@ export async function buildPagesReport(options) {
     ];
   }
   const selectedFiles = new Set(selectedReports.map((report) => report.file));
+  // Midscene 1.13.0 keeps native-report screenshots in a sibling
+  // screenshots/ directory instead of inlining them in the HTML. The
+  // published native reports load screenshots/<id>.jpeg relatively, so
+  // publish the directory next to the flattened report files. File names are
+  // screenshot UUIDs (content-addressed), so a name shared by reports is
+  // published once.
+  const screenshotCopies = [];
+  const seenScreenshotNames = new Set();
+  for (const report of selectedReports) {
+    const screenshotDirectory = path.join(
+      path.dirname(report.file),
+      'screenshots',
+    );
+    let screenshotNames = [];
+    try {
+      screenshotNames = await readdir(screenshotDirectory);
+    } catch (error) {
+      if (error.code !== 'ENOENT') throw error;
+      continue;
+    }
+    for (const name of screenshotNames.sort()) {
+      if (seenScreenshotNames.has(name)) continue;
+      seenScreenshotNames.add(name);
+      screenshotCopies.push({
+        source: path.join(screenshotDirectory, name),
+        destination: `screenshots/${name}`,
+      });
+    }
+  }
+  reportCopies.push(...screenshotCopies);
   const declaredProjects = new Set(
     reportGroups ? reportGroups.flatMap((group) => group.projects) : [],
   );
@@ -881,9 +990,14 @@ export async function buildPagesReport(options) {
     { passed: 0, tests: 0 },
   );
   const casePreviewFiles = entries.flatMap((entry) =>
-    entry.cases.map((testCase) => testCase.previewPath),
+    entry.cases.map((testCase) => testCase.previewPath).filter(Boolean),
   );
-  const files = [...new Set([...baseFiles, ...casePreviewFiles])];
+  const screenshotFiles = screenshotCopies.map(
+    (copy) => `${reportPrefix}/${copy.destination}`,
+  );
+  const files = [
+    ...new Set([...baseFiles, ...casePreviewFiles, ...screenshotFiles]),
+  ];
   const current = {
     runId,
     generatedAt,
@@ -914,7 +1028,9 @@ export async function buildPagesReport(options) {
     const source =
       reportCopy.source ??
       (await findUniqueFile(reportDirectory, reportCopy.sourceName));
-    await copyFile(source, path.join(currentDirectory, reportCopy.destination));
+    const destination = path.join(currentDirectory, reportCopy.destination);
+    await mkdir(path.dirname(destination), { recursive: true });
+    await copyFile(source, destination);
   }
   for (const fallback of generatedFallbacks) {
     const [testCase] = fallback.entry.cases;
@@ -929,7 +1045,12 @@ export async function buildPagesReport(options) {
   }
   for (const entry of entries) {
     for (const testCase of entry.cases) {
-      if (testCase.selection === 'workflow-failure') continue;
+      if (
+        testCase.selection === 'workflow-failure' ||
+        testCase.selection === 'first-failing-no-screenshot'
+      ) {
+        continue;
+      }
       await copyFile(
         await findUniqueFile(
           reportDirectory,

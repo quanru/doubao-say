@@ -3,7 +3,7 @@ cases:
     steps:
       - shell.openSystemMenu: {}
       - aiAssert: The Omarchy system menu is open, and its Shutdown item is clearly readable.
-      - aiAssert: Exactly one row in the open system menu has a visible focus highlight or accent, and the highlight is rendered cleanly.
+      - aiAssert: The Lock row in the open system menu has a blue-gray focus highlight behind its text; the adjacent Screensaver and Suspend rows do not have that highlighted background.
       - shell.closeSystemMenu: {}
       - shell.moveBarLeft: {}
       - aiAssert: The Omarchy bar is visible as a tall vertical bar docked to the left edge of the desktop, rather than a horizontal bar across the top or bottom.

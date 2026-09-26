@@ -54,8 +54,8 @@ test('records every shard and renders the Summary before Pages deployment', asyn
     );
     assert.match(
       source,
-      /max-parallel: 5/,
-      `${workflow} must start all four product shards and its auxiliary project together`,
+      /^\s*max-parallel: 5$/m,
+      `${workflow} must run its independent VM shards in parallel`,
     );
     assert.match(source, /if-no-files-found: error/);
     assert.match(source, /Create bundle even when every shard failed early/);
@@ -99,6 +99,15 @@ test('records every shard and renders the Summary before Pages deployment', asyn
   );
 });
 
+test('rerun aggregation excludes the previous combined report artifact', async () => {
+  const source = await readFile(
+    new URL('../../.github/workflows/midscene-omarchy-4.0.3.yml', import.meta.url),
+    'utf8',
+  );
+  assert.match(source, /pattern: omarchy-midscene-omarchy-\*/);
+  assert.doesNotMatch(source, /pattern: omarchy-midscene-\*\s*$/m);
+});
+
 test('assigns every product case to exactly one balanced shard', async () => {
   const shardCounts = new Map();
   let caseCount = 0;
@@ -133,12 +142,125 @@ test('assigns every product case to exactly one balanced shard', async () => {
   });
 });
 
+test('keeps visual E2E interactions at task level with proven tap exceptions', async () => {
+  for (const file of [
+    'onboarding.yaml',
+    'onboarding-regressions.yaml',
+    'polishing.yaml',
+    'runtime.yaml',
+  ]) {
+    const source = await readFile(
+      new URL(`../e2e/cases/${file}`, import.meta.url),
+      'utf8',
+    );
+    const oneShotActions = source.match(
+      /^\s+-\s+(?:aiTap|aiScroll|aiInput|computer\.inputText|computer\.tapPoint|computer\.selectTriggerPreset):.*$/gm,
+    ) ?? [];
+    assert.deepEqual(
+      oneShotActions.map((line) => line.trim()),
+      file === 'onboarding.yaml'
+        ? [
+            '- aiTap: The large blue full-width Open Doubao sign-in button near the bottom of the central Sign in panel, around 50% width and 73% screen height',
+            '- aiTap: The blue Simulate successful sign-in button in the CI-only modal, around 50% width and 43% screen height',
+            '- aiTap: Check microphone · 3 seconds button on the Microphone step',
+            '- aiTap: Right-arrow Next button in the fixed top navigation',
+            '- aiScroll:',
+            '- aiTap: Test endpoint button in the Voice polishing section',
+            '- aiTap: Right-arrow Next button in the fixed top navigation',
+            '- aiTap: Start voice test button',
+            '- aiTap: Finish & check result button',
+            '- aiTap: Enabled Finish setup button that says Voice test passed and nothing pasted or sent',
+          ]
+        : file === 'onboarding-regressions.yaml'
+          ? [
+              '- aiTap: The large blue full-width Open Doubao sign-in button near the bottom of the central Sign in panel, around 50% width and 73% screen height',
+              '- aiTap: The large blue full-width Open Doubao sign-in button near the bottom of the central Sign in panel, around 50% width and 73% screen height',
+              '- aiTap: The blue Simulate successful sign-in button in the CI-only modal, around 50% width and 43% screen height',
+              '- aiTap: The large blue full-width Open Doubao sign-in button near the bottom of the central Sign in panel, around 50% width and 73% screen height',
+              '- aiTap: The blue Simulate successful sign-in button in the CI-only modal, around 50% width and 43% screen height',
+              '- computer.tapPoint: { target: Left-arrow Previous button in the fixed top navigation, point: { x: 240, y: 203 } }',
+              '- computer.tapPoint: { target: Right-arrow Next button in the fixed top navigation, point: { x: 1038, y: 203 } }',
+              '- computer.selectTriggerPreset: { preset: Disabled }',
+              '- computer.tapPoint: { target: Right-arrow Next button in the fixed top navigation, point: { x: 1038, y: 203 } }',
+              '- computer.selectTriggerPreset: { preset: F8 }',
+              '- computer.tapPoint: { target: Right-arrow Next button in the fixed top navigation, point: { x: 1038, y: 203 } }',
+              '- computer.tapPoint: { target: Left-arrow Previous button in the fixed top navigation, point: { x: 240, y: 203 } }',
+              '- aiScroll:',
+              '- computer.tapPoint: { target: Enabled Voice polishing switch, point: { x: 1180, y: 316 } }',
+              '- computer.tapPoint: { target: Disabled Voice polishing switch in the collapsed card, point: { x: 1166, y: 554 } }',
+              '- aiScroll:',
+              '- aiScroll:',
+              '- computer.inputText: { target: The text entry to the right of Model containing synthetic-model, value: ci-fail-model, point: { x: 850, y: 477 } }',
+              '- aiTap: Test endpoint button in the Voice polishing section',
+              '- computer.inputText: { target: The text entry to the right of Model containing ci-fail-model, value: ci-ok-model, point: { x: 850, y: 477 } }',
+              '- aiTap: Test failed — try again button in the Voice polishing section',
+              '- aiTap: Right-arrow Next button in the fixed top navigation',
+              '- aiScroll:',
+              '- computer.tapPoint: { target: Left-arrow Previous button in the fixed top navigation, point: { x: 240, y: 203 } }',
+              '- aiTap: Check microphone · 3 seconds button on the Microphone step',
+              '- aiTap: Right-arrow Next button in the fixed top navigation',
+              '- aiScroll:',
+              '- aiTap: Start voice test button in the Voice test section',
+              '- aiTap: Cancel test button in the active voice test',
+              '- aiTap: Start voice test button in the Voice test section',
+              '- aiTap: Finish & check result button in the active voice test',
+              '- aiTap: The Recognition service dropdown currently showing Doubao account',
+              '- aiTap: Volcengine API option in the open Recognition service dropdown',
+              '- aiTap: Test API key button on the Recognition step',
+              '- aiTap: Right-arrow Next button in the fixed top navigation',
+              '- aiTap: Recognition service dropdown currently showing Doubao account',
+              '- aiTap: Deepgram Nova-3 (English) option in the opened dropdown',
+              '- aiScroll:',
+              '- computer.inputText:',
+              '- aiTap: Test API key button below the API Key field',
+              '- aiTap: The microphone dropdown currently showing Synthetic microphone one',
+              '- aiTap: Synthetic microphone two option in the open microphone dropdown',
+              '- aiTap: Right-arrow Next button in the fixed top navigation',
+              '- aiScroll:',
+              '- aiTap: Left-arrow Previous button in the fixed top navigation',
+              '- aiTap: Check microphone · 3 seconds button on the Microphone step',
+              '- aiTap: Right-arrow Next button in the fixed top navigation',
+              '- aiScroll:',
+              '- aiTap: The trigger selection dropdown currently showing fn',
+              '- aiTap: Record a shortcut… option in the open trigger selection dropdown',
+              '- aiTap: Right-arrow Next button in the fixed top navigation',
+              '- aiTap: Left-arrow Previous button in the fixed top navigation',
+            ]
+          : [],
+      `${file} must express visual interactions as task-level aiAct steps except for proven failures`,
+    );
+    assert.doesNotMatch(
+      source,
+      /^\s+-\s+wait:/gm,
+      `${file} must wait for a visible state with aiWaitFor instead of sleeping`,
+    );
+  }
+});
+
+test('captures both legacy and current Midscene report step lists', async () => {
+  const source = await readFile(
+    new URL('../e2e/capture-report-preview.mjs', import.meta.url),
+    'utf8',
+  );
+  assert.match(
+    source,
+    /\.runner-detail-step-group > button, .*\.runner-detail-step-list > button/,
+  );
+  assert.match(
+    source,
+    /\.runner-detail-step-group > button\.is-selected, .*\.runner-detail-step-list > button\.is-selected/,
+  );
+  assert.match(source, /waitUntil: 'domcontentloaded'/);
+  assert.match(source, /timeout: 120_000/);
+});
+
 function runnerScript({
   assertionCount = 0,
   assertionAttempts,
   project,
   status = 'success',
   startedAt,
+  screenshotMode = 'inline',
 }) {
   const attempts =
     assertionAttempts ??
@@ -191,11 +313,13 @@ function runnerScript({
                       status: statuses.every((item) => item === 'success')
                         ? 'success'
                         : 'failed',
+                      durationMs: 12000 + attemptIndex * 1000,
                       steps: statuses.map((stepStatus, stepIndex) => ({
                         id: `assert-${attemptIndex}-${stepIndex}`,
                         node: assertionCount || assertionAttempts ? 'aiAssert' : 'aiAct',
                         title: `Evidence ${attemptIndex}-${stepIndex}`,
                         status: stepStatus,
+                        durationMs: 4000 + stepIndex * 500,
                         ...(stepStatus === 'failed'
                           ? {
                               error: {
@@ -213,16 +337,77 @@ function runnerScript({
       },
     ],
   };
-  return `<script type="midscene_web_dump" data-report-id="${reportId}">${JSON.stringify({ executions })}</script>
-${attempts
-  .flatMap((statuses, attemptIndex) =>
-    statuses.map(
-      (_stepStatus, stepIndex) =>
-        `<script type="midscene-image" data-id="screenshot-${attemptIndex}-${stepIndex}">data:image/jpeg;base64,/9j/2Q==</script>`,
-    ),
-  )
-  .join('\n')}
+  return `<script type="midscene_web_dump" data-report-id="${reportId}"${
+    screenshotMode === 'directory'
+      ? ' data-screenshot-mode="directory"'
+      : ''
+  }>${JSON.stringify({ executions })}</script>
+${
+  screenshotMode === 'inline'
+    ? attempts
+        .flatMap((statuses, attemptIndex) =>
+          statuses.map(
+            (_stepStatus, stepIndex) =>
+              `<script type="midscene-image" data-id="screenshot-${attemptIndex}-${stepIndex}">data:image/jpeg;base64,/9j/2Q==</script>`,
+          ),
+        )
+        .join('\n')
+    : ''
+}
 <script type="midscene_test_run_dump">${JSON.stringify(run)}</script>`;
+}
+
+function runnerWithoutScreenshot({ project, startedAt }) {
+  const run = {
+    startedAt,
+    status: 'failed',
+    summary: { total: 2, passed: 0, failed: 1, notRun: 1 },
+    projects: [
+      {
+        name: project,
+        documents: [
+          {
+            cases: [
+              {
+                caseId: `case-${project}`,
+                name: `${project} damaged-agent case`,
+                status: 'failed',
+                attempts: [
+                  {
+                    status: 'failed',
+                    durationMs: 480000,
+                    steps: [
+                      {
+                        id: 'act-without-execution',
+                        node: 'aiAct',
+                        title: 'Timed-out action',
+                        status: 'failed',
+                        error: {
+                          message:
+                            'AI call hard timeout; no stable Agent execution reference was captured',
+                        },
+                      },
+                    ],
+                  },
+                ],
+              },
+            ],
+          },
+          {
+            cases: [
+              {
+                caseId: `not-run-${project}`,
+                name: `${project} not-run case`,
+                status: 'not-run',
+                attempts: [],
+              },
+            ],
+          },
+        ],
+      },
+    ],
+  };
+  return `<script type="midscene_test_run_dump">${JSON.stringify(run)}</script>`;
 }
 
 const fixtureHtml = `<!doctype html><html><body>report
@@ -359,6 +544,78 @@ test('simulates a first deployment when Pages returns 404', async (context) => {
   );
 });
 
+test('publishes 1.13.0 directory-mode screenshots next to the native report', async (context) => {
+  const root = await mkdtemp(path.join(os.tmpdir(), 'pages-directory-'));
+  const reportRoot = path.join(root, 'artifact');
+  const htmlDirectory = path.join(
+    reportRoot,
+    'report',
+    'midscene-e2e-20260921045854-d9ab4bd0',
+  );
+  await mkdir(path.join(htmlDirectory, 'screenshots'), {
+    recursive: true,
+  });
+  const html = runnerScript({
+    project: 'ubuntu',
+    startedAt: '2026-09-15T12:00:00Z',
+    screenshotMode: 'directory',
+  });
+  await writeFile(path.join(htmlDirectory, 'index.html'), html);
+  await writeFile(
+    path.join(htmlDirectory, 'screenshots', 'screenshot-0-0.jpeg'),
+    'directory screenshot bytes',
+  );
+  // 1.13.0 also writes standalone computer-*.html agent reports without a
+  // runner dump; they must not be treated as undeclared report projects.
+  await writeFile(
+    path.join(reportRoot, 'report', 'computer-2026-09-21_04-58-55.html'),
+    '<html>standalone computer agent report</html>',
+  );
+  await writeFile(
+    path.join(reportRoot, 'report-preview.png'),
+    'preview',
+  );
+  await writeFile(
+    path.join(reportRoot, 'case-preview-ubuntu-case-ubuntu.jpg'),
+    'ubuntu case preview',
+  );
+  const siteDirectory = path.join(root, 'site');
+  const server = await startServer((_request, response) => {
+    response.writeHead(404).end();
+  });
+  context.after(server.close);
+
+  const manifest = await buildPagesReport(
+    options(reportRoot, siteDirectory, server.url),
+  );
+
+  assert.equal(
+    await readFile(
+      path.join(
+        siteDirectory,
+        'reports',
+        '200',
+        'screenshots',
+        'screenshot-0-0.jpeg',
+      ),
+      'utf8',
+    ),
+    'directory screenshot bytes',
+  );
+  assert.ok(
+    manifest.reports[0].files.includes(
+      'reports/200/screenshots/screenshot-0-0.jpeg',
+    ),
+  );
+  assert.deepEqual(manifest.reports[0].files, [
+    'reports/200/index.html',
+    'reports/200/native-report.html',
+    'reports/200/report-preview.png',
+    'reports/200/case-preview-ubuntu-case-ubuntu.jpg',
+    'reports/200/screenshots/screenshot-0-0.jpeg',
+  ]);
+});
+
 test('combines independently executed shards into one report table', async (context) => {
   const root = await mkdtemp(path.join(os.tmpdir(), 'pages-shards-'));
   const reportDirectory = path.join(root, 'bundle');
@@ -431,6 +688,8 @@ test('combines independently executed shards into one report table', async (cont
     summary,
     /native-report-ubuntu-shard-2\.html#runner-step=assert-0-0/,
   );
+  assert.match(summary, /\| ubuntu-shard-1 \| \[ubuntu-shard-1 visual case\]/);
+  assert.match(summary, /\| ubuntu-shard-2 \| \[ubuntu-shard-2 visual case\]/);
 });
 
 test('keeps a complete Markdown table when a shard produces no native report', async (context) => {
@@ -583,6 +842,7 @@ test('publishes the Doubao Say report as the primary CI entrance', async (contex
           caseId: 'case-ubuntu',
           name: 'ubuntu visual case',
           status: 'success',
+          durationMs: 12000,
           stepId: 'assert-0-0',
           selection: 'last-screenshot',
           description: 'AI explanation 0-0',
@@ -606,6 +866,7 @@ test('publishes the Doubao Say report as the primary CI entrance', async (contex
           caseId: 'case-omarchy-shell',
           name: 'omarchy-shell visual case',
           status: 'success',
+          durationMs: 12000,
           stepId: 'assert-0-2',
           selection: 'last-screenshot',
           description: 'AI explanation 0-2',
@@ -824,11 +1085,14 @@ test('restores retained history before adding the new run', async (context) => {
     workflowUrl: 'https://github.com/quanru/doubao-say/actions/runs/100',
     reportPath: 'reports/100/index.html',
   };
+  let restoreAttempts = 0;
   const server = await startServer((request, response) => {
     if (request.url === '/reports/manifest.json') {
       response.setHeader('content-type', 'application/json');
       response.end(JSON.stringify({ version: 1, reports: [oldEntry] }));
     } else if (request.url === '/reports/100/index.html') {
+      restoreAttempts++;
+      if (restoreAttempts === 1) return response.writeHead(503).end();
       response.setHeader('content-type', 'text/html; charset=utf-8');
       response.end(oldReport);
     } else {
@@ -845,6 +1109,7 @@ test('restores retained history before adding the new run', async (context) => {
     manifest.reports.map((report) => report.runId),
     ['200', '100'],
   );
+  assert.equal(restoreAttempts, 2);
   assert.equal(
     await readFile(
       path.join(siteDirectory, 'reports', '100', 'index.html'),
@@ -858,11 +1123,67 @@ test('restores retained history before adding the new run', async (context) => {
       'utf8',
     ),
   );
-  assert.equal(writtenManifest.version, 5);
+  assert.equal(writtenManifest.version, 7);
   assert.equal(writtenManifest.reports[0].reportPath, 'reports/200/index.html');
   assert.equal(
     writtenManifest.reports[0].workflowUrl,
     'https://github.com/quanru/doubao-say/actions/runs/200',
+  );
+});
+
+test('restores large report histories with bounded parallel downloads', async (context) => {
+  const root = await mkdtemp(path.join(os.tmpdir(), 'pages-parallel-history-'));
+  const reportDirectory = await fixtureDirectory(root);
+  const siteDirectory = path.join(root, 'site');
+  const files = [
+    'reports/100/index.html',
+    ...Array.from({ length: 15 }, (_, index) =>
+      `reports/100/screenshots/shot-${index}.jpeg`,
+    ),
+  ];
+  let active = 0;
+  let peak = 0;
+  const server = await startServer((request, response) => {
+    if (request.url === '/reports/manifest.json') {
+      response.setHeader('content-type', 'application/json');
+      response.end(JSON.stringify({
+        version: 7,
+        reports: [{
+          runId: '100',
+          generatedAt: '2026-09-14T12:00:00.000Z',
+          label: 'Omarchy 4.0.3',
+          successRate: 100,
+          testCount: 1,
+          averageDurationMs: 4000,
+          modelCallCount: 1,
+          tokenUsage: null,
+          workflowUrl: 'https://github.com/quanru/doubao-say/actions/runs/100',
+          reportPath: 'reports/100/index.html',
+          files,
+        }],
+      }));
+      return;
+    }
+    active++;
+    peak = Math.max(peak, active);
+    setTimeout(() => {
+      response.setHeader(
+        'content-type',
+        request.url.endsWith('.html') ? 'text/html' : 'image/jpeg',
+      );
+      response.end(request.url);
+      active--;
+    }, 30);
+  });
+  context.after(server.close);
+
+  await buildPagesReport(options(reportDirectory, siteDirectory, server.url));
+
+  assert.ok(peak > 1, `expected parallel requests, saw ${peak}`);
+  assert.ok(peak <= 8, `expected at most 8 requests, saw ${peak}`);
+  assert.equal(
+    await readFile(path.join(siteDirectory, files.at(-1)), 'utf8'),
+    `/${files.at(-1)}`,
   );
 });
 
@@ -919,6 +1240,81 @@ test('restores version 4 history created before node text evidence', async (cont
   );
   assert.deepEqual(manifest.reports.map((report) => report.runId), ['200', '100']);
   assert.equal(manifest.reports[1].entries[0].cases[0].description, undefined);
+});
+
+test('restores version 6 history with directory-mode screenshots', async (context) => {
+  const root = await mkdtemp(path.join(os.tmpdir(), 'pages-v6-history-'));
+  const reportDirectory = await fixtureDirectory(root);
+  const siteDirectory = path.join(root, 'site');
+  const files = [
+    'reports/100/index.html',
+    'reports/100/native-report.html',
+    'reports/100/report-preview.png',
+    'reports/100/case-preview-ubuntu-old-case.jpg',
+    'reports/100/screenshots/node-shot-1.jpeg',
+  ];
+  const oldEntry = {
+    runId: '100',
+    generatedAt: '2026-09-20T12:00:00.000Z',
+    label: 'Ubuntu 22.04',
+    successRate: 100,
+    testCount: 1,
+    modelCallCount: 1,
+    averageDurationMs: 4000,
+    tokenUsage: 100,
+    workflowUrl: 'https://github.com/quanru/doubao-say/actions/runs/100',
+    reportPath: files[0],
+    files,
+    entries: [
+      {
+        role: 'primary',
+        project: 'ubuntu',
+        label: 'Doubao Say',
+        status: 'success',
+        previewStep: 'last',
+        reportPath: files[1],
+        previewPath: files[2],
+        scenarios: { passed: 1, total: 1 },
+        assertions: { passed: 1, total: 1 },
+        cases: [
+          {
+            caseId: 'old-case',
+            name: 'Old visual case',
+            status: 'success',
+            stepId: 'old-step',
+            selection: 'last-screenshot',
+            description: 'Old AI explanation',
+            descriptionKind: 'ai',
+            previewPath: files[3],
+          },
+        ],
+      },
+    ],
+  };
+  const server = await startServer((request, response) => {
+    if (request.url === '/reports/manifest.json') {
+      response.setHeader('content-type', 'application/json');
+      response.end(JSON.stringify({ version: 6, reports: [oldEntry] }));
+      return;
+    }
+    const file = files.find((candidate) => `/${candidate}` === request.url);
+    if (!file) return response.writeHead(404).end();
+    response.setHeader(
+      'content-type',
+      file.endsWith('.html') ? 'text/html; charset=utf-8' : 'image/jpeg',
+    );
+    response.end(file);
+  });
+  context.after(server.close);
+
+  const manifest = await buildPagesReport(
+    options(reportDirectory, siteDirectory, server.url),
+  );
+  assert.deepEqual(manifest.reports.map((report) => report.runId), ['200', '100']);
+  assert.equal(
+    await readFile(path.join(siteDirectory, files[4]), 'utf8'),
+    files[4],
+  );
 });
 
 test('stops when a manifest exists but an old report cannot be restored', async (context) => {
@@ -986,7 +1382,7 @@ test('rejects an undeclared report project', async (context) => {
   );
 });
 
-test('renders one full-width section per structured report entry', () => {
+test('renders Rome-style passed-case appendix with linked screenshots', () => {
   const manifest = {
     reports: [
       {
@@ -1007,6 +1403,7 @@ test('renders one full-width section per structured report entry', () => {
                 caseId: 'case-ubuntu',
                 name: 'Launch and finish onboarding',
                 status: 'success',
+                durationMs: 73000,
                 stepId: 'case-ubuntu:steps:8',
                 selection: 'last-screenshot',
                 description: 'The setup completion state is visible.',
@@ -1031,6 +1428,7 @@ test('renders one full-width section per structured report entry', () => {
                 caseId: 'case-polishing',
                 name: 'Polish selected text',
                 status: 'success',
+                durationMs: 52000,
                 stepId: 'case-polishing:steps:5',
                 selection: 'last-screenshot',
                 description: 'The polished text is visible.',
@@ -1053,21 +1451,22 @@ test('renders one full-width section per structured report entry', () => {
   });
 
   assert.match(summary, /Ubuntu × Midscene · passed/);
-  assert.match(summary, /Doubao Say: 6\/6 scenarios passed/);
-  assert.match(summary, /Polishing overlay report: 1\/1 scenarios passed/);
-  assert.match(
-    summary,
-    /\| Result \| Case \| Node screenshot \| AI response \/ error \|/,
-  );
-  assert.match(summary, /✅ Passed/);
+  assert.match(summary, /\*\*✅ 0 need attention · 2 passed\*\*/);
+  assert.match(summary, /🎉 All 2 cases passed\./);
+  assert.doesNotMatch(summary, /### Needs attention/);
   assert.match(
     summary,
     /index\.html#runner-step=case-ubuntu%3Asteps%3A8/,
   );
-  assert.match(summary, /Last screenshot: Launch and finish onboarding/);
-  assert.match(summary, /\*\*AI:\*\* The setup completion state is visible\./);
-  assert.doesNotMatch(summary, /report report/);
-  assert.match(summary, /Each image is the original page screenshot/);
+  assert.match(summary, /\| Shard \| Case \| Screenshot \| Status \| Duration \|/);
+  assert.match(summary, /\| ubuntu \| \[Launch and finish onboarding\].*\| ✅ Passed \| 1m13s \|/);
+  assert.match(summary, /\| ubuntu-polishing \| \[Polish selected text\].*\| ✅ Passed \| 52s \|/);
+  assert.match(
+    summary,
+    /<img src="[^"]*case-preview-ubuntu-case-ubuntu\.jpg"[^>]*width="160">/,
+  );
+  assert.match(summary, /<summary>Appendix: passed cases \(2\)<\/summary>/);
+  assert.match(summary, /Open the published HTML report/);
 });
 
 test('renders singular failure copy for one available report', () => {
@@ -1113,20 +1512,24 @@ test('renders singular failure copy for one available report', () => {
   });
 
   assert.match(summary, /Ubuntu × Midscene · failure captured/);
-  assert.match(summary, /❌ Failed/);
-  assert.match(summary, /First failing screenshot: Broken flow/);
+  assert.match(summary, /\*\*1 need attention · 0 passed\*\*/);
+  assert.match(summary, /### Needs attention/);
+  assert.match(summary, /\| Shard \| Case \| Screenshot \| Status \/ reason \| Duration \|/);
+  assert.match(summary, /\| ubuntu \| \[Broken flow\]/);
+  assert.match(summary, /<img src="[^"]*case-preview-ubuntu-case-fail\.jpg"[^>]*width="160">/);
   assert.match(
     summary,
-    /\*\*Error:\*\* Node "aiAssert" failed: expected state missing\./,
+    /Error: Node "aiAssert" failed: expected state missing\./,
   );
   assert.match(
     summary,
     /index\.html#runner-step=case-fail%3Asteps%3A2/,
   );
-  assert.match(summary, /Each image is the original page screenshot/);
+  assert.match(summary, /case-preview-ubuntu-case-fail\.jpg/);
+  assert.match(summary, /<summary>Appendix: passed cases \(0\)<\/summary>/);
 });
 
-test('selects the last screenshot for success and first failed screenshot for failure', () => {
+test('selects the last screenshot for success and first failed screenshot for failure', async () => {
   const run = {
     projects: [
       {
@@ -1170,7 +1573,9 @@ test('selects the last screenshot for success and first failed screenshot for fa
   };
 
   assert.deepEqual(
-    reportCases(run, 'ubuntu').map(({ caseId, stepId, selection }) => ({
+    (
+      await reportCases(run, 'ubuntu')
+    ).map(({ caseId, stepId, selection }) => ({
       caseId,
       stepId,
       selection,
@@ -1190,14 +1595,16 @@ test('selects the last screenshot for success and first failed screenshot for fa
   );
 });
 
-test('pairs an original node screenshot with its AI text or error', () => {
+test('pairs an original node screenshot with its AI text or error', async () => {
   const successHtml = runnerScript({
     project: 'ubuntu',
     startedAt: '2026-09-15T12:00:00Z',
   });
-  const success = reportCases(testRunDump(successHtml), 'ubuntu', {
-    reportHtml: successHtml,
-  })[0];
+  const success = (
+    await reportCases(testRunDump(successHtml), 'ubuntu', {
+      reportHtml: successHtml,
+    })
+  )[0];
   assert.equal(success.descriptionKind, 'ai');
   assert.equal(success.description, 'AI explanation 0-0');
   assert.deepEqual(success.screenshot.bytes, Buffer.from('/9j/2Q==', 'base64'));
@@ -1207,12 +1614,82 @@ test('pairs an original node screenshot with its AI text or error', () => {
     startedAt: '2026-09-15T12:00:00Z',
     status: 'failed',
   });
-  const failure = reportCases(testRunDump(failureHtml), 'ubuntu', {
-    reportHtml: failureHtml,
-  })[0];
+  const failure = (
+    await reportCases(testRunDump(failureHtml), 'ubuntu', {
+      reportHtml: failureHtml,
+    })
+  )[0];
   assert.equal(failure.descriptionKind, 'error');
   assert.equal(failure.description, 'Fixture error 0-0');
   assert.deepEqual(failure.screenshot.bytes, Buffer.from('/9j/2Q==', 'base64'));
+});
+
+test('preserves a failed case and skips a not-run case after agent damage', async () => {
+  const html = runnerWithoutScreenshot({
+    project: 'ubuntu',
+    startedAt: '2026-09-21T12:00:00Z',
+  });
+  const cases = await reportCases(testRunDump(html), 'ubuntu', {
+    reportHtml: html,
+  });
+  assert.equal(cases.length, 1);
+  const [testCase] = cases;
+
+  assert.equal(testCase.name, 'ubuntu damaged-agent case');
+  assert.equal(testCase.stepId, 'act-without-execution');
+  assert.equal(testCase.selection, 'first-failing-no-screenshot');
+  assert.equal(testCase.previewFile, undefined);
+  assert.equal(testCase.screenshot, undefined);
+  assert.equal(testCase.descriptionKind, 'error');
+  assert.match(testCase.description, /no stable Agent execution reference/);
+});
+
+test('publishes all case metadata when one report has no node screenshot', async (context) => {
+  const root = await mkdtemp(path.join(os.tmpdir(), 'pages-no-node-shot-'));
+  const reportDirectory = path.join(root, 'artifact');
+  const nativeDirectory = path.join(reportDirectory, 'report');
+  await mkdir(nativeDirectory, { recursive: true });
+  const html = runnerWithoutScreenshot({
+    project: 'ubuntu',
+    startedAt: '2026-09-21T12:00:00Z',
+  });
+  await writeFile(path.join(nativeDirectory, 'test-run-ubuntu.html'), html);
+  await writeFile(path.join(reportDirectory, 'report-preview.png'), 'preview');
+  const siteDirectory = path.join(root, 'site');
+  const server = await startServer((_request, response) =>
+    response.writeHead(404).end(),
+  );
+  context.after(server.close);
+
+  const manifest = await buildPagesReport({
+    ...options(reportDirectory, siteDirectory, server.url),
+  });
+  const [testCase] = manifest.reports[0].entries[0].cases;
+  assert.equal(manifest.version, 7);
+  assert.equal(testCase.selection, 'first-failing-no-screenshot');
+  assert.equal(testCase.previewPath, undefined);
+  assert.match(testCase.description, /no stable Agent execution reference/);
+  assert.doesNotMatch(JSON.stringify(manifest.reports[0].files), /case-preview/);
+
+  const runIndex = await readFile(
+    path.join(siteDirectory, 'reports', '200', 'index.html'),
+    'utf8',
+  );
+  assert.match(runIndex, /ubuntu damaged-agent case/);
+  assert.match(runIndex, /Not available/);
+
+  const summary = renderReportSummary({
+    manifest,
+    pagesUrl: 'https://example.test/doubao-say/',
+    producerResult: 'failure',
+    runId: '200',
+    summaryTitle: 'Ubuntu',
+  });
+  assert.match(summary, /1 need attention · 0 passed/);
+  assert.match(summary, /### Needs attention/);
+  assert.match(summary, /\| ubuntu \| \[ubuntu damaged-agent case\].*\| — \| ❌ Failed:/);
+  assert.match(summary, /Appendix: passed cases \(0\)/);
+  assert.match(summary, /ubuntu damaged-agent case/);
 });
 
 test('finds Omarchy evidence by project instead of assertion wording', async () => {
@@ -1238,6 +1715,95 @@ test('finds Omarchy evidence by project instead of assertion wording', async () 
   );
 });
 
+test('uses the successful Omarchy retry instead of failed earlier assertions', async () => {
+  const root = await mkdtemp(path.join(os.tmpdir(), 'shell-retry-'));
+  const reportDirectory = path.join(root, 'report');
+  await mkdir(reportDirectory, { recursive: true });
+  const failedAttempt = `<script type="midscene_web_dump">${JSON.stringify({
+    executions: [true, false].map((output) => ({
+      tasks: [{ status: 'finished', subType: 'Assert', output }],
+    })),
+  })}</script>`;
+  await writeFile(
+    path.join(reportDirectory, 'test-run-shell.html'),
+    shellFixtureHtml.replace('<body>', `<body>${failedAttempt}`),
+  );
+
+  const report = await findShellReport(root);
+  assert.deepEqual(report.checks.map(({ passed }) => passed), [true, true, true]);
+});
+
+test('reads Midscene Test 1.13.0 node screenshots from the screenshots directory', async () => {
+  const root = await mkdtemp(path.join(os.tmpdir(), 'directory-shots-'));
+  const reportDirectory = path.join(
+    root,
+    'report',
+    'midscene-e2e-20260921045854-d9ab4bd0',
+  );
+  await mkdir(path.join(reportDirectory, 'screenshots'), {
+    recursive: true,
+  });
+  const html = runnerScript({
+    project: 'ubuntu',
+    startedAt: '2026-09-21T12:00:00Z',
+    screenshotMode: 'directory',
+  });
+  const reportFile = path.join(reportDirectory, 'index.html');
+  await writeFile(reportFile, html);
+  await writeFile(
+    path.join(reportDirectory, 'screenshots', 'screenshot-0-0.jpeg'),
+    Buffer.from('/9j/2Q==', 'base64'),
+  );
+
+  const [testCase] = await reportCases(testRunDump(html), 'ubuntu', {
+    reportHtml: html,
+    reportFile,
+  });
+  assert.equal(testCase.descriptionKind, 'ai');
+  assert.equal(testCase.description, 'AI explanation 0-0');
+  assert.equal(testCase.screenshot.extension, 'jpg');
+  assert.deepEqual(
+    testCase.screenshot.bytes,
+    Buffer.from('/9j/2Q==', 'base64'),
+  );
+});
+
+test('reads 1.13.0 shell screenshots from the screenshots directory', async () => {
+  const root = await mkdtemp(path.join(os.tmpdir(), 'shell-directory-'));
+  const reportDirectory = path.join(root, 'report');
+  await mkdir(path.join(reportDirectory, 'screenshots'), {
+    recursive: true,
+  });
+  const html = shellFixtureHtml.replace(
+    /<script\s+type=["']midscene-image["'][^>]*>[\s\S]*?<\/script>/g,
+    '',
+  );
+  await writeFile(
+    path.join(reportDirectory, 'test-run-shell.html'),
+    html,
+  );
+  for (const index of [0, 1, 2]) {
+    await writeFile(
+      path.join(reportDirectory, 'screenshots', `image-${index}.jpeg`),
+      Buffer.from('/9j/2Q==', 'base64'),
+    );
+  }
+
+  const report = await findShellReport(root);
+  assert.deepEqual(
+    report.checks.map(({ key, passed, screenshot }) => ({
+      key,
+      passed,
+      hasScreenshot: screenshot !== null,
+    })),
+    [
+      { key: 'shutdown', passed: true, hasScreenshot: true },
+      { key: 'focus', passed: true, hasScreenshot: true },
+      { key: 'bar', passed: true, hasScreenshot: true },
+    ],
+  );
+});
+
 test('verifies every file and its expected content type', async () => {
   const requested = [];
   const manifest = {
@@ -1250,6 +1816,7 @@ test('verifies every file and its expected content type', async () => {
           'reports/200/report-preview.png',
           'reports/200/auxiliary-report-preview.png',
           'reports/200/case-preview-ubuntu-case-ubuntu.jpg',
+          'reports/200/screenshots/node-shot-1.jpeg',
         ],
       },
     ],
@@ -1265,7 +1832,8 @@ test('verifies every file and its expected content type', async () => {
         headers: {
           'content-type': url.pathname.endsWith('.png')
             ? 'image/png'
-            : url.pathname.endsWith('.jpg')
+            : url.pathname.endsWith('.jpg') ||
+                url.pathname.endsWith('.jpeg')
               ? 'image/jpeg'
               : 'text/html; charset=utf-8',
         },
@@ -1280,5 +1848,6 @@ test('verifies every file and its expected content type', async () => {
     'https://example.test/doubao-say/reports/200/report-preview.png',
     'https://example.test/doubao-say/reports/200/auxiliary-report-preview.png',
     'https://example.test/doubao-say/reports/200/case-preview-ubuntu-case-ubuntu.jpg',
+    'https://example.test/doubao-say/reports/200/screenshots/node-shot-1.jpeg',
   ]);
 });

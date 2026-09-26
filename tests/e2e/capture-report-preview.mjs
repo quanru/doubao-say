@@ -100,7 +100,13 @@ try {
 
     const page = await browser.newPage();
     await page.setViewport({ width: 1600, height: 1000, deviceScaleFactor: 1 });
-    await page.goto(previewUrl.href, { waitUntil: 'networkidle0' });
+    // A failed run with repeated AI replans can embed many screenshots in the
+    // report. Wait for the document, then for the specific rendered evidence;
+    // waiting for all network activity can exceed Puppeteer's 30s default on CI.
+    await page.goto(previewUrl.href, {
+      waitUntil: 'domcontentloaded',
+      timeout: 120_000,
+    });
     await page.waitForSelector(
       '[aria-label="Execution steps"] button.is-selected .runner-step-status',
     );
@@ -108,11 +114,11 @@ try {
     await page.waitForFunction((expectedStep) => {
       const buttons = [
         ...document.querySelectorAll(
-          '[aria-label="Execution steps"] .runner-detail-step-group > button',
+          '[aria-label="Execution steps"] .runner-detail-step-group > button, [aria-label="Execution steps"] .runner-detail-step-list > button',
         ),
       ];
       const selected = document.querySelector(
-        '[aria-label="Execution steps"] button.is-selected',
+        '[aria-label="Execution steps"] .runner-detail-step-group > button.is-selected, [aria-label="Execution steps"] .runner-detail-step-list > button.is-selected',
       );
       const selectedName = selected?.querySelector(
         '.runner-detail-step-copy strong',
@@ -136,9 +142,16 @@ try {
       `Captured Midscene report node ${previewStep} (${runnerDump.status}): ${outputFile}`,
     );
 
-    for (const testCase of reportCases(runnerDump, projectName, {
+    for (const testCase of await reportCases(runnerDump, projectName, {
       reportHtml: report.html,
+      reportFile: report.file,
     })) {
+      if (!testCase.screenshot) {
+        console.log(
+          `Skipped node screenshot for ${testCase.name} at ${testCase.stepId} because Midscene did not produce one.`,
+        );
+        continue;
+      }
       const caseOutput = path.join(reportDirectory, testCase.previewFile);
       await writeFile(caseOutput, testCase.screenshot.bytes);
       console.log(

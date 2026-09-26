@@ -3,6 +3,8 @@
 import { appendFile, readFile } from 'node:fs/promises';
 import process from 'node:process';
 
+import { formatDuration } from './build-pages-report.mjs';
+
 function parseArguments(argv) {
   const options = {};
   for (let index = 0; index < argv.length; index += 2) {
@@ -39,28 +41,60 @@ function stepUrl(baseUrl, reportPath, stepId) {
   return url.href;
 }
 
-function markdownCell(value) {
+function inlineCell(value) {
   return String(value)
     .replaceAll('\\', '\\\\')
     .replaceAll('|', '\\|')
     .replaceAll('[', '\\[')
     .replaceAll(']', '\\]')
-    .replaceAll('\n', ' ');
+    .replaceAll('<', '&lt;')
+    .replaceAll('>', '&gt;')
+    .replaceAll(/[\r\n]+/g, ' ');
 }
 
-function entryResult(entry) {
-  const parts = [];
-  if (entry.scenarios.total > 0) {
-    parts.push(
-      `${entry.scenarios.passed}/${entry.scenarios.total} scenarios passed`,
-    );
+function htmlAttribute(value) {
+  return String(value)
+    .replaceAll('&', '&amp;')
+    .replaceAll('<', '&lt;')
+    .replaceAll('>', '&gt;')
+    .replaceAll('"', '&quot;')
+    .replaceAll("'", '&#39;')
+    .replaceAll('|', '&#124;')
+    .replaceAll(/[\r\n]+/g, ' ');
+}
+
+function caseTarget(pagesUrl, entry, testCase) {
+  return stepUrl(
+    pagesUrl,
+    testCase.reportPath ?? entry.reportPath,
+    testCase.stepId,
+  );
+}
+
+function failureReason(testCase) {
+  if (testCase.selection === 'workflow-failure') {
+    return `CI failure before node capture — ${testCase.description ?? ''}`;
   }
-  if (entry.assertions.total > 0) {
-    parts.push(
-      `${entry.assertions.passed}/${entry.assertions.total} visual assertions passed`,
-    );
-  }
-  return `**${entry.label}: ${parts.join(' · ') || 'report captured'}.**`;
+  const label = {
+    ai: 'AI: ',
+    error: 'Error: ',
+    result: 'Result: ',
+  }[testCase.descriptionKind];
+  return `${label ?? ''}${testCase.description ?? ''}`;
+}
+
+function caseProject(entry, testCase) {
+  return entry.project ??
+    entry.reports?.find((item) => item.reportPath === testCase.reportPath)
+      ?.project ?? entry.label;
+}
+
+function caseRow(pagesUrl, { entry, testCase }, detail) {
+  const target = caseTarget(pagesUrl, entry, testCase);
+  const screenshot = testCase.previewPath
+    ? `<a href="${htmlAttribute(target)}"><img src="${htmlAttribute(reportUrl(pagesUrl, testCase.previewPath))}" alt="${htmlAttribute(testCase.name)}" width="160"></a>`
+    : '—';
+  return `| ${inlineCell(caseProject(entry, testCase))} | [${inlineCell(testCase.name)}](${target}) | ${screenshot} | ${inlineCell(detail)} | ${formatDuration(testCase.durationMs) || '—'} |`;
 }
 
 export function renderReportSummary({
@@ -84,66 +118,100 @@ export function renderReportSummary({
         entry.scenarios.passed === entry.scenarios.total &&
         entry.assertions.passed === entry.assertions.total,
     );
-  const title = `${summaryTitle} × Midscene · ${
-    allPassed ? 'passed' : 'failure captured'
-  }`;
-  const historyUrl = normalizedBaseUrl(pagesUrl).href;
-  const links = [
-    ...report.entries.flatMap((entry) => {
-      const reports = entry.reports ?? [entry];
-      return reports.map((nativeReport, index) => {
-        const suffix = reports.length > 1 ? ` ${index + 1}` : '';
-        return `[Open ${entry.label}${suffix}](${reportUrl(pagesUrl, nativeReport.reportPath)})`;
-      });
-    }),
-    `[Report history](${historyUrl})`,
-  ].join(' · ');
-  const caseTables = report.entries.map((entry) => {
+  const groupedCases = report.entries.flatMap((entry) => {
     if (!Array.isArray(entry.cases) || entry.cases.length === 0) {
       throw new Error(`${entry.label} does not contain case evidence`);
     }
-    const rows = entry.cases.map((testCase) => {
-      if (!testCase.description || !testCase.descriptionKind) {
-        throw new Error(`${testCase.name} does not contain node text evidence`);
-      }
-      const target = stepUrl(
-        pagesUrl,
-        testCase.reportPath ?? entry.reportPath,
-        testCase.stepId,
-      );
-      const image = reportUrl(pagesUrl, testCase.previewPath);
-      const status = testCase.status === 'success' ? '✅ Passed' : '❌ Failed';
-      const evidence =
-        testCase.status === 'success'
-          ? 'Last screenshot'
-          : testCase.selection === 'workflow-failure'
-            ? 'CI failure before node capture'
-            : 'First failing screenshot';
-      const descriptionLabel = {
-        ai: '**AI:** ',
-        error: '**Error:** ',
-        result: '**Result:** ',
-      }[testCase.descriptionKind];
-      return `| ${status} | [${markdownCell(testCase.name)}](${target}) | [![${evidence}: ${markdownCell(testCase.name)}](${image})](${target}) | ${descriptionLabel}${markdownCell(testCase.description)} |`;
-    });
-    return `### ${entry.label}
+    return entry.cases.map((testCase) => ({ entry, testCase }));
+  });
+  groupedCases.forEach(({ testCase }) => {
+    if (!testCase.description || !testCase.descriptionKind) {
+      throw new Error(`${testCase.name} does not contain node text evidence`);
+    }
+  });
 
-| Result | Case | Node screenshot | AI response / error |
-|:--|:--|:--|:--|
-${rows.join('\n')}`;
-  })
-    .join('\n\n');
+  const passedCases = groupedCases.filter(
+    ({ testCase }) => testCase.status === 'success',
+  );
+  const failedCases = groupedCases.filter(
+    ({ testCase }) => testCase.status !== 'success',
+  );
+  const incompleteEntries = report.entries.filter(
+    (entry) =>
+      entry.status !== 'success' &&
+      !failedCases.some(({ entry: failedEntry }) => failedEntry === entry),
+  );
+  const unreportedFailure =
+    !allPassed &&
+    failedCases.length === 0 &&
+    incompleteEntries.length === 0;
+  const needsAttention =
+    failedCases.length + incompleteEntries.length + Number(unreportedFailure);
+  const runUrl = report.workflowUrl;
+  const links = [
+    `**[Open the published HTML report](${reportUrl(pagesUrl, report.reportPath ?? `reports/${runId}/index.html`)})**`,
+    ...(runUrl ? [`[Download the artifact](${runUrl}#artifacts)`] : []),
+    `[Report history](${normalizedBaseUrl(pagesUrl).href})`,
+  ].join(' · ');
 
-  return `## ${title}
+  const sections = [
+    `## ${summaryTitle} × Midscene · ${allPassed ? 'passed' : 'failure captured'}`,
+    '',
+    `**${allPassed ? '✅ ' : ''}${needsAttention} need attention · ${passedCases.length} passed**`,
+    '',
+    '**Models:** configured in Actions Secrets',
+    '',
+    links,
+    '',
+  ];
 
-${report.entries.map(entryResult).join('\n\n')}
+  if (needsAttention > 0) {
+    sections.push(
+      '### Needs attention',
+      '',
+      '| Shard | Case | Screenshot | Status / reason | Duration |',
+      '|:--|:--|:--|:--|--:|',
+      ...incompleteEntries.map((entry) =>
+        `| ${inlineCell(entry.label)} | — | — | ❌ ${inlineCell(entry.status)}${runUrl ? ` · [Workflow run](${runUrl})` : ''} | — |`,
+      ),
+      ...(unreportedFailure
+        ? [`| Workflow | — | — | ❌ ${inlineCell(producerResult === 'success' ? 'incomplete report' : producerResult)}${runUrl ? ` · [Workflow run](${runUrl})` : ''} | — |`]
+        : []),
+      ...failedCases
+        .sort((left, right) =>
+          Number(left.testCase.status === 'not-run') -
+          Number(right.testCase.status === 'not-run'),
+        )
+        .map((item) =>
+          caseRow(
+            pagesUrl,
+            item,
+            `${item.testCase.status === 'not-run' ? '⏭️ Not run' : '❌ Failed'}: ${failureReason(item.testCase)}`,
+          ),
+        ),
+      '',
+    );
+  } else if (allPassed) {
+    sections.push(`🎉 All ${passedCases.length} cases passed.`, '');
+  } else {
+    sections.push('No cases were reported.', '');
+  }
 
-${links}
+  sections.push(
+    '<details>',
+    `<summary>Appendix: passed cases (${passedCases.length})</summary>`,
+    '',
+    '| Shard | Case | Screenshot | Status | Duration |',
+    '|:--|:--|:--|:--|--:|',
+    ...passedCases.map((item) => caseRow(pagesUrl, item, '✅ Passed')),
+    '',
+    '</details>',
+    '',
+    'Click a screenshot or case name to open its exact step in the native Midscene report. A CI failure card appears when a shard stops before Midscene can capture a report.',
+    '',
+  );
 
-${caseTables}
-
-Each image is the original page screenshot used by that node. A CI failure card is shown only when a shard stops before Midscene can capture a node. Click a case name or image to open its evidence.
-`;
+  return sections.join('\n');
 }
 
 async function main() {

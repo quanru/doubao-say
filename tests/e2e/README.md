@@ -1,8 +1,22 @@
 # Midscene E2E by Linux distribution
 
 GitHub Actions exposes two distribution-named suites: `Ubuntu 22.04` and
-`Omarchy 4.0.3`. Both run for trusted pull requests and relevant pushes to
-`main`. The Omarchy suite also checks the real desktop shell visually.
+`Omarchy 4.0.3`. The Omarchy suite also checks the real desktop shell visually.
+
+> **Scheduling (2026-09).** The Volcengine Ark endpoint behind
+> `MIDSCENE_MODEL_*` has been rate-limited to roughly 25–35 RPM. Running both
+> five-job visual workflows at once previously exhausted that quota:
+>
+> - the Ubuntu 22.04 workflow runs only via **Actions → Run workflow**
+>   (`workflow_dispatch`); its push/pull-request triggers were removed from the
+>   `on:` block but everything else (matrix, polishing, Pages) is unchanged;
+> - the Omarchy workflow runs five independent VM jobs in parallel again, as
+>   requested on 2026-09-25. Its model-call retries remain enabled, but 429
+>   errors may recur until the endpoint quota is raised.
+>
+> To restore Ubuntu automatic runs as well, reinstate its previous
+> `push`/`pull_request` trigger block from git history. Running both workflows
+> in parallel needs an endpoint quota of at least ~150 RPM / ~1M TPM.
 
 The image-builder CI proves that a GitHub-hosted runner can install the exact
 official Omarchy ISO in a headless QEMU/KVM VM. It reuses Omarchy's own ISO
@@ -54,7 +68,8 @@ Both distributions execute the same 13 declarative product cases from
 post-setup dictation checks. `midscene.config.ts` passes each case
 identity to a fresh fixture. Four duration-balanced shards run in isolated
 Actions jobs, each with its own Xvfb desktop or Omarchy VM, while cases inside
-one shard remain serial so window focus cannot leak between tests. The config prepares the GTK fixture or
+one shard remain serial so window focus cannot leak between tests. The shards
+run in parallel (`max-parallel: 5`). The config prepares the GTK fixture or
 Omarchy VNC viewer, and resets that state for every retry. Custom `shell.*`
 Nodes prepare the real Omarchy menu and bar; `cases/omarchy-shell.yaml` keeps
 the three pixel-level assertions explicit. Run `npm run nodes` in this

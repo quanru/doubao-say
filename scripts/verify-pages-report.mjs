@@ -25,7 +25,8 @@ function required(options, name) {
 function expectedContentType(file) {
   if (file.endsWith('.html')) return 'text/html';
   if (file.endsWith('.png')) return 'image/png';
-  if (file.endsWith('.jpg')) return 'image/jpeg';
+  if (file.endsWith('.jpg') || file.endsWith('.jpeg'))
+    return 'image/jpeg';
   if (file.endsWith('.webp')) return 'image/webp';
   if (file.endsWith('.svg')) return 'image/svg+xml';
   throw new Error(`No expected Content-Type is defined for ${file}`);

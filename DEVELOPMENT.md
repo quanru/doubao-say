@@ -129,8 +129,11 @@ read this file, [CONTRIBUTING.md](CONTRIBUTING.md), and
   npm ci --include=optional --ignore-scripts
   npm run typecheck
   MIDSCENE_COMPUTER_HEADLESS_LINUX=true timeout --signal=TERM --kill-after=10s 50m \
-    npm test -- --project ubuntu
+    npm test -- --project ubuntu-shard-1
   ```
+
+  The cases are split across four duration-balanced shards; replace the number
+  with `2`, `3`, or `4` to run another shard.
 
 - The onboarding suite contains multiple cases. Run the polishing overlay suite
   separately with `timeout --signal=TERM --kill-after=10s 10m npm test -- --project ubuntu-polishing`

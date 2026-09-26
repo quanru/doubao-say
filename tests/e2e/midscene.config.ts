@@ -11,6 +11,7 @@ interface DesktopContext {
   agent?: ComputerAgent;
   createAgent: () => Promise<ComputerAgent>;
   environment: 'ubuntu' | 'omarchy';
+  shell: boolean;
   fixtureMode?: string;
   resetFixture?: (mode: string) => Promise<void>;
   barConfigBackup?: string;
@@ -101,6 +102,7 @@ const setup = defineProjectSetup<DesktopContext>({
       agent: await createAgent(),
       createAgent,
       environment: omarchy ? 'omarchy' : 'ubuntu',
+      shell,
     };
     onTeardown(() => context.agent?.destroy());
     const fluxbox = spawn('fluxbox', [], { detached: true, stdio: 'ignore', env: process.env });
@@ -113,6 +115,9 @@ const setup = defineProjectSetup<DesktopContext>({
       onTeardown(() => stop(viewer));
       await sleep(4000);
       if (!shell) {
+        // Long model retries can outlast Omarchy's idle screensaver and hide
+        // the GTK fixture from the VNC screenshots used by visual assertions.
+        guest('omarchy-shell idle disable');
         const stopGuestFixture = () => {
           guest([
             'if test -s /tmp/doubao-midscene-fixture.pid; then',
@@ -195,6 +200,7 @@ const empty = z.strictObject({});
 const fixtureMode = z.strictObject({
   mode: z.enum([
     'microphone-gate',
+    'trigger-settings',
     'voice-test',
     'volcengine',
     'deepgram',
@@ -210,6 +216,14 @@ const keyboardKey = z.strictObject({
 const inputText = z.strictObject({
   target: z.string().min(1),
   value: z.string(),
+  point: z.strictObject({ x: z.number(), y: z.number() }).optional(),
+});
+const tapPoint = z.strictObject({
+  target: z.string().min(1),
+  point: z.strictObject({ x: z.number(), y: z.number() }),
+});
+const triggerPreset = z.strictObject({
+  preset: z.enum(['Disabled', 'F8']),
 });
 const prepareFixture = defineNode<typeof fixtureMode, void, DesktopContext>({
   name: 'fixture.prepare',
@@ -240,10 +254,15 @@ const inputTextField = defineNode<typeof inputText, void, DesktopContext>({
   async execute({ context, input }) {
     if (!context.agent) throw new Error('Midscene Computer Agent is not active');
     if (context.environment === 'omarchy') {
-      // Midscene still finds and focuses the visual target. Send the text from
-      // inside the Wayland guest because X11 clipboard typing stops at the VNC
-      // boundary on some TigerVNC/GitHub runner combinations.
-      await context.agent.aiTap(input.target);
+      // Focus the input through the VNC device. The optional point is reserved
+      // for a fixed-size fixture where the model repeatedly located the label
+      // instead of the entry. Send text inside Wayland because X11 clipboard
+      // typing stops at the VNC boundary on some runner combinations.
+      if (input.point) {
+        await context.agent.interface.inputPrimitives.pointer.tap(input.point);
+      } else {
+        await context.agent.aiTap(input.target);
+      }
       await sleep(250);
       guest(
         `wtype -M ctrl -k a -m ctrl; wtype -d 35 ${shellQuote(input.value)}`,
@@ -254,6 +273,30 @@ const inputTextField = defineNode<typeof inputText, void, DesktopContext>({
         mode: 'replace',
       });
     }
+  },
+});
+const tapFixedPoint = defineNode<typeof tapPoint, void, DesktopContext>({
+  name: 'computer.tapPoint',
+  description: 'Tap a fixed point in the 1280x800 Omarchy fixture.',
+  inputSchema: tapPoint,
+  async execute({ context, input }) {
+    if (!context.agent) throw new Error('Midscene Computer Agent is not active');
+    await context.agent.interface.inputPrimitives.pointer.tap(input.point);
+  },
+});
+const selectTriggerPreset = defineNode<typeof triggerPreset, void, DesktopContext>({
+  name: 'computer.selectTriggerPreset',
+  description: 'Select a trigger preset through the GTK dropdown in the fixed Omarchy fixture.',
+  inputSchema: triggerPreset,
+  async execute({ context, input }) {
+    if (!context.agent || context.environment !== 'omarchy') {
+      throw new Error('Omarchy Computer Agent is not active');
+    }
+    await context.agent.interface.inputPrimitives.pointer.tap({ x: 640, y: 498 });
+    await sleep(250);
+    const keys = ['Home', ...Array(input.preset === 'F8' ? 6 : 0).fill('Down'), 'Return'];
+    guest(keys.map((key) => `wtype -k ${key}`).join('; '));
+    await sleep(250);
   },
 });
 const openSystemMenu = defineNode<typeof empty, void, DesktopContext>({
@@ -350,6 +393,17 @@ export default defineTestProject<DesktopContext>({
             if (existing) return existing.agent;
             context.agent ??= await context.createAgent();
             await context.resetFixture?.(context.fixtureMode ?? '');
+            if (context.environment === 'omarchy' && !context.shell) {
+              // The full-screen TigerVNC viewer can return two stale black
+              // frames after the guest fixture is replaced. A harmless click
+              // on the app header focuses the viewer and forces a fresh frame
+              // before the first visual node captures its screenshot.
+              await context.agent.interface.inputPrimitives.pointer.tap({
+                x: 640,
+                y: 50,
+              });
+              await sleep(750);
+            }
             active.set(runId, { agent: context.agent, context });
             return context.agent;
           },
@@ -370,6 +424,8 @@ export default defineTestProject<DesktopContext>({
     prepareFixture,
     pressKeyboardKey,
     inputTextField,
+    tapFixedPoint,
+    selectTriggerPreset,
     openSystemMenu,
     closeSystemMenu,
     moveBarLeft,

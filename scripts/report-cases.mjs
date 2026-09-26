@@ -1,4 +1,7 @@
-import { normalizeJsonControlCharacters } from './omarchy-shell-evidence.mjs';
+import {
+  loadReportImages,
+  normalizeJsonControlCharacters,
+} from './omarchy-shell-evidence.mjs';
 
 function allAttemptSteps(attempt) {
   return [
@@ -43,9 +46,8 @@ function scriptAttributes(source) {
   return attributes;
 }
 
-function embeddedReportData(reportHtml) {
+async function embeddedReportData(reportHtml, reportFile) {
   const dumps = [];
-  const images = new Map();
   for (const match of reportHtml.matchAll(
     /<script\s+([^>]*\btype=["']midscene_web_dump["'][^>]*)>\s*(\{[\s\S]*?)<\/script>/g,
   )) {
@@ -58,14 +60,7 @@ function embeddedReportData(reportHtml) {
       dump: JSON.parse(normalizeJsonControlCharacters(match[2].trim())),
     });
   }
-  for (const match of reportHtml.matchAll(
-    /<script\s+type=["']midscene-image["']\s+data-id=["']([^"']+)["'][^>]*>\s*data:image\/(jpeg|png|webp);base64,([A-Za-z0-9+/=]+)\s*<\/script>/g,
-  )) {
-    images.set(match[1], {
-      extension: match[2] === 'jpeg' ? 'jpg' : match[2],
-      bytes: Buffer.from(match[3], 'base64'),
-    });
-  }
+  const images = await loadReportImages(reportHtml, reportFile);
   return { dumps, images };
 }
 
@@ -136,33 +131,39 @@ function evidenceForStep(step, embedded) {
     }
   }
   const selected = candidates.at(-1);
-  if (!selected) {
-    throw new Error(`Step ${step.id} has no embedded node screenshot`);
-  }
   const error = normalizedText(step.error?.message);
   const result = normalizedText(step.output?.summary);
-  const description = error ?? selected.explanation ?? result;
+  const description = error ?? selected?.explanation ?? result;
   if (!description) {
     throw new Error(`Step ${step.id} has no AI response or error text`);
   }
   return {
-    screenshot: embedded.images.get(selected.screenshotId),
+    ...(selected
+      ? { screenshot: embedded.images.get(selected.screenshotId) }
+      : {}),
     description,
-    descriptionKind: error ? 'error' : selected.explanation ? 'ai' : 'result',
+    descriptionKind: error ? 'error' : selected?.explanation ? 'ai' : 'result',
   };
 }
 
-export function reportCases(run, projectName, { reportHtml } = {}) {
+export async function reportCases(
+  run,
+  projectName,
+  { reportHtml, reportFile } = {},
+) {
   const project = run?.projects?.find((item) => item.name === projectName);
   if (!project) {
     throw new Error(`Project ${projectName} is absent from the runner dump`);
   }
 
-  const embedded = reportHtml ? embeddedReportData(reportHtml) : null;
+  const embedded = reportHtml
+    ? await embeddedReportData(reportHtml, reportFile)
+    : null;
   return (project.documents ?? []).flatMap((document) =>
-    (document.cases ?? []).map((testCase) => {
+    (document.cases ?? []).flatMap((testCase) => {
       const attempt = testCase.attempts?.at(-1);
       if (!attempt) {
+        if (testCase.status === 'not-run') return [];
         throw new Error(
           `Case ${testCase.name ?? testCase.caseId} has no attempt`,
         );
@@ -184,20 +185,35 @@ export function reportCases(run, projectName, { reportHtml } = {}) {
         throw new Error('Midscene case metadata is incomplete');
       }
       const evidence = embedded ? evidenceForStep(step, embedded) : null;
-      return {
+      if (passed && embedded && !evidence?.screenshot) {
+        throw new Error(`Step ${step.id} has no embedded node screenshot`);
+      }
+      const selection = passed
+        ? 'last-screenshot'
+        : evidence && !evidence.screenshot
+          ? 'first-failing-no-screenshot'
+          : 'first-failing-screenshot';
+      return [{
         caseId: testCase.caseId,
         name: testCase.name,
         status: passed ? 'success' : 'failed',
+        durationMs: attempt.durationMs,
         stepId: step.id,
         stepTitle: step.title ?? step.node,
-        selection: passed ? 'last-screenshot' : 'first-failing-screenshot',
-        previewFile: casePreviewFileName(
-          projectName,
-          testCase.caseId,
-          evidence?.screenshot.extension,
-        ),
+        selection,
+        ...(evidence?.screenshot
+          ? {
+              previewFile: casePreviewFileName(
+                projectName,
+                testCase.caseId,
+                evidence.screenshot.extension,
+              ),
+            }
+          : embedded
+            ? {}
+            : { previewFile: casePreviewFileName(projectName, testCase.caseId) }),
         ...(evidence ?? {}),
-      };
+      }];
     }),
   );
 }
