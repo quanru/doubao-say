@@ -23,12 +23,14 @@ gh workflow run midscene-omarchy-4.0.3.yml \
 
 The equivalent form is under **Actions → Omarchy 4.0.3 → Run workflow**. Enter
 the plugin's GitHub `owner/repository`, full 40-character commit SHA, manifest
-ID, shell IPC method that opens the UI, and one visible result to check. The
+ID, shell action that opens the UI (`summon` for panels, overlays, and menus;
+an IPC method such as `open` for bar widgets), and one visible result to check. The
 input is bound to the exact commit; the runner does not follow the upstream
 branch after validation. The workflow uploads the native Midscene HTML replay
 and screenshots as `omarchy-midscene-omarchy-plugin-smoke`.
 
-This pilot supports bar widgets with an IPC method that opens their UI. A visual
+This pilot supports shell-summoned panels, overlays, menus, and bar widgets with
+an IPC method that opens their UI. A visual
 assertion is useful review evidence, but it is not a security verdict. The
 Checklist Todo case additionally verifies state and disk persistence because a
 visual model can miss a tiny control or misread a closed popup as an empty one.

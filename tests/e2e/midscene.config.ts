@@ -367,7 +367,7 @@ const assertReviewPluginEmpty = defineNode<typeof empty, void, DesktopContext>({
   },
 });
 const openConfiguredReviewPlugin = defineNode<typeof empty, void, DesktopContext>({
-  name: 'review.openConfigured', description: 'Open the exact-commit plugin through its declared shell IPC method.', inputSchema: empty,
+  name: 'review.openConfigured', description: 'Open the exact-commit plugin through shell summon or its declared IPC method.', inputSchema: empty,
   async execute() {
     const id = process.env.REVIEW_PLUGIN_ID;
     const method = process.env.REVIEW_PLUGIN_OPEN_METHOD || 'open';
@@ -376,7 +376,10 @@ const openConfiguredReviewPlugin = defineNode<typeof empty, void, DesktopContext
     let lastError: unknown;
     for (let attempt = 0; attempt < 20; attempt++) {
       try {
-        guest(`omarchy-shell ${shellQuote(id)} ${shellQuote(method)}`);
+        const command = method === 'summon' || method === 'toggle'
+          ? `omarchy-shell shell ${method} ${shellQuote(id)} '{}'`
+          : `omarchy-shell ${shellQuote(id)} ${shellQuote(method)}`;
+        guest(command);
         await sleep(1000);
         return;
       } catch (error) {

@@ -71,7 +71,7 @@ on:
         type: string
         required: false
       plugin_open_method:
-        description: Plugin IPC method that opens its UI, usually open
+        description: Use summon for panel/overlay/menu, or a plugin IPC method such as open
         type: string
         required: false
         default: open
