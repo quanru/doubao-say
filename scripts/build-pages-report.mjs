@@ -421,6 +421,7 @@ function validReportEntry(entry, files) {
               testCase.selection === 'workflow-failure') &&
             [
               'last-screenshot',
+              'last-no-screenshot',
               'first-failing-screenshot',
               'first-failing-no-screenshot',
               'workflow-failure',
@@ -432,7 +433,9 @@ function validReportEntry(entry, files) {
               ['ai', 'error', 'result'].includes(testCase.descriptionKind)) &&
             (testCase.description === undefined) ===
               (testCase.descriptionKind === undefined) &&
-            (testCase.selection === 'first-failing-no-screenshot'
+            (['first-failing-no-screenshot', 'last-no-screenshot'].includes(
+              testCase.selection,
+            )
               ? testCase.previewPath === undefined
               : files?.includes(testCase.previewPath)) &&
             (testCase.reportPath === undefined ||
@@ -1058,7 +1061,8 @@ export async function buildPagesReport(options) {
     for (const testCase of entry.cases) {
       if (
         testCase.selection === 'workflow-failure' ||
-        testCase.selection === 'first-failing-no-screenshot'
+        testCase.selection === 'first-failing-no-screenshot' ||
+        testCase.selection === 'last-no-screenshot'
       ) {
         continue;
       }

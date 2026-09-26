@@ -114,10 +114,9 @@ function executionForDetail(dumps, detail) {
   return null;
 }
 
-function evidenceForStep(step, embedded) {
+function evidenceForStep(step, embedded, allowUntimedEvidence = false) {
   const candidates = [];
-  for (const detail of step.agentDetails ?? []) {
-    const execution = executionForDetail(embedded.dumps, detail);
+  function collect(execution, destination) {
     for (const task of execution?.tasks ?? []) {
       const screenshotId = task?.uiContext?.screenshot?.id;
       const explanation = modelTaskText(task);
@@ -126,17 +125,42 @@ function evidenceForStep(step, embedded) {
         screenshotId &&
         embedded.images.has(screenshotId)
       ) {
-        candidates.push({ screenshotId, explanation });
+        destination.push({ screenshotId, explanation });
       }
     }
+  }
+  for (const detail of step.agentDetails ?? []) {
+    collect(executionForDetail(embedded.dumps, detail), candidates);
+  }
+  // Custom Nodes can call an Agent without forwarding agentDetails to the
+  // runner step. Match by execution time when available; for older reports
+  // without timestamps, only a one-step, one-attempt case is unambiguous.
+  if (!candidates.length && !hasScreenshotEvidence(step)) {
+    const startedAt = Date.parse(step.startedAt ?? '');
+    const endedAt = Date.parse(step.endedAt ?? '');
+    const hasWindow = Number.isFinite(startedAt) && Number.isFinite(endedAt);
+    const unlinked = [];
+    for (const entry of embedded.dumps) {
+      for (const execution of entry.dump?.executions ?? []) {
+        const executionTime = Number(
+          execution.logTime ?? execution.tasks?.[0]?.timing?.start,
+        );
+        const inStep = hasWindow && Number.isFinite(executionTime) &&
+          executionTime >= startedAt - 1000 &&
+          executionTime <= endedAt + 1000;
+        if (!inStep && !(allowUntimedEvidence && !hasWindow)) continue;
+        collect(execution, unlinked);
+      }
+    }
+    if (unlinked.length === 1) candidates.push(unlinked[0]);
   }
   const selected = candidates.at(-1);
   const error = normalizedText(step.error?.message);
   const result = normalizedText(step.output?.summary);
-  const description = error ?? selected?.explanation ?? result;
-  if (!description) {
-    throw new Error(`Step ${step.id} has no AI response or error text`);
-  }
+  const description = error ?? selected?.explanation ?? result ??
+    (step.status === 'success'
+      ? 'Step passed; no per-step AI response was recorded.'
+      : 'Step failed without a recorded error message.');
   return {
     ...(selected
       ? { screenshot: embedded.images.get(selected.screenshotId) }
@@ -159,61 +183,71 @@ export async function reportCases(
   const embedded = reportHtml
     ? await embeddedReportData(reportHtml, reportFile)
     : null;
-  return (project.documents ?? []).flatMap((document) =>
-    (document.cases ?? []).flatMap((testCase) => {
-      const attempt = testCase.attempts?.at(-1);
-      if (!attempt) {
-        if (testCase.status === 'not-run') return [];
-        throw new Error(
-          `Case ${testCase.name ?? testCase.caseId} has no attempt`,
-        );
-      }
-      const steps = allAttemptSteps(attempt);
-      const passed = (testCase.status ?? attempt.status) === 'success';
-      const step = passed
-        ? steps.findLast(hasScreenshotEvidence) ?? steps.at(-1)
-        : steps.find(
-            (item) => item.status === 'failed' && hasScreenshotEvidence(item),
-          ) ??
-          steps.find((item) => item.status === 'failed');
-      if (!step?.id) {
-        throw new Error(
-          `Case ${testCase.name ?? testCase.caseId} has no report step to preview`,
-        );
-      }
-      if (!testCase.caseId || !testCase.name) {
-        throw new Error('Midscene case metadata is incomplete');
-      }
-      const evidence = embedded ? evidenceForStep(step, embedded) : null;
-      if (passed && embedded && !evidence?.screenshot) {
-        throw new Error(`Step ${step.id} has no embedded node screenshot`);
-      }
-      const selection = passed
-        ? 'last-screenshot'
-        : evidence && !evidence.screenshot
-          ? 'first-failing-no-screenshot'
-          : 'first-failing-screenshot';
-      return [{
-        caseId: testCase.caseId,
-        name: testCase.name,
-        status: passed ? 'success' : 'failed',
-        durationMs: attempt.durationMs,
-        stepId: step.id,
-        stepTitle: step.title ?? step.node,
-        selection,
-        ...(evidence?.screenshot
-          ? {
-              previewFile: casePreviewFileName(
-                projectName,
-                testCase.caseId,
-                evidence.screenshot.extension,
-              ),
-            }
-          : embedded
-            ? {}
-            : { previewFile: casePreviewFileName(projectName, testCase.caseId) }),
-        ...(evidence ?? {}),
-      }];
-    }),
+  const cases = (project.documents ?? []).flatMap((document) =>
+    document.cases ?? [],
   );
+  return cases.flatMap((testCase) => {
+    const attempt = testCase.attempts?.at(-1);
+    if (!attempt) {
+      if (testCase.status === 'not-run') return [];
+      throw new Error(
+        `Case ${testCase.name ?? testCase.caseId} has no attempt`,
+      );
+    }
+    const steps = allAttemptSteps(attempt);
+    const passed = (testCase.status ?? attempt.status) === 'success';
+    const step = passed
+      ? steps.findLast(hasScreenshotEvidence) ?? steps.at(-1)
+      : steps.find(
+          (item) => item.status === 'failed' && hasScreenshotEvidence(item),
+        ) ??
+        steps.find((item) => item.status === 'failed');
+    if (!step?.id) {
+      throw new Error(
+        `Case ${testCase.name ?? testCase.caseId} has no report step to preview`,
+      );
+    }
+    if (!testCase.caseId || !testCase.name) {
+      throw new Error('Midscene case metadata is incomplete');
+    }
+    const soleUntimedStep = cases.length === 1 &&
+      testCase.attempts?.length === 1 && steps.length === 1;
+    const evidence = embedded
+      ? evidenceForStep(step, embedded, soleUntimedStep)
+      : null;
+    if (
+      passed && embedded && !evidence?.screenshot &&
+      (hasScreenshotEvidence(step) || step.node?.startsWith('ai'))
+    ) {
+      throw new Error(`Step ${step.id} has no embedded node screenshot`);
+    }
+    const selection = passed
+      ? embedded && !evidence?.screenshot
+        ? 'last-no-screenshot'
+        : 'last-screenshot'
+      : evidence && !evidence.screenshot
+        ? 'first-failing-no-screenshot'
+        : 'first-failing-screenshot';
+    return [{
+      caseId: testCase.caseId,
+      name: testCase.name,
+      status: passed ? 'success' : 'failed',
+      durationMs: attempt.durationMs,
+      stepId: step.id,
+      stepTitle: step.title ?? step.node,
+      selection,
+      ...(evidence?.screenshot
+        ? {
+            previewFile: casePreviewFileName(
+              projectName,
+              testCase.caseId,
+              evidence.screenshot.extension,
+            ),
+          }
+        : embedded
+          ? {}
+          : { previewFile: casePreviewFileName(projectName, testCase.caseId) }),
+      ...(evidence ?? {}),
+    }];
+  });
 }
