@@ -26,11 +26,6 @@ from doubao_input.inject.target import focused_target
 from doubao_input.result import RecentResult
 from doubao_input.doubao.params_store import ParamsStore
 from doubao_input.doubao.transcription import TranscriptionManager
-from doubao_input.doubao.asr_client import ASRClient
-from doubao_input.doubao.volcengine_asr_client import VolcengineASRClient
-from doubao_input.doubao.volcengine_credentials import (
-    VolcengineCredentials, VolcengineCredentialsStore,
-)
 from doubao_input.inject.injector import Injector
 from doubao_input.trigger.reader import TriggerReader
 from doubao_input.trigger.controller import TriggerController
@@ -48,6 +43,7 @@ from doubao_input.updates import UpdateChecker
 from doubao_input.polish_preview import PolishPreview
 from doubao_input.trigger.escape_guard import EscapeGuard
 from doubao_input.diagnostics import DiagnosticTrace, report as diagnostic_report
+from doubao_input.recognition_providers import recognition_provider
 
 logger = logging.getLogger(__name__)
 
@@ -239,9 +235,9 @@ class DoubaoInputApp(Gtk.Application):
                 test_polish=self._test_polish,
                 apply_microphone=self._apply_microphone,
                 apply_asr_provider=self._apply_asr_provider,
-                asr_has_key=self._official_has_key,
-                save_asr=self._save_official_key,
-                test_asr=self._test_official_asr,
+                asr_has_key=self._api_key_has_saved,
+                save_asr=self._save_asr_key,
+                test_asr=self._test_asr_key,
             ),
         )
         self._update_checker = UpdateChecker(GLib.idle_add, self._update_available)
@@ -260,6 +256,7 @@ class DoubaoInputApp(Gtk.Application):
             enter=self._voice_enter, cancel_input=self._cancel_input,
             shortcut=self._injector.send_shortcut,
             prime=self._voice_prime, discard=self._tm.discard_primed_audio,
+            is_recording=lambda: self.app_state.is_recording,
             debug_edge=self._debug_edge, error=lambda message: logger.warning("PTT error: %s", message))
 
         # ---- Initial state: cached params? ----
@@ -346,29 +343,29 @@ class DoubaoInputApp(Gtk.Application):
         self._control.refresh()
 
     def _new_transcription_manager(self):
-        if self.settings.asr_provider == "volcengine":
-            return TranscriptionManager(self.app_state,
-                asr_client=VolcengineASRClient(),
-                credential_store=VolcengineCredentialsStore,
-                interactive_auth=False, clear_rejected_credentials=False)
-        return TranscriptionManager(self.app_state, asr_client=ASRClient(),
-            credential_store=ParamsStore, interactive_auth=True,
-            clear_rejected_credentials=True)
+        provider = recognition_provider(self.settings.asr_provider)
+        return TranscriptionManager(
+            self.app_state,
+            asr_client=provider.new_client(),
+            credential_store=provider.credential_store,
+            interactive_auth=provider.interactive_auth,
+            clear_rejected_credentials=provider.clear_rejected_credentials,
+        )
 
     def _configure_recognition_backend(self):
-        if self.settings.asr_provider == "volcengine":
-            self._tm.configure_backend(VolcengineASRClient(),
-                VolcengineCredentialsStore, interactive_auth=False,
-                clear_rejected_credentials=False)
-        else:
-            self._tm.configure_backend(ASRClient(), ParamsStore,
-                interactive_auth=True, clear_rejected_credentials=True)
+        provider = recognition_provider(self.settings.asr_provider)
+        self._tm.configure_backend(
+            provider.new_client(),
+            provider.credential_store,
+            interactive_auth=provider.interactive_auth,
+            clear_rejected_credentials=provider.clear_rejected_credentials,
+        )
 
     def _recognition_ready(self):
         try:
-            store = (VolcengineCredentialsStore if self.settings.asr_provider == "volcengine"
-                     else ParamsStore)
-            return store.has_saved()
+            return recognition_provider(
+                self.settings.asr_provider
+            ).credential_store.has_saved()
         except (OSError, ValueError):
             return False
 
@@ -764,10 +761,8 @@ class DoubaoInputApp(Gtk.Application):
                 "microphone_id": self.settings.microphone,
                 "microphone_ok": bool(setup and setup.microphone_ok),
                 "asr_provider": self.settings.asr_provider,
-                "asr_provider_name": tr(
-                    "Volcengine official API", "火山引擎官方 API")
-                    if self.settings.asr_provider == "volcengine" else
-                    tr("Doubao account", "豆包账号"),
+                "asr_provider_name": recognition_provider(
+                    self.settings.asr_provider).name,
                 "voice_test_ok": bool(setup and setup.voice_ok),
                 "onboarding_complete": self.settings.onboarding_complete,
                 "result": self.recent.text, "status": self.recent.status}
@@ -815,17 +810,17 @@ class DoubaoInputApp(Gtk.Application):
         if self._login_window:
             self._login_window.destroy()
             self._login_window = None
-        official = getattr(getattr(self, "settings", None), "asr_provider", "doubao") == "volcengine"
-        store = (VolcengineCredentialsStore if official
-                 else ParamsStore)
+        provider = recognition_provider(
+            getattr(getattr(self, "settings", None), "asr_provider", "doubao"))
+        store = provider.credential_store
         try:
             store.clear()
         except OSError as error:
             raise ValueError(tr("Could not clear saved credentials. Check configuration folder permissions.",
                                 "无法清除保存的凭证，请检查配置目录权限。")) from error
         self.app_state.login_status = LoginStatus.NOT_LOGGED_IN
-        message = (tr("Official API key cleared.", "已清除官方 API Key。")
-                   if official else
+        message = (tr("API key cleared.", "已清除 API Key。")
+                   if provider.uses_api_key else
                    tr("Saved credentials cleared. Website sessions may require signing out separately.",
                       "已清除保存的凭证；网站会话可能还需单独退出登录。"))
         self._control.set_feedback(message)
@@ -856,8 +851,8 @@ class DoubaoInputApp(Gtk.Application):
             capture_key=self._begin_key_capture, cancel_capture=self._end_key_capture,
             sign_out=self._sign_out, restart=self._restart, login=self._show_login,
             preview=self._preview_overlay, apply_key=self._apply_trigger_key,
-            asr_has_key=self._official_has_key, save_asr=self._save_official_key,
-            clear_asr=self._clear_official_key, test_asr=self._test_official_asr,
+            asr_has_key=self._api_key_has_saved, save_asr=self._save_asr_key,
+            clear_asr=self._clear_asr_key, test_asr=self._test_asr_key,
             diagnostic_report=lambda: diagnostic_report(
                 self.settings, recording=self.app_state.is_recording,
                 trace=self._diagnostics))
@@ -916,45 +911,60 @@ class DoubaoInputApp(Gtk.Application):
         self._login_window.show()
 
     def _connect_recognition(self) -> None:
-        if self.settings.asr_provider == "volcengine":
+        provider = recognition_provider(self.settings.asr_provider)
+        if provider.uses_api_key:
             self._control.set_feedback(tr(
-                "Add or test your Volcengine API key in Settings.",
-                "请在设置中填写或测试火山引擎 API Key。"))
+                "Add or test your speech API key in Settings.",
+                "请在设置中填写或测试语音 API Key。"))
             self._show_settings()
         else:
             self._show_login()
 
-    def _official_has_key(self):
-        return VolcengineCredentialsStore.has_saved()
+    def _api_key_has_saved(self):
+        provider = recognition_provider(self.settings.asr_provider)
+        return provider.uses_api_key and provider.credential_store.has_saved()
 
-    def _save_official_key(self, key):
+    def _save_asr_key(self, key):
         if self._busy():
             raise ValueError(tr("Finish the current operation first.", "请先结束当前操作。"))
+        provider = recognition_provider(self.settings.asr_provider)
+        if not provider.uses_api_key:
+            raise ValueError(tr(
+                "The selected service does not use an API key.",
+                "当前服务不使用 API Key。"))
         if key:
-            VolcengineCredentialsStore.save(VolcengineCredentials(key.strip()))
+            provider.credential_store.save(
+                provider.credentials_from_secret(key.strip()))
         self._sync_recognition_status()
         if self._control:
             self._control.refresh()
 
-    def _clear_official_key(self):
+    def _clear_asr_key(self):
         if self._busy():
             raise ValueError(tr("Finish the current operation first.", "请先结束当前操作。"))
-        VolcengineCredentialsStore.clear()
+        provider = recognition_provider(self.settings.asr_provider)
+        if provider.uses_api_key:
+            provider.credential_store.clear()
         self._sync_recognition_status()
         if self._control:
             self._control.refresh()
 
-    def _test_official_asr(self, key, completed):
+    def _test_asr_key(self, key, completed):
         if self._busy():
             raise ValueError(tr("Finish the current operation first.", "请先结束当前操作。"))
-        credentials = (VolcengineCredentials(key.strip()) if key else
-                       VolcengineCredentialsStore.load())
+        provider = recognition_provider(self.settings.asr_provider)
+        if not provider.uses_api_key:
+            raise ValueError(tr(
+                "The selected service does not use an API key.",
+                "当前服务不使用 API Key。"))
+        credentials = (provider.credentials_from_secret(key.strip()) if key else
+                       provider.credential_store.load())
         if credentials is None:
             raise ValueError(tr("Enter an API key first.", "请先填写 API Key。"))
         credentials.validate()
         if self._asr_probe:
             self._asr_probe.disconnect()
-        probe = self._asr_probe = VolcengineASRClient()
+        probe = self._asr_probe = provider.new_client()
         finished = False
         def deliver(result, error):
             nonlocal finished
@@ -968,8 +978,8 @@ class DoubaoInputApp(Gtk.Application):
                 if self._control:
                     self._control.refresh()
             GLib.idle_add(completed, result, error)
-        # The server's initial protocol response is the credential/resource
-        # acknowledgement. No microphone data is needed for this settings test.
+        # A successful WebSocket handshake validates the provider credential.
+        # No microphone data is needed for this settings test.
         probe.on_open = lambda: deliver(tr("API key accepted", "API Key 可用"), "")
         probe.on_auth_error = lambda: deliver(None, tr(
             "API key rejected; check service activation and project access",
@@ -1042,10 +1052,11 @@ class DoubaoInputApp(Gtk.Application):
     def _on_auth_expired(self) -> None:
         self._login_attempt = None
         self.app_state.login_status = LoginStatus.NOT_LOGGED_IN
-        if self.settings.asr_provider == "volcengine":
+        provider = recognition_provider(self.settings.asr_provider)
+        if provider.uses_api_key:
             self._control.set_feedback(tr(
-                "Volcengine rejected the saved API key. Update or test it in Settings.",
-                "火山引擎拒绝了已保存的 API Key，请在设置中更新或测试。"))
+                "The recognition service rejected the saved API key. Update or test it in Settings.",
+                "语音识别服务拒绝了已保存的 API Key，请在设置中更新或测试。"))
             self._show_settings()
         else:
             self._show_login()

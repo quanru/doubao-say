@@ -191,6 +191,22 @@ cases:
           prompt: The Microphone step shows Let's make sure we can hear you.
           options: { timeoutMs: 30000, checkIntervalMs: 1000 }
 
+  - name: Switch to Deepgram English recognition
+    tags: [shard-3, provider]
+    steps:
+      - fixture.prepare: { mode: deepgram }
+      - aiTap: Recognition service dropdown currently showing Doubao account
+      - aiTap: Deepgram Nova-3 (English) option in the opened dropdown
+      - aiAct: Scroll down inside the central content panel until the API Key field and Test API key button are both visible.
+      - aiAssert: The page is Recognition, explains Deepgram Nova-3 English dictation, shows an empty API Key field, and hides Open Doubao sign-in.
+      - computer.inputText:
+          target: API Key field
+          value: synthetic-deepgram-key
+      - aiTap: Test API key button below the API Key field
+      - aiWaitFor:
+          prompt: The API key is accepted by the synthetic endpoint and the speech API is ready.
+          options: { timeoutMs: 30000, checkIntervalMs: 1000 }
+
   - name: Changing microphone requires another check
     tags: [shard-2]
     steps:

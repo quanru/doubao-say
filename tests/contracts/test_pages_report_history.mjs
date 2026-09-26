@@ -115,17 +115,20 @@ test('assigns every product case to exactly one balanced shard', async () => {
       .split(/(?=^  - name:)/m)
       .filter((section) => section.startsWith('  - name:'));
     for (const testCase of cases) {
-      const tags = [...testCase.matchAll(/^    tags: \[(shard-[1-4])\]$/gm)];
+      const tags = [...testCase.matchAll(/^    tags: \[([^\]]+)\]$/gm)];
       assert.equal(tags.length, 1, testCase.split('\n')[0]);
-      shardCounts.set(tags[0][1], (shardCounts.get(tags[0][1]) ?? 0) + 1);
+      const shards = tags[0][1].split(',').map((tag) => tag.trim())
+        .filter((tag) => /^shard-[1-4]$/.test(tag));
+      assert.equal(shards.length, 1, testCase.split('\n')[0]);
+      shardCounts.set(shards[0], (shardCounts.get(shards[0]) ?? 0) + 1);
       caseCount += 1;
     }
   }
-  assert.equal(caseCount, 13);
+  assert.equal(caseCount, 14);
   assert.deepEqual(Object.fromEntries(shardCounts), {
     'shard-1': 2,
     'shard-2': 3,
-    'shard-3': 4,
+    'shard-3': 5,
     'shard-4': 4,
   });
 });
@@ -196,6 +199,10 @@ test('keeps visual E2E interactions at task level with proven tap exceptions', a
               '- aiTap: Volcengine API option in the open Recognition service dropdown',
               '- aiTap: Test API key button on the Recognition step',
               '- aiTap: Right-arrow Next button in the fixed top navigation',
+              '- aiTap: Recognition service dropdown currently showing Doubao account',
+              '- aiTap: Deepgram Nova-3 (English) option in the opened dropdown',
+              '- computer.inputText:',
+              '- aiTap: Test API key button below the API Key field',
               '- aiTap: The microphone dropdown currently showing Synthetic microphone one',
               '- aiTap: Synthetic microphone two option in the open microphone dropdown',
               '- aiTap: Right-arrow Next button in the fixed top navigation',

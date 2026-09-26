@@ -10,6 +10,10 @@ from doubao_input.ui.polish_settings import PolishSettings
 from doubao_input.ui.style import apply_window_style
 from doubao_input.product import VERSION
 from doubao_input.settings import ASR_PROVIDERS
+from doubao_input.recognition_providers import (
+    recognition_provider,
+    recognition_providers,
+)
 
 
 class ControlWindow:
@@ -43,6 +47,7 @@ class ControlWindow:
         self._asr_provider = None
         self._changing_asr_provider = False
         self._asr_details = None
+        self._asr_help = None
         self._asr_key = None
         self._asr_key_save_source = 0
         self._asr_test_button = None
@@ -144,17 +149,13 @@ class ControlWindow:
             return
         logged_in = self._app_state.login_status == LoginStatus.LOGGED_IN
         summary = self._actions.summary()
-        official = summary.get("asr_provider") == "volcengine"
+        provider = recognition_provider(summary.get("asr_provider", "doubao"))
+        uses_api_key = provider.uses_api_key
         if self._page_headings:
-            self._page_titles["account"] = tr("Recognition", "语音识别") if official else tr("Sign in", "登录")
-            self._page_headings["account"].set_text(
-                tr("Use the official Volcengine speech API.", "使用火山引擎官方语音 API。")
-                if official else tr("Your voice, wherever you type.", "让声音变成文字。"))
-            self._page_bodies["account"].set_text(tr(
-                "Add your API key in Settings. Audio is sent to Volcengine only while recording; usage is billed by Volcengine to your account. The key is stored separately on this device with owner-only permissions.",
-                "请在设置中填写 API Key。仅录音期间会向火山引擎发送音频，用量由火山引擎向你的账号计费。API Key 单独保存在本机，且仅当前用户可读。") if official else tr(
-                "Connect your Doubao account in a secure web window. Complete the sign-in method offered by Doubao, then return here. We never ask you to type a password into this app's settings.\n\nAudio is sent to Doubao only during recording. Sign-in data is stored on this device. This is an unofficial client.",
-                "在网页窗口中连接豆包账号。按照豆包页面提供的方式完成登录，再回到这里；无需在本软件设置中填写密码。\n\n仅录音期间会向豆包发送音频。登录信息保存在本机。这是非官方客户端。"))
+            self._page_titles["account"] = (tr("Recognition", "语音识别")
+                                            if uses_api_key else tr("Sign in", "登录"))
+            self._page_headings["account"].set_text(provider.setup_heading)
+            self._page_bodies["account"].set_text(provider.setup_body)
         if self._account_status:
             self._changing_asr_provider = True
             try:
@@ -162,7 +163,7 @@ class ControlWindow:
                     summary.get("asr_provider", "doubao")))
             finally:
                 self._changing_asr_provider = False
-            if official:
+            if uses_api_key:
                 self._account_status.set_text(tr(
                     "API key saved · run the connection test in Settings or continue to a voice test.",
                     "API Key 已保存 · 可在设置中测试连接，或继续进行试说。") if logged_in else tr(
@@ -176,9 +177,11 @@ class ControlWindow:
                 self._login_button.set_label(tr("Sign in again / change account", "重新登录或更换账号") if logged_in else
                                              tr("Open Doubao sign-in", "打开豆包登录"))
                 self._login_button.set_visible(True)
-            self._asr_details.set_visible(official)
-        if official:
-            self._status_label.set_text(tr("Official API ready · test your voice to verify", "官方 API 已就绪 · 请试说一句验证")
+            self._asr_details.set_visible(uses_api_key)
+            if self._asr_help:
+                self._asr_help.set_text(provider.credential_help)
+        if uses_api_key:
+            self._status_label.set_text(tr("Speech API ready · test your voice to verify", "语音 API 已就绪 · 请试说一句验证")
                                         if logged_in else tr("Add an API key to get started", "请先填写 API Key"))
         else:
             self._status_label.set_text(tr("Sign-in saved · test your voice to verify", "登录信息已保存 · 请试说一句验证")
@@ -191,7 +194,7 @@ class ControlWindow:
         if self._trigger_picker:
             self._trigger_picker.sync(summary.get("key_code", 464), summary.get("key_modifiers", ()))
         if self._summary_label:
-            requirement = (tr("Credentials required", "需要配置凭证") if official else
+            requirement = (tr("Credentials required", "需要配置凭证") if uses_api_key else
                            tr("Sign-in required", "需要登录"))
             self._summary_label.set_text((state_names[state] if logged_in else requirement) + " · " +
                 tr("Service: ", "服务：") + summary.get("asr_provider_name", "Doubao") + "\n" +
@@ -324,10 +327,8 @@ class ControlWindow:
         provider_row.append(Gtk.Label(
             label=tr("Recognition service", "语音识别服务"),
             xalign=0, hexpand=True, wrap=True))
-        self._asr_provider = Gtk.DropDown.new_from_strings([
-            tr("Doubao account", "豆包账号"),
-            tr("Volcengine API", "火山引擎 API"),
-        ])
+        self._asr_provider = Gtk.DropDown.new_from_strings(
+            [provider.name for provider in recognition_providers()])
         self._asr_provider.set_selected(ASR_PROVIDERS.index(
             self._actions.summary().get("asr_provider", "doubao")))
         self._asr_provider.connect("notify::selected", self._asr_provider_changed)
@@ -347,17 +348,17 @@ class ControlWindow:
         self._asr_key.connect("changed", self._queue_asr_key_save)
         key_row.append(self._asr_key)
         self._asr_details.append(key_row)
-        self._asr_details.append(label(tr(
-            "The new Doubao Speech console uses one API Key. Resource ID volc.seedasr.sauc.duration is built in. App ID and Access Key are only for the legacy console and are not required here.",
-            "新版豆包语音控制台只使用一个 API Key；资源 ID volc.seedasr.sauc.duration 已内置。App ID 和 Access Key 仅用于旧版控制台，这里不需要填写。"), secondary=True))
+        selected_provider = recognition_provider(
+            self._actions.summary().get("asr_provider", "doubao"))
+        self._asr_help = label(selected_provider.credential_help, secondary=True)
+        self._asr_details.append(self._asr_help)
         self._asr_test_button = Gtk.Button(label=tr("Test API key", "测试 API Key"))
         self._asr_test_button.connect("clicked", self._test_asr_clicked)
         self._asr_details.append(self._asr_test_button)
         self._asr_status = label("")
         self._asr_status.add_css_class("accent")
         self._asr_details.append(self._asr_status)
-        self._asr_details.set_visible(
-            self._actions.summary().get("asr_provider") == "volcengine")
+        self._asr_details.set_visible(selected_provider.uses_api_key)
         account.append(self._asr_details)
         self._account_status = label("")
         account.append(self._account_status)
@@ -365,8 +366,8 @@ class ControlWindow:
 
         mic = page("microphone", tr("Microphone", "麦克风"),
             tr("Let's make sure we can hear you.", "先确认能听到你的声音。"),
-            tr("Choose an input, then press Check microphone and speak normally for three seconds. This check stays on your device: no audio is sent to Doubao.",
-               "选择输入设备，然后点击检查麦克风并正常说话三秒。此项检查只在本机进行，不向豆包发送音频。"))
+            tr("Choose an input, then press Check microphone and speak normally for three seconds. This check stays on your device: no audio is sent to the recognition service.",
+               "选择输入设备，然后点击检查麦克风并正常说话三秒。此项检查只在本机进行，不向语音识别服务发送音频。"))
         selected_microphone = self._actions.summary().get("microphone_id", "")
         self._microphone_sources = [("", tr("System default", "系统默认"))] + microphones()
         if (selected_microphone and
@@ -567,7 +568,7 @@ class ControlWindow:
         self._asr_test_button.set_sensitive(False)
         self._asr_test_button.set_label(tr("Testing…", "正在测试…"))
         self._asr_status.set_text(tr(
-            "Testing official recognition…", "正在测试官方语音识别…"))
+            "Testing speech recognition…", "正在测试语音识别…"))
         try:
             self._actions.test_asr(
                 self._asr_key.get_text().strip() or None, self._asr_tested)

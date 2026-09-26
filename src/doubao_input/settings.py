@@ -7,11 +7,12 @@ import sys
 import tempfile
 from urllib.parse import urlsplit
 from doubao_input.i18n import LANGUAGES, tr
+from doubao_input.recognition_providers import RECOGNITION_PROVIDER_IDS
 
 KEY_CHOICES = {"Disabled": 0, "Fn": 464, "Ctrl": 29, "Shift": 42,
                "Alt": 56, "Meta": 125, "F8": 66, "F9": 67}
 REMOVED_SETTING_FIELDS = frozenset({"polish_undo_modifier", "polish_prompt"})
-ASR_PROVIDERS = ("doubao", "volcengine")
+ASR_PROVIDERS = RECOGNITION_PROVIDER_IDS
 CAPTURABLE_KEY_CODES = frozenset(range(2, 249)) | {464}
 MODIFIER_KEY_CODES = frozenset({29, 42, 54, 56, 97, 100, 125, 126})
 EQUIVALENT_KEY_GROUPS = (

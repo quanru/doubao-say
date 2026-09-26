@@ -38,6 +38,19 @@ on:
     branches: [main]
     paths: *e2e-paths
   workflow_dispatch:
+    inputs:
+      project:
+        description: Run one Midscene project for focused verification
+        type: choice
+        default: all
+        options:
+          - all
+          - omarchy-shard-1
+          - omarchy-shard-2
+          - omarchy-shard-3
+          - omarchy-shard-4
+          - omarchy-shell
+          - omarchy-providers
 
 permissions:
   contents: read
@@ -61,12 +74,10 @@ jobs:
       fail-fast: false
       max-parallel: 5
       matrix:
-        project:
-          - omarchy-shard-1
-          - omarchy-shard-2
-          - omarchy-shard-3
-          - omarchy-shard-4
-          - omarchy-shell
+        project: >-
+          ${{ fromJSON((inputs.project != '' && inputs.project != 'all') &&
+          format('["{0}"]', inputs.project) ||
+          '["omarchy-shard-1","omarchy-shard-2","omarchy-shard-3","omarchy-shard-4","omarchy-shell"]') }}
     env:
       MIDSCENE_MODEL_API_KEY: ${{ secrets.MIDSCENE_MODEL_API_KEY }}
       MIDSCENE_MODEL_NAME: ${{ secrets.MIDSCENE_MODEL_NAME }}
@@ -197,7 +208,9 @@ jobs:
   report-bundle:
     name: Assemble Midscene report bundle
     needs: omarchy-e2e
-    if: always() && !cancelled()
+    if: >-
+      always() && !cancelled() &&
+      (inputs.project == '' || inputs.project == 'all')
     runs-on: ubuntu-latest
     outputs:
       report-artifact-id: ${{ steps.report.outputs.artifact-id }}

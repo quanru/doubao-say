@@ -203,6 +203,7 @@ const fixtureMode = z.strictObject({
     'trigger-settings',
     'voice-test',
     'volcengine',
+    'deepgram',
     'microphone-change',
     'shortcut-capture',
     'runtime-delivery',
@@ -359,6 +360,20 @@ export default defineTestProject<DesktopContext>({
     },
     ...productShardProjects('ubuntu'),
     ...productShardProjects('omarchy'),
+    {
+      name: 'ubuntu-providers',
+      retry: 2,
+      setup,
+      files: { include: productCaseFiles },
+      tags: { include: ['provider'] },
+    },
+    {
+      name: 'omarchy-providers',
+      retry: 2,
+      setup,
+      files: { include: productCaseFiles },
+      tags: { include: ['provider'] },
+    },
     {
       name: 'omarchy-shell',
       retry: 2,
