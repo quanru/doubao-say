@@ -1,5 +1,7 @@
 # Doubao Say 1.2.0
 
+[Website](https://doubao-say.lifeos.md/) · [简体中文安装指南](https://doubao-say.lifeos.md/zh/guide/install)
+
 English interface by default. Select System, English or 简体中文 in Settings;
 the choice saves and applies automatically. System follows the session locale (Chinese → Simplified Chinese;
 unsupported languages → English). Manual choices override the system locale.

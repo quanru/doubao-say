@@ -1,6 +1,6 @@
 # 豆包说（Doubao Say）
 
-[English](README.md)
+[官网](https://doubao-say.lifeos.md/zh/) · [English](README.md)
 
 ![豆包说在 Omarchy Linux 上运行的界面](images/readme-cn.jpeg)
 

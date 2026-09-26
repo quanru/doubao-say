@@ -1,6 +1,6 @@
 # Doubao Say
 
-[简体中文](README.zh-CN.md)
+[Website](https://doubao-say.lifeos.md/) · [简体中文](README.zh-CN.md)
 
 ![Doubao Say voice input running on Omarchy Linux](images/readme-en.jpeg)
 
