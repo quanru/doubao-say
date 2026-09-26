@@ -26,12 +26,12 @@ cases:
       - aiAssert: The recording overlay is visible and the target field is still empty.
       - computer.keyPress: { keyName: Escape }
       - aiWaitFor:
-          prompt: The overlay is gone and the status says Cancelled, no text delivered, and ready to try again.
+          prompt: The large Synthetic dictation delivery target window shows an empty text field and the status Cancelled · no text delivered · ready to try again. The small floating recording panel with Listening to synthetic speech is not visible.
           options: { timeoutMs: 30000, checkIntervalMs: 1000 }
-      - aiAssert: The target field remains empty and the status says Cancelled, no text delivered, and ready to try again.
+      - aiAssert: In the Synthetic dictation delivery target window, the text field is empty and the status reads Cancelled · no text delivered · ready to try again. No floating panel says Listening to synthetic speech.
       - computer.keyPress: { keyName: F8 }
       - aiWaitFor:
-          prompt: A new recording overlay is visible.
+          prompt: A small floating recording panel says Listening to synthetic speech and Synthetic dictation is ready to deliver.
           options: { timeoutMs: 30000, checkIntervalMs: 1000 }
       - computer.keyPress: { keyName: F8 }
       - aiWaitFor:
