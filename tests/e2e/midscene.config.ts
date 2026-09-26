@@ -350,9 +350,17 @@ const openReviewPlugin = defineNode<typeof empty, void, DesktopContext>({
 });
 const assertReviewPluginEmpty = defineNode<typeof empty, void, DesktopContext>({
   name: 'review.assertEmpty', description: 'Confirm the visual deletion persisted in plugin state.', inputSchema: empty,
-  execute() {
+  async execute() {
     const status = guest('omarchy-shell tathagat11.checklist-todo status');
     if (status !== '0 todos') throw new Error(`Checklist Todo item remains after the visual action: ${status}`);
+    const savedState = '"$HOME/.local/state/tathagat11.checklist-todo/todos.json"';
+    for (let attempt = 0; attempt < 10; attempt++) {
+      try {
+        if (guest(`jq -e '.version == 1 and .todos == []' ${savedState} >/dev/null && echo saved`) === 'saved') return;
+      } catch { /* wait for the widget's 300 ms atomic save */ }
+      await sleep(500);
+    }
+    throw new Error('Checklist Todo did not persist the empty list after the visual action');
   },
 });
 

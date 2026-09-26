@@ -138,8 +138,21 @@ if [[ $MIDSCENE_PROJECT == omarchy-plugin-review ]]; then
     test \"\$(jq -r .id '$REVIEW_PLUGIN_DIR/manifest.json')\" = '$REVIEW_PLUGIN_ID' && \
     omarchy plugin validate '$REVIEW_PLUGIN_DIR' && \
     omarchy-shell shell rescanPlugins && \
-    omarchy plugin enable '$REVIEW_PLUGIN_ID' --section right && \
-    omarchy-shell '$REVIEW_PLUGIN_ID' status"
+    omarchy plugin enable '$REVIEW_PLUGIN_ID' --section right"
+  # The widget registers its IPC target on a timer after the bar mounts it.
+  review_status=""
+  for _review_attempt in {1..30}; do
+    if review_status="$(ssh_session "omarchy-shell '$REVIEW_PLUGIN_ID' status" 2>/dev/null)" &&
+        [[ $review_status == '0 todos' ]]; then
+      break
+    fi
+    sleep 1
+  done
+  if [[ $review_status != '0 todos' ]]; then
+    echo "Checklist Todo IPC did not become ready: $review_status" >&2
+    ssh_session "journalctl --user -u omarchy-shell -n 80 --no-pager" || true
+    exit 1
+  fi
 else
   # The Midscene project lifecycle starts its synthetic GTK fixture in the
   # guest's actual Hyprland session for every product case attempt.
