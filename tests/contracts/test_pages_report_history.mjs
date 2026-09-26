@@ -1131,6 +1131,49 @@ test('restores retained history before adding the new run', async (context) => {
   );
 });
 
+test('retries rate-limited history files before failing the report build', async (context) => {
+  const root = await mkdtemp(path.join(os.tmpdir(), 'pages-rate-limit-'));
+  const reportDirectory = await fixtureDirectory(root);
+  const siteDirectory = path.join(root, 'site');
+  const file = 'reports/100/index.html';
+  let attempts = 0;
+  const server = await startServer((request, response) => {
+    if (request.url === '/reports/manifest.json') {
+      response.setHeader('content-type', 'application/json');
+      response.end(JSON.stringify({
+        version: 1,
+        reports: [{
+          runId: '100',
+          generatedAt: '2026-09-14T12:00:00.000Z',
+          label: 'Omarchy 4.0.3',
+          successRate: 100,
+          testCount: 1,
+          averageDurationMs: 4000,
+          modelCallCount: 1,
+          tokenUsage: null,
+          workflowUrl: 'https://github.com/quanru/doubao-say/actions/runs/100',
+          reportPath: file,
+        }],
+      }));
+    } else if (request.url === `/${file}`) {
+      attempts++;
+      if (attempts === 1) {
+        response.writeHead(429, { 'retry-after': '0' }).end();
+      } else {
+        response.writeHead(200, { 'content-type': 'text/html' });
+        response.end('<html>restored</html>');
+      }
+    } else {
+      response.writeHead(404).end();
+    }
+  });
+  context.after(server.close);
+
+  await buildPagesReport(options(reportDirectory, siteDirectory, server.url));
+  assert.equal(attempts, 2);
+  assert.equal(await readFile(path.join(siteDirectory, file), 'utf8'), '<html>restored</html>');
+});
+
 test('restores large report histories with bounded parallel downloads', async (context) => {
   const root = await mkdtemp(path.join(os.tmpdir(), 'pages-parallel-history-'));
   const reportDirectory = await fixtureDirectory(root);

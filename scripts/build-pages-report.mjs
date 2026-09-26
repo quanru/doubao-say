@@ -510,21 +510,32 @@ async function restoreReport(baseUrl, siteDirectory, report) {
     }
   }
   await Promise.all(
-    Array.from({ length: Math.min(8, files.length) }, () => restoreNextFiles()),
+    Array.from({ length: Math.min(4, files.length) }, () => restoreNextFiles()),
   );
   if (failure) throw failure;
 }
 
 async function restoreFile(baseUrl, siteDirectory, report, file) {
   let response;
-  for (let attempt = 0; attempt < 3; attempt++) {
+  for (let attempt = 0; attempt < 6; attempt++) {
     response = await fetch(new URL(file, baseUrl), {
       redirect: 'follow',
       signal: AbortSignal.timeout(30_000),
     });
-    if (response.status !== 503 || attempt === 2) break;
+    const retryable =
+      (response.status === 503 && attempt < 2) ||
+      (response.status === 429 && attempt < 5);
+    if (!retryable) break;
+    const retryAfterHeader = response.headers.get('retry-after');
+    const retryAfter = Number(retryAfterHeader);
+    const delayMs =
+      response.status === 429
+        ? retryAfterHeader !== null && Number.isFinite(retryAfter) && retryAfter >= 0
+          ? Math.min(retryAfter * 1000, 30_000)
+          : Math.min(1000 * 2 ** (attempt + 1), 30_000)
+        : 1000 * (attempt + 1);
     await response.body?.cancel();
-    await new Promise((done) => setTimeout(done, 1000 * (attempt + 1)));
+    await new Promise((done) => setTimeout(done, delayMs));
   }
   if (!response.ok) {
     throw new Error(
