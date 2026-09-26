@@ -4,6 +4,9 @@ cases:
       - review.seedTodo: {}
       - review.openTodo: {}
       - aiAssert: At the top center of the desktop, the Todos popup is open. It shows one checklist row with a small square checkbox.
-      - aiTap: Click the small square checkbox next to the only item in the top-center Todos popup.
-      - aiAssert: The top-center Todos popup shows no checklist rows and reports zero items.
+      - aiTap:
+          prompt: Click the small square checkbox immediately to the left of "Midscene review item" inside the top-center Todos popup.
+          options:
+            deepLocate: true
       - review.assertEmpty: {}
+      - aiAssert: The Todos popup remains open at the top center. Its header reads "0 items" and it says "Nothing here yet. Press + to add a todo."
