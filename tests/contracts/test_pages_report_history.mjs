@@ -99,6 +99,15 @@ test('records every shard and renders the Summary before Pages deployment', asyn
   );
 });
 
+test('rerun aggregation excludes the previous combined report artifact', async () => {
+  const source = await readFile(
+    new URL('../../.github/workflows/midscene-omarchy-4.0.3.yml', import.meta.url),
+    'utf8',
+  );
+  assert.match(source, /pattern: omarchy-midscene-omarchy-\*/);
+  assert.doesNotMatch(source, /pattern: omarchy-midscene-\*\s*$/m);
+});
+
 test('assigns every product case to exactly one balanced shard', async () => {
   const shardCounts = new Map();
   let caseCount = 0;

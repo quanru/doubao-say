@@ -14,7 +14,19 @@ readonly IMAGE="ghcr.io/${GITHUB_REPOSITORY_OWNER,,}/doubao-say-omarchy-ci-base:
 
 tests/e2e/prepare-omarchy-host.sh
 mkdir -p "$BASE_DIR" "$BUNDLE_DIR"
-oras pull --output "$BUNDLE_DIR" "$IMAGE"
+for attempt in 1 2 3; do
+  if oras pull --output "$BUNDLE_DIR" "$IMAGE"; then
+    break
+  fi
+  if ((attempt == 3)); then
+    echo "Could not restore the prebuilt Omarchy image after three attempts." >&2
+    exit 1
+  fi
+  # A failed registry stream can leave a partial tarball behind.
+  rm -f "$BUNDLE_DIR/omarchy-base.tar.zst"
+  echo "VM image download attempt $attempt failed; retrying." >&2
+  sleep 10
+done
 (cd "$BUNDLE_DIR" && sha256sum --check --strict SHA256SUMS)
 tar -C "$BASE_DIR" --use-compress-program=unzstd -xf "$BUNDLE_DIR/omarchy-base.tar.zst"
 

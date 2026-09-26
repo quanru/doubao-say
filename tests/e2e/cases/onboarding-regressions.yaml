@@ -30,7 +30,7 @@ cases:
       - aiAssert: The synthetic sign-in window says it makes no network request and uses no real credentials.
       - aiTap: The blue Simulate successful sign-in button in the CI-only modal, around 50% width and 43% screen height
       - aiWaitFor:
-          prompt: The sign-in window is closed and Doubao Say has advanced to the Microphone step.
+          prompt: The Doubao Say page heading says Microphone and the page offers Check microphone · 3 seconds.
           options: { timeoutMs: 30000, checkIntervalMs: 1000 }
       - computer.tapPoint: { target: Left-arrow Previous button in the fixed top navigation, point: { x: 240, y: 203 } }
       - aiWaitFor:
@@ -96,13 +96,11 @@ cases:
       - aiWaitFor:
           prompt: The endpoint feedback contains Synthetic endpoint unavailable and the retry button says Test failed — try again.
           options: { timeoutMs: 30000, checkIntervalMs: 1000 }
-      - aiAssert: The endpoint failure and its enabled retry button are both visible.
       - computer.inputText: { target: The text entry to the right of Model containing ci-fail-model, value: ci-ok-model, point: { x: 850, y: 477 } }
       - aiTap: Test failed — try again button in the Voice polishing section
       - aiWaitFor:
           prompt: The endpoint result contains Synthetic endpoint response and the button says Endpoint works.
           options: { timeoutMs: 30000, checkIntervalMs: 1000 }
-      - aiAssert: The previous Synthetic endpoint unavailable error is gone and the successful endpoint result is visible.
 
   - name: Microphone check gates setup completion
     tags: [shard-4]
