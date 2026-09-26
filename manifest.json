@@ -2,7 +2,7 @@
   "schemaVersion": 1,
   "id": "md.lifeos.doubao-say",
   "name": "Doubao Say",
-  "version": "1.2.0",
+  "version": "1.3.0",
   "author": "quanru and contributors",
   "description": "Doubao Say turns speech into polished text with live captions and configurable tap or hold triggers on Wayland.",
   "kinds": [

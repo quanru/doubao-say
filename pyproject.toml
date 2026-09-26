@@ -4,7 +4,7 @@ build-backend = "setuptools.build_meta"
 
 [project]
 name = "doubao-say"
-version = "1.2.0"
+version = "1.3.0"
 description = "Global push-to-hold voice input for Linux/Wayland, backed by Doubao ASR"
 readme = "README.md"
 requires-python = ">=3.11"
@@ -25,7 +25,8 @@ dependencies = [
 ]
 
 [project.urls]
-"Homepage" = "https://github.com/quanru/doubao-say"
+"Homepage" = "https://doubao-say.lifeos.md/"
+"Source" = "https://github.com/quanru/doubao-say"
 "Issues" = "https://github.com/quanru/doubao-say/issues"
 "Upstream" = "https://github.com/wurong98/doubao-input-for-linux"
 

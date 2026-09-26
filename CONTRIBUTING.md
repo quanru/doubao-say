@@ -79,9 +79,9 @@ For marketplace preparation, use `make marketplace-check` with Gitleaks on PATH
 and follow [the publishing checklist](packaging/MARKETPLACE.md). Reports and local
 review drafts belong in ignored `artifacts/` and `docs/`, not in release payloads.
 
-The current public version is `1.2.0`. Keep `pyproject.toml`, `manifest.json` and
+The current public version is `1.3.0`. Keep `pyproject.toml`, `manifest.json` and
 `src/doubao_input/product.py` aligned; `python packaging/version_check.py` verifies
-them. A pushed tag such as `v1.2.0` runs all checks and secret scanning, builds app
+them. A pushed tag such as `v1.3.0` runs all checks and secret scanning, builds app
 and plugin archives for every supported Python version, creates `SHA256SUMS`, and
 publishes the GitHub Release. `workflow_dispatch` performs a non-publishing build.
 # Bounded desktop tests

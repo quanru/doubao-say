@@ -5,7 +5,7 @@ Maintainer: doubao-say contributors <code-dream@qq.com>
 Build-Depends:
  debhelper-compat (= 13),
 Standards-Version: 4.6.2
-Homepage: https://github.com/quanru/doubao-say
+Homepage: https://doubao-say.lifeos.md/
 Rules-Requires-Root: no
 
 Package: doubao-say

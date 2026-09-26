@@ -1,5 +1,12 @@
 # Changelog
 
+## 1.3.0
+
+- Added Deepgram Nova-3 as an optional recognition provider for US English dictation. Users supply their own API key; interim and final transcripts appear in the existing voice-input flow. The key is stored separately with owner-only permissions.
+- Kept Doubao web-account recognition and the official Volcengine Seed ASR 2.0 API available through the same recognition-service settings.
+- Allowed another key to finish an Fn-triggered dictation session.
+- Fixed the Debian offline runtime dependency installation path and refreshed the English and Chinese README screenshots and setup guidance.
+
 ## 1.2.0
 
 - Added optional Vibekey receiver support with authenticated heartbeat and hot-plug

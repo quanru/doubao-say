@@ -1,6 +1,6 @@
 # 豆包说（Doubao Say）
 
-[English](README.md)
+[官网](https://doubao-say.lifeos.md/zh/) · [English](README.md)
 
 ![豆包说在 Omarchy Linux 上运行的界面](images/readme-cn.jpeg)
 
@@ -332,7 +332,7 @@ timeout --kill-after=5s 50s env PYTHONPATH=src python3 tests/manual/x11.py --run
 GTK 测试、代码检查、编译、包元数据校验和密钥扫描。覆盖率按整个源码包的分支覆盖率
 计算，当前真实门槛为 55%；GTK 界面、WebKit 和实体设备路径没有从分母中排除。
 
-当前发布版本为 **1.2.0**。只有 `v1.2.0` 标签与所有内置版本完全一致时，CI 才能发布。
+当前发布版本为 **1.3.0**。只有 `v1.3.0` 标签与所有内置版本完全一致时，CI 才能发布。
 标签发布会为 Python 3.11–3.14 分别构建独立应用与 Omarchy 插件离线包，并附带 SHA-256
 校验文件。手动启动发布工作流只构建供检查的产物，不会公开发布。真实登录、麦克风、
 全局按键及桌面行为仍需按人工验收清单检查。

@@ -49,7 +49,7 @@ class ReleaseTest(unittest.TestCase):
         notes = (ROOT / "RELEASE_NOTES.md").read_text()
         self.assertIn("--notes-file RELEASE_NOTES.md", workflow)
         self.assertNotIn("--generate-notes", workflow)
-        for expected in ("Doubao Say 1.2.0", "Volcengine Seed ASR 2.0", "Vibekey", "Midscene Test"):
+        for expected in ("Doubao Say 1.3.0", "Volcengine Seed ASR 2.0", "Deepgram Nova-3"):
             self.assertIn(expected, notes)
 
     def test_both_archives_exclude_ignored_source_files(self):
