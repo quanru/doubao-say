@@ -281,7 +281,11 @@ case "$MIDSCENE_PROJECT" in
   omarchy-shard-[1-4])
     npm --prefix tests/e2e test -- --project "$MIDSCENE_PROJECT"
     ;;
-  omarchy-shell|omarchy-plugin-review|omarchy-plugin-smoke)
+  omarchy-plugin-smoke)
+    node tests/e2e/render-omarchy-plugin-smoke.mjs
+    npm --prefix tests/e2e test -- --project "$MIDSCENE_PROJECT"
+    ;;
+  omarchy-shell|omarchy-plugin-review)
     npm --prefix tests/e2e test -- --project "$MIDSCENE_PROJECT"
     ;;
   *)

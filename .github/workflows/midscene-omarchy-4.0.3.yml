@@ -25,6 +25,7 @@ on:
       - "tests/e2e/cases/**"
       - "tests/e2e/midscene.config.ts"
       - "tests/e2e/model-rate-gate.mjs"
+      - "tests/e2e/render-omarchy-plugin-smoke.mjs"
       - "tests/e2e/run-omarchy-midscene.sh"
       - "tests/e2e/restore-omarchy-vm.sh"
       - "tests/e2e/omarchy-vm.env"

@@ -2,4 +2,4 @@ cases:
   - name: Review a pinned community plugin on the real Omarchy desktop
     steps:
       - review.openConfigured: {}
-      - review.assertConfiguredVisual: {}
+      - aiAssert: __REVIEW_VISIBLE_ASSERTION__

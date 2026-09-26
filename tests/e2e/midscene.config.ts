@@ -387,15 +387,6 @@ const openConfiguredReviewPlugin = defineNode<typeof empty, void, DesktopContext
     throw new Error(`Plugin IPC did not become ready: ${String(lastError)}`);
   },
 });
-const assertConfiguredReviewPlugin = defineNode<typeof empty, void, DesktopContext>({
-  name: 'review.assertConfiguredVisual', description: 'Assert the caller-provided visible behavior on the real Omarchy desktop.', inputSchema: empty,
-  async execute({ context }) {
-    const assertion = process.env.REVIEW_VISIBLE_ASSERTION;
-    if (!assertion || assertion.length > 500) throw new Error('REVIEW_VISIBLE_ASSERTION must be 1–500 characters');
-    if (!context.agent) throw new Error('Midscene Computer Agent is not active');
-    await context.agent.aiAssert(assertion);
-  },
-});
 
 const productCaseFiles = [
   'cases/onboarding.yaml',
@@ -510,6 +501,5 @@ export default defineTestProject<DesktopContext>({
     openReviewPlugin,
     assertReviewPluginEmpty,
     openConfiguredReviewPlugin,
-    assertConfiguredReviewPlugin,
   ],
 });
