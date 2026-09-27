@@ -307,6 +307,10 @@ jobs:
           test -f "$report_root/index.html"
           while IFS= read -r -d '' file; do
             relative=${file#"$report_root"/}
+            if grep -Fq -- "$MIDSCENE_MODEL_API_KEY" "$file"; then
+              echo "Refusing to publish a report containing the model proxy token." >&2
+              exit 1
+            fi
             curl --fail --silent --show-error \
               -X PUT -H "Authorization: Bearer $oidc" \
               --data-binary @"$file" \
