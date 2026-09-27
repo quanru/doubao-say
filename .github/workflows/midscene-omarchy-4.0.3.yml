@@ -44,6 +44,11 @@ on:
     types: [labeled]
   workflow_dispatch:
     inputs:
+      bootstrap_hosted_model:
+        description: Transfer the existing hosted model secret to the Midscene App
+        type: boolean
+        required: false
+        default: false
       project:
         description: Run one Midscene project for focused verification
         type: choice
@@ -94,9 +99,49 @@ concurrency:
   cancel-in-progress: ${{ github.event_name == 'pull_request' }}
 
 jobs:
+  bootstrap-hosted-model:
+    name: Bootstrap hosted model
+    if: github.event_name == 'workflow_dispatch' && inputs.bootstrap_hosted_model == true && github.actor == 'quanru' && github.ref == 'refs/heads/research/omarchy-plugin-visual-review'
+    runs-on: ubuntu-latest
+    timeout-minutes: 5
+    env:
+      MIDSCENE_REVIEW_APP_URL: ${{ vars.MIDSCENE_REVIEW_APP_URL }}
+      HOSTED_MODEL_API_KEY: ${{ secrets.MIDSCENE_MODEL_API_KEY }}
+      HOSTED_MODEL_NAME: ${{ secrets.MIDSCENE_MODEL_NAME }}
+      HOSTED_MODEL_BASE_URL: ${{ secrets.MIDSCENE_MODEL_BASE_URL }}
+      HOSTED_MODEL_FAMILY: ${{ secrets.MIDSCENE_MODEL_FAMILY }}
+    steps:
+      - name: Transfer hosted model configuration over OIDC-authenticated HTTPS
+        run: |
+          test -n "$MIDSCENE_REVIEW_APP_URL"
+          test -n "$HOSTED_MODEL_API_KEY"
+          test -n "$HOSTED_MODEL_NAME"
+          test -n "$HOSTED_MODEL_BASE_URL"
+          test -n "$HOSTED_MODEL_FAMILY"
+          node --input-type=module <<'JS'
+          const identityResponse = await fetch(`${process.env.ACTIONS_ID_TOKEN_REQUEST_URL}&audience=midscene-review-app`, {
+            headers: { authorization: `bearer ${process.env.ACTIONS_ID_TOKEN_REQUEST_TOKEN}` },
+          });
+          if (!identityResponse.ok) throw new Error(`GitHub OIDC failed: ${identityResponse.status}`);
+          const { value: identity } = await identityResponse.json();
+          const response = await fetch(`${process.env.MIDSCENE_REVIEW_APP_URL.replace(/\/+$/, '')}/api/worker/bootstrap-hosted`, {
+            method: 'POST',
+            headers: { authorization: `Bearer ${identity}`, 'content-type': 'application/json' },
+            body: JSON.stringify({
+              apiKey: process.env.HOSTED_MODEL_API_KEY,
+              modelName: process.env.HOSTED_MODEL_NAME,
+              baseUrl: process.env.HOSTED_MODEL_BASE_URL,
+              modelFamily: process.env.HOSTED_MODEL_FAMILY,
+            }),
+          });
+          if (!response.ok) throw new Error(`Midscene bootstrap failed: ${response.status}`);
+          console.log('Hosted model configuration was stored by the Midscene review service.');
+          JS
+
   omarchy-e2e:
     name: Midscene visual (${{ matrix.project }})
     if: >-
+      inputs.bootstrap_hosted_model != true &&
       (github.event_name != 'pull_request' || github.event.pull_request.head.repo.full_name == github.repository) &&
       (github.event_name != 'issues' ||
       (github.event.label.name == 'midscene-review' && startsWith(github.event.issue.title, '[Omarchy review] ')))
@@ -344,7 +389,7 @@ jobs:
     name: Assemble Midscene report bundle
     needs: omarchy-e2e
     if: >-
-      always() && !cancelled() && github.event_name != 'issues' &&
+      always() && !cancelled() && github.event_name != 'issues' && inputs.bootstrap_hosted_model != true &&
       (inputs.project == '' || inputs.project == 'all')
     runs-on: ubuntu-latest
     outputs:
@@ -380,7 +425,7 @@ jobs:
     name: GitHub Pages report
     needs: [omarchy-e2e, report-bundle]
     if: >-
-      always() && github.event_name != 'issues' &&
+      always() && github.event_name != 'issues' && inputs.bootstrap_hosted_model != true &&
       !cancelled() &&
       needs.report-bundle.outputs.report-artifact-id != '' &&
       (github.event_name != 'pull_request' ||
