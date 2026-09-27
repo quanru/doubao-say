@@ -324,6 +324,7 @@ jobs:
           TEST_OUTCOME: ${{ steps.midscene-test.outcome }}
           REPORT_OUTCOME: ${{ steps.publish-report.outcome }}
         run: |
+          if [ "$REPORT_OUTCOME" = success ]; then sleep 65; fi
           oidc=$(curl --fail --silent --show-error \
             -H "Authorization: bearer $ACTIONS_ID_TOKEN_REQUEST_TOKEN" \
             "${ACTIONS_ID_TOKEN_REQUEST_URL}&audience=midscene-review-app" | jq -r '.value')
