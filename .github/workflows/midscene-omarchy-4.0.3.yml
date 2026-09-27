@@ -79,10 +79,15 @@ on:
         description: What should be visible after opening the plugin
         type: string
         required: false
+      review_run_id:
+        description: Midscene GitHub App review run ID
+        type: string
+        required: false
 
 permissions:
   contents: read
   packages: read
+  id-token: write
 
 concurrency:
   group: midscene-model-e2e-${{ github.workflow }}-${{ github.event.issue.number || github.ref }}
@@ -111,11 +116,6 @@ jobs:
           format('["{0}"]', inputs.project) ||
           '["omarchy-shard-1","omarchy-shard-2","omarchy-shard-3","omarchy-shard-4","omarchy-shell"]') }}
     env:
-      MIDSCENE_MODEL_API_KEY: ${{ secrets.MIDSCENE_MODEL_API_KEY }}
-      MIDSCENE_MODEL_NAME: ${{ secrets.MIDSCENE_MODEL_NAME }}
-      MIDSCENE_MODEL_BASE_URL: ${{ secrets.MIDSCENE_MODEL_BASE_URL }}
-      MIDSCENE_MODEL_FAMILY: ${{ secrets.MIDSCENE_MODEL_FAMILY }}
-      MIDSCENE_MODEL_REASONING_ENABLED: ${{ secrets.MIDSCENE_MODEL_REASONING_ENABLED }}
       MIDSCENE_COMPUTER_HEADLESS_LINUX: "true"
       MIDSCENE_REPLANNING_CYCLE_LIMIT: "40"
       # The Ark endpoint answers bursts with 429; retry up to 3 extra times
@@ -130,6 +130,7 @@ jobs:
       REVIEW_PLUGIN_ID: ${{ inputs.plugin_id }}
       REVIEW_PLUGIN_OPEN_METHOD: ${{ inputs.plugin_open_method }}
       REVIEW_VISIBLE_ASSERTION: ${{ inputs.visible_assertion }}
+      MIDSCENE_REVIEW_APP_URL: ${{ vars.MIDSCENE_REVIEW_APP_URL }}
     steps:
       - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
         with:
@@ -138,6 +139,46 @@ jobs:
       - name: Read maintainer-approved review Issue
         if: github.event_name == 'issues'
         run: node scripts/parse-omarchy-review-issue.mjs
+
+      - name: Configure existing worker model
+        if: github.event_name != 'workflow_dispatch' || inputs.review_run_id == ''
+        env:
+          LEGACY_MODEL_API_KEY: ${{ secrets.MIDSCENE_MODEL_API_KEY }}
+          LEGACY_MODEL_NAME: ${{ secrets.MIDSCENE_MODEL_NAME }}
+          LEGACY_MODEL_BASE_URL: ${{ secrets.MIDSCENE_MODEL_BASE_URL }}
+          LEGACY_MODEL_FAMILY: ${{ secrets.MIDSCENE_MODEL_FAMILY }}
+          LEGACY_MODEL_REASONING_ENABLED: ${{ secrets.MIDSCENE_MODEL_REASONING_ENABLED }}
+        run: |
+          {
+            echo "MIDSCENE_MODEL_API_KEY=$LEGACY_MODEL_API_KEY"
+            echo "MIDSCENE_MODEL_NAME=$LEGACY_MODEL_NAME"
+            echo "MIDSCENE_MODEL_BASE_URL=$LEGACY_MODEL_BASE_URL"
+            echo "MIDSCENE_MODEL_FAMILY=$LEGACY_MODEL_FAMILY"
+            echo "MIDSCENE_MODEL_REASONING_ENABLED=$LEGACY_MODEL_REASONING_ENABLED"
+          } >> "$GITHUB_ENV"
+
+      - name: Obtain scoped Midscene model proxy token
+        if: github.event_name == 'workflow_dispatch' && inputs.review_run_id != ''
+        env:
+          REVIEW_RUN_ID: ${{ inputs.review_run_id }}
+        run: |
+          test -n "$MIDSCENE_REVIEW_APP_URL"
+          oidc=$(curl --fail --silent --show-error \
+            -H "Authorization: bearer $ACTIONS_ID_TOKEN_REQUEST_TOKEN" \
+            "${ACTIONS_ID_TOKEN_REQUEST_URL}&audience=midscene-review-app" | jq -r '.value')
+          response=$(curl --fail --silent --show-error \
+            -H "Authorization: Bearer $oidc" \
+            -H "Content-Type: application/json" \
+            --data "$(jq -nc --arg id "$REVIEW_RUN_ID" '{runId:$id}')" \
+            "${MIDSCENE_REVIEW_APP_URL%/}/api/worker/model-token")
+          proxy_token=$(jq -er '.token' <<< "$response")
+          echo "::add-mask::$proxy_token"
+          {
+            echo "MIDSCENE_MODEL_API_KEY=$proxy_token"
+            echo "MIDSCENE_MODEL_NAME=$(jq -er '.modelName' <<< "$response")"
+            echo "MIDSCENE_MODEL_FAMILY=$(jq -er '.modelFamily' <<< "$response")"
+            echo "MIDSCENE_MODEL_BASE_URL=$(jq -er '.baseUrl' <<< "$response")"
+          } >> "$GITHUB_ENV"
 
       - name: Require Midscene model configuration
         run: |
@@ -251,6 +292,44 @@ jobs:
           if-no-files-found: error
           retention-days: 7
           overwrite: true
+
+      - name: Publish direct HTML report to Midscene
+        id: publish-report
+        if: always() && !cancelled() && github.event_name == 'workflow_dispatch' && inputs.review_run_id != ''
+        continue-on-error: true
+        env:
+          REVIEW_RUN_ID: ${{ inputs.review_run_id }}
+        run: |
+          oidc=$(curl --fail --silent --show-error \
+            -H "Authorization: bearer $ACTIONS_ID_TOKEN_REQUEST_TOKEN" \
+            "${ACTIONS_ID_TOKEN_REQUEST_URL}&audience=midscene-review-app" | jq -r '.value')
+          report_root=$(find tests/e2e/midscene_run/report -mindepth 1 -maxdepth 1 -type d -name 'midscene-e2e-*' -print -quit)
+          test -f "$report_root/index.html"
+          while IFS= read -r -d '' file; do
+            relative=${file#"$report_root"/}
+            curl --fail --silent --show-error \
+              -X PUT -H "Authorization: Bearer $oidc" \
+              --data-binary @"$file" \
+              "${MIDSCENE_REVIEW_APP_URL%/}/api/worker/report/$REVIEW_RUN_ID/$relative" >/dev/null
+          done < <(find "$report_root" -type f -print0)
+
+      - name: Complete Midscene review check
+        if: always() && !cancelled() && github.event_name == 'workflow_dispatch' && inputs.review_run_id != ''
+        env:
+          REVIEW_RUN_ID: ${{ inputs.review_run_id }}
+          TEST_OUTCOME: ${{ steps.midscene-test.outcome }}
+          REPORT_OUTCOME: ${{ steps.publish-report.outcome }}
+        run: |
+          oidc=$(curl --fail --silent --show-error \
+            -H "Authorization: bearer $ACTIONS_ID_TOKEN_REQUEST_TOKEN" \
+            "${ACTIONS_ID_TOKEN_REQUEST_URL}&audience=midscene-review-app" | jq -r '.value')
+          outcome=failed
+          if [ "$TEST_OUTCOME" = success ] && [ "$REPORT_OUTCOME" = success ]; then outcome=succeeded; fi
+          curl --fail --silent --show-error \
+            -H "Authorization: Bearer $oidc" \
+            -H "Content-Type: application/json" \
+            --data "$(jq -nc --arg id "$REVIEW_RUN_ID" --arg status "$outcome" '{runId:$id,outcome:$status}')" \
+            "${MIDSCENE_REVIEW_APP_URL%/}/api/worker/complete" >/dev/null
 
       - name: Verify Omarchy shell visual evidence
         if: success() && matrix.project == 'omarchy-shell'
