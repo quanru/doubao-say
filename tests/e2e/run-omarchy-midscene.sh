@@ -129,10 +129,12 @@ if [[ $MIDSCENE_PROJECT == omarchy-plugin-review || $MIDSCENE_PROJECT == omarchy
   [[ $REVIEW_PLUGIN_SHA =~ ^[a-fA-F0-9]{40}$ ]]
   [[ $REVIEW_PLUGIN_ID =~ ^[a-z0-9][a-z0-9._-]{2,127}$ ]]
   if [[ $REVIEW_PLUGIN_ID == md.lifeos.doubao-say ]]; then
-    # The reusable base VM can have the preinstalled Doubao Say Gtk.Application
-    # alive. A second launch activates that old process instead of importing
-    # the PR checkout, so stop it before replacing the plugin directory.
+    # The reusable base VM has a keepLoaded Service.qml that respawns Doubao
+    # Say after a kill. Disable that service before stopping the old GTK
+    # single-instance app; enable it again after installing the PR checkout.
+    ssh_session "omarchy plugin disable '$REVIEW_PLUGIN_ID' || true"
     ssh_session "pkill -f '[p]ython.*-m doubao_input' || true"
+    ssh_session "! pgrep -f '[p]ython.*-m doubao_input' >/dev/null"
   fi
   curl --fail --location --silent --show-error --retry 3 \
     --max-time 90 --max-filesize 50000000 \
@@ -154,6 +156,10 @@ if [[ $MIDSCENE_PROJECT == omarchy-plugin-review || $MIDSCENE_PROJECT == omarchy
     ssh_session "test -x '$REVIEW_PLUGIN_DIR/start.sh' && test -x '$REVIEW_PLUGIN_DIR/install.sh'"
     ssh_session_tty "printf '%s\\n' omarchy | sudo -S -v && \
       sudo pacman -Sy --noconfirm && '$REVIEW_PLUGIN_DIR/install.sh' --yes"
+  fi
+  if [[ $REVIEW_PLUGIN_ID == md.lifeos.doubao-say ]]; then
+    # Catch an old service that restarted while dependencies were installed.
+    ssh_session "! pgrep -f '[p]ython.*-m doubao_input' >/dev/null"
   fi
   review_enable_output=""
   review_enabled=false
