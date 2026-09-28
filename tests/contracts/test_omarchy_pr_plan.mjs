@@ -113,6 +113,15 @@ test('an English screenshot does not verify changed Chinese copy in the same hun
   assert.match(gated.summary, /separate desktop check/);
 });
 
+test('a selected heading leaves another English label in the same hunk unverified', () => {
+  const files = [{ filename: 'src/provider.py', patch: '@@ -1,2 +1,2 @@\n+name_en="Doubao preview account"\n+setup_heading_en="Your voice, ready to create."' }];
+  const plan = validatePlan({ summary: 'Two visible labels changed', scenarios: [{
+    name: 'Open sign in', assertion: 'The new heading is visible',
+    visualAnchor: 'Your voice, ready to create.', files: ['src/provider.py'],
+  }] }, files);
+  assert.deepEqual(requireChangedVisualAnchor(plan, files).unverified, ['src/provider.py']);
+});
+
 test('planner reads pinned source and nearby references without following symlinks', () => {
   const root = mkdtempSync(join(tmpdir(), 'midscene-review-source-'));
   try {
