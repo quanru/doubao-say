@@ -6,6 +6,13 @@ const runtimeFile = (name) => !/^(?:\.github\/|docs?\/|tests?\/|README|CHANGELOG
 const limited = (value, max) => typeof value === 'string' && value.trim().length > 0 && value.length <= max;
 const safeFile = (name) => /^[^\n\r]{1,240}$/.test(name) && !name.startsWith('/') && !name.split('/').includes('..');
 
+export function redactPatch(patch) {
+  return patch
+    .replace(/\b(?:sk-[A-Za-z0-9_-]{12,}|gh[oprsu]_[A-Za-z0-9_]{20,}|github_pat_[A-Za-z0-9_]{20,})\b/g, '[REDACTED]')
+    .replace(/\b(Bearer\s+)[A-Za-z0-9._-]{12,}/gi, '$1[REDACTED]')
+    .replace(/\b((?:api[_-]?key|access[_-]?token|secret|password)\s*[:=]\s*["']?)[^\s"']{8,}/gi, '$1[REDACTED]');
+}
+
 export function validatePlan(candidate, files) {
   if (!candidate || typeof candidate !== 'object' || !limited(candidate.summary, 500) ||
       !Array.isArray(candidate.scenarios) || candidate.scenarios.length > 3) throw new Error('Invalid review plan');
@@ -54,7 +61,7 @@ async function createPlan(env = process.env) {
   if (!runtime.length) return { summary: 'This PR changes no runtime plugin files. No PR-specific desktop behavior was verified.',
     changedFiles: files.map((file) => file.filename), scenarios: [], unverified: [] };
   const excerpt = runtime.map((file) => ({ file: file.filename, status: file.status,
-    patch: typeof file.patch === 'string' ? file.patch.slice(0, 8_000) : '[patch unavailable]' }));
+    patch: typeof file.patch === 'string' ? redactPatch(file.patch.slice(0, 8_000)) : '[patch unavailable]' }));
   const prompt = JSON.stringify(excerpt).slice(0, 32_000);
   const response = await fetch(`${env.MIDSCENE_MODEL_BASE_URL.replace(/\/+$/, '')}/chat/completions`, {
     method: 'POST', headers: { authorization: `Bearer ${env.MIDSCENE_MODEL_API_KEY}`, 'content-type': 'application/json' },
