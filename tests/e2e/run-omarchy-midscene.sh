@@ -133,8 +133,9 @@ if [[ $MIDSCENE_PROJECT == omarchy-plugin-review || $MIDSCENE_PROJECT == omarchy
     # Say after a kill. Disable that service before stopping the old GTK
     # single-instance app; enable it again after installing the PR checkout.
     ssh_session "omarchy plugin disable '$REVIEW_PLUGIN_ID' || true"
-    ssh_session "pkill -f '[p]ython.*-m doubao_input' || true"
-    ssh_session "! pgrep -f '[p]ython.*-m doubao_input' >/dev/null"
+    ssh_session "pgrep -af '[d]oubao_input' || true"
+    ssh_session "pkill -f '[d]oubao_input' || true"
+    ssh_session "! pgrep -f '[d]oubao_input' >/dev/null"
   fi
   curl --fail --location --silent --show-error --retry 3 \
     --max-time 90 --max-filesize 50000000 \
@@ -150,6 +151,9 @@ if [[ $MIDSCENE_PROJECT == omarchy-plugin-review || $MIDSCENE_PROJECT == omarchy
     test \"\$(jq -r .id '$REVIEW_PLUGIN_DIR/manifest.json')\" = '$REVIEW_PLUGIN_ID' && \
     omarchy plugin validate '$REVIEW_PLUGIN_DIR' && \
     omarchy-shell shell rescanPlugins"
+  if [[ $REVIEW_PLUGIN_ID == md.lifeos.doubao-say ]]; then
+    ssh_session "grep -n 'Your voice,.*wherever you type' '$REVIEW_PLUGIN_DIR/src/doubao_input/ui/control_window.py'"
+  fi
   if [[ ${REVIEW_PLUGIN_OPEN_METHOD:-open} == launch ]]; then
     # Service plugins may need system libraries before their background process
     # can start. Install only inside the disposable guest at the pinned SHA.
@@ -159,7 +163,7 @@ if [[ $MIDSCENE_PROJECT == omarchy-plugin-review || $MIDSCENE_PROJECT == omarchy
   fi
   if [[ $REVIEW_PLUGIN_ID == md.lifeos.doubao-say ]]; then
     # Catch an old service that restarted while dependencies were installed.
-    ssh_session "! pgrep -f '[p]ython.*-m doubao_input' >/dev/null"
+    ssh_session "! pgrep -f '[d]oubao_input' >/dev/null"
   fi
   review_enable_output=""
   review_enabled=false
@@ -179,6 +183,9 @@ if [[ $MIDSCENE_PROJECT == omarchy-plugin-review || $MIDSCENE_PROJECT == omarchy
   if [[ $review_enabled != true ]]; then
     echo "Review plugin was not recognized after rescan: $review_enable_output" >&2
     exit 1
+  fi
+  if [[ $REVIEW_PLUGIN_ID == md.lifeos.doubao-say ]]; then
+    ssh_session "pgrep -af '[d]oubao_input' || true"
   fi
   if [[ $MIDSCENE_PROJECT == omarchy-plugin-review ]]; then
     # The pinned Checklist Todo widget registers its IPC target after mounting.
