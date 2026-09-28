@@ -1,6 +1,6 @@
 import assert from 'node:assert/strict';
 import test from 'node:test';
-import { validatePlan, redactPatch } from '../e2e/plan-omarchy-pr-review.mjs';
+import { validatePlan, redactPatch, restrictToVisibleStartingState } from '../e2e/plan-omarchy-pr-review.mjs';
 
 test('review plan identifies runtime files not covered by scenarios', () => {
   const plan = validatePlan({ summary: 'Settings changed', scenarios: [{
@@ -29,4 +29,14 @@ test('review planner redacts common credentials before model requests', () => {
   assert.equal(redactPatch('+ api_key = "sk-abcdefghijklmnopqrstuvwxyz"'), '+ api_key = "[REDACTED]"');
   assert.equal(redactPatch('+ Authorization: Bearer abcdefghijklmnopqrstuvwxyz'),
     '+ Authorization: Bearer [REDACTED]');
+});
+
+test('review planner does not pursue authenticated settings from a sign-in screen', () => {
+  const plan = { summary: 'Settings changed', changedFiles: ['src/settings.py'],
+    scenarios: [{ name: 'Open settings', action: 'Open the settings window', assertion: 'New switch visible', files: ['src/settings.py'] }],
+    unverified: [] };
+  const gated = restrictToVisibleStartingState(plan, 'The plugin is on the Sign in step and the user is not signed in.');
+  assert.deepEqual(gated.scenarios, []);
+  assert.deepEqual(gated.unverified, ['src/settings.py']);
+  assert.equal(restrictToVisibleStartingState(plan, 'The plugin home is visible.').scenarios.length, 1);
 });

@@ -229,10 +229,11 @@ else
   ssh_guest "test -f /home/omarchy/.local/share/applications/doubao-say.desktop && \
     grep -Fq '$PLUGIN_DIR/start.sh' /home/omarchy/.local/share/applications/doubao-say.desktop"
 
-  # First-run Omarchy notifications are unrelated to the plugin and visually
-  # overlap the product's own recording overlay in VNC screenshots.
-  ssh_session "omarchy-shell notifications dismissAll"
 fi
+
+# First-run Omarchy notifications can obscure a PR's UI and lead the visual
+# agent to open the system updater. Dismiss them for every desktop project.
+ssh_session "omarchy-shell notifications dismissAll"
 
 # Start the host display ourselves and verify it before libnut connects. The
 # ComputerAgent's built-in Xvfb launcher only waits a fixed 500 ms, which can
