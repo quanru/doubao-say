@@ -151,6 +151,7 @@ test('PR review renderer adds scenarios from the diff plan', async () => {
   const rendered = await readFile(path.join(root, 'cases/omarchy-plugin-smoke.yaml'), 'utf8');
   assert.match(rendered, /aiAct: "Click Settings"/);
   assert.match(rendered, /aiAssert: "Settings panel is visible"/);
+  assert.equal((rendered.match(/  - name:/g) || []).length, 1);
 });
 
 test('rerun aggregation excludes the previous combined report artifact', async () => {

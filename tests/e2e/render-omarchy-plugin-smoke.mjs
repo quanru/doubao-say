@@ -11,11 +11,9 @@ const planPath = fileURLToPath(new URL('./review-plan.json', import.meta.url));
 const plan = process.env.REVIEW_BASE_REPOSITORY
   ? JSON.parse(readFileSync(planPath, 'utf8')) : { scenarios: [] };
 if (!Array.isArray(plan.scenarios)) throw new Error('Review plan has no scenarios array');
-const yaml = ['cases:', '  - name: Baseline plugin launch on the real Omarchy desktop',
+const yaml = ['cases:', '  - name: Review the PR on the real Omarchy desktop',
   '    steps:', '      - review.openConfigured: {}', `      - aiAssert: ${JSON.stringify(assertion)}`];
 for (const scenario of plan.scenarios) {
-  yaml.push(`  - name: ${JSON.stringify(scenario.name)}`, '    steps:',
-    '      - review.openConfigured: {}');
   if (scenario.action) yaml.push(`      - aiAct: ${JSON.stringify(scenario.action)}`);
   yaml.push(`      - aiAssert: ${JSON.stringify(scenario.assertion)}`);
 }

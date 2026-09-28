@@ -16,6 +16,15 @@ test('review plan rejects invented file coverage', () => {
   }] }, [{ filename: 'src/settings.py' }]));
 });
 
+test('review plan keeps one focused scenario and leaves the rest unverified', () => {
+  const plan = validatePlan({ summary: 'Two screens changed', scenarios: [
+    { name: 'Screen A', assertion: 'A visible', files: ['src/a.py'] },
+    { name: 'Screen B', assertion: 'B visible', files: ['src/b.py'] },
+  ] }, [{ filename: 'src/a.py' }, { filename: 'src/b.py' }]);
+  assert.equal(plan.scenarios.length, 1);
+  assert.deepEqual(plan.unverified, ['src/b.py']);
+});
+
 test('review planner redacts common credentials before model requests', () => {
   assert.equal(redactPatch('+ api_key = "sk-abcdefghijklmnopqrstuvwxyz"'), '+ api_key = "[REDACTED]"');
   assert.equal(redactPatch('+ Authorization: Bearer abcdefghijklmnopqrstuvwxyz'),

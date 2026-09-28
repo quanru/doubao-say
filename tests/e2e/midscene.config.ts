@@ -449,7 +449,7 @@ export default defineTestProject<DesktopContext>({
     },
     {
       name: 'omarchy-plugin-smoke',
-      retry: 1,
+      retry: 0,
       setup,
       files: { include: ['cases/omarchy-plugin-smoke.yaml'] },
     },
