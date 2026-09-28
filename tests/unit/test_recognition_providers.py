@@ -31,6 +31,8 @@ class RecognitionProviderRegistryTest(TestCase):
 
     def test_registry_owns_runtime_backend_configuration(self):
         doubao = recognition_provider("doubao")
+        self.assertEqual(doubao.setup_heading_en, "Your voice, ready wherever you type.")
+        self.assertEqual(doubao.setup_heading_zh, "随时用声音输入文字。")
         self.assertIsInstance(doubao.new_client(), ASRClient)
         self.assertIs(doubao.credential_store, ParamsStore)
         self.assertTrue(doubao.interactive_auth)
