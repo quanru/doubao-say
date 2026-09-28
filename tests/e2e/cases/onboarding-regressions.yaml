@@ -36,7 +36,7 @@ cases:
       - aiWaitFor:
           prompt: The Sign in step shows the signed-in account status and Sign in again or change account.
           options: { timeoutMs: 30000, checkIntervalMs: 1000 }
-      - aiAssert: The Sign in step shows the heading Your voice, wherever you type; left-arrow Previous is disabled, right-arrow Next is enabled, and the account status says Signed in.
+      - aiAssert: The Sign in step shows the heading Your voice, ready wherever you type; left-arrow Previous is disabled, right-arrow Next is enabled, and the account status says Signed in.
       - computer.tapPoint: { target: Right-arrow Next button in the fixed top navigation, point: { x: 1038, y: 203 } }
       - aiWaitFor:
           prompt: The Microphone step shows Let's make sure we can hear you.
