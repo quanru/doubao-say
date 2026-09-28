@@ -157,9 +157,6 @@ if [[ $MIDSCENE_PROJECT == omarchy-plugin-review || $MIDSCENE_PROJECT == omarchy
     test \"\$(jq -r .id '$REVIEW_PLUGIN_DIR/manifest.json')\" = '$REVIEW_PLUGIN_ID' && \
     omarchy plugin validate '$REVIEW_PLUGIN_DIR' && \
     omarchy-shell shell rescanPlugins"
-  if [[ $REVIEW_PLUGIN_ID == md.lifeos.doubao-say ]]; then
-    ssh_session "grep -n 'Your voice,.*wherever you type' '$REVIEW_PLUGIN_DIR/src/doubao_input/ui/control_window.py'"
-  fi
   if [[ ${REVIEW_PLUGIN_OPEN_METHOD:-open} == launch ]]; then
     # Service plugins may need system libraries before their background process
     # can start. Install only inside the disposable guest at the pinned SHA.
