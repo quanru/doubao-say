@@ -122,6 +122,12 @@ jobs:
       HOSTED_MODEL_BASE_URL: ${{ secrets.MIDSCENE_MODEL_BASE_URL }}
       HOSTED_MODEL_FAMILY: ${{ secrets.MIDSCENE_MODEL_FAMILY }}
     steps:
+      - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1
+      - name: Confirm the hosted credential can understand screenshots
+        env:
+          MODEL_API_KEY: ${{ secrets.MIDSCENE_MODEL_API_KEY }}
+          MODEL_BASE_URL: ${{ secrets.MIDSCENE_MODEL_BASE_URL }}
+        run: node tests/e2e/probe-hosted-vision.mjs
       - name: Transfer hosted model configuration over OIDC-authenticated HTTPS
         run: |
           test -n "$MIDSCENE_REVIEW_APP_URL"
