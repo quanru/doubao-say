@@ -27,6 +27,12 @@ XVFB_PID=""
 MODEL_GATE_PID=""
 
 cleanup() {
+  local result=$?
+  if ((result != 0)) && [[ -n $VM_PID ]] &&
+      [[ $MIDSCENE_PROJECT == omarchy-plugin-smoke || $MIDSCENE_PROJECT == omarchy-plugin-review ]]; then
+    echo 'Guest plugin service diagnostics (last 60 lines):' >&2
+    ssh_session 'journalctl --user -u omarchy-shell -n 60 --no-pager' >&2 || true
+  fi
   if [[ -n $MODEL_GATE_PID ]]; then
     kill "$MODEL_GATE_PID" 2>/dev/null || true
   fi

@@ -385,7 +385,12 @@ const openConfiguredReviewPlugin = defineNode<typeof empty, void, DesktopContext
         if (method === 'launch' && id === 'md.lifeos.doubao-say') {
           for (let windowAttempt = 0; windowAttempt < 20; windowAttempt++) {
             const windows = guest("hyprctl -j clients | jq -r '.[].title'");
-            if (windows.split('\n').some((title) => title === 'Doubao Say' || title === '豆包说')) return;
+            if (windows.split('\n').some((title) => title === 'Doubao Say' || title === '豆包说')) {
+              await sleep(5000);
+              const settledWindows = guest("hyprctl -j clients | jq -r '.[].title'");
+              if (settledWindows.split('\n').some((title) => title === 'Doubao Say' || title === '豆包说')) return;
+              break;
+            }
             await sleep(1000);
           }
           const processes = guest("pgrep -af '[p]ython.*-m doubao_input' || true");
