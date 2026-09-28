@@ -280,7 +280,7 @@ jobs:
             >/dev/null
 
       - name: Read the PR source without executing it
-        if: matrix.project == 'omarchy-plugin-smoke' && inputs.review_run_id != ''
+        if: matrix.project == 'omarchy-plugin-smoke' && inputs.review_pr_number != ''
         uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
         with:
           repository: ${{ inputs.review_base_repository }}
@@ -289,11 +289,11 @@ jobs:
           persist-credentials: false
 
       - name: Verify the reviewed source commit
-        if: matrix.project == 'omarchy-plugin-smoke' && inputs.review_run_id != ''
+        if: matrix.project == 'omarchy-plugin-smoke' && inputs.review_pr_number != ''
         run: test "$(git -C review-source rev-parse HEAD)" = "$REVIEW_PLUGIN_SHA"
 
       - name: Plan checks from the PR diff
-        if: matrix.project == 'omarchy-plugin-smoke' && inputs.review_run_id != ''
+        if: matrix.project == 'omarchy-plugin-smoke' && inputs.review_pr_number != ''
         env:
           GH_REVIEW_TOKEN: ${{ github.token }}
           REVIEW_SOURCE_ROOT: review-source
@@ -347,7 +347,7 @@ jobs:
             --projects "$PROJECT"
 
       - name: Independently verify changed visual text in desktop screenshot
-        if: matrix.project == 'omarchy-plugin-smoke' && inputs.review_run_id != '' && steps.midscene-test.outcome == 'success'
+        if: matrix.project == 'omarchy-plugin-smoke' && inputs.review_pr_number != '' && steps.midscene-test.outcome == 'success'
         run: node tests/e2e/verify-omarchy-pr-evidence.mjs
 
       - name: Record shard result for report aggregation
