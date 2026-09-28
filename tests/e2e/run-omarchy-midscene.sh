@@ -128,11 +128,17 @@ if [[ $MIDSCENE_PROJECT == omarchy-plugin-review || $MIDSCENE_PROJECT == omarchy
   [[ $REVIEW_PLUGIN_REPOSITORY =~ ^[A-Za-z0-9_.-]+/[A-Za-z0-9_.-]+$ ]]
   [[ $REVIEW_PLUGIN_SHA =~ ^[a-fA-F0-9]{40}$ ]]
   [[ $REVIEW_PLUGIN_ID =~ ^[a-z0-9][a-z0-9._-]{2,127}$ ]]
+  if [[ $REVIEW_PLUGIN_ID == md.lifeos.doubao-say ]]; then
+    # The reusable base VM can have the preinstalled Doubao Say Gtk.Application
+    # alive. A second launch activates that old process instead of importing
+    # the PR checkout, so stop it before replacing the plugin directory.
+    ssh_session "pkill -f '[p]ython.*-m doubao_input' || true"
+  fi
   curl --fail --location --silent --show-error --retry 3 \
     --max-time 90 --max-filesize 50000000 \
     "https://github.com/$REVIEW_PLUGIN_REPOSITORY/archive/$REVIEW_PLUGIN_SHA.tar.gz" \
     --output "$REVIEW_PLUGIN_ARCHIVE"
-  ssh_guest "mkdir -p '$REVIEW_PLUGIN_DIR'"
+  ssh_guest "rm -rf '$REVIEW_PLUGIN_DIR' && mkdir -p '$REVIEW_PLUGIN_DIR'"
   scp -i "$SSH_KEY" -P "$SSH_PORT" \
     -o BatchMode=yes -o IdentitiesOnly=yes \
     -o StrictHostKeyChecking=no -o UserKnownHostsFile=/dev/null \
