@@ -319,7 +319,7 @@ class ControlWindow:
             return widget
 
         account = page("account", tr("Sign in", "登录"),
-            tr("Your voice, wherever you type.", "让声音变成文字。"),
+            tr("Your voice, ready wherever you type.", "随时用声音输入文字。"),
             tr("Connect your Doubao account in a secure web window. Complete the sign-in method offered by Doubao, then return here. We never ask you to type a password into this app's settings.\n\nAudio is sent to Doubao only during recording. Sign-in data is stored on this device. This is an unofficial client.",
                "在网页窗口中连接豆包账号。按照豆包页面提供的方式完成登录，再回到这里；无需在本软件设置中填写密码。\n\n仅录音期间会向豆包发送音频。登录信息保存在本机。这是非官方客户端。"))
         provider_row = Gtk.Box(spacing=12)
