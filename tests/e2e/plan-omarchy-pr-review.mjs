@@ -8,6 +8,19 @@ const limited = (value, max) => typeof value === 'string' && value.trim().length
 const safeFile = (name) => /^[^\n\r]{1,240}$/.test(name) && !name.startsWith('/') && !name.split('/').includes('..');
 const normalized = (value) => value.toLocaleLowerCase().replace(/[^\p{L}\p{N}]+/gu, '');
 
+function otherAddedVisibleCopy(file, anchor) {
+  const expected = normalized(anchor);
+  return String(file.patch || '').split('\n').some((line) => {
+    if (!line.startsWith('+') || line.startsWith('+++')) return false;
+    return [...line.matchAll(/"([^"\\\n]{8,120})"|'([^'\\\n]{8,120})'/g)].some((match) => {
+      const copy = match[1] || match[2];
+      return normalized(copy).length >= 8 &&
+        (/[\p{Script=Han}]/u.test(copy) || /[A-Za-z]+[ ,.!?][A-Za-z]+/.test(copy)) &&
+        normalized(copy) !== expected;
+    });
+  });
+}
+
 export function redactPatch(patch) {
   return patch
     .replace(/-----BEGIN [A-Z ]*PRIVATE KEY-----[\s\S]*?-----END [A-Z ]*PRIVATE KEY-----/g, '[REDACTED PRIVATE KEY]')
@@ -67,9 +80,16 @@ export function requireChangedVisualAnchor(plan, files, readChanged = null) {
     return hunks?.length && hunks.every((hunk) => hunk.split('\n').some((line) =>
       line.startsWith('+') && !line.startsWith('+++') && normalized(line).includes(normalized(anchor))));
   }).map((file) => file.filename) : [];
-  if (supported.length) return { ...plan,
-    scenarios: [{ ...scenario, files: supported }],
-    unverified: plan.changedFiles.filter((file) => runtimeFile(file) && !supported.includes(file)) };
+  if (supported.length) {
+    const partial = supported.filter((name) =>
+      otherAddedVisibleCopy(files.find((file) => file.filename === name), anchor));
+    const note = 'Other newly added visible copy in the same file still needs a separate desktop check.';
+    return { ...plan,
+      summary: partial.length ? `${plan.summary.slice(0, 499 - note.length)} ${note}` : plan.summary,
+      scenarios: [{ ...scenario, files: supported }],
+      unverified: plan.changedFiles.filter((name) => runtimeFile(name) &&
+        (!supported.includes(name) || partial.includes(name))) };
+  }
   return { ...plan, summary: 'No changed source file had the visual text in every diff hunk and in the checked-out PR source.',
     scenarios: [], unverified: plan.changedFiles.filter((file) => runtimeFile(file)) };
 }

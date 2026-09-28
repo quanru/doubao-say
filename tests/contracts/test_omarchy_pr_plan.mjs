@@ -101,6 +101,18 @@ test('one anchor cannot cover another hunk in the same runtime file', () => {
   assert.deepEqual(gated.unverified, ['src/ui.py']);
 });
 
+test('an English screenshot does not verify changed Chinese copy in the same hunk', () => {
+  const files = [{ filename: 'src/provider.py', patch: '@@ -1,2 +1,2 @@\n+setup_heading_en="Your voice, ready to create."\n+setup_heading_zh="随时开口，轻松创作。"' }];
+  const plan = validatePlan({ summary: 'Bilingual heading changed', scenarios: [{
+    name: 'Open sign in', assertion: 'The new English heading is visible',
+    visualAnchor: 'Your voice, ready to create.', files: ['src/provider.py'],
+  }] }, files);
+  const gated = requireChangedVisualAnchor(plan, files);
+  assert.deepEqual(gated.scenarios[0].files, ['src/provider.py']);
+  assert.deepEqual(gated.unverified, ['src/provider.py']);
+  assert.match(gated.summary, /separate desktop check/);
+});
+
 test('planner reads pinned source and nearby references without following symlinks', () => {
   const root = mkdtempSync(join(tmpdir(), 'midscene-review-source-'));
   try {
