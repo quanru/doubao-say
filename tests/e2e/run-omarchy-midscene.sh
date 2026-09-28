@@ -192,6 +192,10 @@ if [[ $MIDSCENE_PROJECT == omarchy-plugin-review || $MIDSCENE_PROJECT == omarchy
   fi
   if [[ $REVIEW_PLUGIN_ID == md.lifeos.doubao-say ]]; then
     ssh_session "pgrep -af '[d]oubao_input' || true"
+    ssh_session "for pid in \$(pgrep -f '^/usr/bin/python3 -m doubao_input --background$'); do \
+      tr '\\0' '\\n' </proc/\$pid/environ | grep '^PYTHONPATH='; \
+      tr '\\0' '\\n' </proc/\$pid/environ | grep -F 'PYTHONPATH=$REVIEW_PLUGIN_DIR/src' >/dev/null || exit 1; \
+    done"
   fi
   if [[ $MIDSCENE_PROJECT == omarchy-plugin-review ]]; then
     # The pinned Checklist Todo widget registers its IPC target after mounting.
