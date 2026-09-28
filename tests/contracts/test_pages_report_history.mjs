@@ -137,6 +137,22 @@ test('plugin smoke keeps its visual assertion as a reportable Midscene step', as
   assert.doesNotMatch(rendered, /__REVIEW_VISIBLE_ASSERTION__/);
 });
 
+test('PR review renderer adds scenarios from the diff plan', async () => {
+  const renderer = await readFile(new URL('../e2e/render-omarchy-plugin-smoke.mjs', import.meta.url), 'utf8');
+  const root = await mkdtemp(path.join(os.tmpdir(), 'plugin-pr-render-'));
+  await mkdir(path.join(root, 'cases'));
+  await writeFile(path.join(root, 'render-omarchy-plugin-smoke.mjs'), renderer);
+  await writeFile(path.join(root, 'review-plan.json'), JSON.stringify({ scenarios: [{
+    name: 'Open settings', action: 'Click Settings', assertion: 'Settings panel is visible', files: ['src/settings.py'],
+  }] }));
+  execFileSync(process.execPath, [path.join(root, 'render-omarchy-plugin-smoke.mjs')], {
+    env: { ...process.env, REVIEW_VISIBLE_ASSERTION: 'Plugin opens', REVIEW_BASE_REPOSITORY: 'example/plugin' },
+  });
+  const rendered = await readFile(path.join(root, 'cases/omarchy-plugin-smoke.yaml'), 'utf8');
+  assert.match(rendered, /aiAct: "Click Settings"/);
+  assert.match(rendered, /aiAssert: "Settings panel is visible"/);
+});
+
 test('rerun aggregation excludes the previous combined report artifact', async () => {
   const source = await readFile(
     new URL('../../.github/workflows/midscene-omarchy-4.0.3.yml', import.meta.url),

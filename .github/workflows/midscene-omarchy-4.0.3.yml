@@ -88,6 +88,14 @@ on:
         description: Midscene GitHub App review run ID
         type: string
         required: false
+      review_base_repository:
+        description: Public base repository containing the PR
+        type: string
+        required: false
+      review_pr_number:
+        description: Pull request number to inspect
+        type: string
+        required: false
 
 permissions:
   contents: read
@@ -175,6 +183,8 @@ jobs:
       REVIEW_PLUGIN_ID: ${{ inputs.plugin_id }}
       REVIEW_PLUGIN_OPEN_METHOD: ${{ inputs.plugin_open_method }}
       REVIEW_VISIBLE_ASSERTION: ${{ inputs.visible_assertion }}
+      REVIEW_BASE_REPOSITORY: ${{ inputs.review_base_repository }}
+      REVIEW_PR_NUMBER: ${{ inputs.review_pr_number }}
       MIDSCENE_REVIEW_APP_URL: ${{ vars.MIDSCENE_REVIEW_APP_URL }}
     steps:
       - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
@@ -257,6 +267,12 @@ jobs:
             --data "$payload" \
             "${MIDSCENE_MODEL_BASE_URL%/}/chat/completions" \
             >/dev/null
+
+      - name: Plan checks from the PR diff
+        if: matrix.project == 'omarchy-plugin-smoke' && inputs.review_run_id != ''
+        env:
+          GH_REVIEW_TOKEN: ${{ github.token }}
+        run: node tests/e2e/plan-omarchy-pr-review.mjs
 
       - name: Install ORAS client
         uses: oras-project/setup-oras@1d808f7d7f6995cc68b7bf507bfe5c5446e1dc9d # v2.0.1
@@ -378,7 +394,7 @@ jobs:
           curl --fail --silent --show-error \
             -H "Authorization: Bearer $oidc" \
             -H "Content-Type: application/json" \
-            --data "$(jq -nc --arg id "$REVIEW_RUN_ID" --arg status "$outcome" '{runId:$id,outcome:$status}')" \
+            --data "$(if test -f tests/e2e/review-plan.json; then jq -nc --arg id "$REVIEW_RUN_ID" --arg status "$outcome" --slurpfile plan tests/e2e/review-plan.json '{runId:$id,outcome:$status,plan:$plan[0]}'; else jq -nc --arg id "$REVIEW_RUN_ID" --arg status "$outcome" '{runId:$id,outcome:$status}'; fi)" \
             "${MIDSCENE_REVIEW_APP_URL%/}/api/worker/complete" >/dev/null
 
       - name: Verify Omarchy shell visual evidence

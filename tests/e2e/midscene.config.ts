@@ -91,7 +91,7 @@ const setup = defineProjectSetup<DesktopContext>({
         // Agent finalizes its report. Stop Xvfb only after this process exits.
         keepXvfbAliveUntilProcessExit: true,
         aiContexts: shell
-          ? { aiAssert: 'Inspect the real Omarchy desktop through VNC. Judge only visible pixels; do not infer success from commands or configuration.' }
+          ? { aiAct: 'Interact only with the reviewed plugin on the real Omarchy desktop through VNC. Do not execute shell commands or enter credentials.', aiAssert: 'Inspect the real Omarchy desktop through VNC. Judge only visible pixels; do not infer success from commands or configuration.' }
           : polishing ? { aiAct: 'Test the native polishing overlay using the separate Polishing overlay test controls window. Use visible button labels.' }
           : { aiAct: `Test the English Doubao Say GTK onboarding window${omarchy ? ' inside a real Omarchy VM shown through VNC' : ''}. Interact only with Doubao Say and use visible labels.` },
       });
