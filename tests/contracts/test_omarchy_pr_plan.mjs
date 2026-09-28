@@ -1,6 +1,10 @@
 import assert from 'node:assert/strict';
 import test from 'node:test';
+import { mkdtempSync, mkdirSync, writeFileSync, rmSync, symlinkSync } from 'node:fs';
+import { tmpdir } from 'node:os';
+import { join } from 'node:path';
 import { validatePlan, redactPatch, restrictToVisibleStartingState, requireChangedVisualAnchor, planRepeatedVisibleCopy } from '../e2e/plan-omarchy-pr-review.mjs';
+import { buildSourceContext } from '../e2e/review-source-context.mjs';
 
 test('review plan identifies runtime files not covered by scenarios', () => {
   const plan = validatePlan({ summary: 'Settings changed', scenarios: [{
@@ -29,6 +33,7 @@ test('review planner redacts common credentials before model requests', () => {
   assert.equal(redactPatch('+ api_key = "sk-abcdefghijklmnopqrstuvwxyz"'), '+ api_key = "[REDACTED]"');
   assert.equal(redactPatch('+ Authorization: Bearer abcdefghijklmnopqrstuvwxyz'),
     '+ Authorization: Bearer [REDACTED]');
+  assert.equal(redactPatch('cookie = "sample-secret"'), 'cookie = "[REDACTED]"');
 });
 
 test('review planner does not pursue authenticated settings from a sign-in screen', () => {
@@ -42,7 +47,7 @@ test('review planner does not pursue authenticated settings from a sign-in scree
 });
 
 test('review plan requires a changed visual text anchor', () => {
-  const files = [{ filename: 'src/ui.py', patch: '@@\n-old text\n+label = "New welcome message"' }];
+  const files = [{ filename: 'src/ui.py', patch: '@@ -1 +1 @@\n-old text\n+label = "New welcome message"' }];
   const valid = validatePlan({ summary: 'Copy changed', scenarios: [{ name: 'First screen',
     assertion: 'New welcome message visible', visualAnchor: 'New welcome message', files: ['src/ui.py'] }] }, files);
   assert.equal(requireChangedVisualAnchor(valid, files).scenarios.length, 1);
@@ -50,8 +55,8 @@ test('review plan requires a changed visual text anchor', () => {
 });
 
 test('a visual text anchor does not claim unrelated runtime files', () => {
-  const files = [{ filename: 'src/ui.py', patch: '+label = "New welcome message"' },
-    { filename: 'src/background.py', patch: '+refresh_status()' }];
+  const files = [{ filename: 'src/ui.py', patch: '@@ -1 +1 @@\n+label = "New welcome message"' },
+    { filename: 'src/background.py', patch: '@@ -1 +1 @@\n+refresh_status()' }];
   const plan = validatePlan({ summary: 'Two files changed', scenarios: [{ name: 'First screen',
     assertion: 'New welcome message visible', visualAnchor: 'New welcome message',
     files: ['src/ui.py', 'src/background.py'] }] }, files);
@@ -62,12 +67,45 @@ test('a visual text anchor does not claim unrelated runtime files', () => {
 
 test('repeated new copy checks the rendered text and both source files', () => {
   const files = [
-    { filename: 'src/ui.py', patch: '+tr("Your voice, ready wherever you type.", "中文")' },
-    { filename: 'src/provider.py', patch: '+setup_heading_en="Your voice, ready wherever you type."' },
-    { filename: 'src/background.py', patch: '+refresh_status()' },
+    { filename: 'src/ui.py', patch: '@@ -1 +1 @@\n+tr("Your voice, ready wherever you type.", "中文")' },
+    { filename: 'src/provider.py', patch: '@@ -1 +1 @@\n+setup_heading_en="Your voice, ready wherever you type."' },
+    { filename: 'src/background.py', patch: '@@ -1 +1 @@\n+refresh_status()' },
   ];
   const plan = requireChangedVisualAnchor(planRepeatedVisibleCopy(files), files);
   assert.equal(plan.scenarios[0].visualAnchor, 'Your voice, ready wherever you type.');
   assert.deepEqual(plan.scenarios[0].files, ['src/ui.py', 'src/provider.py']);
   assert.deepEqual(plan.unverified, ['src/background.py']);
+});
+
+test('one anchor cannot cover another hunk in the same runtime file', () => {
+  const files = [{ filename: 'src/ui.py', patch: '@@ -1 +1 @@\n+title = "New welcome message"\n@@ -50 +50 @@\n+disable_login_check()' }];
+  const plan = validatePlan({ summary: 'Title changed', scenarios: [{ name: 'Open plugin',
+    assertion: 'New welcome message visible', visualAnchor: 'New welcome message', files: ['src/ui.py'] }] }, files);
+  const gated = requireChangedVisualAnchor(plan, files);
+  assert.deepEqual(gated.scenarios, []);
+  assert.deepEqual(gated.unverified, ['src/ui.py']);
+});
+
+test('planner reads pinned source and nearby references without following symlinks', () => {
+  const root = mkdtempSync(join(tmpdir(), 'midscene-review-source-'));
+  try {
+    mkdirSync(join(root, 'src'));
+    writeFileSync(join(root, 'manifest.json'), '{"id":"example.plugin"}');
+    writeFileSync(join(root, 'src/ui.py'), 'from provider import setup_heading\nlabel = "New welcome message"\n');
+    writeFileSync(join(root, 'src/provider.py'), 'setup_heading = "Old welcome message"\n');
+    symlinkSync('/etc/hosts', join(root, 'src/escape.py'));
+    const files = [{ filename: 'src/ui.py', patch: '@@ -1,2 +1,2 @@\n from provider import setup_heading\n-label = "Old welcome message"\n+label = "New welcome message"' }];
+    const source = buildSourceContext(root, files, redactPatch);
+    assert.match(JSON.stringify(source.context), /provider\.py/);
+    assert.match(source.context.find((item) => item.file === 'src/provider.py').content, /Old welcome message/);
+    assert.match(JSON.stringify(source.context), /manifest\.json/);
+    assert.equal(source.readChanged('src/escape.py'), null);
+    const plan = validatePlan({ summary: 'Title changed', scenarios: [{ name: 'Open plugin',
+      assertion: 'New welcome message visible', visualAnchor: 'New welcome message', files: ['src/ui.py'] }] }, files);
+    assert.equal(requireChangedVisualAnchor(plan, files, source.readChanged).scenarios.length, 1);
+    writeFileSync(join(root, 'src/ui.py'), 'label = "Old welcome message"\n');
+    assert.deepEqual(requireChangedVisualAnchor(plan, files, source.readChanged).scenarios, []);
+  } finally {
+    rmSync(root, { recursive: true });
+  }
 });

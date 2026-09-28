@@ -29,7 +29,9 @@ on:
       - "tests/e2e/cases/**"
       - "tests/e2e/midscene.config.ts"
       - "tests/e2e/model-rate-gate.mjs"
+      - "tests/e2e/plan-omarchy-pr-review.mjs"
       - "tests/e2e/render-omarchy-plugin-smoke.mjs"
+      - "tests/e2e/review-source-context.mjs"
       - "tests/e2e/verify-omarchy-pr-evidence.mjs"
       - "tests/e2e/run-omarchy-midscene.sh"
       - "tests/e2e/restore-omarchy-vm.sh"
@@ -277,10 +279,24 @@ jobs:
             "${MIDSCENE_MODEL_BASE_URL%/}/chat/completions" \
             >/dev/null
 
+      - name: Read the PR source without executing it
+        if: matrix.project == 'omarchy-plugin-smoke' && inputs.review_run_id != ''
+        uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
+        with:
+          repository: ${{ inputs.review_base_repository }}
+          ref: refs/pull/${{ inputs.review_pr_number }}/head
+          path: review-source
+          persist-credentials: false
+
+      - name: Verify the reviewed source commit
+        if: matrix.project == 'omarchy-plugin-smoke' && inputs.review_run_id != ''
+        run: test "$(git -C review-source rev-parse HEAD)" = "$REVIEW_PLUGIN_SHA"
+
       - name: Plan checks from the PR diff
         if: matrix.project == 'omarchy-plugin-smoke' && inputs.review_run_id != ''
         env:
           GH_REVIEW_TOKEN: ${{ github.token }}
+          REVIEW_SOURCE_ROOT: review-source
         run: node tests/e2e/plan-omarchy-pr-review.mjs
 
       - name: Install ORAS client
