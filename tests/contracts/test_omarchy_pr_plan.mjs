@@ -1,6 +1,6 @@
 import assert from 'node:assert/strict';
 import test from 'node:test';
-import { validatePlan, redactPatch, restrictToVisibleStartingState } from '../e2e/plan-omarchy-pr-review.mjs';
+import { validatePlan, redactPatch, restrictToVisibleStartingState, requireChangedVisualAnchor } from '../e2e/plan-omarchy-pr-review.mjs';
 
 test('review plan identifies runtime files not covered by scenarios', () => {
   const plan = validatePlan({ summary: 'Settings changed', scenarios: [{
@@ -39,4 +39,23 @@ test('review planner does not pursue authenticated settings from a sign-in scree
   assert.deepEqual(gated.scenarios, []);
   assert.deepEqual(gated.unverified, ['src/settings.py']);
   assert.equal(restrictToVisibleStartingState(plan, 'The plugin home is visible.').scenarios.length, 1);
+});
+
+test('review plan requires a changed visual text anchor', () => {
+  const files = [{ filename: 'src/ui.py', patch: '@@\n-old text\n+label = "New welcome message"' }];
+  const valid = validatePlan({ summary: 'Copy changed', scenarios: [{ name: 'First screen',
+    assertion: 'New welcome message visible', visualAnchor: 'New welcome message', files: ['src/ui.py'] }] }, files);
+  assert.equal(requireChangedVisualAnchor(valid, files).scenarios.length, 1);
+  assert.deepEqual(requireChangedVisualAnchor({ ...valid, scenarios: [{ ...valid.scenarios[0], visualAnchor: 'Old text' }] }, files).unverified, ['src/ui.py']);
+});
+
+test('a visual text anchor does not claim unrelated runtime files', () => {
+  const files = [{ filename: 'src/ui.py', patch: '+label = "New welcome message"' },
+    { filename: 'src/background.py', patch: '+refresh_status()' }];
+  const plan = validatePlan({ summary: 'Two files changed', scenarios: [{ name: 'First screen',
+    assertion: 'New welcome message visible', visualAnchor: 'New welcome message',
+    files: ['src/ui.py', 'src/background.py'] }] }, files);
+  const anchored = requireChangedVisualAnchor(plan, files);
+  assert.deepEqual(anchored.scenarios[0].files, ['src/ui.py']);
+  assert.deepEqual(anchored.unverified, ['src/background.py']);
 });
