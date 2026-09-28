@@ -76,7 +76,7 @@ on:
         type: string
         required: false
       plugin_open_method:
-        description: Use summon for panel/overlay/menu, or a plugin IPC method such as open
+        description: Use summon for panel/overlay/menu, launch for a service plugin, or an IPC method such as open
         type: string
         required: false
         default: open

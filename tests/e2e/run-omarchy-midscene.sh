@@ -142,6 +142,13 @@ if [[ $MIDSCENE_PROJECT == omarchy-plugin-review || $MIDSCENE_PROJECT == omarchy
     test \"\$(jq -r .id '$REVIEW_PLUGIN_DIR/manifest.json')\" = '$REVIEW_PLUGIN_ID' && \
     omarchy plugin validate '$REVIEW_PLUGIN_DIR' && \
     omarchy-shell shell rescanPlugins"
+  if [[ ${REVIEW_PLUGIN_OPEN_METHOD:-open} == launch ]]; then
+    # Service plugins may need system libraries before their background process
+    # can start. Install only inside the disposable guest at the pinned SHA.
+    ssh_session "test -x '$REVIEW_PLUGIN_DIR/start.sh' && test -x '$REVIEW_PLUGIN_DIR/install.sh'"
+    ssh_session_tty "printf '%s\\n' omarchy | sudo -S -v && \
+      sudo pacman -Sy --noconfirm && '$REVIEW_PLUGIN_DIR/install.sh' --yes"
+  fi
   review_enable_output=""
   review_enabled=false
   for _review_attempt in {1..30}; do
