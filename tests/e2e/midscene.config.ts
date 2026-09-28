@@ -382,10 +382,21 @@ const openConfiguredReviewPlugin = defineNode<typeof empty, void, DesktopContext
           ? `omarchy-shell shell ${method} ${shellQuote(id)} '{}'`
           : `omarchy-shell ${shellQuote(id)} ${shellQuote(method)}`;
         guest(command);
+        if (method === 'launch' && id === 'md.lifeos.doubao-say') {
+          for (let windowAttempt = 0; windowAttempt < 20; windowAttempt++) {
+            const windows = guest("hyprctl -j clients | jq -r '.[].title'");
+            if (windows.split('\n').some((title) => title === 'Doubao Say' || title === '豆包说')) return;
+            await sleep(1000);
+          }
+          const processes = guest("pgrep -af '[p]ython.*-m doubao_input' || true");
+          const service = guest("journalctl --user -u omarchy-shell -n 25 --no-pager 2>&1 | tail -25");
+          throw new Error(`Plugin launcher returned without a visible window. Processes: ${processes || 'none'}; service: ${service}`);
+        }
         await sleep(1000);
         return;
       } catch (error) {
         lastError = error;
+        if (method === 'launch' && id === 'md.lifeos.doubao-say') break;
         await sleep(1000);
       }
     }
