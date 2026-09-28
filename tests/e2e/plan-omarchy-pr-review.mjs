@@ -61,6 +61,33 @@ export function requireChangedVisualAnchor(plan, files) {
     scenarios: [], unverified: plan.changedFiles.filter((file) => runtimeFile(file)) };
 }
 
+export function planRepeatedVisibleCopy(files) {
+  const runtime = files.filter((file) => runtimeFile(file.filename));
+  const appearances = new Map();
+  for (const file of runtime) {
+    for (const line of String(file.patch || '').split('\n')) {
+      if (!line.startsWith('+') || line.startsWith('+++')) continue;
+      for (const match of line.matchAll(/"([^"\\\n]{8,100})"/g)) {
+        const value = match[1];
+        if (!/^[A-Z][A-Za-z ,.!?'-]{7,99}$/.test(value) || value.split(/\s+/).length < 4) continue;
+        const found = appearances.get(value) || new Set();
+        found.add(file.filename);
+        appearances.set(value, found);
+      }
+    }
+  }
+  const repeated = [...appearances].filter(([, paths]) => paths.size >= 2)
+    .sort((a, b) => b[1].size - a[1].size || b[0].length - a[0].length)[0];
+  if (!repeated) return null;
+  const [copy, paths] = repeated;
+  const covered = [...paths];
+  return { summary: 'The same new visible copy appears in multiple runtime files. Check the rendered plugin so a later state update cannot restore stale copy.',
+    changedFiles: files.map((file) => file.filename),
+    scenarios: [{ name: 'New copy remains visible after launch', action: null,
+      assertion: `The opened plugin visibly displays the text "${copy}".`, visualAnchor: copy, files: covered }],
+    unverified: runtime.map((file) => file.filename).filter((name) => !paths.has(name)) };
+}
+
 async function github(path) {
   const response = await fetch(`https://api.github.com${path}`, { headers: {
     accept: 'application/vnd.github+json', 'user-agent': 'midscene-visual-review/0.1',
@@ -89,6 +116,8 @@ async function createPlan(env = process.env) {
   const runtime = files.filter((file) => runtimeFile(file.filename));
   if (!runtime.length) return { summary: 'This PR changes no runtime plugin files. No PR-specific desktop behavior was verified.',
     changedFiles: files.map((file) => file.filename), scenarios: [], unverified: [] };
+  const repeatedCopy = planRepeatedVisibleCopy(files);
+  if (repeatedCopy) return requireChangedVisualAnchor(repeatedCopy, files);
   const excerpt = runtime.map((file) => ({ file: file.filename, status: file.status,
     patch: typeof file.patch === 'string' ? redactPatch(file.patch.slice(0, 8_000)) : '[patch unavailable]' }));
   const prompt = JSON.stringify(excerpt).slice(0, 32_000);

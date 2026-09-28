@@ -1,6 +1,6 @@
 import assert from 'node:assert/strict';
 import test from 'node:test';
-import { validatePlan, redactPatch, restrictToVisibleStartingState, requireChangedVisualAnchor } from '../e2e/plan-omarchy-pr-review.mjs';
+import { validatePlan, redactPatch, restrictToVisibleStartingState, requireChangedVisualAnchor, planRepeatedVisibleCopy } from '../e2e/plan-omarchy-pr-review.mjs';
 
 test('review plan identifies runtime files not covered by scenarios', () => {
   const plan = validatePlan({ summary: 'Settings changed', scenarios: [{
@@ -58,4 +58,16 @@ test('a visual text anchor does not claim unrelated runtime files', () => {
   const anchored = requireChangedVisualAnchor(plan, files);
   assert.deepEqual(anchored.scenarios[0].files, ['src/ui.py']);
   assert.deepEqual(anchored.unverified, ['src/background.py']);
+});
+
+test('repeated new copy checks the rendered text and both source files', () => {
+  const files = [
+    { filename: 'src/ui.py', patch: '+tr("Your voice, ready wherever you type.", "中文")' },
+    { filename: 'src/provider.py', patch: '+setup_heading_en="Your voice, ready wherever you type."' },
+    { filename: 'src/background.py', patch: '+refresh_status()' },
+  ];
+  const plan = requireChangedVisualAnchor(planRepeatedVisibleCopy(files), files);
+  assert.equal(plan.scenarios[0].visualAnchor, 'Your voice, ready wherever you type.');
+  assert.deepEqual(plan.scenarios[0].files, ['src/ui.py', 'src/provider.py']);
+  assert.deepEqual(plan.unverified, ['src/background.py']);
 });
