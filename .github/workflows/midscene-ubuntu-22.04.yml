@@ -41,6 +41,7 @@ on:
           - ubuntu-shard-4
           - ubuntu-polishing
           - ubuntu-providers
+          - ubuntu-voxtype-settings
 
 permissions:
   contents: read

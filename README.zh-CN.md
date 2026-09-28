@@ -66,6 +66,9 @@ API Key 保存在 `~/.config/doubao-say/deepgram_api_key`（或对应的
 Voxtype，运行 `voxtype setup --download`，启动 daemon，再在首次设置中点击
 **刷新 Voxtype 状态**。引擎、模型、语言、音频设备和加速方式仍在 Voxtype 中配置；
 该接入不会改写 Voxtype 配置。
+设置窗口会读取 Voxtype 的版本化 Schema 和扩展状态，显示 daemon 版本、状态、引擎、
+模型、音频设备、计算后端、Schema 版本和配置文件路径。点击**打开 Voxtype 配置**后，
+应用会在可用终端里启动 `voxtype configure`，所有配置仍由 Voxtype 自己校验和写入。
 
 每次听写手势确认后，豆包说会让 Voxtype 把一份转写写入当前用户的私有 runtime 目录，
 等待 `.done` 完成信号，读取原子写入的最终文字，然后删除这两个文件。若 Voxtype 已在
