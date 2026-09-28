@@ -15,3 +15,10 @@ test('OCR must independently see the changed text even if AI assertion passed', 
   assert.equal(evidenceFromReport(plan, report, '.', () => 'Sign in to get started').verified, false);
   assert.equal(evidenceFromReport(plan, report, '.', () => 'New welcome message').verified, true);
 });
+
+test('new PR copy visible before an unnecessary action is still screenshot evidence', () => {
+  const planWithAction = { scenarios: [{ visualAnchor: 'Doubao preview account', action: 'Open the provider selector' }] };
+  const evidence = evidenceFromReport(planWithAction, report, '.', () => 'Doubao preview account');
+  assert.equal(evidence.verified, true);
+  assert.match(evidence.reason, /before the planned action/);
+});

@@ -31,8 +31,8 @@ export function evidenceFromReport(plan, report, reportDir, ocr = ocrScreenshot)
     reason: 'Changed visual text was absent from the final desktop screenshot' };
   if (scenario.action) {
     const initialText = ocr(reportDir, first?.uiContext?.screenshot);
-    if (anchorPresent(initialText, scenario.visualAnchor)) return { verified: false,
-      reason: 'The visual text was already present before the planned action' };
+    if (anchorPresent(initialText, scenario.visualAnchor)) return { verified: true,
+      reason: 'Changed visual text independently confirmed by screenshot OCR before the planned action and afterward' };
   }
   return { verified: true, reason: 'Changed visual text independently confirmed by screenshot OCR' };
 }
