@@ -13,6 +13,7 @@ from __future__ import annotations
 
 import logging
 import signal
+from uuid import uuid4
 
 import gi
 
@@ -93,6 +94,7 @@ class DoubaoInputApp(Gtk.Application):
         self._update_timer = None
         self._polish_context = None
         self._polish_mode = None
+        self._polish_session_id = None
         self._preview_polish = PolishPreview(GLib.timeout_add, GLib.source_remove)
         self._rms_speaking = False
         self._asr_probe = None
@@ -490,7 +492,8 @@ class DoubaoInputApp(Gtk.Application):
                 self._polish_mode = "final"
                 logger.info("Starting final polish request")
                 self._polisher.start(text, self.settings, api_key, self._polish_finished,
-                                     progress=self._polish_progress)
+                                     progress=self._polish_progress,
+                                     session_id=self._polish_session_id)
                 return
             self._control.set_feedback(tr("Polishing is enabled but no API key is saved; using the original text.",
                                           "润色已开启但没有保存 API Key，本次使用原文。"))
@@ -663,7 +666,7 @@ class DoubaoInputApp(Gtk.Application):
         if self._busy():
             raise ValueError(tr("Finish the current operation first.", "请先结束当前操作。"))
         self._polisher.start(tr("Um, I think, I think this is a test.", "嗯，我觉得，就是说，这是一个测试。"),
-                             settings, key, completed)
+                             settings, key, completed, session_id=uuid4().hex)
 
     def _polish_key(self):
         try:
@@ -726,7 +729,8 @@ class DoubaoInputApp(Gtk.Application):
         self._overlay.set_status(tr("Polishing preview · still listening", "预润色中 · 仍在聆听"))
         self._overlay.set_text(text)
         self._polisher.start(text, self.settings, key, self._prepolish_finished,
-                             speculative=True, progress=self._polish_progress)
+                             speculative=True, progress=self._polish_progress,
+                             session_id=self._polish_session_id)
         return False
 
     def _prepolish_finished(self, result, error):
@@ -881,6 +885,8 @@ class DoubaoInputApp(Gtk.Application):
 
     def _finish_preview_state(self, _state, value):
         self._sync_escape()
+        if value == "starting":
+            self._polish_session_id = uuid4().hex
         if value == "idle":
             if self._setup_session:
                 self._setup_session.recording_idle()

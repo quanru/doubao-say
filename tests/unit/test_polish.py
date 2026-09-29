@@ -5,6 +5,8 @@ import tempfile
 from threading import Event
 from unittest import TestCase
 from unittest.mock import Mock, patch
+from io import BytesIO
+from urllib.error import HTTPError
 
 from doubao_input.polish import (ApiKeyStore, PolishClient, PolishManager,
                                  chat_completions_url, polish_prompt_for_text)
@@ -77,6 +79,36 @@ class PolishTest(TestCase):
         self.assertEqual(result, "polished")
         request = open_url.call_args.args[0]
         self.assertEqual(request.headers["Authorization"], "Bearer secret")
+
+    def test_go_subscription_accepts_polish_requests_with_client_and_session(self):
+        response = Response(b'{"choices":[{"message":{"content":"corrected"}}]}')
+
+        def go_endpoint(req, *, timeout):
+            if (req.full_url != "https://opencode.ai/zen/go/v1/chat/completions"
+                    or not (req.get_header("User-agent") or "").startswith("doubao-say/")
+                    or req.get_header("X-opencode-session") != "recording-123"):
+                raise HTTPError(req.full_url, 403, "Denied", {}, None)
+            if json.loads(req.data).get("thinking") != {"type": "disabled"}:
+                raise HTTPError(req.full_url, 400, "Thinking not disabled", {}, None)
+            return response
+
+        with patch("doubao_input.polish.request.urlopen", side_effect=go_endpoint):
+            result = PolishClient().polish("raw",
+                base_url="https://opencode.ai/zen/go/v1", api_key="key",
+                model="deepseek-v4.1-flash", prompt="Correct speech",
+                session_id="recording-123")
+        self.assertEqual(result, "corrected")
+
+    def test_provider_http_status_is_visible_without_exposing_response_or_key(self):
+        with HTTPError("https://example.test/v1/chat/completions", 403,
+                       "Forbidden", {}, BytesIO(b'{"error":"key secret blocked"}')) as failure:
+            with patch("doubao_input.polish.request.urlopen", side_effect=failure):
+                with self.assertRaisesRegex(ValueError, "HTTP 403") as raised:
+                    PolishClient().polish("private text",
+                        base_url="https://example.test/v1", api_key="secret",
+                        model="model", prompt="prompt")
+        self.assertNotIn("secret", str(raised.exception))
+        self.assertNotIn("private text", str(raised.exception))
 
     def test_client_streams_cumulative_replacement_text(self):
         body = (b'data: {"choices":[{"delta":{"content":"clear "}}]}\n\n'
@@ -162,6 +194,27 @@ class PolishTest(TestCase):
         preview_done.assert_not_called()
         release_preview.set()
         manager.close()
+
+    def test_go_result_after_five_seconds_is_not_discarded(self):
+        queued = []
+        delivered = Event()
+        def dispatch(callback):
+            queued.append(callback)
+            delivered.set()
+        client = Mock()
+        client.polish.return_value = "corrected"
+        with patch("doubao_input.polish.Timer"), patch(
+                "doubao_input.polish.time.monotonic", side_effect=(100, 106, 106)):
+            manager = PolishManager(dispatch, client)
+            completed = Mock()
+            try:
+                manager.start("raw", Settings(polish_base_url="https://opencode.ai/zen/go/v1"),
+                              "key", completed, session_id="recording-123")
+                self.assertTrue(delivered.wait(1))
+                queued.pop()()
+                completed.assert_called_once_with("corrected", "")
+            finally:
+                manager.close()
 
     def test_polish_preferences_validate(self):
         Settings(polish_enabled=True).validate()

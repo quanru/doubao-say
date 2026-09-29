@@ -1,5 +1,15 @@
 # Changelog
 
+## Unreleased
+
+- Identify voice-polishing requests with the application's user agent and a
+  stable per-recording session ID on OpenCode Go, without switching to the
+  metered Zen endpoint. Expose HTTP status on provider errors; allow ten seconds
+  for Go responses while retaining the five-second budget elsewhere. Go's
+  console-controlled Zen balance fallback remains outside the app's control.
+- Request non-thinking mode for DeepSeek V4.1 Flash on OpenCode Go; the provider
+  returns no reasoning tokens for this setting, reducing polishing latency.
+
 ## 1.3.0
 
 - Added Deepgram Nova-3 as an optional recognition provider for US English dictation. Users supply their own API key; interim and final transcripts appear in the existing voice-input flow. The key is stored separately with owner-only permissions.

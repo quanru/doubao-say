@@ -31,8 +31,8 @@ class PolishSettings(Gtk.Box):
         self.details = Gtk.Box(orientation=Gtk.Orientation.VERTICAL, spacing=10)
         self.append(self.details)
         self.details.append(Gtk.Label(xalign=0, wrap=True, label=tr(
-            "Turn rough speech into cleaner sentences without changing your meaning. Pauses show a preview; finishing your recording pastes the final text once. If polishing takes longer than 5 seconds, the original text is used.",
-            "把口语整理成更清晰的文字，不改变原意。停顿时只预览，结束录音后一次上屏；超过五秒则自动使用原文。")))
+            "Turn rough speech into cleaner sentences without changing your meaning. Pauses show a preview; finishing your recording pastes the final text once. After 5 seconds (10 for OpenCode Go), the original text is used.",
+            "把口语整理成更清晰的文字，不改变原意。停顿时只预览，结束录音后一次上屏；超过五秒（OpenCode Go 为十秒）则自动使用原文。")))
 
         self.base_url = Gtk.Entry(text=settings.polish_base_url, hexpand=True)
         self.model = Gtk.Entry(text=settings.polish_model, hexpand=True)
@@ -45,8 +45,8 @@ class PolishSettings(Gtk.Box):
         self.details.append(self._row("Base URL", self.base_url))
         self.details.append(self._row("Model", self.model))
         self.latency_guidance = Gtk.Label(xalign=0, wrap=True, label=tr(
-            "Choose a small, fast model and turn thinking off, even for Flash/Lite models. Try DeepSeek Flash (deepseek-flash) or Gemini 2.5 Flash-Lite (gemini-2.5-flash-lite) on their official endpoints; thinking-off is requested automatically. Large reasoning models may exceed the 5-second limit and fall back to your original text.",
-            "优先选择小型、低延迟模型，并关闭思考，Flash/Lite 模型也不例外。建议使用 DeepSeek Flash（deepseek-flash）或 Gemini 2.5 Flash-Lite（gemini-2.5-flash-lite）的官方接口，应用会自动请求关闭思考。大型推理模型可能超过五秒上限，导致回退原文。"))
+            "Choose a small, fast model and turn thinking off, even for Flash/Lite models. Try DeepSeek Flash (deepseek-flash) or Gemini 2.5 Flash-Lite (gemini-2.5-flash-lite) on their official endpoints; thinking-off is requested automatically. Large reasoning models may exceed the 5-second limit (10 for OpenCode Go) and fall back to your original text.",
+            "优先选择小型、低延迟模型，并关闭思考，Flash/Lite 模型也不例外。建议使用 DeepSeek Flash（deepseek-flash）或 Gemini 2.5 Flash-Lite（gemini-2.5-flash-lite）的官方接口，应用会自动请求关闭思考。大型推理模型可能超过五秒上限（OpenCode Go 为十秒），导致回退原文。"))
         self.latency_guidance.add_css_class("dim-label")
         self.details.append(self.latency_guidance)
         self.reasoning_notice = Gtk.Label(xalign=0, wrap=True)

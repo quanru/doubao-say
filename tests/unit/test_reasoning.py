@@ -32,6 +32,18 @@ class ReasoningTest(TestCase):
                     if language == "zh_CN" else
                     "This Zhipu model cannot disable thinking; low reasoning effort requested."))
 
+    def test_go_deepseek_v41_flash_turns_thinking_off_without_changing_provider(self):
+        for language in ("en", "zh_CN"):
+            with self.subTest(language=language), patch("doubao_input.i18n._language", language):
+                parameters, notice = reasoning_policy(
+                    "https://opencode.ai/zen/go/v1", "deepseek-v4.1-flash")
+                self.assertEqual(parameters, {"thinking": {"type": "disabled"}})
+                self.assertIn("OpenCode Go", notice)
+        self.assertEqual(reasoning_policy(
+            "https://opencode.ai/zen/v1", "deepseek-v4.1-flash")[0], {})
+        self.assertEqual(reasoning_policy(
+            "https://opencode.ai.example/zen/go/v1", "deepseek-v4.1-flash")[0], {})
+
     def test_provider_specific_parameters(self):
         pairs = [
             ("https://api.deepseek.com/v1", "deepseek-v4-flash", {"thinking": {"type": "disabled"}}),
