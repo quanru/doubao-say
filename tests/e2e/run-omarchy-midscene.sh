@@ -106,7 +106,7 @@ readonly SESSION_HARNESS="$HARNESS_DIR/bin/omarchy-midscene-session"
 cp "$HARNESS_DIR/bin/omarchy-iso-test" "$SESSION_HARNESS"
 sed -i '/^acceptance_phase() {/,/^}/c\
 acceptance_phase() {\
-  log "Booting Omarchy session for Doubao Say Midscene E2E"\
+  log "Booting Omarchy session for Midscene E2E"\
   qemu-img create -f qcow2 -b "$BASE_DISK" -F qcow2 "$RUN_DIR/run.qcow2" >/dev/null\
   start_vm "$RUN_DIR/run.qcow2" "$RUN_DIR/serial.log"\
   establish_session\
@@ -134,7 +134,7 @@ if [[ $MIDSCENE_PROJECT == omarchy-plugin-review || $MIDSCENE_PROJECT == omarchy
   [[ $REVIEW_PLUGIN_REPOSITORY =~ ^[A-Za-z0-9_.-]+/[A-Za-z0-9_.-]+$ ]]
   [[ $REVIEW_PLUGIN_SHA =~ ^[a-fA-F0-9]{40}$ ]]
   [[ $REVIEW_PLUGIN_ID =~ ^[a-z0-9][a-z0-9._-]{2,127}$ ]]
-  if [[ $REVIEW_PLUGIN_ID == md.lifeos.doubao-say ]]; then
+  if [[ ${REVIEW_PLUGIN_OPEN_METHOD:-} == launch && $REVIEW_PLUGIN_ID == md.lifeos.doubao-say ]]; then
     # The reusable base VM has a keepLoaded Service.qml that respawns Doubao
     # Say after a kill. Disable that service before stopping the old GTK
     # single-instance app; enable it again after installing the PR checkout.
@@ -164,14 +164,14 @@ if [[ $MIDSCENE_PROJECT == omarchy-plugin-review || $MIDSCENE_PROJECT == omarchy
     ssh_session_tty "printf '%s\\n' omarchy | sudo -S -v && \
       sudo pacman -Sy --noconfirm && '$REVIEW_PLUGIN_DIR/install.sh' --yes"
   fi
-  if [[ $REVIEW_PLUGIN_ID == md.lifeos.doubao-say ]]; then
+  if [[ ${REVIEW_PLUGIN_OPEN_METHOD:-} == launch && $REVIEW_PLUGIN_ID == md.lifeos.doubao-say ]]; then
     # Catch an old service that restarted while dependencies were installed.
     ssh_session "! pgrep -f '[d]oubao_input' >/dev/null"
   fi
   review_enable_output=""
   review_enabled=false
   for _review_attempt in {1..30}; do
-    if review_enable_output="$(ssh_session "omarchy plugin enable '$REVIEW_PLUGIN_ID' --section right" 2>&1)"; then
+    if review_enable_output="$(ssh_session "omarchy plugin enable '$REVIEW_PLUGIN_ID' --section '${REVIEW_PLUGIN_SECTION:-right}'" 2>&1)"; then
       echo "$review_enable_output"
       review_enabled=true
       break
@@ -187,7 +187,7 @@ if [[ $MIDSCENE_PROJECT == omarchy-plugin-review || $MIDSCENE_PROJECT == omarchy
     echo "Review plugin was not recognized after rescan: $review_enable_output" >&2
     exit 1
   fi
-  if [[ $REVIEW_PLUGIN_ID == md.lifeos.doubao-say ]]; then
+  if [[ ${REVIEW_PLUGIN_OPEN_METHOD:-} == launch && $REVIEW_PLUGIN_ID == md.lifeos.doubao-say ]]; then
     ssh_session "pgrep -af '[d]oubao_input' || true"
     ssh_session "for pid in \$(pgrep -f '^/usr/bin/python3 -m doubao_input --background$'); do \
       tr '\\0' '\\n' </proc/\$pid/environ | grep '^PYTHONPATH='; \

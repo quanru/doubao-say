@@ -376,7 +376,8 @@ const openConfiguredReviewPlugin = defineNode<typeof empty, void, DesktopContext
     let lastError: unknown;
     for (let attempt = 0; attempt < 20; attempt++) {
       try {
-        const command = method === 'launch'
+        const command = method === 'inspectBar' ? 'omarchy-shell shell rescanPlugins'
+          : method === 'launch'
           ? `${shellQuote(`/home/omarchy/.config/omarchy/plugins/${id}/start.sh`)}`
           : method === 'summon' || method === 'toggle'
           ? `omarchy-shell shell ${method} ${shellQuote(id)} '{}'`

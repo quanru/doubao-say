@@ -81,10 +81,10 @@ on:
         type: string
         required: false
       plugin_open_method:
-        description: Use summon for panel/overlay/menu, launch for a service plugin, or an IPC method such as open
+        description: Auto detects visual entry points; launch is an explicit service adapter, or use an IPC method such as open
         type: string
         required: false
-        default: open
+        default: auto
       visible_assertion:
         description: What should be visible after opening the plugin
         type: string
@@ -191,9 +191,6 @@ jobs:
       NODE_OPTIONS: "--dns-result-order=ipv4first --no-network-family-autoselection"
       REVIEW_PLUGIN_REPOSITORY: ${{ inputs.plugin_repository }}
       REVIEW_PLUGIN_SHA: ${{ inputs.plugin_sha }}
-      REVIEW_PLUGIN_ID: ${{ inputs.plugin_id }}
-      REVIEW_PLUGIN_OPEN_METHOD: ${{ inputs.plugin_open_method }}
-      REVIEW_VISIBLE_ASSERTION: ${{ inputs.visible_assertion }}
       REVIEW_BASE_REPOSITORY: ${{ inputs.review_base_repository }}
       REVIEW_PR_NUMBER: ${{ inputs.review_pr_number }}
       MIDSCENE_REVIEW_APP_URL: ${{ vars.MIDSCENE_REVIEW_APP_URL }}
@@ -258,10 +255,6 @@ jobs:
         run: |
           [[ "$REVIEW_PLUGIN_REPOSITORY" =~ ^[A-Za-z0-9_.-]+/[A-Za-z0-9_.-]+$ ]]
           [[ "$REVIEW_PLUGIN_SHA" =~ ^[a-fA-F0-9]{40}$ ]]
-          [[ "$REVIEW_PLUGIN_ID" =~ ^[a-z0-9][a-z0-9._-]{2,127}$ ]]
-          [[ "$REVIEW_PLUGIN_OPEN_METHOD" =~ ^[A-Za-z][A-Za-z0-9_]*$ ]]
-          test -n "$REVIEW_VISIBLE_ASSERTION"
-          test "${#REVIEW_VISIBLE_ASSERTION}" -le 500
 
       - name: Check Midscene model before the expensive VM install
         run: |
@@ -291,6 +284,24 @@ jobs:
       - name: Verify the reviewed source commit
         if: matrix.project == 'omarchy-plugin-smoke' && inputs.review_pr_number != ''
         run: test "$(git -C review-source rev-parse HEAD)" = "$REVIEW_PLUGIN_SHA"
+
+      - name: Resolve plugin entry point from exact-commit manifest
+        if: matrix.project == 'omarchy-plugin-smoke' && github.event_name != 'issues'
+        env:
+          REQUESTED_PLUGIN_ID: ${{ inputs.plugin_id }}
+          REQUESTED_PLUGIN_OPEN_METHOD: ${{ inputs.plugin_open_method }}
+          REQUESTED_VISIBLE_ASSERTION: ${{ inputs.visible_assertion }}
+        run: |
+          if test -f review-source/manifest.json; then
+            manifest=review-source/manifest.json
+          else
+            manifest="$RUNNER_TEMP/review-manifest.json"
+            curl --fail --location --silent --show-error --retry 3 \
+              --max-time 60 --max-filesize 100000 \
+              "https://raw.githubusercontent.com/$REVIEW_PLUGIN_REPOSITORY/$REVIEW_PLUGIN_SHA/manifest.json" \
+              --output "$manifest"
+          fi
+          REVIEW_MANIFEST_PATH="$manifest" node tests/e2e/resolve-omarchy-review.mjs
 
       - name: Plan checks from the PR diff
         if: matrix.project == 'omarchy-plugin-smoke' && inputs.review_pr_number != ''
