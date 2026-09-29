@@ -7,10 +7,13 @@ import re
 import stat
 from threading import Event, Timer
 import time
+from urllib.parse import urlsplit
+from uuid import uuid4
 from urllib import error, request
 
 from doubao_input.settings import config_dir, write_atomic
 from doubao_input.reasoning import reasoning_policy
+from doubao_input.product import VERSION
 
 logger = logging.getLogger(__name__)
 
@@ -59,9 +62,14 @@ def chat_completions_url(base_url):
     return value + "/chat/completions"
 
 
+def is_go_endpoint(base_url):
+    endpoint = urlsplit(base_url.strip())
+    return endpoint.hostname == "opencode.ai" and endpoint.path.startswith("/zen/go/v1")
+
+
 class PolishClient:
     def polish(self, text, *, base_url, api_key, model, prompt, timeout=25,
-               on_progress=None):
+               on_progress=None, session_id=None):
         body = {"model": model, "temperature": 0.2,
             "messages": [{"role": "system", "content": prompt},
                          {"role": "user", "content": text}],
@@ -69,10 +77,14 @@ class PolishClient:
         parameters, _notice = reasoning_policy(base_url, model)
         body.update(parameters)
         payload = json.dumps(body, ensure_ascii=False).encode()
+        headers = {"Authorization": "Bearer " + api_key,
+                   "Content-Type": "application/json",
+                   "Accept": "application/json",
+                   "User-Agent": f"doubao-say/{VERSION}"}
+        if is_go_endpoint(base_url):
+            headers["x-opencode-session"] = session_id or uuid4().hex
         req = request.Request(chat_completions_url(base_url), data=payload,
-            headers={"Authorization": "Bearer " + api_key,
-                     "Content-Type": "application/json",
-                     "Accept": "application/json"}, method="POST")
+                              headers=headers, method="POST")
         try:
             with request.urlopen(req, timeout=timeout) as response:
                 if on_progress:
@@ -80,6 +92,8 @@ class PolishClient:
                     raw = None
                 else:
                     raw = response.read(1_000_001)
+        except error.HTTPError as exc:
+            raise ValueError(f"Polishing request failed (HTTP {exc.code})") from exc
         except (error.URLError, TimeoutError, OSError) as exc:
             raise ValueError("Polishing request failed; check the endpoint, model and network") from exc
         if raw is not None:
@@ -154,14 +168,14 @@ class PolishManager:
         self.busy = False
 
     def start(self, text, settings, api_key, completed, *, speculative=False,
-              progress=None):
+              progress=None, session_id=None):
         self.cancel()
         token = Event()
         self._token = token
         self.busy = True
         started = time.monotonic()
         executor = self._speculative_executor if speculative else self._executor
-        timeout = 5
+        timeout = 10 if is_go_endpoint(settings.polish_base_url) else 5
         def report(value):
             if token.is_set():
                 raise ValueError("Polishing cancelled")
@@ -176,7 +190,8 @@ class PolishManager:
         future = executor.submit(self._client.polish, text,
             base_url=settings.polish_base_url, api_key=api_key,
             model=settings.polish_model, prompt=polish_prompt_for_text(text, settings),
-            timeout=timeout, on_progress=report if progress else None)
+            timeout=timeout, on_progress=report if progress else None,
+            session_id=session_id)
         self._future = future
 
         def finished(future):
@@ -198,9 +213,9 @@ class PolishManager:
                     self.busy = False
                     if self._deadline is not None:
                         self._deadline.cancel()
-                    if time.monotonic() - started >= 5:
+                    if time.monotonic() - started >= timeout:
                         token.set()
-                        completed(None, "Polishing exceeded 5 seconds")
+                        completed(None, f"Polishing exceeded {timeout} seconds")
                     else:
                         completed(result, message)
                 return False
@@ -210,10 +225,10 @@ class PolishManager:
             def deliver_timeout():
                 if not self._closed and token is self._token and not token.is_set() and self.busy:
                     self.cancel()
-                    completed(None, "Polishing exceeded 5 seconds")
+                    completed(None, f"Polishing exceeded {timeout} seconds")
                 return False
             self._dispatch(deliver_timeout)
-        self._deadline = Timer(5, expired)
+        self._deadline = Timer(timeout, expired)
         self._deadline.daemon = True
         self._deadline.start()
 

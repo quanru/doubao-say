@@ -97,9 +97,10 @@ meaning, and can be edited or restored to its default.
 
 **Prefer a small, low-latency model with thinking disabled.** Polishing only needs
 light text correction, not deep reasoning. Large reasoning models are a poor
-default for this task: polishing has a five-second total budget, after which
-Doubao Say uses your original text. Small models can still think, and a
-Flash/Lite name does not guarantee that thinking is off or can be disabled.
+default for this task: polishing has a five-second total budget (ten seconds
+for OpenCode Go), after which Doubao Say uses your original text. Small models
+can still think, and a Flash/Lite name does not guarantee that thinking is off
+or can be disabled.
 
 Start with one of these options on its official endpoint:
 
@@ -126,8 +127,19 @@ Claude's native API is not supported by this OpenAI-compatible client.
 Zhipu (`open.bigmodel.cn`) standard and Coding Plan APIs request thinking-off,
 except for GLM-5.3 and GLM-5.3-Flash: these cannot disable thinking and request
 `reasoning_effort: "low"` instead. Low effort is still thinking, so these are not
-the preferred choices for this five-second workflow. See the
+the preferred choices for this workflow. See the
 [Zhipu thinking guide](https://docs.bigmodel.cn/cn/guide/capabilities/thinking).
+
+For OpenCode Go subscriptions, keep the Base URL `https://opencode.ai/zen/go/v1`
+and choose a model listed for `/chat/completions`. Requests identify Doubao Say
+and keep one session ID across previews and final polishing for each recording.
+For `deepseek-v4.1-flash`, the app explicitly requests
+`thinking: {"type": "disabled"}` instead of the model's default reasoning.
+The app does not switch to metered Zen. To prevent Go from falling back to your
+Zen balance after reaching subscription limits, disable **Use balance** in
+the OpenCode console. [OpenCode Go's usage policy](https://opencode.ai/docs/go/#where-can-i-use-it)
+is for coding-agent traffic; voice polishing may be blocked by the provider
+even when the API request succeeds. Review that policy before using Go here.
 
 When enabled, 1.2 seconds of silence with stable recognized text starts provisional
 polishing. A separate status line stays visible while the overlay streams the result.
@@ -135,9 +147,10 @@ The entire recording is lightly corrected using context, without inference or
 unnecessary rewriting. Pauses only produce a preview; recording continues until
 you tap again or release hold-to-talk. Only then is the final text pasted once.
 Changed recognized text invalidates old requests; microphone noise alone does not.
-Polishing is best-effort with a five-second total budget, including queued work;
-timeout uses the original segment and ignores late results. Tap-to-toggle recording
-ends when you tap again; hold-to-talk ends on release.
+Polishing is best-effort with a five-second total budget, or ten seconds
+for OpenCode Go, including queued work; timeout uses the original segment
+and ignores late results. Tap-to-toggle recording ends when you tap again;
+hold-to-talk ends on release.
 Press the active trigger during final polishing to use the original transcript;
 endpoint errors also safely fall back to it.
 

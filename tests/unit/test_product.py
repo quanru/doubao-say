@@ -20,7 +20,8 @@ def polishing_app(**values):
         legacy = "_prepolish_" + field
         if legacy in values:
             setattr(preview, field, values.pop(legacy))
-    return SimpleNamespace(_preview_polish=preview, **values)
+    return SimpleNamespace(_preview_polish=preview,
+                           _polish_session_id="recording-123", **values)
 
 
 class ProductTest(TestCase):
@@ -110,7 +111,7 @@ class ProductTest(TestCase):
         app._submit_transcript.assert_not_called()
         app._polisher.start.assert_called_once_with(
             "raw transcript", app.settings, "key", app._polish_finished,
-            progress=app._polish_progress)
+            progress=app._polish_progress, session_id="recording-123")
         self.assertEqual(app._polish_context, ("raw transcript", "target", False))
 
     def test_final_polish_does_not_wait_for_matching_preview_request(self):
@@ -127,7 +128,7 @@ class ProductTest(TestCase):
         app._polisher.cancel.assert_called_once()
         app._polisher.start.assert_called_once_with(
             "raw transcript", app.settings, "key", app._polish_finished,
-            progress=app._polish_progress)
+            progress=app._polish_progress, session_id="recording-123")
 
     def test_polishing_overlay_keeps_status_separate_from_original_text(self):
         app = polishing_app(_setup_session=Mock(), settings=Settings(polish_enabled=True),
