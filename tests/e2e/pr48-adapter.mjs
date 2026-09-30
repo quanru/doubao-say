@@ -41,6 +41,23 @@ export function validatePr48Status(value, variant, phase) {
   throw new Error('Unsupported PR48 observation phase');
 }
 
+
+export function matchPr48Surfaces({ layers, clients, pid }) {
+  if (!Number.isSafeInteger(pid) || pid <= 0 || !Array.isArray(layers) || !Array.isArray(clients)) {
+    throw new Error('Malformed PR48 compositor observation');
+  }
+  const ownLayers = layers.filter(value => value?.pid === pid && value.namespace === 'doubao-say-overlay');
+  const ownClients = clients.filter(value => value?.pid === pid && value.title === 'Doubao Say overlay' &&
+    value.mapped === true && value.hidden === false && value.visible === true);
+  if (ownLayers.some(value => !['x', 'y', 'w', 'h'].every(key => Number.isFinite(value[key])) || value.w <= 0 || value.h <= 0) ||
+      ownClients.some(value => typeof value.class !== 'string' || !Array.isArray(value.at) || value.at.length !== 2 ||
+        !value.at.every(Number.isFinite) || !Array.isArray(value.size) || value.size.length !== 2 ||
+        !value.size.every(size => Number.isFinite(size) && size > 0))) {
+    throw new Error('Malformed PR48 surface geometry');
+  }
+  return { layers: ownLayers, clients: ownClients, count: ownLayers.length + ownClients.length };
+}
+
 export function createPr48Adapter({ guest, env, record = () => {},
   sleep = ms => new Promise(resolve => setTimeout(resolve, ms)), now = Date.now }) {
   assertPr48Profile(env);
@@ -64,17 +81,15 @@ export function createPr48Adapter({ guest, env, record = () => {},
     if (!active) throw new Error('No active PR48 variant');
     return JSON.parse(command(`cat /tmp/pr48-evidence/${active}/status.json`));
   };
-  const layers = () => {
-    const value = JSON.parse(command(`hyprctl -j layers | jq -c '[.. | objects | select(.namespace? == "doubao-say-overlay") | {namespace,x,y,w,h}]'`));
-    if (!Array.isArray(value) || value.some(layer => layer.namespace !== 'doubao-say-overlay' ||
-      !['x', 'y', 'w', 'h'].every(key => Number.isFinite(layer[key])) || layer.w <= 0 || layer.h <= 0)) {
-      throw new Error('Malformed PR48 compositor observation');
-    }
-    return value;
-  };
+  const surfaces = pid => matchPr48Surfaces({
+    pid,
+    layers: JSON.parse(command(`hyprctl -j layers | jq -c '[.. | objects | select(.namespace? == "doubao-say-overlay") | {namespace,pid,x,y,w,h}]'`)),
+    clients: JSON.parse(command(`hyprctl -j clients | jq -c '[.[] | select(.title == "Doubao Say overlay") | {title,class,pid,mapped,hidden,visible,at,size}]'`)),
+  });
   const stopActive = async () => {
     if (!active) return;
     const variant = active;
+    const pid = observations().pid;
     command(`printf '%s' '{"id":"teardown","command":"exit"}' > /tmp/pr48-evidence/${variant}/control.json.tmp && mv /tmp/pr48-evidence/${variant}/control.json.tmp /tmp/pr48-evidence/${variant}/control.json`);
     try {
       await poll(() => command(`if kill -0 "$(cat /tmp/pr48-${variant}.pid)" 2>/dev/null; then echo running; else echo stopped; fi`) === 'stopped', 'PR48 process did not exit');
@@ -88,8 +103,8 @@ export function createPr48Adapter({ guest, env, record = () => {},
         exit.result !== (variant === 'before' ? 'expected_failure' : 'passed')) {
       throw new Error('PR48 process did not exit with a complete verified outcome');
     }
-    await poll(() => layers().length === 0, 'PR48 overlay remained after cleanup');
-    log('variant-cleanup', { variant, stopped: true, overlayLayers: 0, exit });
+    await poll(() => surfaces(pid).count === 0, 'PR48 overlay remained after cleanup');
+    log('variant-cleanup', { variant, stopped: true, overlaySurfaces: 0, exit });
   };
   return {
     async prepare({ variant }) {
@@ -140,23 +155,23 @@ export function createPr48Adapter({ guest, env, record = () => {},
       try {
         await poll(() => {
           const state = observations();
-          const mapped = layers();
+          const mapped = surfaces(state.pid);
           stable = validatePr48Status(state, variant, phase) &&
-            mapped.length === (expectedOverlay ? 1 : 0) ? stable + 1 : 0;
+            mapped.count === (expectedOverlay ? 1 : 0) ? stable + 1 : 0;
           return stable >= 2;
         }, `PR48 ${variant}/${phase} was not independently observed`);
       } catch (error) {
-        try { command(`grim /tmp/pr48-evidence/${variant}/failed-${phase}.png`); }
+        try { command(`grim /tmp/pr48-evidence/${variant}/failed-${phase}.png; hyprctl -j layers > /tmp/pr48-evidence/${variant}/${phase}-layers.json; hyprctl -j clients > /tmp/pr48-evidence/${variant}/${phase}-clients.json`); }
         catch (captureError) { log('failure-screenshot-error', { variant, phase, message: captureError.message }); }
         log('failed-phase', { variant, phase, message: error.message });
         throw error;
       }
       command(`grim /tmp/pr48-evidence/${variant}/${phase}.png`);
       const state = observations();
-      const mapped = layers();
-      log('verified-phase', { variant, phase, state, overlayLayers: mapped,
+      const mapped = surfaces(state.pid);
+      log('verified-phase', { variant, phase, state, overlaySurfaces: mapped,
         screenshot: `${variant}/${phase}.png` });
-      command(`cp /tmp/pr48-evidence/${variant}/status.json /tmp/pr48-evidence/${variant}/${phase}-status.json; hyprctl -j layers > /tmp/pr48-evidence/${variant}/${phase}-layers.json`);
+      command(`cp /tmp/pr48-evidence/${variant}/status.json /tmp/pr48-evidence/${variant}/${phase}-status.json; hyprctl -j layers > /tmp/pr48-evidence/${variant}/${phase}-layers.json; hyprctl -j clients > /tmp/pr48-evidence/${variant}/${phase}-clients.json`);
     },
     async cleanup() {
       const errors = [];

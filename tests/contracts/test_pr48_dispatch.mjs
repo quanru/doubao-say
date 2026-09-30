@@ -137,6 +137,7 @@ test('evidence packer copies synthetic records/screenshots while excluding contr
     'environment.json': '{}', 'before/exit.json': '{"exit_code":0}',
     'before/start_failed-status.json': '{}', 'before/start_failed-layers.json': '[]',
     'before/exception.txt': 'Synthetic diagnostic exception',
+    'before/listening-clients.json': '[]',
     'before/control.json': '{}', 'before/runtime.log': 'not evidence',
   })) writeFileSync(path.join(root, name), data);
   const script = section(runner, 'PR48_EVIDENCE_PACK').replace("pathlib.Path('/tmp/pr48-evidence')", `pathlib.Path(${JSON.stringify(root)})`);
@@ -152,7 +153,7 @@ test('evidence packer copies synthetic records/screenshots while excluding contr
   assert.ok(existsSync(path.join(destination, 'before/recording.png')));
   assert.ok(!existsSync(path.join(destination, 'before/control.json')));
   assert.ok(!existsSync(path.join(destination, 'before/runtime.log')));
-  assert.equal(JSON.parse(readFileSync(path.join(destination, 'collection.json'))).files.length, 9);
+  assert.equal(JSON.parse(readFileSync(path.join(destination, 'collection.json'))).files.length, 10);
   assert.ok(existsSync(path.join(destination, 'before/exit.json')));
   assert.ok(existsSync(path.join(destination, 'before/exception.txt')));
 }));

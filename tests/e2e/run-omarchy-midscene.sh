@@ -170,7 +170,7 @@ import sys
 import tarfile
 
 root = pathlib.Path('/tmp/pr48-evidence')
-allowed = re.compile(r'(?:environment|monitors|hyprland|packages|sources)\.json|(?:before|after)/(?:events\.jsonl|status\.json|provenance\.json|(?:ready|start|finish|exit)\.json|(?:ready|start_failed|listening|finished)-(?:status|layers)\.json|exception\.txt|[a-z0-9_-]+\.png)')
+allowed = re.compile(r'(?:environment|monitors|hyprland|packages|sources)\.json|(?:before|after)/(?:events\.jsonl|status\.json|provenance\.json|(?:ready|start|finish|exit)\.json|(?:ready|start_failed|listening|finished)-(?:status|layers|clients)\.json|exception\.txt|[a-z0-9_-]+\.png)')
 files = []
 total = 0
 for entry in sorted(root.glob('**/*')):
@@ -203,7 +203,7 @@ import sys
 import tarfile
 
 destination = pathlib.Path(sys.argv[2])
-allowed = re.compile(r'(?:environment|monitors|hyprland|packages|sources)\.json|(?:before|after)/(?:events\.jsonl|status\.json|provenance\.json|(?:ready|start|finish|exit)\.json|(?:ready|start_failed|listening|finished)-(?:status|layers)\.json|exception\.txt|[a-z0-9_-]+\.png)')
+allowed = re.compile(r'(?:environment|monitors|hyprland|packages|sources)\.json|(?:before|after)/(?:events\.jsonl|status\.json|provenance\.json|(?:ready|start|finish|exit)\.json|(?:ready|start_failed|listening|finished)-(?:status|layers|clients)\.json|exception\.txt|[a-z0-9_-]+\.png)')
 seen = set()
 total = 0
 with tarfile.open(sys.argv[1], mode='r:') as archive:

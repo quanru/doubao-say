@@ -4,11 +4,11 @@ import { execFileSync } from 'node:child_process';
 import { resolve } from 'node:path';
 import { tsImport } from 'tsx/esm/api';
 import { collectWorkflowDocument } from '@midscene/test';
-import { assertPr48Profile, createPr48Adapter, PR48_PIN, validatePr48Status } from './pr48-adapter.mjs';
+import { assertPr48Profile, createPr48Adapter, PR48_PIN, validatePr48Status, matchPr48Surfaces } from './pr48-adapter.mjs';
 
 const env = { PR48_REGRESSION_PROFILE: 'matched-pr48', GITHUB_EVENT_NAME: 'workflow_dispatch',
   GITHUB_REF: 'refs/heads/research/omarchy-plugin-visual-review' };
-const ready = variant => ({ schema_version: 1, variant, ready: true, phase: 'ready', recording_state: 'idle',
+const ready = variant => ({ schema_version: 1, variant, pid: 1234, ready: true, phase: 'ready', recording_state: 'idle',
   overlay_visible: false, start_attempts: 0, asr_connect_calls: 0, overlay_show_calls: 0,
   paste_calls: 0, result: '', error: null, diagnostics: [] });
 const failed = { ...ready('before'), phase: 'start_failed', start_attempts: 1,
@@ -19,6 +19,22 @@ const listening = { ...ready('after'), phase: 'listening', recording_state: 'rec
   diagnostics: ['audio_delegated', 'gesture_confirmed', 'connection_requested', 'connected'] };
 const finished = { ...listening, phase: 'finished', recording_state: 'idle', overlay_visible: false,
   paste_calls: 1, result: 'Synthetic PR48 dictation completed.' };
+
+test('compositor accepts the production fallback only for exact mapped overlay PID/title', () => {
+  const client = { title: 'Doubao Say overlay', class: 'python3', pid: 1234,
+    mapped: true, hidden: false, visible: true, at: [440, 370], size: [400, 86] };
+  const layer = { namespace: 'doubao-say-overlay', pid: 1234, x: 440, y: 690, w: 400, h: 86 };
+  assert.equal(matchPr48Surfaces({ pid: 1234, layers: [], clients: [client] }).count, 1);
+  assert.equal(matchPr48Surfaces({ pid: 1234, layers: [layer], clients: [] }).count, 1);
+  for (const override of [{pid: 4321}, {title: 'PR48 isolated voice test'}, {mapped: false},
+    {hidden: true}, {visible: false}]) {
+    assert.equal(matchPr48Surfaces({pid: 1234, layers: [], clients: [{...client, ...override}]}).count, 0);
+  }
+  assert.equal(matchPr48Surfaces({pid: 1234, layers: [{...layer, pid: 4321}], clients: []}).count, 0);
+  assert.throws(() => matchPr48Surfaces({pid: 1234, layers: [], clients: [{...client, size: [0, 86]}]}), /geometry/);
+  assert.equal(matchPr48Surfaces({pid: 1234, layers: [layer], clients: [client]}).count, 2,
+    'caller rejects ambiguous duplicate surfaces instead of passing');
+});
 
 test('PR48 profile rejects unapproved route before I/O', () => {
   assert.doesNotThrow(() => assertPr48Profile(env));
@@ -81,7 +97,8 @@ test('adapter launches each pinned revision once and verifies same harness hash'
     }
     if (command.includes('kill -0')) { status = {...status, overlay_visible:false}; return 'stopped'; }
     if (command.endsWith('/exit.json')) return JSON.stringify({ exit_code: 0, workers_stopped: true, result: active === 'before' ? 'expected_failure' : 'passed' });
-    if (command.includes('hyprctl -j layers')) return JSON.stringify(status?.overlay_visible ? [{namespace: 'doubao-say-overlay', x: 0, y: 0, w: 400, h: 86}] : []);
+    if (command.includes('hyprctl -j layers')) return JSON.stringify(status?.overlay_visible ? [{namespace: 'doubao-say-overlay', pid: 1234, x: 0, y: 0, w: 400, h: 86}] : []);
+    if (command.includes('hyprctl -j clients')) return '[]';
     if (command.startsWith('grim ') || command.startsWith('cp ')) return '';
     throw new Error(`Unexpected command ${command}`);
   };

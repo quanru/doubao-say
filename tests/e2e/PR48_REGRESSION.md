@@ -22,7 +22,7 @@ hide the original defect.
 
 1. Before: real diagnostic callback rejects `audio_delegated`; original traceback
    is recorded; state remains idle, ASR connect and overlay-show counts remain
-   zero, and Hyprland has no mapped Doubao overlay layer
+   zero, and Hyprland has no mapped Doubao overlay layer or exact-title client
 2. After: the same callback accepts the event; the real state machine reaches
    recording and the real GTK overlay is mapped; Finish completes one synthetic
    transcript, returns to idle and hides the overlay
@@ -30,7 +30,7 @@ hide the original defect.
 Midscene orchestrates deterministic test nodes. This recovery uses programmatic
 control-file requests to the unchanged harness dispatch, not AI clicks or visual
 assertions. Original screenshots are reviewed separately. Separate status, source/import hashes and
-compositor observations cross-check those assertions. Original `grim` desktop
+PID-bound compositor layer/client observations cross-check those assertions. Original `grim` desktop
 screenshots, JSONL events and per-phase snapshots are retained even if the
 scenario fails. A green regression case means the expected before-failure and
 after-success were both observed; it does not mean the old revision passed.
@@ -74,3 +74,12 @@ This recovery keeps the exact Python harness bytes and both source pins, but
 removes the model dependency from core collection. It must complete both variants
 in the same fresh VM. Report this as deterministic GTK/controller reproduction,
 not AI visual validation.
+
+The second run (https://github.com/quanru/doubao-say/actions/runs/36699531555)
+used zero model requests and captured a genuine matched startup pair. Its observer
+was too strict: the product legitimately used its regular Wayland-window fallback
+instead of a layer-shell overlay. The after screenshot shows Listening, but the
+layer-only assertion stopped before Finish. The observer now accepts exactly one
+mapped, visible, non-hidden client titled Doubao Say overlay with the harness PID,
+or the matching layer namespace with that PID. Both raw compositor listings are
+retained. This does not establish layer-shell behavior in this VM.

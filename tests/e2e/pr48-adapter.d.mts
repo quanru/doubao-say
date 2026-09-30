@@ -12,3 +12,5 @@ export function createPr48Adapter(options: {
   env: NodeJS.ProcessEnv;
   record?: (event: { at: string; type: string; [key: string]: unknown }) => void;
 }): Pr48Adapter;
+
+export function matchPr48Surfaces(input: { layers: unknown[]; clients: unknown[]; pid: number }): { layers: unknown[]; clients: unknown[]; count: number };
