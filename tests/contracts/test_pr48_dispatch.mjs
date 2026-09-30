@@ -99,9 +99,9 @@ test('source payloads use pinned public archives and checksums, with no product 
   assert.match(setup, /iso_version.*OMARCHY_ISO_VERSION/);
 });
 
-test('PR48 has one VM, zero retries, four replans, 32 gated calls and one preflight', () => {
+test('PR48 has one VM, zero retries, a retained request safety cap and skips model preflight', () => {
   assert.match(workflow, /timeout-minutes: \$\{\{ inputs\.project == 'omarchy-pr48-regression' && 25 \|\|/);
-  assert.match(workflow, /\$\{PR48_REGRESSION_PROFILE:-\}" == matched-pr48 \]\]; then\n\s+# One preflight[^\n]*\n\s+retry_args=\(--retry 0\)/);
+  assert.match(workflow, /name: Check Midscene model before the expensive VM install\n\s+# PR48 core[^\n]*\n\s+if: matrix.project != 'omarchy-pr48-regression'/);
   assert.match(runner, /\$\{PR48_REGRESSION_PROFILE:-\}" == matched-pr48 \]\]; then\n\s+mkdir[^\n]*\n\s+export MIDSCENE_RATE_GATE_STATE_FILE=.*model-request-count\.json/);
   assert.match(runner, /omarchy-pr48-regression\)\n\s+# Leave time[^\n]*\n\s+timeout --signal=TERM --kill-after=10s 12m npm/);
   assert.match(config, /name: 'omarchy-pr48-regression',\s+retry: 0,/);

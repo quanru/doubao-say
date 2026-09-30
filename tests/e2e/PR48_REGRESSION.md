@@ -27,7 +27,9 @@ hide the original defect.
    recording and the real GTK overlay is mapped; Finish completes one synthetic
    transcript, returns to idle and hides the overlay
 
-Midscene checks the visible desktop. Separate status, source/import hashes and
+Midscene orchestrates deterministic test nodes. This recovery uses programmatic
+control-file requests to the unchanged harness dispatch, not AI clicks or visual
+assertions. Original screenshots are reviewed separately. Separate status, source/import hashes and
 compositor observations cross-check those assertions. Original `grim` desktop
 screenshots, JSONL events and per-phase snapshots are retained even if the
 scenario fails. A green regression case means the expected before-failure and
@@ -39,8 +41,9 @@ Use only manual project `omarchy-pr48-regression` on
 `research/omarchy-plugin-visual-review`, with bootstrap disabled and all review
 and plugin payload fields empty (`plugin_open_method` may retain default auto).
 The job is limited to 25 minutes, one serial case, no case/model retries, four
-replanning cycles, 32 gated requests and one model preflight request. The request
-cap is not a currency cap. Existing configured model/Actions quotas are used.
+replanning cycles, a retained 32-request safety cap. The deterministic recovery contains no AI
+nodes and skips model preflight: intended and required model request count is zero. The request
+cap is not a currency cap. Existing Actions resources are used; no new model or account configuration is created.
 No PR comment, App callback, hosted model bootstrap or Pages publication runs.
 
 This reproduction does not validate real speech recognition, the global input
@@ -59,3 +62,15 @@ against accidentally testing the current reviewer checkout instead of the pins.
 
 The source pins and harness hashes must be checked before drawing a causal
 conclusion. A first-view screenshot with no overlay alone is not enough.
+
+## Recovery provenance
+
+The first run at reviewer `ed0a3f1`
+(https://github.com/quanru/doubao-say/actions/runs/36697561435) reproduced the
+before exception and saved original desktop evidence. The next AI assertion
+hit a 180-second upstream model timeout, so the after revision was never run.
+The first artifact remains separate and must not be spliced into a matched pair.
+This recovery keeps the exact Python harness bytes and both source pins, but
+removes the model dependency from core collection. It must complete both variants
+in the same fresh VM. Report this as deterministic GTK/controller reproduction,
+not AI visual validation.

@@ -2,6 +2,7 @@ export const PR48_PIN: Readonly<{ before: string; after: string }>;
 export interface Pr48Adapter {
   prepare(input: { variant: 'before' | 'after' }): Promise<void>;
   observe(input: { variant: 'before' | 'after'; phase: 'ready' | 'start_failed' | 'listening' | 'finished' }): Promise<void>;
+  control(input: { variant: 'before' | 'after'; action: 'start' | 'finish' }): Promise<void>;
   cleanup(): Promise<void>;
 }
 export function assertPr48Profile(env: NodeJS.ProcessEnv): void;

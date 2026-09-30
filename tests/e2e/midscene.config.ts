@@ -529,6 +529,16 @@ const preparePr48 = defineNode<typeof pr48VariantInput, void, DesktopContext>({
     await context.pr48.prepare(input);
   },
 });
+const pr48ControlInput = z.strictObject({ variant: z.enum(['before', 'after']), action: z.enum(['start', 'finish']) });
+const controlPr48 = defineNode<typeof pr48ControlInput, void, DesktopContext>({
+  name: 'pr48.command',
+  description: 'Programmatic test control using the same GLib dispatch as the visible buttons; no AI action.',
+  inputSchema: pr48ControlInput,
+  async execute({ input, context }) {
+    if (!context.pr48) throw new Error('PR48 harness is not prepared');
+    await context.pr48.control(input);
+  },
+});
 const observePr48 = defineNode<typeof pr48ObservationInput, void, DesktopContext>({
   name: 'pr48.observe',
   description: 'Verify real controller/diagnostic state and Hyprland overlay layers; save original desktop screenshot.',
@@ -654,6 +664,7 @@ export default defineTestProject<DesktopContext>({
     assertReviewPluginEmpty,
     openConfiguredReviewPlugin,
     preparePr48,
+    controlPr48,
     observePr48,
     prepareLookout,
     assertLookoutPhase,

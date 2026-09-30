@@ -320,6 +320,8 @@ jobs:
           [[ "$REVIEW_PLUGIN_SHA" =~ ^[a-fA-F0-9]{40}$ ]]
 
       - name: Check Midscene model before the expensive VM install
+        # PR48 core is deterministic: no model calls, including preflight.
+        if: matrix.project != 'omarchy-pr48-regression'
         run: |
           payload=$(jq -nc --arg model "$MIDSCENE_MODEL_NAME" '{
             model: $model,

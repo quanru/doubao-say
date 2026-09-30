@@ -47,6 +47,7 @@ export function createPr48Adapter({ guest, env, record = () => {},
   let active;
   let idleEnabled;
   const visited = new Set();
+  const commandsSent = new Set();
   const provenance = new Map();
   const log = (type, data = {}) => record({ at: new Date(now()).toISOString(), type, ...data });
   const command = text => guest(text, 10_000);
@@ -114,6 +115,21 @@ export function createPr48Adapter({ guest, env, record = () => {},
         throw new Error('PR48 variants used different harnesses');
       }
       log('prepared', { variant, source });
+    },
+    async control({ variant, action }) {
+      if (variant !== active || !['start', 'finish'].includes(action) ||
+          (action === 'finish' && variant !== 'after')) throw new Error('Invalid PR48 programmatic control');
+      const id = `programmatic-${variant}-${action}`;
+      if (commandsSent.has(id)) throw new Error('PR48 control can execute only once');
+      const required = action === 'start' ? 'ready' : 'listening';
+      if (!validatePr48Status(observations(), variant, required)) throw new Error('PR48 control precondition failed');
+      commandsSent.add(id);
+      const payload = JSON.stringify({ id, command: action });
+      // All values are closed enums/derived strings; this invokes the same GLib
+      // dispatch as the visible buttons without relying on a remote vision model.
+      command(`printf '%s' '${payload}' > /tmp/pr48-evidence/${variant}/control.json.tmp && mv /tmp/pr48-evidence/${variant}/control.json.tmp /tmp/pr48-evidence/${variant}/control.json`);
+      await poll(() => observations().last_command_id === id, 'PR48 programmatic control was not acknowledged');
+      log('programmatic-control', { variant, action, id, source: 'control-file-to-shared-GLib-dispatch' });
     },
     async observe({ variant, phase }) {
       if (variant !== active || !['ready', 'start_failed', 'listening', 'finished'].includes(phase)) {
