@@ -165,7 +165,7 @@ jobs:
       (github.event_name != 'issues' ||
       (github.event.label.name == 'midscene-review' && startsWith(github.event.issue.title, '[Omarchy review] ')))
     runs-on: ubuntu-latest
-    timeout-minutes: 60
+    timeout-minutes: ${{ github.event_name == 'workflow_dispatch' && inputs.project == 'omarchy-plugin-smoke' && inputs.plugin_repository == 'dpaluy/omarchy-lookout' && inputs.plugin_sha == '9dfdfc49178c7e4521ca6b41910920bf17c54d80' && inputs.plugin_id == 'dpaluy.lookout' && inputs.plugin_open_method == 'open' && 25 || 60 }}
     strategy:
       # Each shard restores an independent disposable VM. Sharing one Hyprland
       # session would make fixture resets, focus and screenshots race.
@@ -202,6 +202,33 @@ jobs:
       - name: Read maintainer-approved review Issue
         if: github.event_name == 'issues'
         run: node scripts/parse-omarchy-review-issue.mjs
+
+      - name: Select bounded plugin review profile
+        env:
+          REQUESTED_PROJECT: ${{ matrix.project }}
+          REQUESTED_PLUGIN_ID: ${{ inputs.plugin_id }}
+          REQUESTED_PLUGIN_OPEN_METHOD: ${{ inputs.plugin_open_method }}
+        run: |
+          # LOOKOUT_PROFILE_GUARD_BEGIN
+          if [[ "$REVIEW_PLUGIN_REPOSITORY" == dpaluy/omarchy-lookout || "$REQUESTED_PLUGIN_ID" == dpaluy.lookout || "${REVIEW_PLUGIN_ID:-}" == dpaluy.lookout || "${REVIEW_PLUGIN_PROFILE:-}" == lookout ]]; then
+            if [[ "$GITHUB_EVENT_NAME" != workflow_dispatch || "$REQUESTED_PROJECT" != omarchy-plugin-smoke ||
+                  "$REVIEW_PLUGIN_REPOSITORY" != dpaluy/omarchy-lookout ||
+                  "$REVIEW_PLUGIN_SHA" != 9dfdfc49178c7e4521ca6b41910920bf17c54d80 ||
+                  "$REQUESTED_PLUGIN_ID" != dpaluy.lookout || "$REQUESTED_PLUGIN_OPEN_METHOD" != open ]]; then
+              echo 'LookOut requires the exact approved manual smoke target and explicit open method.' >&2
+              exit 1
+            fi
+            {
+              echo 'REVIEW_PLUGIN_PROFILE=lookout'
+              echo 'MIDSCENE_MODEL_RETRY_COUNT=0'
+              echo 'MIDSCENE_REPLANNING_CYCLE_LIMIT=4'
+              echo 'MIDSCENE_RATE_GATE_MAX_REQUESTS=32'
+            } >> "$GITHUB_ENV"
+          elif [[ -n "${REVIEW_PLUGIN_PROFILE:-}" ]]; then
+            echo 'Unrecognized plugin review profile.' >&2
+            exit 1
+          fi
+          # LOOKOUT_PROFILE_GUARD_END
 
       - name: Configure existing worker model
         if: github.event_name != 'workflow_dispatch' || inputs.review_run_id == ''
@@ -263,9 +290,13 @@ jobs:
             messages: [{role: "user", content: "Reply OK."}],
             max_tokens: 1
           }')
+          retry_args=(--retry 4 --retry-all-errors --retry-delay 5 --retry-max-time 90)
+          if [[ "${REVIEW_PLUGIN_PROFILE:-}" == lookout ]]; then
+            # One preflight attempt plus at most 32 gated model calls below.
+            retry_args=(--retry 0)
+          fi
           curl --fail --silent --show-error \
-            --connect-timeout 15 --max-time 90 \
-            --retry 4 --retry-all-errors --retry-delay 5 --retry-max-time 90 \
+            --connect-timeout 15 --max-time 90 "${retry_args[@]}" \
             -H "Authorization: Bearer $MIDSCENE_MODEL_API_KEY" \
             -H "Content-Type: application/json" \
             --data "$payload" \

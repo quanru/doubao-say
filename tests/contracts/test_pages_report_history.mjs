@@ -117,7 +117,7 @@ test('plugin smoke keeps its visual assertion as a reportable Midscene step', as
   assert.doesNotMatch(source, /review\.assertConfiguredVisual/);
   assert.match(
     runner,
-    /omarchy-plugin-smoke\)\s+node tests\/e2e\/render-omarchy-plugin-smoke\.mjs\s+npm --prefix tests\/e2e test/,
+    /omarchy-plugin-smoke\)\s+if \[\[ "\$\{REVIEW_PLUGIN_PROFILE:-\}" == lookout \]\]; then\s+cp tests\/e2e\/cases\/omarchy-lookout-review\.yaml tests\/e2e\/cases\/omarchy-plugin-smoke\.yaml\s+else\s+node tests\/e2e\/render-omarchy-plugin-smoke\.mjs\s+fi\s+npm --prefix tests\/e2e test/,
   );
 
   const root = await mkdtemp(path.join(os.tmpdir(), 'plugin-smoke-render-'));

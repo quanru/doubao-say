@@ -16,6 +16,24 @@ readonly REVIEW_PLUGIN_REPOSITORY="${REVIEW_PLUGIN_REPOSITORY:-tathagat11/omarch
 readonly REVIEW_PLUGIN_ID="${REVIEW_PLUGIN_ID:-tathagat11.checklist-todo}"
 readonly REVIEW_PLUGIN_SHA="${REVIEW_PLUGIN_SHA:-0b8dfdbdc5dc1deaff178ad727fa22f6e289423a}"
 readonly REVIEW_PLUGIN_DIR="/home/omarchy/.config/omarchy/plugins/$REVIEW_PLUGIN_ID"
+# Reject an attempted LookOut profile before booting a VM or handling secrets.
+# LOOKOUT_RUNNER_GUARD_BEGIN
+if [[ "${REVIEW_PLUGIN_PROFILE:-}" == lookout || "$REVIEW_PLUGIN_REPOSITORY" == dpaluy/omarchy-lookout || "$REVIEW_PLUGIN_ID" == dpaluy.lookout ]]; then
+  if [[ "$MIDSCENE_PROJECT" != omarchy-plugin-smoke || "${REVIEW_PLUGIN_PROFILE:-}" != lookout ||
+        "$REVIEW_PLUGIN_REPOSITORY" != dpaluy/omarchy-lookout ||
+        "$REVIEW_PLUGIN_SHA" != 9dfdfc49178c7e4521ca6b41910920bf17c54d80 ||
+        "$REVIEW_PLUGIN_ID" != dpaluy.lookout || "${REVIEW_PLUGIN_OPEN_METHOD:-}" != open ]]; then
+    echo 'LookOut requires the trusted profile, exact pinned source, smoke project, and explicit open method.' >&2
+    exit 1
+  fi
+  export MIDSCENE_MODEL_RETRY_COUNT=0
+  export MIDSCENE_REPLANNING_CYCLE_LIMIT=4
+  export MIDSCENE_RATE_GATE_MAX_REQUESTS=32
+elif [[ -n "${REVIEW_PLUGIN_PROFILE:-}" ]]; then
+  echo 'Unrecognized plugin review profile.' >&2
+  exit 1
+fi
+# LOOKOUT_RUNNER_GUARD_END
 readonly SHIM_DIR="$(mktemp -d)"
 readonly PLUGIN_ARCHIVE="$(mktemp /tmp/doubao-say-omarchy-plugin-XXXXXX.tar)"
 readonly REVIEW_PLUGIN_ARCHIVE="$(mktemp /tmp/omarchy-review-plugin-XXXXXX.tar.gz)"
@@ -296,6 +314,10 @@ for _xvfb_attempt in {1..200}; do
   sleep 0.2
 done
 
+if [[ "${REVIEW_PLUGIN_PROFILE:-}" == lookout ]]; then
+  mkdir -p "$ROOT_DIR/tests/e2e/midscene_run"
+  export MIDSCENE_RATE_GATE_STATE_FILE="$ROOT_DIR/tests/e2e/midscene_run/model-request-count.json"
+fi
 export MIDSCENE_RATE_GATE_UPSTREAM="$MIDSCENE_MODEL_BASE_URL"
 export MIDSCENE_MODEL_BASE_URL="http://127.0.0.1:18783"
 node "$ROOT_DIR/tests/e2e/model-rate-gate.mjs" >"$WORK_DIR/model-rate-gate.log" 2>&1 &
@@ -316,7 +338,11 @@ case "$MIDSCENE_PROJECT" in
     npm --prefix tests/e2e test -- --project "$MIDSCENE_PROJECT"
     ;;
   omarchy-plugin-smoke)
-    node tests/e2e/render-omarchy-plugin-smoke.mjs
+    if [[ "${REVIEW_PLUGIN_PROFILE:-}" == lookout ]]; then
+      cp tests/e2e/cases/omarchy-lookout-review.yaml tests/e2e/cases/omarchy-plugin-smoke.yaml
+    else
+      node tests/e2e/render-omarchy-plugin-smoke.mjs
+    fi
     npm --prefix tests/e2e test -- --project "$MIDSCENE_PROJECT"
     ;;
   omarchy-shell|omarchy-plugin-review)

@@ -62,3 +62,28 @@ dispatch this same controlled workflow; the App would only handle routing and
 report links, while the VM and model remain in Actions. Keep the visual result
 separate from the official Marketplace baseline: its policy never executes
 community code, while this workflow does so only inside a disposable VM.
+
+## Bounded LookOut review
+
+The manually selected `omarchy-plugin-smoke` target for
+`dpaluy/omarchy-lookout` at `9dfdfc49178c7e4521ca6b41910920bf17c54d80`,
+manifest ID `dpaluy.lookout`, and explicit method `open` selects the trusted
+`lookout` profile. Requests claiming that repository or ID with a different
+pin, project, or method fail before model configuration and VM startup.
+The runner validates the complete tuple again, then copies the reviewed
+`cases/omarchy-lookout-review.yaml` into the smoke project's configured
+`cases/omarchy-plugin-smoke.yaml` instead of running the generic renderer.
+
+This one-project dispatch has a 25-minute job deadline, model retries disabled,
+and a replan limit of 4. Its preflight makes at most one model request. The
+worker rate gate reserves at most 32 further requests, including upstream
+rejections and transport failures (33 total including preflight). Reservations
+are atomic before queue waits, so concurrent requests cannot exceed the cap.
+Health checks do not consume the budget. The gate fails closed if its counter
+cannot be saved; `midscene_run/model-request-count.json` contains only numeric
+budget telemetry, never API keys, prompts, headers, or endpoint URLs. Other
+projects retain their existing retries, timeout, and uncapped paced gate.
+
+Select only `omarchy-plugin-smoke` for this run, with no hosted bootstrap or
+review-service run ID. No new secret or proxy token is required. The profile
+selection itself does not trigger the five-project matrix or dispatch a run.

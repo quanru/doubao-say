@@ -1,0 +1,39 @@
+# Trusted profile: dpaluy/omarchy-lookout at 9dfdfc49178c7e4521ca6b41910920bf17c54d80.
+# Real UI actions; bounded state/layer checks supplement the visual replay.
+# Each prepare registers case cleanup before changing guest state.
+cases:
+  - name: LookOut opens a real break screen and Escape skips it
+    steps:
+      - lookout.prepare: { allowSkip: true, breakSec: 1800 }
+      - review.openConfigured: {}
+      - aiAssert: The LookOut popup is open. It shows "Break starts in", "Start break", "Pause LookOut", and "Settings".
+      - aiTap: The Start break button in the LookOut popup
+      - lookout.assertPhase: { phase: break, overlay: true }
+      - aiAssert: A full-screen break overlay says "Time to look out" and "Rest your eyes on something far away. Stretch, breathe, drink water." A countdown, a "+5 min" button, and a "Skip (Esc)" button are visible.
+      - computer.keyPress: { keyName: Escape }
+      - lookout.assertPhase: { phase: working, overlay: false }
+      - lookout.assertSkipped: {}
+      - review.openConfigured: {}
+      - aiAssert: The full-screen break overlay is gone. The LookOut popup shows "Break starts in" and "Start break" again.
+
+  - name: LookOut honors the user's no-skip setting on its visible break screen
+    steps:
+      - lookout.prepare: { allowSkip: true, breakSec: 1800 }
+      - review.openConfigured: {}
+      - aiTap: The Settings button in the LookOut popup
+      - aiAssert: The LookOut SETTINGS view is visible with an enabled "Allow skipping a break" toggle and a Done button.
+      - aiTap: The enabled toggle labeled Allow skipping a break in LookOut settings
+      - lookout.assertAllowSkip: { value: false }
+      - aiAssert: The toggle labeled "Allow skipping a break" is off.
+      - aiTap: The Done button in LookOut settings
+      - aiTap: The Start break button in the LookOut popup
+      - lookout.assertPhase: { phase: break, overlay: true }
+      - aiAssert: The full-screen LookOut break screen says "Time to look out" and shows a countdown. Neither "Skip (Esc)" nor "+5 min" is visible.
+      - computer.keyPress: { keyName: Escape }
+      - lookout.assertPhase: { phase: break, overlay: true }
+      - aiAssert: After Escape, the LookOut break screen still covers the desktop and says "Time to look out". It still shows no Skip button.
+      - lookout.endForCleanup: {}
+      - review.openConfigured: {}
+      - aiTap: The Settings button in the LookOut popup
+      - aiAssert: After closing the break and reopening LookOut settings, "Allow skipping a break" remains off.
+      - lookout.assertAllowSkip: { value: false }

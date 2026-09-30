@@ -1,17 +1,21 @@
 import { execFileSync, spawn, type ChildProcess } from 'node:child_process';
 import { resolve } from 'node:path';
 import { mkdtemp, rm } from 'node:fs/promises';
+import { appendFileSync, mkdirSync } from 'node:fs';
 import { tmpdir } from 'node:os';
 import { ComputerAgent, agentForComputer } from '@midscene/computer';
 import { defineNode, z } from '@midscene/test';
 import { defineProjectSetup, defineTestProject } from '@midscene/test/config';
 import { createMidsceneNodes } from '@midscene/test/midscene';
+import { assertLookoutProfile, createLookoutAdapter, prepareLookoutCase, PIN as LOOKOUT_PIN, type LookoutAdapter } from './lookout-adapter.mjs';
 
 interface DesktopContext {
   agent?: ComputerAgent;
   createAgent: () => Promise<ComputerAgent>;
   environment: 'ubuntu' | 'omarchy';
   shell: boolean;
+  lookoutProfile: boolean;
+  lookoutCase?: { runId: string; adapter: LookoutAdapter };
   fixtureMode?: string;
   resetFixture?: (mode: string) => Promise<void>;
   barConfigBackup?: string;
@@ -32,7 +36,7 @@ const stop = async (child?: ChildProcess) => {
   });
 };
 
-function guest(command: string): string {
+function guest(command: string, timeoutMs = 20_000): string {
   const key = process.env.OMARCHY_SSH_KEY;
   if (!key) throw new Error('OMARCHY_SSH_KEY is required for shell tests');
   const env = [
@@ -48,7 +52,7 @@ function guest(command: string): string {
     '-o', 'StrictHostKeyChecking=no', '-o', 'UserKnownHostsFile=/dev/null',
     '-o', 'ConnectTimeout=10', '-o', 'LogLevel=ERROR',
     'omarchy@127.0.0.1', `${env} ${command}`,
-  ], { encoding: 'utf8', timeout: 20_000 }).trim();
+  ], { encoding: 'utf8', timeout: timeoutMs }).trim();
 }
 
 async function waitForFixture(child: ChildProcess): Promise<void> {
@@ -78,6 +82,8 @@ const setup = defineProjectSetup<DesktopContext>({
     const omarchy = project.name.startsWith('omarchy-');
     const shell = project.name === 'omarchy-shell' || project.name === 'omarchy-plugin-review' || project.name === 'omarchy-plugin-smoke';
     const polishing = project.name === 'ubuntu-polishing';
+    const lookoutProfile = project.name === 'omarchy-plugin-smoke' && process.env.REVIEW_PLUGIN_PROFILE === 'lookout';
+    if (lookoutProfile) assertLookoutProfile(process.env);
     let desktopReady = false;
     const createAgent = async () => {
       const agent = await agentForComputer({
@@ -103,8 +109,17 @@ const setup = defineProjectSetup<DesktopContext>({
       createAgent,
       environment: omarchy ? 'omarchy' : 'ubuntu',
       shell,
+      lookoutProfile,
     };
     onTeardown(() => context.agent?.destroy());
+    // Case teardown is primary; this also retries a retained backup if a
+    // case's cleanup fails. Midscene reports teardown errors separately.
+    onTeardown(async () => {
+      if (context.lookoutCase) {
+        await context.lookoutCase.adapter.cleanup();
+        context.lookoutCase = undefined;
+      }
+    });
     const fluxbox = spawn('fluxbox', [], { detached: true, stdio: 'ignore', env: process.env });
     onTeardown(() => stop(fluxbox));
     await sleep(1000);
@@ -410,6 +425,79 @@ const openConfiguredReviewPlugin = defineNode<typeof empty, void, DesktopContext
   },
 });
 
+const lookoutPrepareInput = z.strictObject({
+  allowSkip: z.boolean(),
+  breakSec: z.literal(1800),
+});
+const lookoutPhaseInput = z.strictObject({
+  phase: z.enum(['working', 'break']),
+  overlay: z.boolean(),
+});
+const lookoutAllowSkipInput = z.strictObject({ value: z.boolean() });
+function activeLookout(context: DesktopContext, runId?: string): LookoutAdapter {
+  if (!context.lookoutProfile || !runId || context.lookoutCase?.runId !== runId) {
+    throw new Error('LookOut node requires a prepared case in its trusted Omarchy profile');
+  }
+  return context.lookoutCase.adapter;
+}
+const prepareLookout = defineNode<typeof lookoutPrepareInput, void, DesktopContext>({
+  name: 'lookout.prepare',
+  description: 'Prepare isolated typed LookOut settings and register failure-safe case cleanup.',
+  inputSchema: lookoutPrepareInput,
+  async execute(execution) {
+    const { context, input, onTeardown } = execution;
+    if (execution.scope !== 'case' || !context.lookoutProfile || context.environment !== 'omarchy') {
+      throw new Error('LookOut preparation is limited to its trusted Omarchy case profile');
+    }
+    if (context.lookoutCase) throw new Error('Prior LookOut case cleanup is incomplete');
+    assertLookoutProfile(process.env);
+    const { runId, name, caseIndex, attemptIndex } = execution.case;
+    const directory = resolve(import.meta.dirname, 'midscene_run');
+    mkdirSync(directory, { recursive: true });
+    const adapter = createLookoutAdapter({
+      guest,
+      env: process.env,
+      record: event => appendFileSync(resolve(directory, 'lookout-evidence.jsonl'),
+        JSON.stringify({ ...event, runId, caseName: name, caseIndex, attemptIndex, pin: LOOKOUT_PIN }) + '\n'),
+    });
+    // Register BEFORE backup/configuration/IPC, including before the first AI
+    // node acquires an agent. A failed prepare still runs this case teardown.
+    await prepareLookoutCase({ context, runId, onTeardown, adapter, input });
+  },
+});
+const assertLookoutPhase = defineNode<typeof lookoutPhaseInput, void, DesktopContext>({
+  name: 'lookout.assertPhase',
+  description: 'Cross-check stable LookOut service state and mapped compositor layers.',
+  inputSchema: lookoutPhaseInput,
+  async execute(execution) {
+    await activeLookout(execution.context, execution.case?.runId).assertPhase(execution.input);
+  },
+});
+const assertLookoutAllowSkip = defineNode<typeof lookoutAllowSkipInput, void, DesktopContext>({
+  name: 'lookout.assertAllowSkip',
+  description: 'Check the exact persisted boolean written by the real LookOut settings UI.',
+  inputSchema: lookoutAllowSkipInput,
+  async execute(execution) {
+    await activeLookout(execution.context, execution.case?.runId).assertAllowSkip(execution.input);
+  },
+});
+const assertLookoutSkipped = defineNode<typeof empty, void, DesktopContext>({
+  name: 'lookout.assertSkipped',
+  description: 'Verify Escape preserved break history and restored the working countdown.',
+  inputSchema: empty,
+  execute(execution) {
+    activeLookout(execution.context, execution.case?.runId).assertSkipped();
+  },
+});
+const endLookoutForCleanup = defineNode<typeof empty, void, DesktopContext>({
+  name: 'lookout.endForCleanup',
+  description: 'End the no-skip break via documented IPC for cleanup only, not as a user action.',
+  inputSchema: empty,
+  async execute(execution) {
+    await activeLookout(execution.context, execution.case?.runId).endForCleanup();
+  },
+});
+
 const productCaseFiles = [
   'cases/onboarding.yaml',
   'cases/onboarding-regressions.yaml',
@@ -523,5 +611,10 @@ export default defineTestProject<DesktopContext>({
     openReviewPlugin,
     assertReviewPluginEmpty,
     openConfiguredReviewPlugin,
+    prepareLookout,
+    assertLookoutPhase,
+    assertLookoutAllowSkip,
+    assertLookoutSkipped,
+    endLookoutForCleanup,
   ],
 });
