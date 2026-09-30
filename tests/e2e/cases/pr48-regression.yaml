@@ -1,0 +1,18 @@
+cases:
+  - name: PR48 matched regression - real diagnostic failure before, listening and completion after
+    steps:
+      - pr48.prepare: { variant: before }
+      - pr48.observe: { variant: before, phase: ready }
+      - aiAssert: The PR48 isolated voice test window labels this as synthetic recognition, shows the before revision, and has an enabled Start voice test button. No Doubao Say listening overlay is visible.
+      - aiAct: Click the Start voice test button once.
+      - pr48.observe: { variant: before, phase: start_failed }
+      - aiAssert: The isolated voice test reports that starting failed, the start button is disabled, and there is no Doubao Say listening overlay on the desktop.
+      - pr48.prepare: { variant: after }
+      - pr48.observe: { variant: after, phase: ready }
+      - aiAssert: The PR48 isolated voice test window shows the after revision and an enabled Start voice test button. No Doubao Say listening overlay is visible.
+      - aiAct: Click the Start voice test button once.
+      - pr48.observe: { variant: after, phase: listening }
+      - aiAssert: A real dark Doubao Say recording overlay is visible near the bottom of the desktop and displays Listening. The isolated voice test has a Finish voice test button.
+      - aiAct: Click the Finish voice test button once.
+      - pr48.observe: { variant: after, phase: finished }
+      - aiAssert: The Doubao Say overlay has disappeared, the isolated voice test displays Synthetic PR48 dictation completed. and indicates idle or finished. It is labelled synthetic recognition.

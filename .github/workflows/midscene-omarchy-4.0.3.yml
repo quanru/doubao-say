@@ -67,6 +67,7 @@ on:
           - omarchy-shell
           - omarchy-plugin-review
           - omarchy-plugin-smoke
+          - omarchy-pr48-regression
           - omarchy-providers
       plugin_repository:
         description: Public GitHub owner/repository for omarchy-plugin-smoke
@@ -114,7 +115,7 @@ concurrency:
 jobs:
   bootstrap-hosted-model:
     name: Bootstrap hosted model
-    if: github.event_name == 'workflow_dispatch' && inputs.bootstrap_hosted_model == true && github.actor == 'quanru' && github.ref == 'refs/heads/research/omarchy-plugin-visual-review'
+    if: github.event_name == 'workflow_dispatch' && inputs.project != 'omarchy-pr48-regression' && inputs.bootstrap_hosted_model == true && github.actor == 'quanru' && github.ref == 'refs/heads/research/omarchy-plugin-visual-review'
     runs-on: ubuntu-latest
     timeout-minutes: 5
     env:
@@ -165,7 +166,7 @@ jobs:
       (github.event_name != 'issues' ||
       (github.event.label.name == 'midscene-review' && startsWith(github.event.issue.title, '[Omarchy review] ')))
     runs-on: ubuntu-latest
-    timeout-minutes: ${{ github.event_name == 'workflow_dispatch' && inputs.project == 'omarchy-plugin-smoke' && inputs.plugin_repository == 'dpaluy/omarchy-lookout' && inputs.plugin_sha == '9dfdfc49178c7e4521ca6b41910920bf17c54d80' && inputs.plugin_id == 'dpaluy.lookout' && inputs.plugin_open_method == 'open' && 25 || 60 }}
+    timeout-minutes: ${{ inputs.project == 'omarchy-pr48-regression' && 25 || github.event_name == 'workflow_dispatch' && inputs.project == 'omarchy-plugin-smoke' && inputs.plugin_repository == 'dpaluy/omarchy-lookout' && inputs.plugin_sha == '9dfdfc49178c7e4521ca6b41910920bf17c54d80' && inputs.plugin_id == 'dpaluy.lookout' && inputs.plugin_open_method == 'open' && 25 || 60 }}
     strategy:
       # Each shard restores an independent disposable VM. Sharing one Hyprland
       # session would make fixture resets, focus and screenshots race.
@@ -193,6 +194,11 @@ jobs:
       REVIEW_PLUGIN_SHA: ${{ inputs.plugin_sha }}
       REVIEW_BASE_REPOSITORY: ${{ inputs.review_base_repository }}
       REVIEW_PR_NUMBER: ${{ inputs.review_pr_number }}
+      PR48_REQUEST_REVIEW_RUN_ID: ${{ inputs.review_run_id }}
+      PR48_REQUEST_PLUGIN_ID: ${{ inputs.plugin_id }}
+      PR48_REQUEST_PLUGIN_OPEN_METHOD: ${{ inputs.plugin_open_method }}
+      PR48_REQUEST_VISIBLE_ASSERTION: ${{ inputs.visible_assertion }}
+      PR48_REQUEST_BOOTSTRAP: ${{ inputs.bootstrap_hosted_model }}
       MIDSCENE_REVIEW_APP_URL: ${{ vars.MIDSCENE_REVIEW_APP_URL }}
     steps:
       - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
@@ -202,6 +208,36 @@ jobs:
       - name: Read maintainer-approved review Issue
         if: github.event_name == 'issues'
         run: node scripts/parse-omarchy-review-issue.mjs
+
+      - name: Select bounded PR48 regression profile
+        env:
+          REQUESTED_PROJECT: ${{ matrix.project }}
+        run: |
+          # PR48_PROFILE_GUARD_BEGIN
+          if [[ "$REQUESTED_PROJECT" == omarchy-pr48-regression || -n "${PR48_REGRESSION_PROFILE:-}" ]]; then
+            if [[ "$GITHUB_EVENT_NAME" != workflow_dispatch ||
+                  "$GITHUB_REF" != refs/heads/research/omarchy-plugin-visual-review ||
+                  "$REQUESTED_PROJECT" != omarchy-pr48-regression ||
+                  -n "${PR48_REGRESSION_PROFILE:-}" ||
+                  -n "${REVIEW_PLUGIN_REPOSITORY:-}" || -n "${REVIEW_PLUGIN_SHA:-}" ||
+                  -n "${PR48_REQUEST_PLUGIN_ID:-}" || -n "${REVIEW_PLUGIN_PROFILE:-}" ||
+                  -n "${PR48_REQUEST_REVIEW_RUN_ID:-}" || -n "${REVIEW_BASE_REPOSITORY:-}" ||
+                  -n "${REVIEW_PR_NUMBER:-}" || -n "${PR48_REQUEST_VISIBLE_ASSERTION:-}" ||
+                  ( "${PR48_REQUEST_PLUGIN_OPEN_METHOD:-}" != '' && "${PR48_REQUEST_PLUGIN_OPEN_METHOD:-}" != auto ) ||
+                  ( "${PR48_REQUEST_BOOTSTRAP:-}" != '' && "${PR48_REQUEST_BOOTSTRAP:-}" != false ) ]]; then
+              echo 'PR48 requires the exact manual research branch, with no review, plugin, or bootstrap payload.' >&2
+              exit 1
+            fi
+            {
+              echo 'PR48_REGRESSION_PROFILE=matched-pr48'
+              echo 'PR48_BEFORE_SHA=c866b8fe03c18f0169b9327778ec9f620ac18095'
+              echo 'PR48_AFTER_SHA=ed1dae4ecd097736ea92b76b09a31ca4df4f1aa2'
+              echo 'MIDSCENE_MODEL_RETRY_COUNT=0'
+              echo 'MIDSCENE_REPLANNING_CYCLE_LIMIT=4'
+              echo 'MIDSCENE_RATE_GATE_MAX_REQUESTS=32'
+            } >> "$GITHUB_ENV"
+          fi
+          # PR48_PROFILE_GUARD_END
 
       - name: Select bounded plugin review profile
         env:
@@ -248,7 +284,7 @@ jobs:
           } >> "$GITHUB_ENV"
 
       - name: Obtain scoped Midscene model proxy token
-        if: github.event_name == 'workflow_dispatch' && inputs.review_run_id != ''
+        if: matrix.project != 'omarchy-pr48-regression' && github.event_name == 'workflow_dispatch' && inputs.review_run_id != ''
         env:
           REVIEW_RUN_ID: ${{ inputs.review_run_id }}
         run: |
@@ -291,7 +327,7 @@ jobs:
             max_tokens: 1
           }')
           retry_args=(--retry 4 --retry-all-errors --retry-delay 5 --retry-max-time 90)
-          if [[ "${REVIEW_PLUGIN_PROFILE:-}" == lookout ]]; then
+          if [[ "${REVIEW_PLUGIN_PROFILE:-}" == lookout || "${PR48_REGRESSION_PROFILE:-}" == matched-pr48 ]]; then
             # One preflight attempt plus at most 32 gated model calls below.
             retry_args=(--retry 0)
           fi
@@ -406,7 +442,7 @@ jobs:
             --capture-outcome "${CAPTURE_OUTCOME:-skipped}"
 
       - name: Upload installer evidence
-        if: always() && !cancelled()
+        if: always() && !cancelled() && matrix.project != 'omarchy-pr48-regression'
         uses: actions/upload-artifact@043fb46d1a93c77aae656e7c1c64a875d1fc6a0a # v7.0.1
         with:
           name: omarchy-vm-installer-evidence-${{ matrix.project }}
@@ -427,7 +463,7 @@ jobs:
 
       - name: Publish direct HTML report to Midscene
         id: publish-report
-        if: always() && !cancelled() && github.event_name == 'workflow_dispatch' && inputs.review_run_id != ''
+        if: always() && !cancelled() && matrix.project != 'omarchy-pr48-regression' && github.event_name == 'workflow_dispatch' && inputs.review_run_id != ''
         continue-on-error: true
         env:
           REVIEW_RUN_ID: ${{ inputs.review_run_id }}
@@ -450,7 +486,7 @@ jobs:
           done < <(find "$report_root" -type f -print0)
 
       - name: Complete Midscene review check
-        if: always() && !cancelled() && github.event_name == 'workflow_dispatch' && inputs.review_run_id != ''
+        if: always() && !cancelled() && matrix.project != 'omarchy-pr48-regression' && github.event_name == 'workflow_dispatch' && inputs.review_run_id != ''
         env:
           REVIEW_RUN_ID: ${{ inputs.review_run_id }}
           TEST_OUTCOME: ${{ steps.midscene-test.outcome }}
@@ -513,7 +549,7 @@ jobs:
     needs: [omarchy-e2e, report-bundle]
     if: >-
       always() && github.event_name != 'issues' && inputs.bootstrap_hosted_model != true &&
-      !cancelled() &&
+      inputs.project != 'omarchy-pr48-regression' && !cancelled() &&
       needs.report-bundle.outputs.report-artifact-id != '' &&
       (github.event_name != 'pull_request' ||
       github.event.pull_request.head.repo.full_name == github.repository)
