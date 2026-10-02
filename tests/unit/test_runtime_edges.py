@@ -139,6 +139,30 @@ class InjectorEdgesTest(TestCase):
         self.assertEqual(snapshot, ClipboardSnapshot(
             "wayland", "image/png", b"\x89PNG raw bytes"))
 
+    def test_snapshot_prefers_plain_text_over_html(self):
+        # A rich-text copy (browser) offers text/html and text/plain with
+        # different payloads. wl-copy serves one payload under every
+        # advertised text type, so restoring an HTML snapshot would put HTML
+        # markup into text/plain pastes; the plain text payload must win.
+        instance = Injector()
+        outputs = iter([b"text/html\ntext/plain;charset=utf-8\ntext/plain\nUTF8_STRING\n",
+                        b"plain words"])
+        with patch("doubao_input.inject.injector.command_candidates",
+                   side_effect=lambda tool: [[tool]] if tool in ("wl-paste", "wl-copy") else []), \
+                patch.object(instance, "_read", side_effect=lambda *args, **kwargs: next(outputs)):
+            snapshot = instance._snapshot_clipboard()
+        self.assertEqual(snapshot, ClipboardSnapshot(
+            "wayland", "text/plain;charset=utf-8", b"plain words"))
+
+    def test_snapshot_uses_html_when_no_plain_text_offered(self):
+        instance = Injector()
+        outputs = iter([b"text/html\n", b"<b>hi</b>"])
+        with patch("doubao_input.inject.injector.command_candidates",
+                   side_effect=lambda tool: [[tool]] if tool in ("wl-paste", "wl-copy") else []), \
+                patch.object(instance, "_read", side_effect=lambda *args, **kwargs: next(outputs)):
+            snapshot = instance._snapshot_clipboard()
+        self.assertEqual(snapshot, ClipboardSnapshot("wayland", "text/html", b"<b>hi</b>"))
+
     def test_terminal_detection_and_fallbacks(self):
         with patch.dict("os.environ", {}, clear=True), \
                 patch.object(injector_module, "INJECT_USE_SHIFT", False, create=True):

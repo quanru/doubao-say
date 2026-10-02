@@ -267,9 +267,13 @@ class Injector:
     @staticmethod
     def _preferred_mime(formats):
         available = {item.strip() for item in formats if item.strip()}
+        # Keep text/html last among text types: wl-copy serves one payload
+        # under every advertised text type, so restoring an HTML snapshot
+        # would put HTML markup into text/plain pastes (mojibake).
         priorities = (
-            "image/png", "image/jpeg", "image/webp", "text/uri-list", "text/html",
+            "image/png", "image/jpeg", "image/webp", "text/uri-list",
             "text/plain;charset=utf-8", "text/plain", "UTF8_STRING", "STRING",
+            "text/html",
         )
         return next((item for item in priorities if item in available), None)
 
