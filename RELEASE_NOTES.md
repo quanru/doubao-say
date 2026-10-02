@@ -1,5 +1,23 @@
 # Doubao Say 1.3.1
 
+## English
+
+Doubao Say 1.3.1 fixes clipboard restoration after dictation. When copied content offers both plain text and HTML, the app now prefers plain text, preventing HTML markup from appearing in subsequent text pastes. Images and file lists retain their existing priority, and HTML-only clipboards still use HTML. Regression tests cover Wayland and X11.
+
+Desktop acceptance tests now use Midscene 1.13.3, with updated onboarding, microphone, voice-polishing, and dictation-cancellation flows. CI reports preserve historical screenshots and custom steps without linked screenshots, and retry transient failures when downloading report history.
+
+Doubao web-account recognition, the official Volcengine Seed ASR 2.0 API, and Deepgram Nova-3 English recognition remain available.
+
+App and Omarchy-plugin archives are provided for Python 3.11–3.14 with `SHA256SUMS`. Choose the archive matching your CPU architecture and Python version, then run its bundled `./install.sh`; settings and login data are preserved. See the [installation guide](https://doubao-say.lifeos.md/guide/install).
+
+For Git-installed Omarchy plugins, disable the plugin before running `omarchy plugin update md.lifeos.doubao-say`, complete the documented checks, and then re-enable it. Marketplace verification applies to the commit snapshot recorded by the marketplace.
+
+[Full comparison](https://github.com/quanru/doubao-say/compare/v1.3.0...v1.3.1)
+
+---
+
+## 简体中文
+
 豆包说 1.3.1 修复听写结束后的剪贴板恢复问题，并更新桌面自动化验收和测试报告。
 
 ## 剪贴板恢复修复
