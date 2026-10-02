@@ -14,8 +14,12 @@ on:
       - "scripts/verify-pages-report.mjs"
       - "scripts/verify-omarchy-evidence.mjs"
       - "scripts/omarchy-shell-evidence.mjs"
+      - "scripts/parse-omarchy-review-issue.mjs"
       - "tests/contracts/test_pages_report_history.mjs"
       - "tests/contracts/test_model_rate_gate.mjs"
+      - "tests/contracts/test_omarchy_review_issue.mjs"
+      - "tests/contracts/test_omarchy_pr_plan.mjs"
+      - "tests/contracts/test_omarchy_pr_evidence.mjs"
       - "tests/e2e/package.json"
       - "tests/e2e/package-lock.json"
       - "tests/e2e/gtk_fixture.py"
@@ -25,6 +29,10 @@ on:
       - "tests/e2e/cases/**"
       - "tests/e2e/midscene.config.ts"
       - "tests/e2e/model-rate-gate.mjs"
+      - "tests/e2e/plan-omarchy-pr-review.mjs"
+      - "tests/e2e/render-omarchy-plugin-smoke.mjs"
+      - "tests/e2e/review-source-context.mjs"
+      - "tests/e2e/verify-omarchy-pr-evidence.mjs"
       - "tests/e2e/run-omarchy-midscene.sh"
       - "tests/e2e/restore-omarchy-vm.sh"
       - "tests/e2e/omarchy-vm.env"
@@ -37,8 +45,15 @@ on:
   pull_request:
     branches: [main]
     paths: *e2e-paths
+  issues:
+    types: [labeled]
   workflow_dispatch:
     inputs:
+      bootstrap_hosted_model:
+        description: Transfer the existing hosted model secret to the Midscene App
+        type: boolean
+        required: false
+        default: false
       project:
         description: Run one Midscene project for focused verification
         type: choice
@@ -50,22 +65,108 @@ on:
           - omarchy-shard-3
           - omarchy-shard-4
           - omarchy-shell
+          - omarchy-plugin-review
+          - omarchy-plugin-smoke
+          - omarchy-pr48-regression
           - omarchy-providers
+      plugin_repository:
+        description: Public GitHub owner/repository for omarchy-plugin-smoke
+        type: string
+        required: false
+      plugin_sha:
+        description: Exact 40-character commit SHA for omarchy-plugin-smoke
+        type: string
+        required: false
+      plugin_id:
+        description: Plugin manifest ID for omarchy-plugin-smoke
+        type: string
+        required: false
+      plugin_open_method:
+        description: Auto detects visual entry points; launch is an explicit service adapter, or use an IPC method such as open
+        type: string
+        required: false
+        default: auto
+      visible_assertion:
+        description: What should be visible after opening the plugin
+        type: string
+        required: false
+      review_run_id:
+        description: Midscene GitHub App review run ID
+        type: string
+        required: false
+      review_base_repository:
+        description: Public base repository containing the PR
+        type: string
+        required: false
+      review_pr_number:
+        description: Pull request number to inspect
+        type: string
+        required: false
 
 permissions:
   contents: read
   packages: read
+  id-token: write
 
 concurrency:
-  group: midscene-model-e2e-${{ github.workflow }}-${{ github.ref }}
+  group: midscene-model-e2e-${{ github.workflow }}-${{ github.event.issue.number || github.ref }}
   cancel-in-progress: ${{ github.event_name == 'pull_request' }}
 
 jobs:
+  bootstrap-hosted-model:
+    name: Bootstrap hosted model
+    if: github.event_name == 'workflow_dispatch' && inputs.project != 'omarchy-pr48-regression' && inputs.bootstrap_hosted_model == true && github.actor == 'quanru' && github.ref == 'refs/heads/research/omarchy-plugin-visual-review'
+    runs-on: ubuntu-latest
+    timeout-minutes: 5
+    env:
+      MIDSCENE_REVIEW_APP_URL: ${{ vars.MIDSCENE_REVIEW_APP_URL }}
+      HOSTED_MODEL_API_KEY: ${{ secrets.MIDSCENE_MODEL_API_KEY }}
+      HOSTED_MODEL_NAME: ${{ secrets.MIDSCENE_MODEL_NAME }}
+      HOSTED_MODEL_BASE_URL: ${{ secrets.MIDSCENE_MODEL_BASE_URL }}
+      HOSTED_MODEL_FAMILY: ${{ secrets.MIDSCENE_MODEL_FAMILY }}
+    steps:
+      - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1
+      - name: Confirm the hosted credential can understand screenshots
+        env:
+          MODEL_API_KEY: ${{ secrets.MIDSCENE_MODEL_API_KEY }}
+          MODEL_BASE_URL: ${{ secrets.MIDSCENE_MODEL_BASE_URL }}
+        run: node tests/e2e/probe-hosted-vision.mjs
+      - name: Transfer hosted model configuration over OIDC-authenticated HTTPS
+        run: |
+          test -n "$MIDSCENE_REVIEW_APP_URL"
+          test -n "$HOSTED_MODEL_API_KEY"
+          test -n "$HOSTED_MODEL_NAME"
+          test -n "$HOSTED_MODEL_BASE_URL"
+          test -n "$HOSTED_MODEL_FAMILY"
+          node --input-type=module <<'JS'
+          const identityResponse = await fetch(`${process.env.ACTIONS_ID_TOKEN_REQUEST_URL}&audience=midscene-review-app`, {
+            headers: { authorization: `bearer ${process.env.ACTIONS_ID_TOKEN_REQUEST_TOKEN}` },
+          });
+          if (!identityResponse.ok) throw new Error(`GitHub OIDC failed: ${identityResponse.status}`);
+          const { value: identity } = await identityResponse.json();
+          const response = await fetch(`${process.env.MIDSCENE_REVIEW_APP_URL.replace(/\/+$/, '')}/api/worker/bootstrap-hosted`, {
+            method: 'POST',
+            headers: { authorization: `Bearer ${identity}`, 'content-type': 'application/json' },
+            body: JSON.stringify({
+              apiKey: process.env.HOSTED_MODEL_API_KEY,
+              modelName: process.env.HOSTED_MODEL_NAME,
+              baseUrl: process.env.HOSTED_MODEL_BASE_URL,
+              modelFamily: process.env.HOSTED_MODEL_FAMILY,
+            }),
+          });
+          if (!response.ok) throw new Error(`Midscene bootstrap failed: ${response.status}`);
+          console.log('Hosted model configuration was stored by the Midscene review service.');
+          JS
+
   omarchy-e2e:
     name: Midscene visual (${{ matrix.project }})
-    if: github.event_name != 'pull_request' || github.event.pull_request.head.repo.full_name == github.repository
+    if: >-
+      inputs.bootstrap_hosted_model != true &&
+      (github.event_name != 'pull_request' || github.event.pull_request.head.repo.full_name == github.repository) &&
+      (github.event_name != 'issues' ||
+      (github.event.label.name == 'midscene-review' && startsWith(github.event.issue.title, '[Omarchy review] ')))
     runs-on: ubuntu-latest
-    timeout-minutes: 60
+    timeout-minutes: ${{ inputs.project == 'omarchy-pr48-regression' && 25 || github.event_name == 'workflow_dispatch' && inputs.project == 'omarchy-plugin-smoke' && inputs.plugin_repository == 'dpaluy/omarchy-lookout' && inputs.plugin_sha == '9dfdfc49178c7e4521ca6b41910920bf17c54d80' && inputs.plugin_id == 'dpaluy.lookout' && inputs.plugin_open_method == 'open' && 25 || 60 }}
     strategy:
       # Each shard restores an independent disposable VM. Sharing one Hyprland
       # session would make fixture resets, focus and screenshots race.
@@ -75,15 +176,11 @@ jobs:
       max-parallel: 5
       matrix:
         project: >-
-          ${{ fromJSON((inputs.project != '' && inputs.project != 'all') &&
+          ${{ fromJSON(github.event_name == 'issues' && '["omarchy-plugin-smoke"]' ||
+          (inputs.project != '' && inputs.project != 'all') &&
           format('["{0}"]', inputs.project) ||
           '["omarchy-shard-1","omarchy-shard-2","omarchy-shard-3","omarchy-shard-4","omarchy-shell"]') }}
     env:
-      MIDSCENE_MODEL_API_KEY: ${{ secrets.MIDSCENE_MODEL_API_KEY }}
-      MIDSCENE_MODEL_NAME: ${{ secrets.MIDSCENE_MODEL_NAME }}
-      MIDSCENE_MODEL_BASE_URL: ${{ secrets.MIDSCENE_MODEL_BASE_URL }}
-      MIDSCENE_MODEL_FAMILY: ${{ secrets.MIDSCENE_MODEL_FAMILY }}
-      MIDSCENE_MODEL_REASONING_ENABLED: ${{ secrets.MIDSCENE_MODEL_REASONING_ENABLED }}
       MIDSCENE_COMPUTER_HEADLESS_LINUX: "true"
       MIDSCENE_REPLANNING_CYCLE_LIMIT: "40"
       # The Ark endpoint answers bursts with 429; retry up to 3 extra times
@@ -93,10 +190,121 @@ jobs:
       # The configured model endpoint is reachable over IPv4; disabling Node's
       # family race avoids intermittent runner-side IPv6 connection timeouts.
       NODE_OPTIONS: "--dns-result-order=ipv4first --no-network-family-autoselection"
+      REVIEW_PLUGIN_REPOSITORY: ${{ inputs.plugin_repository }}
+      REVIEW_PLUGIN_SHA: ${{ inputs.plugin_sha }}
+      REVIEW_BASE_REPOSITORY: ${{ inputs.review_base_repository }}
+      REVIEW_PR_NUMBER: ${{ inputs.review_pr_number }}
+      PR48_REQUEST_REVIEW_RUN_ID: ${{ inputs.review_run_id }}
+      PR48_REQUEST_PLUGIN_ID: ${{ inputs.plugin_id }}
+      PR48_REQUEST_PLUGIN_OPEN_METHOD: ${{ inputs.plugin_open_method }}
+      PR48_REQUEST_VISIBLE_ASSERTION: ${{ inputs.visible_assertion }}
+      PR48_REQUEST_BOOTSTRAP: ${{ inputs.bootstrap_hosted_model }}
+      MIDSCENE_REVIEW_APP_URL: ${{ vars.MIDSCENE_REVIEW_APP_URL }}
     steps:
       - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
         with:
           persist-credentials: false
+
+      - name: Read maintainer-approved review Issue
+        if: github.event_name == 'issues'
+        run: node scripts/parse-omarchy-review-issue.mjs
+
+      - name: Select bounded PR48 regression profile
+        env:
+          REQUESTED_PROJECT: ${{ matrix.project }}
+        run: |
+          # PR48_PROFILE_GUARD_BEGIN
+          if [[ "$REQUESTED_PROJECT" == omarchy-pr48-regression || -n "${PR48_REGRESSION_PROFILE:-}" ]]; then
+            if [[ "$GITHUB_EVENT_NAME" != workflow_dispatch ||
+                  "$GITHUB_REF" != refs/heads/research/omarchy-plugin-visual-review ||
+                  "$REQUESTED_PROJECT" != omarchy-pr48-regression ||
+                  -n "${PR48_REGRESSION_PROFILE:-}" ||
+                  -n "${REVIEW_PLUGIN_REPOSITORY:-}" || -n "${REVIEW_PLUGIN_SHA:-}" ||
+                  -n "${PR48_REQUEST_PLUGIN_ID:-}" || -n "${REVIEW_PLUGIN_PROFILE:-}" ||
+                  -n "${PR48_REQUEST_REVIEW_RUN_ID:-}" || -n "${REVIEW_BASE_REPOSITORY:-}" ||
+                  -n "${REVIEW_PR_NUMBER:-}" || -n "${PR48_REQUEST_VISIBLE_ASSERTION:-}" ||
+                  ( "${PR48_REQUEST_PLUGIN_OPEN_METHOD:-}" != '' && "${PR48_REQUEST_PLUGIN_OPEN_METHOD:-}" != auto ) ||
+                  ( "${PR48_REQUEST_BOOTSTRAP:-}" != '' && "${PR48_REQUEST_BOOTSTRAP:-}" != false ) ]]; then
+              echo 'PR48 requires the exact manual research branch, with no review, plugin, or bootstrap payload.' >&2
+              exit 1
+            fi
+            {
+              echo 'PR48_REGRESSION_PROFILE=matched-pr48'
+              echo 'PR48_BEFORE_SHA=c866b8fe03c18f0169b9327778ec9f620ac18095'
+              echo 'PR48_AFTER_SHA=ed1dae4ecd097736ea92b76b09a31ca4df4f1aa2'
+              echo 'MIDSCENE_MODEL_RETRY_COUNT=0'
+              echo 'MIDSCENE_REPLANNING_CYCLE_LIMIT=4'
+              echo 'MIDSCENE_RATE_GATE_MAX_REQUESTS=32'
+            } >> "$GITHUB_ENV"
+          fi
+          # PR48_PROFILE_GUARD_END
+
+      - name: Select bounded plugin review profile
+        env:
+          REQUESTED_PROJECT: ${{ matrix.project }}
+          REQUESTED_PLUGIN_ID: ${{ inputs.plugin_id }}
+          REQUESTED_PLUGIN_OPEN_METHOD: ${{ inputs.plugin_open_method }}
+        run: |
+          # LOOKOUT_PROFILE_GUARD_BEGIN
+          if [[ "$REVIEW_PLUGIN_REPOSITORY" == dpaluy/omarchy-lookout || "$REQUESTED_PLUGIN_ID" == dpaluy.lookout || "${REVIEW_PLUGIN_ID:-}" == dpaluy.lookout || "${REVIEW_PLUGIN_PROFILE:-}" == lookout ]]; then
+            if [[ "$GITHUB_EVENT_NAME" != workflow_dispatch || "$REQUESTED_PROJECT" != omarchy-plugin-smoke ||
+                  "$REVIEW_PLUGIN_REPOSITORY" != dpaluy/omarchy-lookout ||
+                  "$REVIEW_PLUGIN_SHA" != 9dfdfc49178c7e4521ca6b41910920bf17c54d80 ||
+                  "$REQUESTED_PLUGIN_ID" != dpaluy.lookout || "$REQUESTED_PLUGIN_OPEN_METHOD" != open ]]; then
+              echo 'LookOut requires the exact approved manual smoke target and explicit open method.' >&2
+              exit 1
+            fi
+            {
+              echo 'REVIEW_PLUGIN_PROFILE=lookout'
+              echo 'MIDSCENE_MODEL_RETRY_COUNT=0'
+              echo 'MIDSCENE_REPLANNING_CYCLE_LIMIT=4'
+              echo 'MIDSCENE_RATE_GATE_MAX_REQUESTS=32'
+            } >> "$GITHUB_ENV"
+          elif [[ -n "${REVIEW_PLUGIN_PROFILE:-}" ]]; then
+            echo 'Unrecognized plugin review profile.' >&2
+            exit 1
+          fi
+          # LOOKOUT_PROFILE_GUARD_END
+
+      - name: Configure existing worker model
+        if: github.event_name != 'workflow_dispatch' || inputs.review_run_id == ''
+        env:
+          LEGACY_MODEL_API_KEY: ${{ secrets.MIDSCENE_MODEL_API_KEY }}
+          LEGACY_MODEL_NAME: ${{ secrets.MIDSCENE_MODEL_NAME }}
+          LEGACY_MODEL_BASE_URL: ${{ secrets.MIDSCENE_MODEL_BASE_URL }}
+          LEGACY_MODEL_FAMILY: ${{ secrets.MIDSCENE_MODEL_FAMILY }}
+          LEGACY_MODEL_REASONING_ENABLED: ${{ secrets.MIDSCENE_MODEL_REASONING_ENABLED }}
+        run: |
+          {
+            echo "MIDSCENE_MODEL_API_KEY=$LEGACY_MODEL_API_KEY"
+            echo "MIDSCENE_MODEL_NAME=$LEGACY_MODEL_NAME"
+            echo "MIDSCENE_MODEL_BASE_URL=$LEGACY_MODEL_BASE_URL"
+            echo "MIDSCENE_MODEL_FAMILY=$LEGACY_MODEL_FAMILY"
+            echo "MIDSCENE_MODEL_REASONING_ENABLED=$LEGACY_MODEL_REASONING_ENABLED"
+          } >> "$GITHUB_ENV"
+
+      - name: Obtain scoped Midscene model proxy token
+        if: matrix.project != 'omarchy-pr48-regression' && github.event_name == 'workflow_dispatch' && inputs.review_run_id != ''
+        env:
+          REVIEW_RUN_ID: ${{ inputs.review_run_id }}
+        run: |
+          test -n "$MIDSCENE_REVIEW_APP_URL"
+          oidc=$(curl --fail --silent --show-error \
+            -H "Authorization: bearer $ACTIONS_ID_TOKEN_REQUEST_TOKEN" \
+            "${ACTIONS_ID_TOKEN_REQUEST_URL}&audience=midscene-review-app" | jq -r '.value')
+          response=$(curl --fail --silent --show-error \
+            -H "Authorization: Bearer $oidc" \
+            -H "Content-Type: application/json" \
+            --data "$(jq -nc --arg id "$REVIEW_RUN_ID" '{runId:$id}')" \
+            "${MIDSCENE_REVIEW_APP_URL%/}/api/worker/model-token")
+          proxy_token=$(jq -er '.token' <<< "$response")
+          echo "::add-mask::$proxy_token"
+          {
+            echo "MIDSCENE_MODEL_API_KEY=$proxy_token"
+            echo "MIDSCENE_MODEL_NAME=$(jq -er '.modelName' <<< "$response")"
+            echo "MIDSCENE_MODEL_FAMILY=$(jq -er '.modelFamily' <<< "$response")"
+            echo "MIDSCENE_MODEL_BASE_URL=$(jq -er '.baseUrl' <<< "$response")"
+          } >> "$GITHUB_ENV"
 
       - name: Require Midscene model configuration
         run: |
@@ -105,21 +313,71 @@ jobs:
           test -n "$MIDSCENE_MODEL_BASE_URL"
           test -n "$MIDSCENE_MODEL_FAMILY"
 
+      - name: Validate plugin review request
+        if: matrix.project == 'omarchy-plugin-smoke'
+        run: |
+          [[ "$REVIEW_PLUGIN_REPOSITORY" =~ ^[A-Za-z0-9_.-]+/[A-Za-z0-9_.-]+$ ]]
+          [[ "$REVIEW_PLUGIN_SHA" =~ ^[a-fA-F0-9]{40}$ ]]
+
       - name: Check Midscene model before the expensive VM install
+        # PR48 core is deterministic: no model calls, including preflight.
+        if: matrix.project != 'omarchy-pr48-regression'
         run: |
           payload=$(jq -nc --arg model "$MIDSCENE_MODEL_NAME" '{
             model: $model,
             messages: [{role: "user", content: "Reply OK."}],
             max_tokens: 1
           }')
+          retry_args=(--retry 4 --retry-all-errors --retry-delay 5 --retry-max-time 90)
+          if [[ "${REVIEW_PLUGIN_PROFILE:-}" == lookout || "${PR48_REGRESSION_PROFILE:-}" == matched-pr48 ]]; then
+            # One preflight attempt plus at most 32 gated model calls below.
+            retry_args=(--retry 0)
+          fi
           curl --fail --silent --show-error \
-            --connect-timeout 15 --max-time 90 \
-            --retry 4 --retry-all-errors --retry-delay 5 --retry-max-time 90 \
+            --connect-timeout 15 --max-time 90 "${retry_args[@]}" \
             -H "Authorization: Bearer $MIDSCENE_MODEL_API_KEY" \
             -H "Content-Type: application/json" \
             --data "$payload" \
             "${MIDSCENE_MODEL_BASE_URL%/}/chat/completions" \
             >/dev/null
+
+      - name: Read the PR source without executing it
+        if: matrix.project == 'omarchy-plugin-smoke' && inputs.review_pr_number != ''
+        uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
+        with:
+          repository: ${{ inputs.review_base_repository }}
+          ref: refs/pull/${{ inputs.review_pr_number }}/head
+          path: review-source
+          persist-credentials: false
+
+      - name: Verify the reviewed source commit
+        if: matrix.project == 'omarchy-plugin-smoke' && inputs.review_pr_number != ''
+        run: test "$(git -C review-source rev-parse HEAD)" = "$REVIEW_PLUGIN_SHA"
+
+      - name: Resolve plugin entry point from exact-commit manifest
+        if: matrix.project == 'omarchy-plugin-smoke' && github.event_name != 'issues'
+        env:
+          REQUESTED_PLUGIN_ID: ${{ inputs.plugin_id }}
+          REQUESTED_PLUGIN_OPEN_METHOD: ${{ inputs.plugin_open_method }}
+          REQUESTED_VISIBLE_ASSERTION: ${{ inputs.visible_assertion }}
+        run: |
+          if test -f review-source/manifest.json; then
+            manifest=review-source/manifest.json
+          else
+            manifest="$RUNNER_TEMP/review-manifest.json"
+            curl --fail --location --silent --show-error --retry 3 \
+              --max-time 60 --max-filesize 100000 \
+              "https://raw.githubusercontent.com/$REVIEW_PLUGIN_REPOSITORY/$REVIEW_PLUGIN_SHA/manifest.json" \
+              --output "$manifest"
+          fi
+          REVIEW_MANIFEST_PATH="$manifest" node tests/e2e/resolve-omarchy-review.mjs
+
+      - name: Plan checks from the PR diff
+        if: matrix.project == 'omarchy-plugin-smoke' && inputs.review_pr_number != ''
+        env:
+          GH_REVIEW_TOKEN: ${{ github.token }}
+          REVIEW_SOURCE_ROOT: review-source
+        run: node tests/e2e/plan-omarchy-pr-review.mjs
 
       - name: Install ORAS client
         uses: oras-project/setup-oras@1d808f7d7f6995cc68b7bf507bfe5c5446e1dc9d # v2.0.1
@@ -142,7 +400,7 @@ jobs:
         id: test-dependencies
         run: |
           sudo apt-get install -y --no-install-recommends \
-            fluxbox tigervnc-viewer x11-xserver-utils xvfb
+            fluxbox tigervnc-viewer x11-xserver-utils xvfb tesseract-ocr tesseract-ocr-chi-sim
           for attempt in 1 2 3; do
             if npm --prefix tests/e2e ci --include=optional --ignore-scripts; then
               exit 0
@@ -168,6 +426,10 @@ jobs:
             --report-dir tests/e2e/midscene_run \
             --projects "$PROJECT"
 
+      - name: Independently verify changed visual text in desktop screenshot
+        if: matrix.project == 'omarchy-plugin-smoke' && inputs.review_pr_number != '' && steps.midscene-test.outcome == 'success'
+        run: node tests/e2e/verify-omarchy-pr-evidence.mjs
+
       - name: Record shard result for report aggregation
         if: always() && !cancelled()
         env:
@@ -182,7 +444,7 @@ jobs:
             --capture-outcome "${CAPTURE_OUTCOME:-skipped}"
 
       - name: Upload installer evidence
-        if: always() && !cancelled()
+        if: always() && !cancelled() && matrix.project != 'omarchy-pr48-regression'
         uses: actions/upload-artifact@043fb46d1a93c77aae656e7c1c64a875d1fc6a0a # v7.0.1
         with:
           name: omarchy-vm-installer-evidence-${{ matrix.project }}
@@ -201,6 +463,49 @@ jobs:
           retention-days: 7
           overwrite: true
 
+      - name: Publish direct HTML report to Midscene
+        id: publish-report
+        if: always() && !cancelled() && matrix.project != 'omarchy-pr48-regression' && github.event_name == 'workflow_dispatch' && inputs.review_run_id != ''
+        continue-on-error: true
+        env:
+          REVIEW_RUN_ID: ${{ inputs.review_run_id }}
+        run: |
+          oidc=$(curl --fail --silent --show-error \
+            -H "Authorization: bearer $ACTIONS_ID_TOKEN_REQUEST_TOKEN" \
+            "${ACTIONS_ID_TOKEN_REQUEST_URL}&audience=midscene-review-app" | jq -r '.value')
+          report_root=$(find tests/e2e/midscene_run/report -mindepth 1 -maxdepth 1 -type d -name 'midscene-e2e-*' -print -quit)
+          test -f "$report_root/index.html"
+          while IFS= read -r -d '' file; do
+            relative=${file#"$report_root"/}
+            if grep -Fq -- "$MIDSCENE_MODEL_API_KEY" "$file"; then
+              echo "Refusing to publish a report containing the model proxy token." >&2
+              exit 1
+            fi
+            curl --fail --silent --show-error \
+              -X PUT -H "Authorization: Bearer $oidc" \
+              --data-binary @"$file" \
+              "${MIDSCENE_REVIEW_APP_URL%/}/api/worker/report/$REVIEW_RUN_ID/$relative" >/dev/null
+          done < <(find "$report_root" -type f -print0)
+
+      - name: Complete Midscene review check
+        if: always() && !cancelled() && matrix.project != 'omarchy-pr48-regression' && github.event_name == 'workflow_dispatch' && inputs.review_run_id != ''
+        env:
+          REVIEW_RUN_ID: ${{ inputs.review_run_id }}
+          TEST_OUTCOME: ${{ steps.midscene-test.outcome }}
+          REPORT_OUTCOME: ${{ steps.publish-report.outcome }}
+        run: |
+          if [ "$REPORT_OUTCOME" = success ]; then sleep 65; fi
+          oidc=$(curl --fail --silent --show-error \
+            -H "Authorization: bearer $ACTIONS_ID_TOKEN_REQUEST_TOKEN" \
+            "${ACTIONS_ID_TOKEN_REQUEST_URL}&audience=midscene-review-app" | jq -r '.value')
+          outcome=failed
+          if [ "$TEST_OUTCOME" = success ] && [ "$REPORT_OUTCOME" = success ]; then outcome=succeeded; fi
+          curl --fail --silent --show-error \
+            -H "Authorization: Bearer $oidc" \
+            -H "Content-Type: application/json" \
+            --data "$(if test -f tests/e2e/review-plan.json; then jq -nc --arg id "$REVIEW_RUN_ID" --arg status "$outcome" --slurpfile plan tests/e2e/review-plan.json '{runId:$id,outcome:$status,plan:$plan[0]}'; else jq -nc --arg id "$REVIEW_RUN_ID" --arg status "$outcome" '{runId:$id,outcome:$status}'; fi)" \
+            "${MIDSCENE_REVIEW_APP_URL%/}/api/worker/complete" >/dev/null
+
       - name: Verify Omarchy shell visual evidence
         if: success() && matrix.project == 'omarchy-shell'
         run: node scripts/verify-omarchy-evidence.mjs tests/e2e/midscene_run
@@ -209,7 +514,7 @@ jobs:
     name: Assemble Midscene report bundle
     needs: omarchy-e2e
     if: >-
-      always() && !cancelled() &&
+      always() && !cancelled() && github.event_name != 'issues' && inputs.bootstrap_hosted_model != true &&
       (inputs.project == '' || inputs.project == 'all')
     runs-on: ubuntu-latest
     outputs:
@@ -245,8 +550,8 @@ jobs:
     name: GitHub Pages report
     needs: [omarchy-e2e, report-bundle]
     if: >-
-      always() &&
-      !cancelled() &&
+      always() && github.event_name != 'issues' && inputs.bootstrap_hosted_model != true &&
+      inputs.project != 'omarchy-pr48-regression' && !cancelled() &&
       needs.report-bundle.outputs.report-artifact-id != '' &&
       (github.event_name != 'pull_request' ||
       github.event.pull_request.head.repo.full_name == github.repository)
@@ -263,3 +568,29 @@ jobs:
       report-groups: >-
         [{"role":"primary","label":"Doubao Say","projects":["omarchy-shard-1","omarchy-shard-2","omarchy-shard-3","omarchy-shard-4"]},{"role":"auxiliary","label":"Omarchy visual checks","projects":["omarchy-shell"]}]
       run-result: ${{ needs.omarchy-e2e.result }}
+
+  review-issue-result:
+    name: Link visual evidence to review request
+    needs: omarchy-e2e
+    if: >-
+      always() && github.event_name == 'issues' &&
+      github.event.label.name == 'midscene-review' &&
+      startsWith(github.event.issue.title, '[Omarchy review] ')
+    runs-on: ubuntu-latest
+    permissions:
+      issues: write
+    env:
+      GH_TOKEN: ${{ github.token }}
+      ISSUE_NUMBER: ${{ github.event.issue.number }}
+      REVIEW_RESULT: ${{ needs.omarchy-e2e.result }}
+    steps:
+      - name: Comment with CI run and artifact
+        run: |
+          cat > "$RUNNER_TEMP/omarchy-review-comment.md" <<EOF
+          Midscene Omarchy visual review CI: **${REVIEW_RESULT}**.
+
+          [Open the GitHub Actions run](${GITHUB_SERVER_URL}/${GITHUB_REPOSITORY}/actions/runs/${GITHUB_RUN_ID}) and download the omarchy-midscene-omarchy-plugin-smoke artifact for the native report and screenshots.
+
+          This is behavioral evidence from a disposable VM. It does not change the Marketplace security baseline or Verified status. A failed run needs its logs reviewed before attributing the failure to the plugin.
+          EOF
+          gh issue comment "$ISSUE_NUMBER" --repo "$GITHUB_REPOSITORY" --body-file "$RUNNER_TEMP/omarchy-review-comment.md"

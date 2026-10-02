@@ -1,17 +1,24 @@
 import { execFileSync, spawn, type ChildProcess } from 'node:child_process';
 import { resolve } from 'node:path';
 import { mkdtemp, rm } from 'node:fs/promises';
+import { appendFileSync, mkdirSync } from 'node:fs';
 import { tmpdir } from 'node:os';
 import { ComputerAgent, agentForComputer } from '@midscene/computer';
 import { defineNode, z } from '@midscene/test';
 import { defineProjectSetup, defineTestProject } from '@midscene/test/config';
 import { createMidsceneNodes } from '@midscene/test/midscene';
+import { assertPr48Profile, createPr48Adapter, type Pr48Adapter } from './pr48-adapter.mjs';
+import { assertLookoutProfile, createLookoutAdapter, prepareLookoutCase, PIN as LOOKOUT_PIN, type LookoutAdapter } from './lookout-adapter.mjs';
 
 interface DesktopContext {
   agent?: ComputerAgent;
   createAgent: () => Promise<ComputerAgent>;
   environment: 'ubuntu' | 'omarchy';
   shell: boolean;
+  lookoutProfile: boolean;
+  pr48Profile: boolean;
+  pr48?: Pr48Adapter;
+  lookoutCase?: { runId: string; adapter: LookoutAdapter };
   fixtureMode?: string;
   resetFixture?: (mode: string) => Promise<void>;
   barConfigBackup?: string;
@@ -32,7 +39,7 @@ const stop = async (child?: ChildProcess) => {
   });
 };
 
-function guest(command: string): string {
+function guest(command: string, timeoutMs = 20_000): string {
   const key = process.env.OMARCHY_SSH_KEY;
   if (!key) throw new Error('OMARCHY_SSH_KEY is required for shell tests');
   const env = [
@@ -48,7 +55,7 @@ function guest(command: string): string {
     '-o', 'StrictHostKeyChecking=no', '-o', 'UserKnownHostsFile=/dev/null',
     '-o', 'ConnectTimeout=10', '-o', 'LogLevel=ERROR',
     'omarchy@127.0.0.1', `${env} ${command}`,
-  ], { encoding: 'utf8', timeout: 20_000 }).trim();
+  ], { encoding: 'utf8', timeout: timeoutMs }).trim();
 }
 
 async function waitForFixture(child: ChildProcess): Promise<void> {
@@ -76,8 +83,12 @@ const setup = defineProjectSetup<DesktopContext>({
   name: 'desktop',
   async setup({ project, onTeardown }) {
     const omarchy = project.name.startsWith('omarchy-');
-    const shell = project.name === 'omarchy-shell';
+    const pr48Profile = project.name === 'omarchy-pr48-regression';
+    if (pr48Profile) assertPr48Profile(process.env);
+    const shell = pr48Profile || project.name === 'omarchy-shell' || project.name === 'omarchy-plugin-review' || project.name === 'omarchy-plugin-smoke';
     const polishing = project.name === 'ubuntu-polishing';
+    const lookoutProfile = project.name === 'omarchy-plugin-smoke' && process.env.REVIEW_PLUGIN_PROFILE === 'lookout';
+    if (lookoutProfile) assertLookoutProfile(process.env);
     let desktopReady = false;
     const createAgent = async () => {
       const agent = await agentForComputer({
@@ -90,8 +101,10 @@ const setup = defineProjectSetup<DesktopContext>({
         // libnut and the VNC viewer may still hold X11 connections while the
         // Agent finalizes its report. Stop Xvfb only after this process exits.
         keepXvfbAliveUntilProcessExit: true,
-        aiContexts: shell
-          ? { aiAssert: 'Inspect the real Omarchy desktop through VNC. Judge only visible pixels; do not infer success from commands or configuration.' }
+        aiContexts: pr48Profile
+          ? { aiAct: 'Use only the PR48 isolated voice test controls. Click Start voice test only once per variant. Do not use terminals or system controls.', aiAssert: 'Inspect actual Omarchy desktop pixels. The neutral control window uses synthetic recognition; the dark bottom overlay is real production Doubao Say. Do not infer visual success from logs or labels.' }
+          : shell
+          ? { aiAct: 'Interact only with the reviewed plugin on the real Omarchy desktop through VNC. Do not execute shell commands or enter credentials.', aiAssert: 'Inspect the real Omarchy desktop through VNC. Judge only visible pixels; do not infer success from commands or configuration.' }
           : polishing ? { aiAct: 'Test the native polishing overlay using the separate Polishing overlay test controls window. Use visible button labels.' }
           : { aiAct: `Test the English Doubao Say GTK onboarding window${omarchy ? ' inside a real Omarchy VM shown through VNC' : ''}. Interact only with Doubao Say and use visible labels.` },
       });
@@ -103,8 +116,19 @@ const setup = defineProjectSetup<DesktopContext>({
       createAgent,
       environment: omarchy ? 'omarchy' : 'ubuntu',
       shell,
+      lookoutProfile,
+      pr48Profile,
     };
     onTeardown(() => context.agent?.destroy());
+    onTeardown(() => context.pr48?.cleanup());
+    // Case teardown is primary; this also retries a retained backup if a
+    // case's cleanup fails. Midscene reports teardown errors separately.
+    onTeardown(async () => {
+      if (context.lookoutCase) {
+        await context.lookoutCase.adapter.cleanup();
+        context.lookoutCase = undefined;
+      }
+    });
     const fluxbox = spawn('fluxbox', [], { detached: true, stdio: 'ignore', env: process.env });
     onTeardown(() => stop(fluxbox));
     await sleep(1000);
@@ -180,7 +204,7 @@ const setup = defineProjectSetup<DesktopContext>({
         await sleep(1000);
       };
     }
-    if (shell) {
+    if (shell && !pr48Profile) {
       onTeardown(() => {
         try {
           if (context.barConfigBackup) {
@@ -331,6 +355,199 @@ const moveBarLeft = defineNode<typeof empty, void, DesktopContext>({
     await sleep(2000);
   },
 });
+const seedReviewPlugin = defineNode<typeof empty, void, DesktopContext>({
+  name: 'review.seedTodo', description: 'Seed one item through the plugin IPC before checking its visible behavior.', inputSchema: empty,
+  execute() {
+    const initialStatus = guest('omarchy-shell tathagat11.checklist-todo status');
+    if (initialStatus === '1 todo') return;
+    if (initialStatus !== '0 todos') throw new Error(`Unexpected Checklist Todo state before seeding: ${initialStatus}`);
+    const result = guest('omarchy-shell tathagat11.checklist-todo add "Midscene review item" "Visual review description"');
+    if (!result || result === 'unavailable') throw new Error(`Could not seed Checklist Todo: ${result}`);
+    if (guest('omarchy-shell tathagat11.checklist-todo status') !== '1 todo') {
+      throw new Error('Checklist Todo did not accept the seeded item');
+    }
+  },
+});
+const openReviewPlugin = defineNode<typeof empty, void, DesktopContext>({
+  name: 'review.openTodo', description: 'Open the reviewed plugin in the real Omarchy shell.', inputSchema: empty,
+  async execute() {
+    guest('omarchy-shell tathagat11.checklist-todo open');
+    await sleep(1000);
+  },
+});
+const assertReviewPluginEmpty = defineNode<typeof empty, void, DesktopContext>({
+  name: 'review.assertEmpty', description: 'Confirm the visual deletion persisted in plugin state.', inputSchema: empty,
+  async execute() {
+    const status = guest('omarchy-shell tathagat11.checklist-todo status');
+    if (status !== '0 todos') throw new Error(`Checklist Todo item remains after the visual action: ${status}`);
+    const savedState = '"$HOME/.local/state/tathagat11.checklist-todo/todos.json"';
+    for (let attempt = 0; attempt < 10; attempt++) {
+      try {
+        if (guest(`jq -e '.version == 1 and .todos == []' ${savedState} >/dev/null && echo saved`) === 'saved') return;
+      } catch { /* wait for the widget's 300 ms atomic save */ }
+      await sleep(500);
+    }
+    throw new Error('Checklist Todo did not persist the empty list after the visual action');
+  },
+});
+const openConfiguredReviewPlugin = defineNode<typeof empty, void, DesktopContext>({
+  name: 'review.openConfigured', description: 'Open the exact-commit plugin through its launcher, shell summon, or declared IPC method.', inputSchema: empty,
+  async execute() {
+    const id = process.env.REVIEW_PLUGIN_ID;
+    const method = process.env.REVIEW_PLUGIN_OPEN_METHOD || 'open';
+    if (!id || !/^[a-z0-9][a-z0-9._-]{2,127}$/.test(id)) throw new Error('Valid REVIEW_PLUGIN_ID is required');
+    if (!/^[A-Za-z][A-Za-z0-9_]*$/.test(method)) throw new Error('Invalid REVIEW_PLUGIN_OPEN_METHOD');
+    let lastError: unknown;
+    for (let attempt = 0; attempt < 20; attempt++) {
+      try {
+        const command = method === 'inspectBar' ? 'omarchy-shell shell rescanPlugins'
+          : method === 'launch'
+          ? `${shellQuote(`/home/omarchy/.config/omarchy/plugins/${id}/start.sh`)}`
+          : method === 'summon' || method === 'toggle'
+          ? `omarchy-shell shell ${method} ${shellQuote(id)} '{}'`
+          : `omarchy-shell ${shellQuote(id)} ${shellQuote(method)}`;
+        guest(command);
+        if (method === 'launch' && id === 'md.lifeos.doubao-say') {
+          for (let windowAttempt = 0; windowAttempt < 20; windowAttempt++) {
+            const windows = guest("hyprctl -j clients | jq -r '.[].title'");
+            if (windows.split('\n').some((title) => title === 'Doubao Say' || title === '豆包说')) {
+              await sleep(5000);
+              const settledWindows = guest("hyprctl -j clients | jq -r '.[].title'");
+              if (settledWindows.split('\n').some((title) => title === 'Doubao Say' || title === '豆包说')) return;
+              break;
+            }
+            await sleep(1000);
+          }
+          const processes = guest("pgrep -af '[p]ython.*-m doubao_input' || true");
+          const service = guest("journalctl --user -u omarchy-shell -n 25 --no-pager 2>&1 | tail -25");
+          throw new Error(`Plugin launcher returned without a visible window. Processes: ${processes || 'none'}; service: ${service}`);
+        }
+        await sleep(1000);
+        return;
+      } catch (error) {
+        lastError = error;
+        if (method === 'launch' && id === 'md.lifeos.doubao-say') break;
+        await sleep(1000);
+      }
+    }
+    throw new Error(`Plugin IPC did not become ready: ${String(lastError)}`);
+  },
+});
+
+const lookoutPrepareInput = z.strictObject({
+  allowSkip: z.boolean(),
+  breakSec: z.literal(1800),
+});
+const lookoutPhaseInput = z.strictObject({
+  phase: z.enum(['working', 'break']),
+  overlay: z.boolean(),
+});
+const lookoutAllowSkipInput = z.strictObject({ value: z.boolean() });
+function activeLookout(context: DesktopContext, runId?: string): LookoutAdapter {
+  if (!context.lookoutProfile || !runId || context.lookoutCase?.runId !== runId) {
+    throw new Error('LookOut node requires a prepared case in its trusted Omarchy profile');
+  }
+  return context.lookoutCase.adapter;
+}
+const prepareLookout = defineNode<typeof lookoutPrepareInput, void, DesktopContext>({
+  name: 'lookout.prepare',
+  description: 'Prepare isolated typed LookOut settings and register failure-safe case cleanup.',
+  inputSchema: lookoutPrepareInput,
+  async execute(execution) {
+    const { context, input, onTeardown } = execution;
+    if (execution.scope !== 'case' || !context.lookoutProfile || context.environment !== 'omarchy') {
+      throw new Error('LookOut preparation is limited to its trusted Omarchy case profile');
+    }
+    if (context.lookoutCase) throw new Error('Prior LookOut case cleanup is incomplete');
+    assertLookoutProfile(process.env);
+    const { runId, name, caseIndex, attemptIndex } = execution.case;
+    const directory = resolve(import.meta.dirname, 'midscene_run');
+    mkdirSync(directory, { recursive: true });
+    const adapter = createLookoutAdapter({
+      guest,
+      env: process.env,
+      record: event => appendFileSync(resolve(directory, 'lookout-evidence.jsonl'),
+        JSON.stringify({ ...event, runId, caseName: name, caseIndex, attemptIndex, pin: LOOKOUT_PIN }) + '\n'),
+    });
+    // Register BEFORE backup/configuration/IPC, including before the first AI
+    // node acquires an agent. A failed prepare still runs this case teardown.
+    await prepareLookoutCase({ context, runId, onTeardown, adapter, input });
+  },
+});
+const assertLookoutPhase = defineNode<typeof lookoutPhaseInput, void, DesktopContext>({
+  name: 'lookout.assertPhase',
+  description: 'Cross-check stable LookOut service state and mapped compositor layers.',
+  inputSchema: lookoutPhaseInput,
+  async execute(execution) {
+    await activeLookout(execution.context, execution.case?.runId).assertPhase(execution.input);
+  },
+});
+const assertLookoutAllowSkip = defineNode<typeof lookoutAllowSkipInput, void, DesktopContext>({
+  name: 'lookout.assertAllowSkip',
+  description: 'Check the exact persisted boolean written by the real LookOut settings UI.',
+  inputSchema: lookoutAllowSkipInput,
+  async execute(execution) {
+    await activeLookout(execution.context, execution.case?.runId).assertAllowSkip(execution.input);
+  },
+});
+const assertLookoutSkipped = defineNode<typeof empty, void, DesktopContext>({
+  name: 'lookout.assertSkipped',
+  description: 'Verify Escape preserved break history and restored the working countdown.',
+  inputSchema: empty,
+  execute(execution) {
+    activeLookout(execution.context, execution.case?.runId).assertSkipped();
+  },
+});
+const endLookoutForCleanup = defineNode<typeof empty, void, DesktopContext>({
+  name: 'lookout.endForCleanup',
+  description: 'End the no-skip break via documented IPC for cleanup only, not as a user action.',
+  inputSchema: empty,
+  async execute(execution) {
+    await activeLookout(execution.context, execution.case?.runId).endForCleanup();
+  },
+});
+
+const pr48VariantInput = z.strictObject({ variant: z.enum(['before', 'after']) });
+const pr48ObservationInput = z.strictObject({
+  variant: z.enum(['before', 'after']),
+  phase: z.enum(['ready', 'start_failed', 'listening', 'finished']),
+});
+const preparePr48 = defineNode<typeof pr48VariantInput, void, DesktopContext>({
+  name: 'pr48.prepare',
+  description: 'Launch one fresh exact product revision using the identical external GTK harness.',
+  inputSchema: pr48VariantInput,
+  async execute({ input, context, onTeardown }) {
+    if (!context.pr48Profile) throw new Error('PR48 node requires its bounded project');
+    if (!context.pr48) {
+      const directory = resolve(import.meta.dirname, 'midscene_run');
+      mkdirSync(directory, { recursive: true });
+      const adapter = createPr48Adapter({ guest, env: process.env,
+        record: event => appendFileSync(resolve(directory, 'pr48-evidence.jsonl'), JSON.stringify(event) + '\n') });
+      context.pr48 = adapter;
+      onTeardown(() => adapter.cleanup());
+    }
+    await context.pr48.prepare(input);
+  },
+});
+const pr48ControlInput = z.strictObject({ variant: z.enum(['before', 'after']), action: z.enum(['start', 'finish']) });
+const controlPr48 = defineNode<typeof pr48ControlInput, void, DesktopContext>({
+  name: 'pr48.command',
+  description: 'Programmatic test control using the same GLib dispatch as the visible buttons; no AI action.',
+  inputSchema: pr48ControlInput,
+  async execute({ input, context }) {
+    if (!context.pr48) throw new Error('PR48 harness is not prepared');
+    await context.pr48.control(input);
+  },
+});
+const observePr48 = defineNode<typeof pr48ObservationInput, void, DesktopContext>({
+  name: 'pr48.observe',
+  description: 'Verify real controller/diagnostic state and Hyprland overlay layers; save original desktop screenshot.',
+  inputSchema: pr48ObservationInput,
+  async execute({ input, context }) {
+    if (!context.pr48) throw new Error('PR48 harness is not prepared');
+    await context.pr48.observe(input);
+  },
+});
 
 const productCaseFiles = [
   'cases/onboarding.yaml',
@@ -352,6 +569,7 @@ export default defineTestProject<DesktopContext>({
   // Retries are scoped to failed cases. Every attempt stays visible in the
   // official Midscene report, and agent acquisition resets its fixture.
   projects: [
+    { name: 'omarchy-pr48-regression', retry: 0, setup, files: { include: ['cases/pr48-regression.yaml'] } },
     {
       name: 'ubuntu-polishing',
       retry: 2,
@@ -379,6 +597,18 @@ export default defineTestProject<DesktopContext>({
       retry: 2,
       setup,
       files: { include: ['cases/omarchy-shell.yaml'] },
+    },
+    {
+      name: 'omarchy-plugin-review',
+      retry: 1,
+      setup,
+      files: { include: ['cases/omarchy-plugin-review.yaml'] },
+    },
+    {
+      name: 'omarchy-plugin-smoke',
+      retry: 0,
+      setup,
+      files: { include: ['cases/omarchy-plugin-smoke.yaml'] },
     },
   ],
   nodes: [
@@ -429,5 +659,17 @@ export default defineTestProject<DesktopContext>({
     openSystemMenu,
     closeSystemMenu,
     moveBarLeft,
+    seedReviewPlugin,
+    openReviewPlugin,
+    assertReviewPluginEmpty,
+    openConfiguredReviewPlugin,
+    preparePr48,
+    controlPr48,
+    observePr48,
+    prepareLookout,
+    assertLookoutPhase,
+    assertLookoutAllowSkip,
+    assertLookoutSkipped,
+    endLookoutForCleanup,
   ],
 });

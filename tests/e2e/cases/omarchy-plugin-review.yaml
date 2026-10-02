@@ -1,0 +1,11 @@
+cases:
+  - name: Checklist Todo 0b8dfdb can show and complete an item on Omarchy
+    steps:
+      - review.seedTodo: {}
+      - review.openTodo: {}
+      - aiAssert: At the top center of the desktop, the Todos popup is open. It shows one checklist row with a small square checkbox.
+      - computer.tapPoint:
+          target: Checkbox next to the only Checklist Todo item in the pinned 1280x800 Omarchy VM
+          point: { x: 499, y: 87 }
+      - review.assertEmpty: {}
+      - aiAssert: The Todos popup remains open at the top center. Its header reads "0 items" and it says "Nothing here yet. Press + to add a todo."

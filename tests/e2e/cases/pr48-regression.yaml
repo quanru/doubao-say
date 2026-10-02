@@ -1,0 +1,15 @@
+# Deterministic matched reproduction. Midscene orchestrates; no AI visual verdict.
+# The unchanged external harness dispatches exactly the same path as its buttons.
+cases:
+  - name: PR48 matched programmatic regression - before diagnostic failure and after real GTK overlay lifecycle
+    steps:
+      - pr48.prepare: { variant: before }
+      - pr48.observe: { variant: before, phase: ready }
+      - pr48.command: { variant: before, action: start }
+      - pr48.observe: { variant: before, phase: start_failed }
+      - pr48.prepare: { variant: after }
+      - pr48.observe: { variant: after, phase: ready }
+      - pr48.command: { variant: after, action: start }
+      - pr48.observe: { variant: after, phase: listening }
+      - pr48.command: { variant: after, action: finish }
+      - pr48.observe: { variant: after, phase: finished }
