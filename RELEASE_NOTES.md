@@ -1,31 +1,23 @@
-# Doubao Say 1.3.0
+# Doubao Say 1.3.1
 
-豆包说 1.3.0 新增 Deepgram Nova-3 英语语音识别。现在可以在同一应用中选择豆包账号、火山引擎官方 API，或 Deepgram API。
+豆包说 1.3.1 修复听写结束后的剪贴板恢复问题，并更新桌面自动化验收和测试报告。
 
-## 本次新增
+## 剪贴板恢复修复
 
-### Deepgram Nova-3 英语听写
+从浏览器等应用复制内容时，剪贴板可能同时提供纯文本和 HTML。旧版在听写结束后优先恢复 HTML，可能导致下一次向文本框粘贴时出现 HTML 标签。新版优先恢复纯文本，并补充 Wayland 和 X11 回归测试。
 
-在「设置 → 语音识别服务」中选择 **Deepgram Nova-3（英语）**，填写自己的 API Key，并先使用「测试 API Key」检查连接。应用会在录音期间流式发送音频，显示中间识别结果，并在录音结束后取得最终文字。当前固定使用美式英语；其他语言和多语种模式尚未开放。Deepgram 按你的账号计费。
+图片和文件列表仍保留原有优先级；仅提供 HTML 的剪贴板仍按 HTML 恢复。
 
-API Key 单独保存在本机，仅当前用户可读，不进入设置文件、诊断信息、日志或安装包。切换识别服务时，豆包网页登录与火山引擎 API 仍可继续使用。
+## 桌面验收与报告
 
-### 输入与安装改进
+Midscene 升级至 1.13.3，调整引导、麦克风、文字润色和取消听写等流程的自动化操作。测试报告保留历史截图及未关联截图的自定义步骤，并在历史报告下载遇到临时错误时重试。
 
-- 使用 Fn 听写时，可以用另一个按键结束录音，减少按键操作上的限制。
-- 修正 Debian 安装包的离线依赖安装路径；独立应用和 Omarchy 插件的 GitHub Release 压缩包仍是主要分发方式。
-- README 增加中英文实际界面截图和三种识别方式的设置说明。
+本版继续支持豆包账号识别、火山引擎 Volcengine Seed ASR 2.0 和 Deepgram Nova-3 英语识别。
 
 ## 获取与升级
 
-本 Release 提供适配 Python 3.11–3.14 的独立应用与 Omarchy 插件压缩包，并附有 `SHA256SUMS`。按 CPU 架构和 Python 版本选择对应文件，运行包内 `./install.sh`；设置与登录信息会保留。完整步骤见 [安装指南](https://doubao-say.lifeos.md/zh/guide/install)。
+本 Release 提供适配 Python 3.11–3.14 的独立应用与 Omarchy 插件压缩包，并附有 `SHA256SUMS`。按 CPU 架构和 Python 版本选择对应文件，运行包内 `./install.sh`；设置与登录信息会保留。完整步骤见[安装指南](https://doubao-say.lifeos.md/zh/guide/install)。
 
-豆包说是非官方客户端，不代表豆包、字节跳动或 Deepgram 的认可或背书。
+Git 安装的 Omarchy 插件需先禁用，再执行 `omarchy plugin update md.lifeos.doubao-say`，按安装指南完成检查后重新启用。市场审核状态以插件市场公布的提交快照为准。
 
-## English highlights
-
-Doubao Say 1.3.0 adds **Deepgram Nova-3 for US English dictation** alongside Doubao web-account recognition and the official Volcengine Seed ASR 2.0 API. Choose a recognition service in Settings, enter your own API key for an API provider, and test it before dictating. Deepgram receives audio only while recording and bills usage to your account. Its key stays in a separate owner-readable local file.
-
-The release also improves Fn-key dictation completion, fixes the Debian offline dependency path, and updates the bilingual README screenshots and setup instructions. App and Omarchy-plugin archives are built for Python 3.11–3.14 with SHA-256 checksums.
-
-See the full comparison: https://github.com/quanru/doubao-say/compare/v1.2.0...v1.3.0
+[完整变更](https://github.com/quanru/doubao-say/compare/v1.3.0...v1.3.1)
