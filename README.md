@@ -165,8 +165,10 @@ for manual copying.
 Settings → Input → **Text input method** defaults to **Clipboard paste**,
 including for existing installations. Clipboard paste replaces the current
 clipboard contents; clipboard managers may save the recognized text in history.
-CopyQ is not required, and no clipboard restoration or history suppression is
-performed. Choose **Direct typing** on Hyprland to keep the clipboard unchanged.
+CopyQ is not required. The app attempts to restore one original clipboard payload
+after paste if the clipboard still contains the dictation text; clipboard history
+is not suppressed. Rich text is restored as plain text when both are available,
+so formatting is lost. Choose **Direct typing** on Hyprland to keep the clipboard unchanged.
 Install `wtype` separately; this mode requires a compatible
 Wayland virtual-keyboard implementation and has been tested on Hyprland.
 
@@ -238,7 +240,11 @@ Escape and cannot prevent it reaching the foreground.
 Paste and Enter are serialized on a background worker so clipboard waits do not
 block the GTK interface. Before clipboard paste, the app snapshots one primary
 MIME payload and restores its original bytes only if the clipboard still contains
-the dictation text. A copy made by the user during delivery is never overwritten.
+the dictation text. Plain-text formats take priority over HTML, so rich-text
+formatting is lost when both are available. An HTML-only clipboard still restores
+as HTML; images and URI lists retain their existing priority. This is best-effort
+restoration of one payload, not all original clipboard formats.
+A copy made by the user during delivery is never overwritten.
 Cancellation stops remaining input and cannot undo text already delivered.
 Failed recognition can preserve partial text; failed paste preserves the result.
 This slot is memory-only, not a transcript history. Exiting loses it.
