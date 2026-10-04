@@ -15,6 +15,7 @@ import tomllib
 from html import escape
 from pathlib import Path
 from typing import TYPE_CHECKING
+from doubao_input.doubao.host_tools import command_candidates
 from doubao_input.i18n import tr
 from doubao_input.ui.voice_motion import VoiceMotion
 from doubao_input.ui.waveform import draw_waveform
@@ -26,7 +27,7 @@ import gi
 gi.require_version("Gtk", "4.0")
 gi.require_version("Gdk", "4.0")
 gi.require_version("Pango", "1.0")
-from gi.repository import Gdk, GLib, Gtk, Pango  # type: ignore
+from gi.repository import Gdk, Gio, GLib, Gtk, Pango  # type: ignore
 
 try:
     gi.require_version("Gtk4LayerShell", "1.0")
@@ -78,6 +79,8 @@ class Overlay:
         self.waveform_style = "bars"
         self._app_state = app_state
         self._window: Gtk.Window | None = None
+        self._above_process: Gio.Subprocess | None = None
+        self._above_timeout: int | None = None
         self._label: Gtk.Label | None = None
         self._status_label: Gtk.Label | None = None
         self._status_row = None
@@ -260,6 +263,68 @@ class Overlay:
                 self._status_priority = True
                 self._refresh_label()
 
+    def _request_x11_above(self, window) -> None:
+        """Request stacking for this mapping without delaying GTK or activation."""
+        self._cancel_x11_above()
+        commands = iter(command_candidates("wmctrl"))
+        from gi.repository import GdkX11
+        xid = GdkX11.X11Surface.get_xid(window.get_surface())
+        display = window.get_display()
+        # The helper uses a separate connection; submit GTK's map request first.
+        display.flush()
+        display_name = display.get_name()
+        launcher = Gio.SubprocessLauncher.new(
+            Gio.SubprocessFlags.STDOUT_SILENCE | Gio.SubprocessFlags.STDERR_SILENCE)
+        launcher.setenv("DISPLAY", display_name, True)
+
+        def start_next():
+            if not window.get_mapped():
+                return
+            for prefix in commands:
+                if prefix[0] == "flatpak-spawn":
+                    # Killing the wrapper must also stop its host-side command.
+                    prefix = [*prefix[:1], "--watch-bus", f"--env=DISPLAY={display_name}", *prefix[1:]]
+                try:
+                    process = launcher.spawnv([*prefix, "-i", "-r", hex(xid), "-b", "add,above"])
+                except GLib.Error:
+                    continue
+                self._above_process = process
+                self._above_timeout = GLib.timeout_add(500, expired)
+                process.wait_check_async(None, completed)
+                return
+            logger.warning("X11 overlay stacking unavailable; install wmctrl or check the window manager")
+
+        def completed(process, result):
+            try:
+                success = process.wait_check_finish(result)
+            except GLib.Error:
+                success = False
+            # A hidden/remapped overlay may already have a different request.
+            if self._above_process is not process:
+                return
+            self._above_process = None
+            if self._above_timeout is not None:
+                GLib.source_remove(self._above_timeout)
+                self._above_timeout = None
+            if not success:
+                start_next()
+
+        def expired():
+            self._above_timeout = None
+            self._cancel_x11_above()
+            logger.warning("X11 overlay stacking request timed out")
+            return GLib.SOURCE_REMOVE
+
+        start_next()
+
+    def _cancel_x11_above(self, *_args) -> None:
+        if self._above_timeout is not None:
+            GLib.source_remove(self._above_timeout)
+            self._above_timeout = None
+        process, self._above_process = self._above_process, None
+        if process is not None:
+            process.force_exit()
+
     def _ensure_window(self) -> None:
         if self._window is not None:
             return
@@ -282,6 +347,9 @@ class Overlay:
             from gi.repository import GdkX11
             win.connect("realize", lambda window: GdkX11.X11Surface.set_user_time(
                 window.get_surface(), 0))
+            win.connect("map", self._request_x11_above)
+            win.connect("unmap", self._cancel_x11_above)
+            win.connect("unrealize", self._cancel_x11_above)
         elif Gtk4LayerShell is not None and Gtk4LayerShell.is_supported():
             try:
                 Gtk4LayerShell.init_for_window(win)

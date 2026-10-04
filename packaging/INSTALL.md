@@ -38,6 +38,10 @@ Automatic paste on native X11 additionally uses the optional `xdotool` and
 `xclip` helpers. They are probed at runtime and can be installed on Arch with
 `sudo pacman -S --needed xdotool xclip`. If either is unavailable, installation
 and startup still succeed and recognized text is retained for manual copying.
+For X11 overlay stacking, install optional `wmctrl` (`sudo apt install wmctrl`
+or `sudo pacman -S --needed wmctrl`). It requests ABOVE without activation on
+each mapping; missing or failed requests leave recording and input operational.
+The window manager decides whether ABOVE also covers fullscreen windows.
 CopyQ is not required. Ordinary clipboard paste replaces clipboard contents and
 may be stored by a clipboard manager. Direct typing through optional `wtype`
 remains a Hyprland/Wayland feature; choose Clipboard paste on native X11.
