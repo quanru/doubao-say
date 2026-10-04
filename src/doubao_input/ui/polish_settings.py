@@ -16,6 +16,7 @@ class PolishSettings(Gtk.Box):
         self._save, self._test = save, test
         self._changing = False
         self._save_source = 0
+        self._dirty = False
         self._testing = False
 
         header = Gtk.Box(spacing=10)
@@ -167,13 +168,15 @@ class PolishSettings(Gtk.Box):
     def _queue_save(self, *_):
         if self._changing:
             return
+        self._dirty = True
         if self._save_source:
             GLib.source_remove(self._save_source)
         self._save_source = GLib.timeout_add(500, self._run_save)
 
     def _run_save(self):
         self._save_source = 0
-        self._save_now()
+        if self._save_now():
+            self._dirty = False
         return GLib.SOURCE_REMOVE
 
     def _save_now(self):
@@ -197,7 +200,15 @@ class PolishSettings(Gtk.Box):
         if self._save_source:
             GLib.source_remove(self._save_source)
             self._save_source = 0
-        if self._save_now() and self.api_key.get_text():
+        # Unmapping can happen when the trigger page is left, not only when
+        # the settings are dirty. Do not write the constructor-time snapshot
+        # over newer application settings just because this widget disappeared.
+        saved = not self._dirty
+        if self._dirty:
+            saved = self._save_now()
+            if saved:
+                self._dirty = False
+        if saved and self.api_key.get_text():
             self._changing = True
             try:
                 self.api_key.set_text("")

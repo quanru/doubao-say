@@ -81,6 +81,19 @@ class SettingsTest(unittest.TestCase):
             expected.save()
             self.assertEqual(Settings.load(), expected)
 
+    def test_different_trigger_shortcuts_survive_reopen(self):
+        with tempfile.TemporaryDirectory() as root, patch.dict(
+                "os.environ", {"XDG_CONFIG_HOME": root}):
+            for key, modifiers in ((67, ()), (29, ()), (57, (29, 56))):
+                with self.subTest(key=key, modifiers=modifiers):
+                    selected = Settings(doubao_key=key,
+                                        doubao_modifiers=modifiers)
+                    selected.save()
+                    reopened = Settings.load()
+                    self.assertEqual(
+                        (reopened.doubao_key, reopened.doubao_modifiers),
+                        (key, modifiers))
+
     def test_vibekey_shortcuts_roundtrip_and_canonicalize(self):
         with tempfile.TemporaryDirectory() as root, patch.dict(
                 "os.environ", {"XDG_CONFIG_HOME": root}):
