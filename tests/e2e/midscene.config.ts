@@ -206,6 +206,7 @@ const fixtureMode = z.strictObject({
     'deepgram',
     'voxtype',
     'voxtype-live',
+    'voxtype-settings',
     'microphone-change',
     'shortcut-capture',
     'runtime-delivery',
@@ -375,6 +376,20 @@ export default defineTestProject<DesktopContext>({
       setup,
       files: { include: productCaseFiles },
       tags: { include: ['provider'] },
+    },
+    {
+      name: 'ubuntu-voxtype-settings',
+      retry: 2,
+      setup,
+      files: { include: productCaseFiles },
+      tags: { include: ['voxtype-settings'] },
+    },
+    {
+      name: 'omarchy-voxtype-settings',
+      retry: 2,
+      setup,
+      files: { include: productCaseFiles },
+      tags: { include: ['voxtype-settings'] },
     },
     {
       name: 'omarchy-shell',
