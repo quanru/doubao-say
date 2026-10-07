@@ -16,6 +16,7 @@ if sys.version_info < (3, 11):
     sys.modules["tomllib"] = tomli
 
 gi.require_version("Gtk", "4.0")
+gi.require_version("Gdk", "4.0")
 from gi.repository import Gdk, GLib, Gtk
 
 from doubao_input.i18n import set_language
@@ -40,8 +41,10 @@ def main():
         display = Gdk.Display.get_default()
         if display is None or display.__gtype__.name != "GdkWaylandDisplay":
             raise RuntimeError("Omarchy fixture requires a native Wayland display")
-        if Gtk4LayerShell is None or not Gtk4LayerShell.is_supported():
-            raise RuntimeError("Omarchy fixture requires working gtk4-layer-shell")
+        if Gtk4LayerShell is None:
+            raise RuntimeError("Omarchy fixture requires the Gtk4LayerShell typelib")
+        if not Gtk4LayerShell.is_supported():
+            raise RuntimeError("Omarchy compositor does not support layer-shell")
     set_language("en")
     mode = fixture_mode()
     cleanup = (
