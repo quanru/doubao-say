@@ -5,6 +5,17 @@ import os
 import signal
 import sys
 
+# Match the production entrypoint's library order before importing GTK.
+# Loading layer-shell after libwayland can leave its interposition unavailable.
+if os.environ.get("DOUBAO_E2E_REQUIRE_WAYLAND") == "1":
+    import ctypes
+    import ctypes.util
+
+    library = ctypes.util.find_library("gtk4-layer-shell")
+    if not library:
+        raise RuntimeError("Omarchy fixture requires the gtk4-layer-shell library")
+    ctypes.CDLL(library)
+
 import gi
 
 # Ubuntu 22.04 supplies PyGObject for its system Python 3.10. The application
@@ -44,7 +55,7 @@ def main():
         if Gtk4LayerShell is None:
             raise RuntimeError("Omarchy fixture requires the Gtk4LayerShell typelib")
         if not Gtk4LayerShell.is_supported():
-            raise RuntimeError("Omarchy compositor does not support layer-shell")
+            raise RuntimeError("Omarchy fixture cannot initialize native layer-shell")
     set_language("en")
     mode = fixture_mode()
     cleanup = (

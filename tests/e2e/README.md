@@ -56,7 +56,8 @@ The Omarchy workflow continues from that installed base image:
    plugin validator.
 3. Run the complete Midscene product suite through VNC in the real
    Omarchy/Hyprland guest session. The fixture explicitly uses the Wayland
-   backend and checks layer-shell support before declaring readiness. The
+   backend, loads layer-shell before GTK (matching the production entrypoint),
+   and checks layer-shell support before declaring readiness. The
    installer runs with the same Wayland session variables and its layer-shell
    package and typelib are checked before starting the tests. A missing
    native backend fails setup instead of placing a fallback overlay over the
