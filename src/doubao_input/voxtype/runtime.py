@@ -17,6 +17,7 @@ class VoxtypeRuntime:
     executable: str
     version: str
     supports_no_osd: bool = False
+    supports_wait_file: bool = False
 
 
 def _run(command, *, timeout=2):
@@ -50,6 +51,7 @@ def inspect_runtime(*, which=shutil.which, runner=_run) -> VoxtypeRuntime:
         executable=executable,
         version=".".join(str(value) for value in version_tuple),
         supports_no_osd="--no-osd" in start_help.stdout,
+        supports_wait_file="--wait-file" in stop_help.stdout,
     )
 
 

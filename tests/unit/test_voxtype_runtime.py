@@ -18,6 +18,21 @@ class VoxtypeRuntimeTest(TestCase):
         runtime = inspect_runtime(which=lambda _name: "/usr/bin/voxtype", runner=run)
         self.assertEqual(runtime.version, "1.0.1")
         self.assertTrue(runtime.supports_no_osd)
+        self.assertFalse(runtime.supports_wait_file)
+
+    def test_detects_explicit_wait_file_support(self):
+        def run(command):
+            if command[-1] == "--version":
+                value = "voxtype 1.1.0\n"
+            elif command[2] == "start":
+                value = "--file PATH\n--no-osd\n"
+            else:
+                value = "--wait\n--timeout SECONDS\n--wait-file FILE\n"
+            return SimpleNamespace(returncode=0, stdout=value)
+
+        runtime = inspect_runtime(which=lambda _name: "/usr/bin/voxtype",
+                                  runner=run)
+        self.assertTrue(runtime.supports_wait_file)
 
     def test_rejects_old_or_incomplete_cli(self):
         def old(command):

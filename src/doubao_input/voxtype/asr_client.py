@@ -135,7 +135,7 @@ class VoxtypeASRClient:
                     session.runtime,
                     runner=lambda command: self._runner(command, timeout=2),
                 )
-                if state == "recording":
+                if state in ("recording", "streaming"):
                     break
                 if state != "idle":
                     raise RuntimeError(f"Voxtype entered unexpected state: {state}")
@@ -183,17 +183,27 @@ class VoxtypeASRClient:
         if not session.owns_recording:
             return
         try:
-            result = self._runner([
+            command = [
                 session.runtime.executable,
                 "record",
                 "stop",
                 "--wait",
                 "--timeout",
                 "30",
-            ], timeout=35)
+            ]
+            if session.runtime.supports_wait_file:
+                command.extend(("--wait-file", str(session.transcript_path)))
+            result = self._runner(command, timeout=35)
             if result.returncode == 3:
+                # Voxtype 1.1 streaming file mode writes the final transcript
+                # but does not publish the completion sidecar expected by
+                # `record stop --wait`, which then reports an empty outcome.
+                text = (_read_transcript(session.transcript_path)
+                        if session.transcript_path.exists() else "")
                 self._release_recording(session)
                 _cleanup(session.transcript_path)
+                if text:
+                    self._emit(session, "on_result", text)
                 self._emit(session, "on_finish")
                 return
             if result.returncode == 4:
