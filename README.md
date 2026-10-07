@@ -93,6 +93,12 @@ Doubao Say selects a prompt from each transcript's dominant language. The bundle
 filler words and false starts, improves punctuation and organization, preserves
 meaning, and can be edited or restored to its default.
 
+The built-in prompts use passage context to correct unambiguous accent-related recognition errors, including Chinese retroflex initials, nasal endings, and n/l or f/h confusions. Ambiguous wording is retained; names, quantities and negation are never guessed from sound alone. Updates migrate exact old defaults while preserving custom prompts.
+
+Explicitly spoken points such as 第一、第二、第三 are formatted as Markdown numbered lists, one item per line; ordinary references to days, rankings or counts stay as prose.
+
+Polished text also gains restrained reading layout: related sentences stay together, clear topic changes can start a new paragraph, and paragraphs and lists are separated by one blank line. Short answers stay compact; formatting does not add headings or change the content order.
+
 ### Choose a fast polishing model
 
 **Prefer a small, low-latency model with thinking disabled.** Polishing only needs
