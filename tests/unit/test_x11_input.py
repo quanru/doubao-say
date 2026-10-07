@@ -3,11 +3,43 @@ import subprocess
 from unittest import TestCase
 from unittest.mock import patch
 
-from doubao_input.inject.injector import Injector, active_window_needs_shift
+from doubao_input.inject.injector import ClipboardSnapshot, Injector, active_window_needs_shift
 from doubao_input.inject.target import focused_target
 
 
 class X11InputTest(TestCase):
+    def test_rich_text_snapshot_restores_plain_text_with_xclip(self):
+        for mime_type in ("text/plain;charset=utf-8", "text/plain", "UTF8_STRING", "STRING"):
+            with self.subTest(mime_type=mime_type):
+                instance = Injector()
+                payload = b"caf\xe9" if mime_type == "STRING" else "中文\n第二行".encode()
+                formats = f"TARGETS\ntext/html\n{mime_type}\n".encode()
+                with patch("doubao_input.inject.injector.command_candidates",
+                           side_effect=lambda tool: [[tool]] if tool == "xclip" else []), \
+                        patch.object(instance, "_read", side_effect=[formats, payload]) as read:
+                    snapshot = instance._snapshot_clipboard()
+                self.assertEqual(snapshot, ClipboardSnapshot("x11", mime_type, payload))
+                self.assertEqual(read.call_args.args[0],
+                                 ["xclip", "-selection", "clipboard", "-t", mime_type, "-o"])
+                with patch.object(instance, "_current_clipboard_text", return_value="dictation"), \
+                        patch("doubao_input.inject.injector.command_candidates",
+                              return_value=[["xclip"]]), \
+                        patch("subprocess.run") as run:
+                    self.assertTrue(instance._restore_clipboard_if_unchanged(snapshot, "dictation"))
+                run.assert_called_once_with(
+                    ["xclip", "-selection", "clipboard", "-t", mime_type],
+                    input=payload, check=True, timeout=3)
+
+    def test_html_only_snapshot_preserves_html_with_xclip(self):
+        instance = Injector()
+        with patch("doubao_input.inject.injector.command_candidates",
+                   side_effect=lambda tool: [[tool]] if tool == "xclip" else []), \
+                patch.object(instance, "_read", side_effect=[b"TARGETS\ntext/html\n", b"<b>hi</b>"]) as read:
+            snapshot = instance._snapshot_clipboard()
+        self.assertEqual(snapshot, ClipboardSnapshot("x11", "text/html", b"<b>hi</b>"))
+        self.assertEqual(read.call_args.args[0],
+                         ["xclip", "-selection", "clipboard", "-t", "text/html", "-o"])
+
     def test_external_window_identity_and_terminal_shortcut(self):
         for app_class, shift in (("Mousepad", False), ("Xfce4-terminal", True),
                                  ("com.mitchellh.ghostty", True)):

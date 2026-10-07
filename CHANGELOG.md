@@ -1,5 +1,18 @@
 # Changelog
 
+## 1.3.1
+
+- Fixed clipboard restoration after dictation: prefer plain text when the original clipboard offers both plain text and HTML, preventing HTML markup from appearing in later text pastes. Image and file payloads retain priority; HTML-only clipboards still use HTML. Added Wayland and X11 regression coverage.
+- Upgraded Midscene desktop acceptance to 1.13.3 and stabilized onboarding, microphone, polishing, and cancellation flows.
+- Preserved historical CI screenshots and reports, including custom steps without linked screenshots, and retried transient report-history download failures.
+
+## 1.3.0
+
+- Added Deepgram Nova-3 as an optional recognition provider for US English dictation. Users supply their own API key; interim and final transcripts appear in the existing voice-input flow. The key is stored separately with owner-only permissions.
+- Kept Doubao web-account recognition and the official Volcengine Seed ASR 2.0 API available through the same recognition-service settings.
+- Allowed another key to finish an Fn-triggered dictation session.
+- Fixed the Debian offline runtime dependency installation path and refreshed the English and Chinese README screenshots and setup guidance.
+
 ## 1.2.0
 
 - Added optional Vibekey receiver support with authenticated heartbeat and hot-plug

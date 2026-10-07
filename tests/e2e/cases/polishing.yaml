@@ -1,17 +1,19 @@
 cases:
   - name: Polishing status stays separate from synthetic transcript
     steps:
-      - aiAct: Click Start English polishing once in the Polishing overlay test controls window.
+      - aiAct: Start English polishing in the test controls window.
       - aiAssert: A separate dark overlay shows Polishing at the upper left and three stars at the upper right. The transcript Please send the notes tomorrow. is below with clear space separating it from the status. No horizontal divider line appears inside the overlay.
-      - wait: { duration: 3500 }
+      - aiWaitFor:
+          prompt: The overlay displays Press shortcut again to use original as a smaller secondary hint below the transcript.
+          options: { timeoutMs: 10000, checkIntervalMs: 1000 }
       - aiAssert: The overlay displays Press shortcut again to use original as a smaller secondary hint below the transcript.
-      - aiAct: Click Stream revised text once in the test controls window.
+      - aiAct: Stream the revised text in the test controls window.
       - aiAssert: The overlay transcript now reads Please send the meeting notes tomorrow. The Polishing status and stars remain in their own row above the transcript.
-      - aiAct: Click Start Chinese polishing once in the test controls window.
+      - aiAct: Start Chinese polishing in the test controls window.
       - aiAssert: The dark overlay displays 润色中 in its status row and 请明天发送会议纪要。 as separate text below, with three stars at the upper right and no horizontal divider.
-      - aiAct: Click Start reduced motion once in the test controls window.
+      - aiAct: Start reduced motion in the test controls window.
       - aiAssert: The overlay shows English Polishing status, three clearly visible stars, and the separate transcript Please send the notes tomorrow.
-      - aiAct: Click Finish polishing once in the test controls window.
+      - aiAct: Finish polishing in the test controls window.
       - aiAssert: Within the dark transcript overlay, the status reads Polished - Sending text and its top-right status row no longer contains the three small polishing star icons. Ignore the desktop wallpaper and any system logo outside the dark overlay.
-      - aiAct: Click Hide overlay once in the test controls window.
+      - aiAct: Hide the overlay in the test controls window.
       - aiAssert: The dark transcript overlay is gone. The Polishing overlay test controls window remains visible.

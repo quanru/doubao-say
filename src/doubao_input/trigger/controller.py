@@ -12,12 +12,14 @@ class TriggerController:
     def __init__(self, reader_factory, schedule, cancel, *, start, stop, toggle, enter,
                  cancel_input, debug_edge, error, escape_edge=lambda pressed: None,
                  prime=lambda: None, discard=lambda: None,
-                 shortcut=lambda key, modifiers=(): None):
+                 shortcut=lambda key, modifiers=(): None,
+                 is_recording=lambda: False):
         self._factory = reader_factory
         self._schedule, self._cancel = schedule, cancel
         self._actions = start, stop, toggle, enter
         self._prime, self._discard = prime, discard
         self._shortcut = shortcut
+        self._is_recording = is_recording
         self._escape_edge = escape_edge
         self._cancel_input, self._debug_edge, self._error = cancel_input, debug_edge, error
         self._timers = TimerScope(schedule, cancel)
@@ -53,7 +55,7 @@ class TriggerController:
             return self._available
         generation = self._generation + 1
         configured = (settings.doubao_key, *settings.doubao_modifiers)
-        keys = ({1} | set(CAPTURABLE_KEY_CODES)) if self.capturing else (
+        keys = ({1} | set(CAPTURABLE_KEY_CODES)) if (self.capturing or settings.doubao_key == 464) else (
             {1}.union(*(equivalent_key_codes(code) for code in configured))
             if settings.doubao_key else set())
         candidate = self._factory(on_press=lambda: None, on_release=lambda: None,
@@ -151,6 +153,10 @@ class TriggerController:
         if self._debug_edge(code, pressed):
             return
         if not self._settings or not self._gesture:
+            return
+        if (pressed and self._settings.doubao_key == 464 and code != 464
+                and self._is_recording()):
+            self._actions[1]()
             return
         if pressed:
             self._down_keys.add(code)
