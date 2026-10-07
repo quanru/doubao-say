@@ -1,6 +1,6 @@
 [Unit]
 Description=豆包说 (Doubao Say)
-Documentation=https://github.com/quanru/doubao-say
+Documentation=https://doubao-say.lifeos.md/guide/install
 After=graphical-session.target
 PartOf=graphical-session.target
 

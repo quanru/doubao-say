@@ -2,6 +2,7 @@
 
 This is the publishing procedure, not a claim of marketplace acceptance.
 Repository: https://github.com/quanru/doubao-say.
+Website: https://doubao-say.lifeos.md/.
 Plugin ID: `md.lifeos.doubao-say`. Keep it stable across repository renames.
 Suggested category: **Productivity**. Tags: **ai, hyprland**.
 
