@@ -65,6 +65,16 @@ class SettingsTest(unittest.TestCase):
         with self.assertRaises(ValueError):
             Settings(asr_provider="unknown").validate()
 
+    def test_voxtype_model_choice_roundtrip(self):
+        with tempfile.TemporaryDirectory() as root, patch.dict(
+                "os.environ", {"XDG_CONFIG_HOME": root}):
+            expected = Settings(asr_provider="voxtype",
+                                voxtype_model="sensevoice-small")
+            expected.save()
+            self.assertEqual(Settings.load(), expected)
+        with self.assertRaises(ValueError):
+            Settings(voxtype_model="bad\nmodel").validate()
+
     def test_invalid_key(self):
         with self.assertRaises(ValueError):
             Settings(doubao_key=-1).validate()

@@ -8,6 +8,7 @@ import os
 import shlex
 import shutil
 import subprocess
+import time
 
 from doubao_input.voxtype.runtime import VoxtypeRuntime, inspect_runtime
 
@@ -33,6 +34,7 @@ class VoxtypeDetails:
     backend: str
     schema_version: int | str
     config_path: str
+    installed_models: tuple[str, ...] = ()
 
 
 def inspect_details(*, runtime=None, runner=_run) -> VoxtypeDetails:
@@ -46,17 +48,67 @@ def inspect_details(*, runtime=None, runner=_run) -> VoxtypeDetails:
     schema = _json_command([
         runtime.executable, "config", "schema", "--json",
     ], runner)
+    engine = str(schema.get("engine") or "unknown")
+    model_info = _json_command([
+        runtime.executable, "info", "models", "--engine", engine, "--json",
+    ], runner)
+    entries = model_info.get("engines", {}).get(engine, {}).get("models", [])
+    installed_models = tuple(
+        value for item in entries if item.get("installed")
+        if isinstance(value := item.get("download_arg") or item.get("name"), str)
+    )
     return VoxtypeDetails(
         cli_version=str(schema.get("voxtype_version") or runtime.version),
         daemon_version=str(schema.get("daemon_version_label") or "unknown"),
         state=str(state or "unknown"),
-        engine=str(schema.get("engine") or "unknown"),
+        engine=engine,
         model=str(status.get("model") or "unknown"),
         device=str(status.get("device") or "system default"),
         backend=str(status.get("backend") or "unknown"),
         schema_version=schema.get("schema_version", "unknown"),
         config_path=str(schema.get("config_path") or "unknown"),
+        installed_models=installed_models,
     )
+
+
+def select_model(model: str, *, runtime=None, runner=_run,
+                 restart=lambda: subprocess.run(
+                     ["systemctl", "--user", "restart", "voxtype"],
+                     capture_output=True, text=True, timeout=15, check=False)) -> None:
+    """Switch Voxtype's active model and restart its daemon to apply it."""
+    if not model:
+        return
+    runtime = runtime or inspect_runtime(runner=runner)
+    details = inspect_details(runtime=runtime, runner=runner)
+    if model not in details.installed_models:
+        raise ValueError(f"Voxtype model is not installed: {model}")
+    if details.state != "idle":
+        raise ValueError("Finish the current Voxtype recording before changing models")
+    if model == details.model:
+        return
+    key = f"{details.engine}.model"
+    result = runner([runtime.executable, "config", "set", key, model])
+    if result.returncode:
+        raise RuntimeError((result.stderr or result.stdout).strip()
+                           or "Voxtype rejected the model")
+    try:
+        result = restart()
+        if result.returncode:
+            raise RuntimeError((result.stderr or result.stdout).strip()
+                               or "Voxtype restart failed")
+        for _ in range(20):
+            try:
+                current = inspect_details(runtime=runtime, runner=runner)
+                if current.model == model and current.state == "idle":
+                    return
+            except (RuntimeError, OSError, subprocess.TimeoutExpired):
+                pass
+            time.sleep(0.25)
+        raise RuntimeError("Voxtype did not start with the selected model")
+    except (RuntimeError, OSError, subprocess.TimeoutExpired):
+        runner([runtime.executable, "config", "set", key, details.model])
+        restart()
+        raise
 
 
 def _json_command(command, runner):

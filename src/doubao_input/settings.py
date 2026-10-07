@@ -187,6 +187,7 @@ class Settings:
     autostart: bool = False
     microphone: str = ""
     asr_provider: str = "doubao"
+    voxtype_model: str = ""
     reduced_motion: bool = False
     waveform_style: str = "bars"
     polish_enabled: bool = False
@@ -207,6 +208,10 @@ class Settings:
             raise ValueError(tr("Invalid microphone identifier", "麦克风标识无效"))
         if self.asr_provider not in ASR_PROVIDERS:
             raise ValueError(tr("Unsupported recognition service", "不支持的语音识别服务"))
+        if (not isinstance(self.voxtype_model, str)
+                or len(self.voxtype_model) > 128
+                or any(char in self.voxtype_model for char in "\n\r\x00")):
+            raise ValueError(tr("Invalid Voxtype model", "无效的 Voxtype 模型"))
         if type(self.reduced_motion) is not bool or type(self.onboarding_complete) is not bool:
             raise ValueError("Invalid preference type")
         if type(self.polish_enabled) is not bool:

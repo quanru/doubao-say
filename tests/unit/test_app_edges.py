@@ -176,7 +176,8 @@ class AppSetupEdgesTest(TestCase):
         self.assertFalse(manager.interactive_auth)
 
     def test_voxtype_provider_builds_delegated_local_backend(self):
-        app = SimpleNamespace(settings=Settings(asr_provider="voxtype"),
+        app = SimpleNamespace(settings=Settings(asr_provider="voxtype",
+                                                voxtype_model="sensevoice-small"),
                               app_state=AppState())
         manager = DoubaoInputApp._new_transcription_manager(app)
         self.addCleanup(manager.asr_client.disconnect)

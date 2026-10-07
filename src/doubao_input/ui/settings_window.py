@@ -153,6 +153,24 @@ class SettingsWindow:
         self.voxtype_summary = Gtk.Label(
             xalign=0, wrap=True, selectable=True)
         self.voxtype_details.append(self.voxtype_summary)
+        self.voxtype_model_choices = [("", tr(
+            "Follow Voxtype configuration", "跟随 Voxtype 配置"))]
+        if settings.voxtype_model:
+            self.voxtype_model_choices.append((settings.voxtype_model, settings.voxtype_model))
+        self.voxtype_model = Gtk.DropDown.new_from_strings(
+            [label for _, label in self.voxtype_model_choices])
+        self.voxtype_model.set_selected(1 if settings.voxtype_model else 0)
+        self.voxtype_model.set_hexpand(True)
+        model_row = Gtk.Box(spacing=12)
+        model_row.add_css_class("settings-row")
+        model_row.append(Gtk.Label(label=tr(
+            "Model for Doubao Say", "豆包说使用的模型"),
+            xalign=0, hexpand=True, wrap=True))
+        model_row.append(self.voxtype_model)
+        self.voxtype_details.append(model_row)
+        self.voxtype_details.append(Gtk.Label(xalign=0, wrap=True, label=tr(
+            "Only installed models for the active engine are listed. Changing the model restarts Voxtype and also affects its own hotkey.",
+            "只列出当前引擎已安装的模型。切换模型会重启 Voxtype，也会影响 Voxtype 自身的快捷键。")))
         voxtype_actions = Gtk.Box(spacing=8, homogeneous=True)
         self.voxtype_refresh = Gtk.Button(label=tr(
             "Refresh Voxtype status", "刷新 Voxtype 状态"))
@@ -322,6 +340,7 @@ class SettingsWindow:
 
         self.language.connect("notify::selected", self._language_changed)
         self.asr_provider.connect("notify::selected", self._asr_provider_changed)
+        self.voxtype_model.connect("notify::selected", self._changed)
         self.asr_key.connect("changed", self._queue_asr_key_save)
         self.autostart.connect("notify::active", self._changed)
         self.input_method.connect("notify::selected", self._changed)
@@ -339,6 +358,8 @@ class SettingsWindow:
         return replace(self._settings,
             language=LANGUAGES[self.language.get_selected()],
             asr_provider=ASR_PROVIDERS[self.asr_provider.get_selected()],
+            voxtype_model=self.voxtype_model_choices[
+                self.voxtype_model.get_selected()][0],
             doubao_key=self.trigger_picker.applied_key,
             doubao_modifiers=self.trigger_picker.applied_modifiers,
             hold_ms=self.hold.get_value_as_int(),
@@ -369,6 +390,10 @@ class SettingsWindow:
             self.language.set_selected(LANGUAGES.index(self._settings.language))
             self.asr_provider.set_selected(ASR_PROVIDERS.index(self._settings.asr_provider))
             self._sync_provider_details()
+            selected_model = self._settings.voxtype_model
+            choices = [name for name, _ in self.voxtype_model_choices]
+            if selected_model in choices:
+                self.voxtype_model.set_selected(choices.index(selected_model))
             self.autostart.set_active(self._settings.autostart)
             self.enter.set_active(self._settings.double_enter)
             self.vibekey.set_active(self._settings.vibekey_enabled)
@@ -414,7 +439,7 @@ class SettingsWindow:
             return True
         try:
             self._apply(value)
-        except (ValueError, OSError) as error:
+        except (ValueError, OSError, RuntimeError) as error:
             self._restore_controls()
             self.status.set_text(str(error))
             return False
@@ -542,6 +567,23 @@ class SettingsWindow:
             tr("Config schema: ", "配置 Schema：") + str(details.schema_version),
             tr("Config file: ", "配置文件：") + details.config_path,
         )))
+        if hasattr(self, "voxtype_model"):
+            selected = self._settings.voxtype_model
+            choices = [("", tr("Follow Voxtype configuration",
+                                "跟随 Voxtype 配置"))]
+            choices.extend((name, name) for name in details.installed_models)
+            if selected and selected not in details.installed_models:
+                choices.append((selected, tr(
+                    "Selected model unavailable: ", "已选模型不可用：") + selected))
+            self._updating = True
+            try:
+                self.voxtype_model_choices = choices
+                self.voxtype_model.set_model(Gtk.StringList.new(
+                    [label for _, label in choices]))
+                self.voxtype_model.set_selected(
+                    [name for name, _ in choices].index(selected))
+            finally:
+                self._updating = False
         return GLib.SOURCE_REMOVE
 
     def _open_voxtype_configuration(self, *_):
