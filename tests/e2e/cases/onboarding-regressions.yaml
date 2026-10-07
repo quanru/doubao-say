@@ -213,10 +213,8 @@ cases:
       - fixture.prepare: { mode: deepgram }
       - aiTap: Recognition service dropdown currently showing Doubao account
       - aiTap: Deepgram Nova-3 (English) option in the opened dropdown
-      - aiScroll:
-          options: { direction: down, scrollType: singleAction, distance: 500 }
       - aiWaitFor:
-          prompt: The Recognition page shows Deepgram Nova-3 English dictation and an empty API Key field.
+          prompt: The Recognition page shows Deepgram Nova-3 English dictation, and the API Key text entry with placeholder Enter speech API key is visible.
           options: { timeoutMs: 30000, checkIntervalMs: 1000 }
       - computer.inputText:
           target: The empty masked text entry to the right of API Key, with placeholder Enter speech API key
