@@ -55,7 +55,10 @@ The Omarchy workflow continues from that installed base image:
 2. Copy this checkout to `md.lifeos.doubao-say` in the guest and run Omarchy's
    plugin validator.
 3. Run the complete Midscene product suite through VNC in the real
-   Omarchy/Hyprland guest session.
+   Omarchy/Hyprland guest session. The fixture explicitly uses the Wayland
+   backend and checks layer-shell support before declaring readiness. A missing
+   native backend fails setup instead of placing a fallback overlay over the
+   onboarding controls.
 
 The Ubuntu workflow runs the deterministic GTK fixture through
 [`@midscene/test`](https://midscenejs.com/zh/midscene-test/overview.html)
@@ -141,6 +144,12 @@ Each case receives a fresh computer agent, GTK fixture, and temporary config
 directory. Fixture cleanup completes before the next case starts. Shortcut and
 polishing changes stay in memory; `ci-fail-model` produces a synthetic endpoint
 error, while `ci-ok-model` succeeds without network traffic.
+Navigation and trigger controls are located from visible labels rather than
+fixed screen coordinates. Microphone readiness cases visit the intervening
+Trigger key page before Voice test, and endpoint cases scroll the result into
+view before checking the full feedback. The assertions still verify the
+original readiness gates, saved values, and complete endpoint responses.
+
 These cases exercise production GTK widgets and the Delivery state machine with
 synthetic callbacks. They do not establish live ASR, recording, durable
 credential persistence, system-wide shortcut capture, clipboard paste, or
