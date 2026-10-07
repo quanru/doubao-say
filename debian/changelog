@@ -1,3 +1,24 @@
+doubao-say (1.3.1-1) noble; urgency=medium
+
+  * Prefer plain text over HTML when restoring the clipboard after dictation.
+  * Add Wayland and X11 clipboard regression coverage.
+
+ -- doubao-say contributors <code-dream@qq.com>  Fri, 02 Oct 2026 09:30:00 +0800
+
+doubao-say (1.3.0-1) noble; urgency=medium
+
+  * Add optional Deepgram Nova-3 English speech recognition.
+  * Keep Doubao and Volcengine recognition selectable in Settings.
+
+ -- doubao-say contributors <code-dream@qq.com>  Sat, 26 Sep 2026 10:00:00 +0800
+
+doubao-say (1.2.0-1) noble; urgency=medium
+
+  * Install Python runtime dependencies through apt, with no pip invocation
+    from postinst. Use system Python and PipeWire for audio capture.
+
+ -- doubao-say contributors <code-dream@qq.com>  Wed, 23 Sep 2026 12:00:00 +0800
+
 doubao-say (1.0.2-1) noble; urgency=medium
 
   * Logo: replaced white-backed assets with transparent-background

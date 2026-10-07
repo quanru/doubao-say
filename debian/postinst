@@ -3,17 +3,12 @@
 #
 # - Add the installing user to the 'input' group so they can read
 #   /dev/input/event* (evdev) and write /dev/uinput without sudo.
-# - Create a per-user Python venv at
-#   ~/.local/share/doubao-say/.venv with the pure-Python deps
-#   (websockets, sounddevice, evdev). These are not in Ubuntu's
-#   apt repos so we install them via pip into the user venv.
 # - Print a friendly summary.
 
 set -e
 
 USER_NAME="${SUDO_USER:-${USER:-}}"
 GROUP="input"
-VENV_DIR_REL=".local/share/doubao-say/.venv"
 
 case "$1" in
     configure)
@@ -36,32 +31,7 @@ case "$1" in
             fi
         fi
 
-        # ---- 2. user-level venv with pip-only deps ----
-        if [ -n "$USER_NAME" ] && [ "$USER_NAME" != "root" ] && \
-           command -v python3 >/dev/null 2>&1 && \
-           [ -x /usr/bin/python3 ]; then
-            USER_HOME=$(getent passwd "$USER_NAME" | cut -d: -f6)
-            if [ -n "$USER_HOME" ] && [ -d "$USER_HOME" ]; then
-                VENV_DIR="$USER_HOME/$VENV_DIR_REL"
-                mkdir -p "$(dirname "$VENV_DIR")"
-                chown "$USER_NAME":"$USER_NAME" "$(dirname "$VENV_DIR")" 2>/dev/null || true
-                if [ ! -x "$VENV_DIR/bin/python3" ]; then
-                    echo "doubao-say postinst: 为用户 $USER_NAME 创建 venv ($VENV_DIR)..."
-                    su -s /bin/sh "$USER_NAME" -c \
-                        "python3 -m venv '$VENV_DIR' --system-site-packages" \
-                        2>/dev/null || true
-                    su -s /bin/sh "$USER_NAME" -c \
-                        "'$VENV_DIR/bin/pip' install --quiet --upgrade pip && \
-                         '$VENV_DIR/bin/pip' install --quiet websockets sounddevice evdev numpy" \
-                        2>/dev/null || true
-                    echo "  ✓ venv 就绪。"
-                else
-                    echo "doubao-say postinst: venv 已存在 ($VENV_DIR)。"
-                fi
-            fi
-        fi
-
-        # ---- 3. reload user's systemd manager ----
+        # ---- 2. reload user's systemd manager ----
         if command -v systemctl >/dev/null 2>&1 && \
            [ -n "$USER_NAME" ] && [ "$USER_NAME" != "root" ]; then
             USER_UID=$(id -u "$USER_NAME" 2>/dev/null || true)

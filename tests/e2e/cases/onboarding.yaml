@@ -1,42 +1,52 @@
 cases:
   - name: Complete Doubao Say onboarding on a real desktop
-    tags: [shard-2]
+    tags: [shard-1]
     steps:
       - aiAssert: The visible Doubao Say window is on Sign in and says the user is not signed in.
-      - aiAct: Scroll inside the Sign in content panel until Open Doubao sign-in is fully visible.
-      - aiTap: Open Doubao sign-in button in the Sign in content panel
-      - wait: { duration: 1500 }
-      - aiAssert: A Synthetic Doubao sign-in window is visible and explicitly says it is CI-only, makes no network request, and uses no real credentials.
-      - aiTap: Simulate successful sign-in button in the Synthetic Doubao sign-in window
-      - aiAssert: The synthetic sign-in window closed and Doubao Say automatically advanced to the Microphone step with a right-arrow Next button in the fixed top navigation.
+      - aiTap: The large blue full-width Open Doubao sign-in button near the bottom of the central Sign in panel, around 50% width and 73% screen height
+      - aiWaitFor:
+          prompt: The modal titled CI-ONLY SYNTHETIC DOUBAO SIGN-IN is visible and says it makes no network request and uses no real credentials.
+          options: { timeoutMs: 30000, checkIntervalMs: 1000 }
+      - aiTap: The blue Simulate successful sign-in button in the CI-only modal, around 50% width and 43% screen height
+      - aiWaitFor:
+          prompt: The synthetic sign-in window is closed and Doubao Say is on the Microphone step.
+          options: { timeoutMs: 30000, checkIntervalMs: 1000 }
+      - aiAssert: The Microphone step shows Check microphone · 3 seconds and the right-arrow Next button in the fixed top navigation.
       - aiTap: Check microphone · 3 seconds button on the Microphone step
-      - wait: { duration: 750 }
-      - aiAssert: A visible message says Microphone is working and instructs the user to continue to the trigger key step.
-      - aiTap: Right-arrow Next button in the Doubao Say fixed top navigation
-      - aiAssert: The current Doubao Say step is Trigger key.
-      - aiAct: Stay on Trigger key. Scroll downward exactly once inside the light-gray central content panel, then stop.
-      - aiAct: Scroll downward exactly once more inside the same central content panel, then stop.
-      - aiAct: Scroll inside the central content panel until the full model guidance, from Choose a small, fast model through fall back to your original text, is visible.
-      - aiAssert: The model guidance is readable and recommends a small, fast model with thinking off, names DeepSeek Flash and Gemini 2.5 Flash-Lite, and warns that large reasoning models may exceed five seconds and fall back to the original text.
-      - aiAct: Scroll downward inside the central content panel until the Test endpoint button is fully visible.
-      - aiAssert: The visible Test endpoint button is fully visible and enabled.
-      - aiTap: Test endpoint button in the visible Voice polishing section
-      - wait: { duration: 750 }
-      - aiAct: If needed, scroll down slightly inside the central content panel until Synthetic endpoint response is visible below Endpoint works. Keep both results on screen.
-      - aiAssert: A visible message says the endpoint works and includes Synthetic endpoint response.
+      - aiWaitFor:
+          prompt: The visible feedback says Microphone is working and instructs the user to continue to the trigger key step.
+          options: { timeoutMs: 30000, checkIntervalMs: 1000 }
+      - aiAssert: The visible microphone result says Microphone is working.
       - aiTap: Right-arrow Next button in the fixed top navigation
-      - aiAssert: The current Doubao Say step is Voice test.
-      - aiAssert: The Voice test heading and introductory text are clearly visible near the top of the current content panel.
-      - aiTap: Start voice test button in the Voice test content panel
-      - wait: { duration: 750 }
-      - aiAssert: The Voice test shows Synthetic voice test transcript and offers both Finish & check result and Cancel test.
-      - aiTap: Finish & check result button in the Voice test content panel
-      - wait: { duration: 1250 }
-      - aiAct: If the Listening overlay and Finish & check result are both still visible, activate Finish & check result exactly once and then wait at least one second. If the voice test has already finished, do nothing.
-      - wait: { duration: 1250 }
-      - aiAssert: The Listening overlay is gone, Start voice test is available, and the visible feedback says Voice test passed and nothing was pasted or sent.
-      - aiAct: Scroll to the bottom of the Voice test content panel until the Finish setup button is fully visible. Do not stop at the Start voice test button.
-      - aiAssert: The Finish setup button is fully visible and enabled, and the confirmation says Voice test passed and nothing was pasted or sent.
-      - aiTap: Enabled setup button that says Voice test passed in the Voice test content panel
-      - wait: { duration: 500 }
-      - aiAssert: The Finish setup button changed to a disabled visible status saying Setup completed by the synthetic E2E fixture.
+      - aiScroll:
+          options:
+            direction: down
+            scrollType: singleAction
+            distance: 500
+      - aiWaitFor:
+          prompt: The Trigger key page visibly recommends a small, fast Voice polishing model with thinking off, names DeepSeek Flash and Gemini 2.5 Flash-Lite, and warns that large reasoning models may exceed five seconds and fall back to the original text.
+          options: { timeoutMs: 30000, checkIntervalMs: 1000 }
+      - aiTap: Test endpoint button in the Voice polishing section
+      - aiWaitFor:
+          prompt: The Voice polishing result says Endpoint works and includes Synthetic endpoint response.
+          options: { timeoutMs: 30000, checkIntervalMs: 1000 }
+      - aiAssert: The visible endpoint result says Endpoint works and includes Synthetic endpoint response.
+      - aiTap: Right-arrow Next button in the fixed top navigation
+      - aiWaitFor:
+          prompt: The Voice test page is visible and Start voice test is available.
+          options: { timeoutMs: 30000, checkIntervalMs: 1000 }
+      - aiAssert: The Voice test heading and introductory text are clearly visible, and Start voice test is available.
+      - aiTap: Start voice test button
+      - aiWaitFor:
+          prompt: Synthetic voice test transcript is visible, and both Finish & check result and Cancel test are available.
+          options: { timeoutMs: 30000, checkIntervalMs: 1000 }
+      - aiTap: Finish & check result button
+      - aiWaitFor:
+          prompt: The Listening overlay is gone and the visible feedback says Voice test passed and nothing was pasted or sent.
+          options: { timeoutMs: 30000, checkIntervalMs: 1000 }
+      - aiAssert: Start voice test is available again, and the visible feedback says Voice test passed and nothing was pasted or sent.
+      - aiTap: Enabled Finish setup button that says Voice test passed and nothing pasted or sent
+      - aiWaitFor:
+          prompt: The setup control is disabled and says Setup completed by the synthetic E2E fixture.
+          options: { timeoutMs: 30000, checkIntervalMs: 1000 }
+      - aiAssert: The visible disabled setup control says Setup completed by the synthetic E2E fixture.

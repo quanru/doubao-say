@@ -30,15 +30,7 @@ override_dh_auto_install:
 	printf '%s\n' \
 	    '#!/bin/sh' \
 	    '# Wrapper for the doubao-say voice IME.' \
-	    '# Pure-Python deps (websockets, sounddevice, evdev) live in' \
-	    '# the per-user venv at ~/.local/share/doubao-say/.venv' \
-	    '# (created by postinst); system Python provides gi / Gtk / WebKit.' \
-	    'VENV="$$HOME/.local/share/doubao-say/.venv"' \
-	    'if [ -x "$$VENV/bin/python3" ]; then' \
-	    '    exec "$$VENV/bin/python3" -m doubao_input "$$@"' \
-	    'else' \
-	    '    exec python3 -m doubao_input "$$@"' \
-	    'fi' \
+	    'exec /usr/bin/python3 -m doubao_input "$$@"' \
 	    > debian/doubao-say/usr/bin/doubao-say
 	chmod 0755 debian/doubao-say/usr/bin/doubao-say
 
