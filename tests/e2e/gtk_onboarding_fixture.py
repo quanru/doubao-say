@@ -23,6 +23,7 @@ MICROPHONES = [
 ]
 LOGGED_IN_MODES = {
     "microphone-gate",
+    "trigger-settings",
     "voice-test",
     "microphone-change",
     "shortcut-capture",
@@ -386,6 +387,10 @@ def build_onboarding_fixture(mode):
             return GLib.SOURCE_REMOVE
 
         GLib.idle_add(show_voxtype_settings)
+    if mode in {"trigger-settings", "shortcut-capture"}:
+        control._set_page("trigger", forward=True)
+    elif mode == "voice-test":
+        control._set_page("voice", forward=True)
 
     def cleanup():
         if holder["settings_window"]:

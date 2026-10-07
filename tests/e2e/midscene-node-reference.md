@@ -745,7 +745,7 @@ Locate and tap an element with a Midscene UI Agent.
 
 ### `computer.inputText`
 
-Replace text in a visually located input through the active Midscene Computer Agent.
+Replace text in a visually located input through the active Midscene Computer Agent. An optional point focuses a fixed-size Omarchy fixture input when visual localization is unreliable.
 
 **String shorthand:** Not supported by this Node.
 
@@ -756,6 +756,15 @@ Replace text in a visually located input through the active Midscene Computer Ag
   "$schema": "https://json-schema.org/draft/2020-12/schema",
   "additionalProperties": false,
   "properties": {
+    "point": {
+      "additionalProperties": false,
+      "properties": {
+        "x": { "type": "number" },
+        "y": { "type": "number" }
+      },
+      "required": ["x", "y"],
+      "type": "object"
+    },
     "target": {
       "minLength": 1,
       "type": "string"

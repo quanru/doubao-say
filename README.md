@@ -1,6 +1,8 @@
 # Doubao Say
 
-[简体中文](README.zh-CN.md)
+[Website](https://doubao-say.lifeos.md/) · [简体中文](README.zh-CN.md)
+
+![Doubao Say voice input running on Omarchy Linux](images/readme-en.jpeg)
 
 A standalone GTK4 voice-input application for Linux (Hyprland/Wayland and native X11). It uses Doubao
 web-account recognition by default and can optionally use the official Volcengine
@@ -191,8 +193,10 @@ for manual copying.
 Settings → Input → **Text input method** defaults to **Clipboard paste**,
 including for existing installations. Clipboard paste replaces the current
 clipboard contents; clipboard managers may save the recognized text in history.
-CopyQ is not required, and no clipboard restoration or history suppression is
-performed. Choose **Direct typing** on Hyprland to keep the clipboard unchanged.
+CopyQ is not required. The app attempts to restore one original clipboard payload
+after paste if the clipboard still contains the dictation text; clipboard history
+is not suppressed. Rich text is restored as plain text when both are available,
+so formatting is lost. Choose **Direct typing** on Hyprland to keep the clipboard unchanged.
 Install `wtype` separately; this mode requires a compatible
 Wayland virtual-keyboard implementation and has been tested on Hyprland.
 
@@ -212,6 +216,7 @@ Modifier keys are logical choices: either the left or right physical key works.
 Your keyboard must report Fn as a Linux key; otherwise choose another key.
 
 - Tap to start; tap again to finish and paste.
+- With Fn as the trigger, pressing another key while recording also finishes and pastes. Escape still cancels; the finishing key still reaches the foreground app.
 - Hold past the threshold to speak; release to finish and paste.
 - Select one preset, or choose **Record a shortcut…** to capture a custom combination such as Ctrl+Alt+Space. Only one trigger is active.
 - Press the active trigger twice to send Enter without dictation. This can submit messages or execute terminal commands.
@@ -263,7 +268,11 @@ Escape and cannot prevent it reaching the foreground.
 Paste and Enter are serialized on a background worker so clipboard waits do not
 block the GTK interface. Before clipboard paste, the app snapshots one primary
 MIME payload and restores its original bytes only if the clipboard still contains
-the dictation text. A copy made by the user during delivery is never overwritten.
+the dictation text. Plain-text formats take priority over HTML, so rich-text
+formatting is lost when both are available. An HTML-only clipboard still restores
+as HTML; images and URI lists retain their existing priority. This is best-effort
+restoration of one payload, not all original clipboard formats.
+A copy made by the user during delivery is never overwritten.
 Cancellation stops remaining input and cannot undo text already delivered.
 Failed recognition can preserve partial text; failed paste preserves the result.
 This slot is memory-only, not a transcript history. Exiting loses it.
@@ -450,7 +459,7 @@ validate package metadata and scan for secrets. The current whole-package branch
 coverage floor is 55%; desktop UI, WebKit and real-device paths remain included
 in the denominator.
 
-The current release version is **1.2.0**. A `v1.2.0` tag must match every embedded
+The current release version is **1.3.1**. A `v1.3.1` tag must match every embedded
 version before CI can publish. Tag releases rebuild both offline app and Omarchy
 plugin archives for Python 3.11–3.14 and attach SHA-256 checksums. A manually started
 release workflow builds artifacts for inspection but does not publish them. Real

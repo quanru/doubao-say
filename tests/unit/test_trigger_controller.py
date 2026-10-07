@@ -23,9 +23,11 @@ class TriggerControllerTest(TestCase):
         self.start, self.stop, self.toggle, self.enter, self.cancel = [Mock() for _ in range(5)]
         self.shortcut = Mock()
         self.error = Mock()
+        self.recording_active = False
         self.control = TriggerController(reader, schedule, Mock(), start=self.start, stop=self.stop,
             toggle=self.toggle, enter=self.enter, cancel_input=self.cancel,
-            debug_edge=Mock(return_value=False), error=self.error, shortcut=self.shortcut)
+            debug_edge=Mock(return_value=False), error=self.error, shortcut=self.shortcut,
+            is_recording=lambda: self.recording_active)
         self.settings = Settings(doubao_key=100)
         self.control.configure(self.settings)
 
@@ -204,6 +206,35 @@ class TriggerControllerTest(TestCase):
         self.stop.assert_called_once()
         self.edge(1, True)
         self.cancel.assert_called_once()
+
+    def test_fn_recording_finishes_on_any_other_key_press(self):
+        self.control.configure(replace(self.settings, doubao_key=464))
+        self.assertIn(30, self.readers[-1].callbacks["key_codes"])
+        self.edge(464, True)
+        self.edge(464, False)
+        self.timers[-1][1]()
+        self.toggle.assert_called_once()
+        self.recording_active = True
+        self.edge(30, True)
+        self.stop.assert_called_once()
+        self.edge(30, False)
+        self.stop.assert_called_once()
+
+    def test_fn_other_key_before_recording_does_not_finish(self):
+        self.control.configure(replace(self.settings, doubao_key=464))
+        self.edge(30, True)
+        self.stop.assert_not_called()
+        self.toggle.assert_not_called()
+
+    def test_fn_recording_escape_still_cancels(self):
+        self.control.configure(replace(self.settings, doubao_key=464))
+        self.recording_active = True
+        self.edge(1, True)
+        self.cancel.assert_called_once()
+        self.stop.assert_not_called()
+
+    def test_non_fn_trigger_keeps_listening_only_to_its_shortcut(self):
+        self.assertNotIn(30, self.readers[-1].callbacks["key_codes"])
 
     def test_dedicated_record_button_uses_same_gesture(self):
         self.aux("record", True)

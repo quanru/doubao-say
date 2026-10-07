@@ -76,6 +76,11 @@ def build_runtime_fixture():
         worker=ImmediateWorker(),
     )
 
+    def restore_target_focus():
+        window.present()
+        window.set_focus(target)
+        target.grab_focus()
+
     def key_pressed(_controller, keyval, _keycode, _modifiers):
         if keyval == Gdk.KEY_F8:
             if state["recording"]:
@@ -88,9 +93,7 @@ def build_runtime_fixture():
 
                 def close_overlay_and_restore_target():
                     overlay.hide()
-                    window.present()
-                    window.set_focus(target)
-                    target.grab_focus()
+                    restore_target_focus()
                     status.set_text(
                         f"Delivered once · {state['deliveries']} delivery"
                     )
@@ -105,6 +108,7 @@ def build_runtime_fixture():
         if keyval == Gdk.KEY_Escape and state["recording"]:
             state["recording"] = False
             overlay.hide()
+            restore_target_focus()
             status.set_text("Cancelled · no text delivered · ready to try again")
             return True
         return False

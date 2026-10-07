@@ -49,8 +49,11 @@ cd tests/e2e
 npm ci --include=optional --ignore-scripts
 npm run typecheck
 MIDSCENE_COMPUTER_HEADLESS_LINUX=true timeout --signal=TERM --kill-after=10s 50m \
-  npm test -- --project ubuntu
+  npm test -- --project ubuntu-shard-1
 ```
+
+Replace the shard number with `2`, `3`, or `4` to run another
+duration-balanced shard; the cases are split across the four shards.
 
 Run the polishing overlay scenario separately (same prerequisites):
 
