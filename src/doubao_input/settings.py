@@ -360,10 +360,15 @@ class Settings:
                               canonical_shortcut(saved_key, saved_modifiers))
             values[key_field] = key
             values[modifiers_field] = modifiers
-        # Fn is the legacy built-in default, not a portal shortcut. Migrate
-        # it in memory so normal GNOME launch can ask for Ctrl+semicolon immediately.
-        if trigger_backend() == "portal" and values.get("doubao_key") == 464 and not values.get("doubao_modifiers"):
-            values.update(doubao_key=39, doubao_modifiers=(29,))
+        # Retained evdev shortcuts may not be supported by the portal (including
+        # Fn and modifier-only presets). Migrate in memory before startup so an
+        # unsupported old binding cannot prevent the application from opening.
+        if trigger_backend() == "portal" and values["doubao_key"] != 0:
+            from doubao_input.trigger.portal import preferred_trigger
+            try:
+                preferred_trigger(values["doubao_key"], values["doubao_modifiers"])
+            except ValueError:
+                values.update(doubao_key=39, doubao_modifiers=(29,))
         data = cls(**values)
         data.validate()
         return data

@@ -3,7 +3,7 @@
 ## 1.4.0
 
 - Automatically use permission-scoped GlobalShortcuts on GNOME without a special launch command or raw keyboard read permission for the dictation trigger.
-- Default new installations on every desktop to Ctrl+semicolon. Preserve saved shortcuts and adapt the unsupported legacy Fn default on GNOME.
+- Default new installations on every desktop to Ctrl+semicolon. Preserve saved shortcuts on other desktops and adapt unsupported saved evdev shortcuts on GNOME.
 - Register a valid GTK application identity before binding, retry rejected authorization, consume held shortcuts, and release sessions cleanly without an evdev fallback.
 - Add real GNOME 49 Wayland CI for authorization, normal launch, hold/release and cleanup, with regression tests for backend selection and settings migration.
 

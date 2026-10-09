@@ -9,8 +9,9 @@ both activation and deactivation events. Rejected authorization can be retried;
 there is no silent fallback to raw keyboard reading.
 
 New installations on every desktop default to **Ctrl+;**. Existing shortcuts are
-preserved, except for the unsupported legacy Fn default on GNOME, which becomes
-Ctrl+;. You can edit the shortcut in GNOME's permission dialog. Other desktops
+preserved on other desktops. On GNOME, saved shortcuts supported by the portal
+and Disabled are retained; unsupported saved evdev shortcuts (including Fn,
+modifier-only keys and unsupported custom keys) become Ctrl+;. You can edit the shortcut in GNOME's permission dialog. Other desktops
 retain evdev and their existing shortcut editing and recording behavior.
 
 ## Verification and scope

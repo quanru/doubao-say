@@ -191,7 +191,7 @@ app with no automatic clipboard fallback. Check for partial input before retryin
 
 New installations default to **Ctrl+;** on every desktop. GNOME uses the desktop
 portal; other desktops use evdev. Existing saved shortcuts are retained, except
-that GNOME adapts the unsupported legacy Fn default to Ctrl+;.
+that GNOME adapts unsupported saved evdev shortcuts (including Fn and modifier-only keys) to Ctrl+;.
 Modifier keys are logical choices: either the left or right physical key works.
 Your keyboard must report Fn as a Linux key; otherwise choose another key.
 
@@ -294,8 +294,8 @@ Do not run the app as root.
 
 On GNOME, launch Doubao Say normally from its icon or existing command. It
 selects the GlobalShortcuts portal automatically and requests **Ctrl+;** on a
-fresh installation on every desktop. The old built-in Fn default also becomes Ctrl+; on GNOME;
-other saved shortcuts and Disabled are preserved. No environment variable or
+fresh installation on every desktop. Unsupported saved evdev shortcuts, including Fn and modifier-only keys, also become Ctrl+; on GNOME;
+portal-supported shortcuts and Disabled are preserved. No environment variable or
 manual shortcut selection is needed. Approve the desktop's shortcut dialog.
 Other desktops retain their existing evdev behavior. For explicit troubleshooting
 only, `DOUBAO_SAY_TRIGGER_BACKEND=portal` or `evdev` overrides automatic selection.

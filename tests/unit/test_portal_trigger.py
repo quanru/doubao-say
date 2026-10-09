@@ -39,6 +39,13 @@ class PortalSelectionTest(TestCase):
             settings = Settings.load()
             self.assertEqual((settings.doubao_key, settings.doubao_modifiers), (39, (29,)))
             self.assertEqual(path.read_text(), legacy)
+            for key, modifiers in ((29, ()), (42, ()), (56, ()), (125, ()),
+                                   (30, (29,)), (464, (29,))):
+                saved = json.dumps({"doubao_key": key, "doubao_modifiers": modifiers})
+                path.write_text(saved)
+                settings = Settings.load()
+                self.assertEqual((settings.doubao_key, settings.doubao_modifiers), (39, (29,)))
+                self.assertEqual(path.read_text(), saved)
             for key in (0, 67):
                 path.write_text(json.dumps({"doubao_key": key, "doubao_modifiers": []}))
                 settings = Settings.load()
