@@ -5,6 +5,10 @@ set -euo pipefail
 # Package installation can leave an empty seats directory even though systemd
 # is not PID 1. Let GNOME use its supported non-systemd session implementation.
 rmdir /run/systemd/seats 2>/dev/null || true
+# Docker mounts /dev at runtime, hiding files created during image build.
+mkdir -p /dev/input
+touch /dev/input/event0
+chmod 600 /dev/input/event0
 mkdir -p /run/dbus
 dbus-daemon --system --fork --nopidfile
 exec runuser -u gnome-ci -- dbus-run-session -- bash tests/gnome/run-session.sh

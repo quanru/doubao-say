@@ -4,8 +4,7 @@ RUN dnf -y install gnome-shell gnome-control-center xdg-desktop-portal \
       python3-gobject python3-cairo python3-evdev mesa-dri-drivers \
       mesa-libEGL mesa-libGL glib2 glibc-langpack-en procps-ng \
       adwaita-icon-theme util-linux && dnf clean all
-RUN useradd --create-home --uid 1000 gnome-ci && \
-    mkdir -p /dev/input && touch /dev/input/event0 && chmod 600 /dev/input/event0
+RUN useradd --create-home --uid 1000 gnome-ci
 COPY src /workspace/src
 COPY tests/gnome /workspace/tests/gnome
 RUN mkdir -p /tmp/gnome-runtime && chown gnome-ci /tmp/gnome-runtime && chmod 700 /tmp/gnome-runtime
