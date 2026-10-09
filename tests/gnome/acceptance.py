@@ -110,7 +110,6 @@ try:
     assert not events, events
     errors.clear()
     # A failed reader must be replaceable even when settings have not changed.
-    control.close()
     control.configure(settings)
     wait_for(portal_dialog_visible, 'GNOME shortcut permission dialog again')
     screenshot('03-permission-allow.png')

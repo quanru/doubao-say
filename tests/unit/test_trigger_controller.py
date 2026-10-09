@@ -314,3 +314,10 @@ class TriggerControllerTest(TestCase):
         self.start.assert_not_called()
         self.enter.assert_not_called()
         self.cancel.assert_not_called()
+
+    def test_stopped_reader_is_recreated_with_unchanged_settings(self):
+        previous = self.readers[-1]
+        previous.is_running.return_value = False
+        self.control.configure(self.settings)
+        self.assertIsNot(self.readers[-1], previous)
+        previous.stop.assert_called_once()

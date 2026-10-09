@@ -49,7 +49,7 @@ class TriggerController:
         settings = replace(settings, doubao_key=key, doubao_modifiers=modifiers)
         fields = ("doubao_key", "doubao_modifiers", "hold_ms", "double_ms", "double_enter",
                   "vibekey_enabled")
-        if (self._reader and self._listener_capture == self.capturing and self._settings
+        if (self._reader and self._reader.is_running() and self._listener_capture == self.capturing and self._settings
                 and all(getattr(settings, field) == getattr(self._settings, field) for field in fields)):
             self._settings = replace(settings)
             return self._available
