@@ -13,7 +13,7 @@ cat > "$HOME/.config/xdg-desktop-portal/portals.conf" <<'EOF'
 default=gnome;gtk;
 org.freedesktop.impl.portal.GlobalShortcuts=gnome
 EOF
-cat > "$HOME/.local/share/applications/md.lifeos.DoubaoSay.desktop" <<'EOF'
+cat > "$HOME/.local/share/applications/doubao-say.desktop" <<'EOF'
 [Desktop Entry]
 Name=Doubao Say
 Type=Application

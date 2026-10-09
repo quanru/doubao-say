@@ -111,7 +111,13 @@ class GioPortal:
     def __init__(self, signal, error):
         from gi.repository import Gio, GLib
         self._gio, self._glib = Gio, GLib
-        self._bus = Gio.bus_get_sync(Gio.BusType.SESSION, None)
+        # Registration must precede every other portal call on this peer. GTK
+        # can already have used its shared connection, so own a private peer.
+        address = Gio.dbus_address_get_for_bus_sync(Gio.BusType.SESSION, None)
+        self._bus = Gio.DBusConnection.new_for_address_sync(address,
+            Gio.DBusConnectionFlags.AUTHENTICATION_CLIENT |
+            Gio.DBusConnectionFlags.MESSAGE_BUS_CONNECTION, None, None)
+        self._registered = False
         self._signal, self._error = signal, error
         self._closed = False
         self._requests = {}
@@ -135,6 +141,21 @@ class GioPortal:
 
     def request(self, method, options, callback):
         G, V = self._glib, self._glib.Variant
+        if not self._registered:
+            def registered(conn, result, *unused):
+                if self._closed:
+                    return
+                try:
+                    conn.call_finish(result)
+                    self._registered = True
+                    self.request(method, options, callback)
+                except Exception as exc:
+                    self._error(tr('Could not register Doubao Say with the desktop portal. Install its desktop launcher first: ',
+                                   '无法向桌面 Portal 注册 Doubao Say，请先安装桌面启动器：') + str(exc))
+            self._bus.call(DESTINATION, PATH, 'org.freedesktop.host.portal.Registry',
+                'Register', V('(sa{sv})', ('doubao-say', {})), None,
+                self._gio.DBusCallFlags.NONE, 10000, None, registered)
+            return
         token = 'doubao_' + uuid.uuid4().hex
         sender = self._bus.get_unique_name()[1:].replace('.', '_')
         path = f'/org/freedesktop/portal/desktop/request/{sender}/{token}'
@@ -201,3 +222,10 @@ class GioPortal:
         for path in self._session_paths | ({session} if session else set()):
             self._bus.call(DESTINATION, path, 'org.freedesktop.portal.Session', 'Close',
                            None, None, self._gio.DBusCallFlags.NONE, 1000, None, None)
+
+        def flushed(conn, result, *unused):
+            try:
+                conn.flush_finish(result)
+            finally:
+                conn.close(None, None, None)
+        self._bus.flush(None, flushed)

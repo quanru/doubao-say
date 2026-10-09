@@ -21,6 +21,8 @@ xml = '''<node><interface name="org.freedesktop.portal.GlobalShortcuts">
 <method name="CreateSession"><arg type="a{sv}" direction="in"/><arg type="o" direction="out"/></method>
 <method name="BindShortcuts"><arg type="o" direction="in"/><arg type="a(sa{sv})" direction="in"/>
 <arg type="s" direction="in"/><arg type="a{sv}" direction="in"/><arg type="o" direction="out"/></method>
+</interface><interface name="org.freedesktop.host.portal.Registry">
+<method name="Register"><arg type="s" direction="in"/><arg type="a{sv}" direction="in"/></method>
 </interface></node>'''
 session_xml = '<node><interface name="org.freedesktop.portal.Session"><method name="Close"/></interface></node>'
 sessions, closed, triggers = [], [], []
@@ -36,6 +38,10 @@ def close_session(conn, sender, path, interface, method, params, invocation):
     invocation.return_value(None)
 
 def method(conn, sender, path, interface, name, params, invocation):
+    if name == 'Register':
+        assert params.unpack()[0] == 'doubao-say'
+        invocation.return_value(None)
+        return
     values = params.unpack()
     opts = values[0] if name == 'CreateSession' else values[3]
     prefix = sender[1:].replace('.', '_')
@@ -55,7 +61,8 @@ def method(conn, sender, path, interface, name, params, invocation):
         })])}
     GLib.idle_add(respond, sender, request, 1 if denied and name == "BindShortcuts" else 0, results)
 
-bus.register_object(PATH, Gio.DBusNodeInfo.new_for_xml(xml).interfaces[0], method, None, None)
+for interface in Gio.DBusNodeInfo.new_for_xml(xml).interfaces:
+    bus.register_object(PATH, interface, method, None, None)
 loop = GLib.MainLoop()
 start, stop, error = Mock(), Mock(), Mock()
 control = TriggerController(TriggerReader, GLib.timeout_add, GLib.source_remove,
