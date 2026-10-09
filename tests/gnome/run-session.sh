@@ -1,6 +1,6 @@
 #!/usr/bin/env bash
 set -euo pipefail
-exec > >(tee /evidence/session.log) 2>&1
+exec > >(tee /evidence/session.txt) 2>&1
 trap 'kill "${shell_pid:-}" 2>/dev/null || true' EXIT
 rpm -q gnome-shell mutter xdg-desktop-portal xdg-desktop-portal-gnome gnome-control-center > /evidence/versions.txt
 id >> /evidence/versions.txt
@@ -19,7 +19,7 @@ Name=Doubao Say
 Type=Application
 Exec=python3 /workspace/tests/gnome/acceptance.py
 EOF
-gnome-shell --headless --wayland --unsafe-mode --virtual-monitor=1280x800 > /evidence/gnome-shell.log 2>&1 &
+gnome-shell --headless --wayland --unsafe-mode --virtual-monitor=1280x800 > /evidence/gnome-shell.txt 2>&1 &
 shell_pid=$!
 for attempt in {1..60}; do
   if gdbus call --session --dest org.gnome.Shell --object-path /org/gnome/Shell \

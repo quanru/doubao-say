@@ -72,7 +72,7 @@ keys.connect('key-pressed', lambda _, value, code, state: key_events.append(valu
 window.add_controller(keys)
 window.present()
 entry.grab_focus()
-shell('imports.ui.main.overview.hide(); global.doubaoCIKeyboard = '
+shell('import('resource:///org/gnome/shell/ui/main.js').then(m => m.overview.hide()); global.doubaoCIKeyboard = '
       'global.backend.get_default_seat().create_virtual_device(imports.gi.Clutter.InputDeviceType.KEYBOARD_DEVICE); true')
 wait_for(lambda: window.get_mapped(), 'GTK window mapped')
 
