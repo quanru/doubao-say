@@ -95,3 +95,6 @@ and session cleanup while prohibiting construction of the raw input reader.
 It does not verify a compositor's permission dialog, physical shortcuts, GNOME
 compatibility, microphone capture or text delivery. Never run its fake portal
 on the user's existing session bus.
+
+For real GNOME Wayland permission-dialog and shortcut acceptance, see
+[tests/gnome/README.md](gnome/README.md) and the GNOME shortcut permissions workflow.
