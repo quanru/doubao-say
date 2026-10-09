@@ -73,7 +73,7 @@ window.add_controller(keys)
 window.present()
 entry.grab_focus()
 shell('import("resource:///org/gnome/shell/ui/main.js").then(m => m.overview.hide()); global.doubaoCIKeyboard = '
-      'global.backend.get_default_seat().create_virtual_device(imports.gi.Clutter.InputDeviceType.KEYBOARD_DEVICE); true')
+      'global.stage.context.get_backend().get_default_seat().create_virtual_device(imports.gi.Clutter.InputDeviceType.KEYBOARD_DEVICE); true')
 wait_for(lambda: window.get_mapped(), 'GTK window mapped')
 
 # The permission fixture is not a physical keyboard: it reproduces the denied
