@@ -11,7 +11,8 @@ import time
 
 class EscapeGuard:
     def __init__(self, error=lambda message: None):
-        self.enabled = bool(os.environ.get("HYPRLAND_INSTANCE_SIGNATURE"))
+        self.enabled = bool(os.environ.get("HYPRLAND_INSTANCE_SIGNATURE")) and (
+            os.environ.get("DOUBAO_SAY_TRIGGER_BACKEND", "evdev") != "portal")
         self.active = self.held = False
         self._renewed = 0
         self._name = f"doubao_escape_{os.getpid()}"

@@ -1,0 +1,40 @@
+name: GNOME shortcut permissions
+on:
+  push:
+    branches: [main, fix/gnome-portal-shortcuts]
+    paths:
+      - .github/workflows/gnome-shortcuts.yml
+      - tests/gnome/**
+      - src/doubao_input/trigger/**
+      - src/doubao_input/settings.py
+  workflow_dispatch:
+permissions:
+  contents: read
+concurrency:
+  group: gnome-shortcuts-${{ github.ref }}
+  cancel-in-progress: true
+jobs:
+  gnome-wayland:
+    runs-on: ubuntu-24.04
+    timeout-minutes: 20
+    steps:
+      - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1
+        with:
+          persist-credentials: false
+      - name: Build isolated GNOME desktop image
+        run: docker build -t doubao-gnome-ci -f tests/gnome/Dockerfile .
+      - name: Reproduce and verify on GNOME Wayland
+        run: |
+          mkdir -p artifacts/gnome
+          chmod 777 artifacts/gnome
+          timeout --signal=TERM --kill-after=15s 180s docker run --rm \
+            --name doubao-gnome-ci \
+            -v "$PWD/artifacts/gnome:/evidence" doubao-gnome-ci
+      - name: Upload GNOME evidence
+        if: always()
+        uses: actions/upload-artifact@043fb46d1a93c77aae656e7c1c64a875d1fc6a0a
+        with:
+          name: gnome-shortcut-evidence
+          path: artifacts/gnome/
+          if-no-files-found: error
+          retention-days: 14

@@ -1,4 +1,6 @@
 """Combined ordinary-keyboard and optional dedicated-device trigger reader."""
+import os
+from doubao_input.trigger.portal import PortalTrigger
 from doubao_input.trigger.au05 import Au05Listener
 from doubao_input.trigger.evdev_ptt import EvdevPtt
 
@@ -6,9 +8,16 @@ from doubao_input.trigger.evdev_ptt import EvdevPtt
 class TriggerReader:
     def __init__(self, on_press, on_release, on_error=None, on_key=None,
                  key_codes=None, on_aux=None, on_aux_error=None,
-                 vibekey_enabled=False):
-        self._keyboard = EvdevPtt(on_press, on_release, on_error=on_error,
-                                  on_key=on_key, key_codes=key_codes)
+                 vibekey_enabled=False, shortcut=None, capturing=False):
+        backend = os.environ.get("DOUBAO_SAY_TRIGGER_BACKEND", "evdev")
+        if backend not in ("evdev", "portal"):
+            raise ValueError("DOUBAO_SAY_TRIGGER_BACKEND must be evdev or portal")
+        if backend == "portal":
+            self._keyboard = PortalTrigger(on_press, on_release, on_error=on_error,
+                on_key=on_key, key_codes=key_codes, shortcut=shortcut, capturing=capturing)
+        else:
+            self._keyboard = EvdevPtt(on_press, on_release, on_error=on_error,
+                                      on_key=on_key, key_codes=key_codes)
         self._vibekey = (Au05Listener(on_aux or (lambda action, pressed: None),
                                      on_error=on_aux_error)
                          if vibekey_enabled else None)

@@ -283,7 +283,36 @@ The update check sends a standard HTTPS request to GitHub at most once per day;
 GitHub receives the usual connection metadata. The cached release tag and check
 time contain no account, transcript or device identifier.
 
-Keyboard access and `/dev/uinput` permissions are required. Do not run the app as root.
+The default evdev trigger needs keyboard-device access. Adding your account to the
+`input` group grants other processes running with that group access to keyboard
+input too, including sensitive keystrokes; it is not an app-specific permission.
+Do not run the app as root.
+
+### Permission-scoped shortcut mode (opt-in)
+
+Select **F8**, **F9**, Space, Return or Tab (optionally Ctrl/Shift/Alt/Meta) as the
+trigger in Settings, then start with `DOUBAO_SAY_TRIGGER_BACKEND=portal doubao-say`.
+Approve the shortcut in the desktop's GlobalShortcuts dialog. The desktop may
+change the requested shortcut; its dialog is authoritative. This mode receives
+only activation/deactivation of the authorized dictation action, without opening
+`/dev/input` or requiring membership in `input`. Hold-to-talk, tap-to-toggle and
+double-tap use the existing gesture timing. Denial, timeout or a missing portal
+stops the listener without silently falling back to evdev. Restart the app to
+retry authorization.
+
+Portal mode does not support Fn/modifier-only shortcuts or raw key recording;
+choose a supported preset before starting it. Global Esc cancellation is not
+registered in this mode, so use the control center or tray's Cancel action.
+Vibekey is a separate, optional device listener and retains its own permissions.
+Input delivery is separate: `/dev/uinput` access may still be needed for injected
+shortcuts/paste. This change removes broad **keyboard reading** from the dictation
+trigger, not every device permission from the app. It does not remove existing group
+memberships or change system permissions.
+
+The backend requires an implementation of `org.freedesktop.portal.GlobalShortcuts`.
+GNOME backend availability varies by version. Full GNOME application support
+(including overlay and text delivery) is not established by this trigger feature.
+To retain the existing behavior, omit the variable or set it to `evdev`.
 Vibekey support is optional and off by default. When enabled in Settings, its three
 transmitter buttons map to recording, Enter and cancel. Turning the dial right or
 left sends Down or Up by default, and pressing it sends Meta+Backspace. All six
