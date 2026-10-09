@@ -7,6 +7,7 @@ import sys
 import tempfile
 from urllib.parse import urlsplit
 from doubao_input.i18n import LANGUAGES, tr
+from doubao_input.trigger.backend import trigger_backend
 from doubao_input.recognition_providers import RECOGNITION_PROVIDER_IDS
 
 KEY_CHOICES = {"Disabled": 0, "Fn": 464, "Ctrl": 29, "Shift": 42,
@@ -209,8 +210,8 @@ WAVEFORM_STYLES = ("bars", "waves", "ripples", "basketball")
 class Settings:
     version: int = 1
     language: str = "en"
-    doubao_key: int = 464
-    doubao_modifiers: tuple[int, ...] = ()
+    doubao_key: int = 39
+    doubao_modifiers: tuple[int, ...] = (29,)
     hold_ms: int = 350
     double_ms: int = 300
     double_enter: bool = True
@@ -309,10 +310,14 @@ class Settings:
             raise ValueError(tr("Switch settings must be boolean", "开关设置必须为布尔值"))
 
     @classmethod
+    def desktop_defaults(cls):
+        return cls()
+
+    @classmethod
     def load(cls):
         path = config_dir() / "doubao-say" / "settings.json"
         if not path.exists():
-            return cls()
+            return cls.desktop_defaults()
         values = json.loads(path.read_text())
         # Removed experimental restoration setting; accept old files once and
         # omit the field on their next save.
@@ -338,6 +343,9 @@ class Settings:
         # instead of discarding the entire file and falling back to defaults.
         known = {item.name for item in fields(cls)}
         values = {key: value for key, value in values.items() if key in known}
+        # Older key-only settings implied no modifiers. Preserve those choices.
+        if "doubao_key" in values and "doubao_modifiers" not in values:
+            values["doubao_modifiers"] = ()
         defaults = cls()
         for prefix in ("doubao", "vibekey_record", "vibekey_enter",
                        "vibekey_cancel", "vibekey_clockwise",
@@ -352,6 +360,15 @@ class Settings:
                               canonical_shortcut(saved_key, saved_modifiers))
             values[key_field] = key
             values[modifiers_field] = modifiers
+        # Retained evdev shortcuts may not be supported by the portal (including
+        # Fn and modifier-only presets). Migrate in memory before startup so an
+        # unsupported old binding cannot prevent the application from opening.
+        if trigger_backend() == "portal" and values["doubao_key"] != 0:
+            from doubao_input.trigger.portal import preferred_trigger
+            try:
+                preferred_trigger(values["doubao_key"], values["doubao_modifiers"])
+            except ValueError:
+                values.update(doubao_key=39, doubao_modifiers=(29,))
         data = cls(**values)
         data.validate()
         return data
@@ -390,11 +407,13 @@ def desktop_entry(background=False):
             "Exec=" + " ".join(map(quote, args)) + "\nIcon=" + str(Path(__file__).parent / "ui/bunspeak.svg") + "\n")
 
 
-def install_desktop():
+def install_desktop(*, portal=False):
     data = Path(os.environ.get("XDG_DATA_HOME", Path.home() / ".local/share"))
-    path = data / "applications" / "doubao-say.desktop"
+    # GNOME GlobalShortcuts requires a valid reverse-DNS application ID.
+    name = "md.lifeos.DoubaoSay.desktop" if portal else "doubao-say.desktop"
+    path = data / "applications" / name
     path.parent.mkdir(parents=True, exist_ok=True)
-    path.write_text(desktop_entry())
+    path.write_text(desktop_entry() + ("NoDisplay=true\n" if portal else ""))
     return path
 
 
