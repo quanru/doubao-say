@@ -3,6 +3,7 @@
 Uses a synthetic portal over real Gio/D-Bus. No microphone or keyboard input.
 """
 import os
+import tempfile
 from unittest.mock import Mock, patch
 from gi.repository import Gio, GLib
 from doubao_input.settings import Settings
@@ -104,7 +105,8 @@ def done():
     return False
 
 # The transport must work even when raw device access is forbidden.
-with patch.dict(os.environ, {'DOUBAO_SAY_TRIGGER_BACKEND': 'portal'}), \
+with tempfile.TemporaryDirectory(prefix='doubao-portal-protocol-') as data_home, \
+     patch.dict(os.environ, {'DOUBAO_SAY_TRIGGER_BACKEND': 'portal', 'XDG_DATA_HOME': data_home}), \
      patch('doubao_input.trigger.reader.EvdevPtt', side_effect=AssertionError('Raw input accessed')):
     try:
         control.configure(Settings(doubao_key=66, doubao_modifiers=(29,)))

@@ -48,10 +48,16 @@ def tap(value):
     key(value, False)
 
 def screenshot(name):
-    bus.call_sync('org.gnome.Shell.Screenshot', '/org/gnome/Shell/Screenshot',
+    # Window actors can be registered before their first compositor frame.
+    deadline = time.monotonic() + .35
+    while time.monotonic() < deadline:
+        pump()
+        time.sleep(.01)
+    result = bus.call_sync('org.gnome.Shell.Screenshot', '/org/gnome/Shell/Screenshot',
         'org.gnome.Shell.Screenshot', 'Screenshot',
         GLib.Variant('(bbs)', (False, False, str(out / name))), None,
-        Gio.DBusCallFlags.NONE, 10000, None)
+        Gio.DBusCallFlags.NONE, 10000, None).unpack()
+    assert result[0] and (out / name).is_file(), result
 
 def portal_dialog_visible():
     titles = shell('JSON.stringify(global.get_window_actors().map(a=>a.meta_window.get_title()))')
@@ -144,6 +150,11 @@ try:
         'scope': 'real GNOME/GTK trigger integration; no microphone, ASR or text injection',
     }, indent=2))
     print('PASS: real GNOME permission dialog, hold/release, consumption and cleanup')
+except Exception as exc:
+    screenshot('failure.png')
+    (out / 'failure.txt').write_text(str(exc) + '\n' + shell(
+        'JSON.stringify(global.get_window_actors().map(a=>a.meta_window.get_title()))'))
+    raise
 finally:
     control.close()
     window.destroy()
