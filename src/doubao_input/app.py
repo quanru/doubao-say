@@ -102,7 +102,7 @@ class DoubaoInputApp(Gtk.Application):
             self.settings = Settings.load()
         except (ValueError, TypeError, OSError):
             logger.exception("Invalid settings; using defaults without overwriting the file")
-            self.settings = Settings()
+            self.settings = Settings.desktop_defaults()
         set_language(self.settings.language)
 
     @property

@@ -189,7 +189,9 @@ app with no automatic clipboard fallback. Check for partial input before retryin
 
 ## Gestures
 
-Default key: **Fn**. Change it to Ctrl, Shift, Alt, Meta, F8, F9, or Disabled.
+New installations default to **Ctrl+;** on every desktop. GNOME uses the desktop
+portal; other desktops use evdev. Existing saved shortcuts are retained, except
+that GNOME adapts unsupported saved evdev shortcuts (including Fn and modifier-only keys) to Ctrl+;.
 Modifier keys are logical choices: either the left or right physical key works.
 Your keyboard must report Fn as a Linux key; otherwise choose another key.
 
@@ -283,7 +285,44 @@ The update check sends a standard HTTPS request to GitHub at most once per day;
 GitHub receives the usual connection metadata. The cached release tag and check
 time contain no account, transcript or device identifier.
 
-Keyboard access and `/dev/uinput` permissions are required. Do not run the app as root.
+The default evdev trigger needs keyboard-device access. Adding your account to the
+`input` group grants other processes running with that group access to keyboard
+input too, including sensitive keystrokes; it is not an app-specific permission.
+Do not run the app as root.
+
+### Permission-scoped shortcuts on GNOME
+
+On GNOME, launch Doubao Say normally from its icon or existing command. It
+selects the GlobalShortcuts portal automatically and requests **Ctrl+;** on a
+fresh installation on every desktop. Unsupported saved evdev shortcuts, including Fn and modifier-only keys, also become Ctrl+; on GNOME;
+portal-supported shortcuts and Disabled are preserved. No environment variable or
+manual shortcut selection is needed. Approve the desktop's shortcut dialog.
+Other desktops retain their existing evdev behavior. For explicit troubleshooting
+only, `DOUBAO_SAY_TRIGGER_BACKEND=portal` or `evdev` overrides automatic selection.
+Portal mode installs its `md.lifeos.DoubaoSay.desktop` identity launcher under the
+XDG applications directory and registers that ID before requesting authorization.
+Approve the shortcut in the desktop's GlobalShortcuts dialog. The desktop may
+change the requested shortcut; its dialog is authoritative. This mode receives
+only activation/deactivation of the authorized dictation action, without opening
+`/dev/input` or requiring membership in `input`. Hold-to-talk, tap-to-toggle and
+double-tap use the existing gesture timing. Denial, timeout or a missing portal
+stops the listener without silently falling back to evdev. Restart the app to
+retry authorization.
+
+Portal mode does not support Fn/modifier-only shortcuts or raw key recording;
+supported keys are semicolon, F8, F9, Space, Return or Tab with optional Ctrl/Shift/Alt/Meta.
+Global Esc cancellation is not
+registered in this mode, so use the control center or tray's Cancel action.
+Vibekey is a separate, optional device listener and retains its own permissions.
+Input delivery is separate: `/dev/uinput` access may still be needed for injected
+shortcuts/paste. This change removes broad **keyboard reading** from the dictation
+trigger, not every device permission from the app. It does not remove existing group
+memberships or change system permissions.
+
+The backend requires an implementation of `org.freedesktop.portal.GlobalShortcuts`.
+GNOME backend availability varies by version. Full GNOME application support
+(including overlay and text delivery) is not established by this trigger feature.
+To explicitly retain raw keyboard behavior on GNOME, set the override to `evdev`.
 Vibekey support is optional and off by default. When enabled in Settings, its three
 transmitter buttons map to recording, Enter and cancel. Turning the dial right or
 left sends Down or Up by default, and pressing it sends Meta+Backspace. All six
@@ -435,7 +474,7 @@ validate package metadata and scan for secrets. The current whole-package branch
 coverage floor is 55%; desktop UI, WebKit and real-device paths remain included
 in the denominator.
 
-The current release version is **1.3.1**. A `v1.3.1` tag must match every embedded
+The current release version is **1.4.0**. A `v1.4.0` tag must match every embedded
 version before CI can publish. Tag releases rebuild both offline app and Omarchy
 plugin archives for Python 3.11–3.14 and attach SHA-256 checksums. A manually started
 release workflow builds artifacts for inspection but does not publish them. Real
