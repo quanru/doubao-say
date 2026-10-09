@@ -62,7 +62,7 @@ def screenshot(name):
 def portal_dialog_visible():
     titles = shell('JSON.stringify(global.get_window_actors().map(a=>a.meta_window.get_title()))')
     focused = shell('JSON.stringify(global.display.focus_window?.get_title() ?? "")')
-    return 'Add Keyboard Shortcuts' in titles and json.loads(focused) == 'Add Keyboard Shortcuts' 
+    return 'Add Keyboard Shortcuts' in titles and json.loads(focused) == 'Add Keyboard Shortcuts'
 
 application = Gtk.Application(application_id='md.lifeos.DoubaoSay')
 assert application.register(None)
