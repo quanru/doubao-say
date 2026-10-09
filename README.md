@@ -292,10 +292,9 @@ Do not run the app as root.
 
 Select **F8**, **F9**, Space, Return or Tab (optionally Ctrl/Shift/Alt/Meta) as the
 trigger in Settings, then start with `DOUBAO_SAY_TRIGGER_BACKEND=portal doubao-say`.
-Install the `doubao-say.desktop` launcher first (for source installs, run
-`python -c "from doubao_input.settings import install_desktop; install_desktop()"`
-with the application environment). Approve the shortcut in the desktop's
-GlobalShortcuts dialog. The desktop may
+Portal mode installs its `md.lifeos.DoubaoSay.desktop` identity launcher under the
+XDG applications directory and registers that ID before requesting authorization.
+Approve the shortcut in the desktop's GlobalShortcuts dialog. The desktop may
 change the requested shortcut; its dialog is authoritative. This mode receives
 only activation/deactivation of the authorized dictation action, without opening
 `/dev/input` or requiring membership in `input`. Hold-to-talk, tap-to-toggle and

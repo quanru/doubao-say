@@ -7,17 +7,12 @@ id >> /evidence/versions.txt
 gsettings set org.gnome.desktop.interface enable-animations false
 gsettings set org.gnome.desktop.session idle-delay 0
 gsettings set org.gnome.desktop.screensaver lock-enabled false
+gsettings set org.gnome.shell welcome-dialog-last-shown-version '99.0'
 mkdir -p "$HOME/.config/xdg-desktop-portal" "$HOME/.local/share/applications"
 cat > "$HOME/.config/xdg-desktop-portal/portals.conf" <<'EOF'
 [preferred]
 default=gnome;gtk;
 org.freedesktop.impl.portal.GlobalShortcuts=gnome
-EOF
-cat > "$HOME/.local/share/applications/doubao-say.desktop" <<'EOF'
-[Desktop Entry]
-Name=Doubao Say
-Type=Application
-Exec=python3 /workspace/tests/gnome/acceptance.py
 EOF
 gnome-shell --headless --wayland --unsafe-mode --virtual-monitor=1280x800 > /evidence/gnome-shell.txt 2>&1 &
 shell_pid=$!

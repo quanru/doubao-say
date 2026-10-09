@@ -110,6 +110,8 @@ class GioPortal:
     """Async D-Bus requests on GTK's GLib context, with bounded pending requests."""
     def __init__(self, signal, error):
         from gi.repository import Gio, GLib
+        from doubao_input.settings import install_desktop
+        install_desktop(portal=True)
         self._gio, self._glib = Gio, GLib
         # Registration must precede every other portal call on this peer. GTK
         # can already have used its shared connection, so own a private peer.
@@ -150,10 +152,10 @@ class GioPortal:
                     self._registered = True
                     self.request(method, options, callback)
                 except Exception as exc:
-                    self._error(tr('Could not register Doubao Say with the desktop portal. Install its desktop launcher first: ',
-                                   '无法向桌面 Portal 注册 Doubao Say，请先安装桌面启动器：') + str(exc))
+                    self._error(tr('Could not register Doubao Say with the desktop portal: ',
+                                   '无法向桌面 Portal 注册 Doubao Say：') + str(exc))
             self._bus.call(DESTINATION, PATH, 'org.freedesktop.host.portal.Registry',
-                'Register', V('(sa{sv})', ('doubao-say', {})), None,
+                'Register', V('(sa{sv})', ('md.lifeos.DoubaoSay', {})), None,
                 self._gio.DBusCallFlags.NONE, 10000, None, registered)
             return
         token = 'doubao_' + uuid.uuid4().hex

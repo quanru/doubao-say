@@ -4,7 +4,7 @@ import json
 from pathlib import Path
 import tempfile
 from unittest.mock import patch
-from doubao_input.settings import Settings, desktop_entry, trigger_shortcut_display
+from doubao_input.settings import Settings, desktop_entry, install_desktop, trigger_shortcut_display
 from doubao_input.i18n import tr, set_language
 from doubao_input.settings import (DEFAULT_POLISH_PROMPT_EN, DEFAULT_POLISH_PROMPT_ZH,
                                    FORMATTING_POLISH_PROMPT, PREVIOUS_POLISH_PROMPT_ZH,
@@ -186,6 +186,17 @@ class SettingsTest(unittest.TestCase):
                         "vibekey_press_modifiers": (126,)}):
             with self.subTest(values=values), self.assertRaises(ValueError):
                 Settings(**values).validate()
+
+    def test_portal_identity_launcher_preserves_existing_install_entry(self):
+        with tempfile.TemporaryDirectory() as root, patch.dict("os.environ", {"XDG_DATA_HOME": root}):
+            legacy = Path(root) / "applications/doubao-say.desktop"
+            legacy.parent.mkdir()
+            legacy.write_text("Existing managed launcher")
+            registered = install_desktop(portal=True)
+            self.assertEqual(registered.name, "md.lifeos.DoubaoSay.desktop")
+            self.assertIn("Name=Doubao Say", registered.read_text())
+            self.assertIn("NoDisplay=true", registered.read_text())
+            self.assertEqual(legacy.read_text(), "Existing managed launcher")
 
     def test_launcher(self):
         self.assertIn("--background", desktop_entry(True))

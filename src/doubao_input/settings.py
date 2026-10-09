@@ -390,11 +390,13 @@ def desktop_entry(background=False):
             "Exec=" + " ".join(map(quote, args)) + "\nIcon=" + str(Path(__file__).parent / "ui/bunspeak.svg") + "\n")
 
 
-def install_desktop():
+def install_desktop(*, portal=False):
     data = Path(os.environ.get("XDG_DATA_HOME", Path.home() / ".local/share"))
-    path = data / "applications" / "doubao-say.desktop"
+    # GNOME GlobalShortcuts requires a valid reverse-DNS application ID.
+    name = "md.lifeos.DoubaoSay.desktop" if portal else "doubao-say.desktop"
+    path = data / "applications" / name
     path.parent.mkdir(parents=True, exist_ok=True)
-    path.write_text(desktop_entry())
+    path.write_text(desktop_entry() + ("NoDisplay=true\n" if portal else ""))
     return path
 
 

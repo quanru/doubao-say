@@ -39,7 +39,7 @@ def close_session(conn, sender, path, interface, method, params, invocation):
 
 def method(conn, sender, path, interface, name, params, invocation):
     if name == 'Register':
-        assert params.unpack()[0] == 'doubao-say'
+        assert params.unpack()[0] == 'md.lifeos.DoubaoSay'
         invocation.return_value(None)
         return
     values = params.unpack()
