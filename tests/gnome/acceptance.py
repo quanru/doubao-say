@@ -106,7 +106,7 @@ control = TriggerController(TriggerReader, GLib.timeout_add, GLib.source_remove,
     error=lambda message: errors.append(message))
 assert 'DOUBAO_SAY_TRIGGER_BACKEND' not in os.environ
 settings = Settings.load()
-assert (settings.doubao_key, settings.doubao_modifiers) == (66, (29,))
+assert (settings.doubao_key, settings.doubao_modifiers) == (39, (29,))
 try:
     control.configure(settings)
     wait_for(portal_dialog_visible, 'GNOME shortcut permission dialog')
@@ -129,20 +129,20 @@ try:
     wait_for(lambda: not portal_dialog_visible(), 'permission dialog closed')
     key_events.clear()
     key(0xffe3, True)  # Control_L
-    key(0xffc5, True)  # F8
+    key(0x3b, True)  # semicolon
     wait_for(lambda: events == ['start'], 'hold starts recording')
     screenshot('04-hold.png')
-    key(0xffc5, False)
+    key(0x3b, False)
     key(0xffe3, False)
     wait_for(lambda: events == ['start', 'stop'], 'release stops recording')
-    assert 0xffc5 not in key_events, f'F8 leaked to focused target: {key_events}'
+    assert 0x3b not in key_events, f'semicolon leaked to focused target: {key_events}'
     assert not errors, errors
     screenshot('05-after.png')
     control.close()
     key(0xffe3, True)
-    tap(0xffc5)
+    tap(0x3b)
     key(0xffe3, False)
-    wait_for(lambda: 0xffc5 in key_events, 'shortcut released after shutdown')
+    wait_for(lambda: 0x3b in key_events, 'shortcut released after shutdown')
     assert events == ['start', 'stop'], events
     (out / 'result.json').write_text(json.dumps({
         'passed': True, 'raw_device_access': False, 'events': events,

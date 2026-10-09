@@ -28,7 +28,7 @@ class TriggerControllerTest(TestCase):
             toggle=self.toggle, enter=self.enter, cancel_input=self.cancel,
             debug_edge=Mock(return_value=False), error=self.error, shortcut=self.shortcut,
             is_recording=lambda: self.recording_active)
-        self.settings = Settings(doubao_key=100)
+        self.settings = Settings(doubao_key=100, doubao_modifiers=())
         self.control.configure(self.settings)
 
     def edge(self, code, pressed):

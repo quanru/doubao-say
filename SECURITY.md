@@ -1,8 +1,9 @@
 # Security and privacy
 
 The default backend uses an unofficial Doubao web protocol; the optional backend
-uses the official Volcengine Seed ASR API with a user-supplied key. The app also
-requests broad keyboard device access for global triggers. Use a normal user,
+uses the official Volcengine Seed ASR API with a user-supplied key. On GNOME the app requests a specific GlobalShortcuts action through the desktop
+portal. Other desktops use evdev, which needs broad keyboard device read access.
+Vibekey and virtual-keyboard text delivery have separate device permissions. Use a normal user,
 never root. Review input
 group membership and `/dev/uinput` permissions before installation.
 

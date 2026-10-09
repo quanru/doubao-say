@@ -9,11 +9,11 @@ INTERFACE = 'org.freedesktop.portal.GlobalShortcuts'
 
 def preferred_trigger(key, modifiers):
     # XDG shortcut identifiers are XKB keysyms, not evdev key codes.
-    symbols = {66: 'F8', 67: 'F9', 57: 'space', 28: 'Return', 15: 'Tab'}
+    symbols = {39: 'semicolon', 66: 'F8', 67: 'F9', 57: 'space', 28: 'Return', 15: 'Tab'}
     names = {29: 'CTRL', 42: 'SHIFT', 56: 'ALT', 125: 'LOGO'}
     if key not in symbols or any(code not in names for code in modifiers):
-        raise ValueError(tr('Portal mode needs F8, F9, Space, Return or Tab, optionally with modifiers. Choose a preset shortcut.',
-                            'Portal 模式请使用 F8、F9、空格、回车或 Tab，可搭配修饰键；请先选择预设快捷键。'))
+        raise ValueError(tr('Portal mode needs semicolon, F8, F9, Space, Return or Tab, optionally with modifiers. Choose a preset shortcut.',
+                            'Portal 模式请使用 分号、F8、F9、空格、回车或 Tab，可搭配修饰键；请先选择预设快捷键。'))
     return '+'.join([*(names[code] for code in modifiers), symbols[key]])
 
 

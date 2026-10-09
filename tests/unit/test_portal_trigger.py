@@ -31,13 +31,13 @@ class PortalSelectionTest(TestCase):
     def test_normal_gnome_launch_defaults_and_legacy_fn_migration(self):
         with tempfile.TemporaryDirectory() as root, patch.dict(os.environ, {
                 "XDG_CURRENT_DESKTOP": "GNOME", "XDG_CONFIG_HOME": root}, clear=True):
-            self.assertEqual((Settings.load().doubao_key, Settings.load().doubao_modifiers), (66, (29,)))
+            self.assertEqual((Settings.load().doubao_key, Settings.load().doubao_modifiers), (39, (29,)))
             path = Path(root) / "doubao-say/settings.json"
             path.parent.mkdir()
             legacy = '{"doubao_key": 464, "doubao_modifiers": []}'
             path.write_text(legacy)
             settings = Settings.load()
-            self.assertEqual((settings.doubao_key, settings.doubao_modifiers), (66, (29,)))
+            self.assertEqual((settings.doubao_key, settings.doubao_modifiers), (39, (29,)))
             self.assertEqual(path.read_text(), legacy)
             for key in (0, 67):
                 path.write_text(json.dumps({"doubao_key": key, "doubao_modifiers": []}))
@@ -108,5 +108,6 @@ class PortalEdgesTest(TestCase):
 
     def test_supported_xdg_syntax_and_unsupported_fn(self):
         self.assertEqual(preferred_trigger(66, (29, 42)), 'CTRL+SHIFT+F8')
+        self.assertEqual(preferred_trigger(39, (29,)), 'CTRL+semicolon')
         with self.assertRaises(ValueError):
             preferred_trigger(464, ())

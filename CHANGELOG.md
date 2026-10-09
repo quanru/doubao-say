@@ -1,5 +1,12 @@
 # Changelog
 
+## 1.4.0
+
+- Automatically use permission-scoped GlobalShortcuts on GNOME without a special launch command or raw keyboard read permission for the dictation trigger.
+- Default new installations on every desktop to Ctrl+semicolon. Preserve saved shortcuts and adapt the unsupported legacy Fn default on GNOME.
+- Register a valid GTK application identity before binding, retry rejected authorization, consume held shortcuts, and release sessions cleanly without an evdev fallback.
+- Add real GNOME 49 Wayland CI for authorization, normal launch, hold/release and cleanup, with regression tests for backend selection and settings migration.
+
 ## 1.3.1
 
 - Fixed clipboard restoration after dictation: prefer plain text when the original clipboard offers both plain text and HTML, preventing HTML markup from appearing in later text pastes. Image and file payloads retain priority; HTML-only clipboards still use HTML. Added Wayland and X11 regression coverage.

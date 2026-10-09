@@ -189,8 +189,9 @@ app with no automatic clipboard fallback. Check for partial input before retryin
 
 ## Gestures
 
-GNOME defaults to **Ctrl+F8** through the desktop portal. Other desktops default
-to **Fn**, with Ctrl, Shift, Alt, Meta, F8, F9, or Disabled as alternatives.
+New installations default to **Ctrl+;** on every desktop. GNOME uses the desktop
+portal; other desktops use evdev. Existing saved shortcuts are retained, except
+that GNOME adapts the unsupported legacy Fn default to Ctrl+;.
 Modifier keys are logical choices: either the left or right physical key works.
 Your keyboard must report Fn as a Linux key; otherwise choose another key.
 
@@ -292,8 +293,8 @@ Do not run the app as root.
 ### Permission-scoped shortcuts on GNOME
 
 On GNOME, launch Doubao Say normally from its icon or existing command. It
-selects the GlobalShortcuts portal automatically and requests **Ctrl+F8** on a
-fresh installation. The old built-in Fn default also becomes Ctrl+F8 on GNOME;
+selects the GlobalShortcuts portal automatically and requests **Ctrl+;** on a
+fresh installation on every desktop. The old built-in Fn default also becomes Ctrl+; on GNOME;
 other saved shortcuts and Disabled are preserved. No environment variable or
 manual shortcut selection is needed. Approve the desktop's shortcut dialog.
 Other desktops retain their existing evdev behavior. For explicit troubleshooting
@@ -309,7 +310,7 @@ stops the listener without silently falling back to evdev. Restart the app to
 retry authorization.
 
 Portal mode does not support Fn/modifier-only shortcuts or raw key recording;
-supported keys are F8, F9, Space, Return or Tab with optional Ctrl/Shift/Alt/Meta.
+supported keys are semicolon, F8, F9, Space, Return or Tab with optional Ctrl/Shift/Alt/Meta.
 Global Esc cancellation is not
 registered in this mode, so use the control center or tray's Cancel action.
 Vibekey is a separate, optional device listener and retains its own permissions.
@@ -473,7 +474,7 @@ validate package metadata and scan for secrets. The current whole-package branch
 coverage floor is 55%; desktop UI, WebKit and real-device paths remain included
 in the denominator.
 
-The current release version is **1.3.1**. A `v1.3.1` tag must match every embedded
+The current release version is **1.4.0**. A `v1.4.0` tag must match every embedded
 version before CI can publish. Tag releases rebuild both offline app and Omarchy
 plugin archives for Python 3.11–3.14 and attach SHA-256 checksums. A manually started
 release workflow builds artifacts for inspection but does not publish them. Real

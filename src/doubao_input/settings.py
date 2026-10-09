@@ -210,8 +210,8 @@ WAVEFORM_STYLES = ("bars", "waves", "ripples", "basketball")
 class Settings:
     version: int = 1
     language: str = "en"
-    doubao_key: int = 464
-    doubao_modifiers: tuple[int, ...] = ()
+    doubao_key: int = 39
+    doubao_modifiers: tuple[int, ...] = (29,)
     hold_ms: int = 350
     double_ms: int = 300
     double_enter: bool = True
@@ -311,7 +311,7 @@ class Settings:
 
     @classmethod
     def desktop_defaults(cls):
-        return cls(doubao_key=66, doubao_modifiers=(29,)) if trigger_backend() == "portal" else cls()
+        return cls()
 
     @classmethod
     def load(cls):
@@ -343,6 +343,9 @@ class Settings:
         # instead of discarding the entire file and falling back to defaults.
         known = {item.name for item in fields(cls)}
         values = {key: value for key, value in values.items() if key in known}
+        # Older key-only settings implied no modifiers. Preserve those choices.
+        if "doubao_key" in values and "doubao_modifiers" not in values:
+            values["doubao_modifiers"] = ()
         defaults = cls()
         for prefix in ("doubao", "vibekey_record", "vibekey_enter",
                        "vibekey_cancel", "vibekey_clockwise",
@@ -358,9 +361,9 @@ class Settings:
             values[key_field] = key
             values[modifiers_field] = modifiers
         # Fn is the legacy built-in default, not a portal shortcut. Migrate
-        # it in memory so normal GNOME launch can ask for Ctrl+F8 immediately.
+        # it in memory so normal GNOME launch can ask for Ctrl+semicolon immediately.
         if trigger_backend() == "portal" and values.get("doubao_key") == 464 and not values.get("doubao_modifiers"):
-            values.update(doubao_key=66, doubao_modifiers=(29,))
+            values.update(doubao_key=39, doubao_modifiers=(29,))
         data = cls(**values)
         data.validate()
         return data
