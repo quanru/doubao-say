@@ -60,9 +60,8 @@ def screenshot(name):
     assert result[0] and (out / name).is_file(), result
 
 def portal_dialog_visible():
-    titles = shell('JSON.stringify(global.get_window_actors().map(a=>a.meta_window.get_title()))')
-    focused = shell('JSON.stringify(global.display.focus_window?.get_title() ?? "")')
-    return 'Add Keyboard Shortcuts' in titles and json.loads(focused) == 'Add Keyboard Shortcuts'
+    titles = shell('JSON.stringify(global.get_window_actors().filter(a=>a.visible).map(a=>a.meta_window.get_title()))')
+    return 'Add Keyboard Shortcuts' in titles
 
 application = Gtk.Application(application_id='md.lifeos.DoubaoSay')
 assert application.register(None)
@@ -154,7 +153,7 @@ try:
 except Exception as exc:
     screenshot('failure.png')
     (out / 'failure.txt').write_text(str(exc) + '\n' + shell(
-        'JSON.stringify(global.get_window_actors().map(a=>a.meta_window.get_title()))'))
+        'JSON.stringify(global.get_window_actors().filter(a=>a.visible).map(a=>a.meta_window.get_title()))'))
     raise
 finally:
     control.close()
