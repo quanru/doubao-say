@@ -1,10 +1,49 @@
 import os
+import json
+from pathlib import Path
+import tempfile
 from unittest import TestCase
 from unittest.mock import Mock, patch
 from doubao_input.trigger.reader import TriggerReader
+from doubao_input.trigger.backend import trigger_backend
+from doubao_input.settings import Settings
 
 
 class PortalSelectionTest(TestCase):
+    def test_desktop_detection_and_explicit_overrides(self):
+        cases = [({}, "evdev"), ({"XDG_CURRENT_DESKTOP": "GNOME"}, "portal"),
+                 ({"XDG_CURRENT_DESKTOP": "ubuntu:GNOME"}, "portal"),
+                 ({"XDG_SESSION_DESKTOP": "gnome"}, "portal"),
+                 ({"XDG_CURRENT_DESKTOP": "Hyprland"}, "evdev"),
+                 ({"XDG_CURRENT_DESKTOP": "GNOME", "DOUBAO_SAY_TRIGGER_BACKEND": "evdev"}, "evdev"),
+                 ({"XDG_CURRENT_DESKTOP": "KDE", "DOUBAO_SAY_TRIGGER_BACKEND": "portal"}, "portal")]
+        for environment, expected in cases:
+            with self.subTest(environment=environment), patch.dict(os.environ, environment, clear=True):
+                self.assertEqual(trigger_backend(), expected)
+
+    @patch.dict(os.environ, {"XDG_CURRENT_DESKTOP": "GNOME"}, clear=True)
+    @patch('doubao_input.trigger.reader.EvdevPtt')
+    def test_normal_gnome_launch_never_constructs_raw_reader(self, raw):
+        reader = TriggerReader(Mock(), Mock(), shortcut=(66, (29,)))
+        self.assertIsInstance(reader._keyboard, PortalTrigger)
+        raw.assert_not_called()
+
+    def test_normal_gnome_launch_defaults_and_legacy_fn_migration(self):
+        with tempfile.TemporaryDirectory() as root, patch.dict(os.environ, {
+                "XDG_CURRENT_DESKTOP": "GNOME", "XDG_CONFIG_HOME": root}, clear=True):
+            self.assertEqual((Settings.load().doubao_key, Settings.load().doubao_modifiers), (66, (29,)))
+            path = Path(root) / "doubao-say/settings.json"
+            path.parent.mkdir()
+            legacy = '{"doubao_key": 464, "doubao_modifiers": []}'
+            path.write_text(legacy)
+            settings = Settings.load()
+            self.assertEqual((settings.doubao_key, settings.doubao_modifiers), (66, (29,)))
+            self.assertEqual(path.read_text(), legacy)
+            for key in (0, 67):
+                path.write_text(json.dumps({"doubao_key": key, "doubao_modifiers": []}))
+                settings = Settings.load()
+                self.assertEqual((settings.doubao_key, settings.doubao_modifiers), (key, ()))
+
     @patch.dict(os.environ, {'DOUBAO_SAY_TRIGGER_BACKEND': 'portal'})
     @patch('doubao_input.trigger.reader.EvdevPtt')
     def test_portal_mode_never_constructs_raw_keyboard_reader(self, raw):

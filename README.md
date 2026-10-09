@@ -189,7 +189,8 @@ app with no automatic clipboard fallback. Check for partial input before retryin
 
 ## Gestures
 
-Default key: **Fn**. Change it to Ctrl, Shift, Alt, Meta, F8, F9, or Disabled.
+GNOME defaults to **Ctrl+F8** through the desktop portal. Other desktops default
+to **Fn**, with Ctrl, Shift, Alt, Meta, F8, F9, or Disabled as alternatives.
 Modifier keys are logical choices: either the left or right physical key works.
 Your keyboard must report Fn as a Linux key; otherwise choose another key.
 
@@ -288,10 +289,15 @@ The default evdev trigger needs keyboard-device access. Adding your account to t
 input too, including sensitive keystrokes; it is not an app-specific permission.
 Do not run the app as root.
 
-### Permission-scoped shortcut mode (opt-in)
+### Permission-scoped shortcuts on GNOME
 
-Select **F8**, **F9**, Space, Return or Tab (optionally Ctrl/Shift/Alt/Meta) as the
-trigger in Settings, then start with `DOUBAO_SAY_TRIGGER_BACKEND=portal doubao-say`.
+On GNOME, launch Doubao Say normally from its icon or existing command. It
+selects the GlobalShortcuts portal automatically and requests **Ctrl+F8** on a
+fresh installation. The old built-in Fn default also becomes Ctrl+F8 on GNOME;
+other saved shortcuts and Disabled are preserved. No environment variable or
+manual shortcut selection is needed. Approve the desktop's shortcut dialog.
+Other desktops retain their existing evdev behavior. For explicit troubleshooting
+only, `DOUBAO_SAY_TRIGGER_BACKEND=portal` or `evdev` overrides automatic selection.
 Portal mode installs its `md.lifeos.DoubaoSay.desktop` identity launcher under the
 XDG applications directory and registers that ID before requesting authorization.
 Approve the shortcut in the desktop's GlobalShortcuts dialog. The desktop may
@@ -303,7 +309,8 @@ stops the listener without silently falling back to evdev. Restart the app to
 retry authorization.
 
 Portal mode does not support Fn/modifier-only shortcuts or raw key recording;
-choose a supported preset before starting it. Global Esc cancellation is not
+supported keys are F8, F9, Space, Return or Tab with optional Ctrl/Shift/Alt/Meta.
+Global Esc cancellation is not
 registered in this mode, so use the control center or tray's Cancel action.
 Vibekey is a separate, optional device listener and retains its own permissions.
 Input delivery is separate: `/dev/uinput` access may still be needed for injected
@@ -314,7 +321,7 @@ memberships or change system permissions.
 The backend requires an implementation of `org.freedesktop.portal.GlobalShortcuts`.
 GNOME backend availability varies by version. Full GNOME application support
 (including overlay and text delivery) is not established by this trigger feature.
-To retain the existing behavior, omit the variable or set it to `evdev`.
+To explicitly retain raw keyboard behavior on GNOME, set the override to `evdev`.
 Vibekey support is optional and off by default. When enabled in Settings, its three
 transmitter buttons map to recording, Enter and cancel. Turning the dial right or
 left sends Down or Up by default, and pressing it sends Meta+Backspace. All six

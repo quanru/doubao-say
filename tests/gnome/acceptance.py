@@ -104,8 +104,9 @@ control = TriggerController(TriggerReader, GLib.timeout_add, GLib.source_remove,
     toggle=lambda: events.append('toggle'), enter=lambda: events.append('enter'),
     cancel_input=lambda: events.append('cancel'), debug_edge=lambda *a: False,
     error=lambda message: errors.append(message))
-os.environ['DOUBAO_SAY_TRIGGER_BACKEND'] = 'portal'
-settings = Settings(doubao_key=66, doubao_modifiers=(29,))
+assert 'DOUBAO_SAY_TRIGGER_BACKEND' not in os.environ
+settings = Settings.load()
+assert (settings.doubao_key, settings.doubao_modifiers) == (66, (29,))
 try:
     control.configure(settings)
     wait_for(portal_dialog_visible, 'GNOME shortcut permission dialog')
@@ -145,6 +146,7 @@ try:
     assert events == ['start', 'stop'], events
     (out / 'result.json').write_text(json.dumps({
         'passed': True, 'raw_device_access': False, 'events': events,
+        'automatic_backend': True, 'custom_launch_environment': False,
         'portal': 'real GNOME GlobalShortcuts', 'authorization': ['cancel', 'add'],
         'held_shortcut_consumed': True, 'shortcut_released_after_close': True,
         'scope': 'real GNOME/GTK trigger integration; no microphone, ASR or text injection',

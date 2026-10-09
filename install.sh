@@ -140,7 +140,8 @@ fi
 
 if ! id -nG | tr ' ' '\n' | grep -qx input; then
   printf '%s\n' \
-    'ACTION REQUIRED: your account is not in the input group.' \
+    'OPTIONAL DEVICE SETUP: evdev triggers or virtual-keyboard paste may need input-group access.' \
+    'GNOME Portal shortcuts do not require raw keyboard access.' \
     "Run: sudo usermod -aG input $(id -un)" \
     'Then log out and back in. This is intentionally not changed without your approval.'
 fi

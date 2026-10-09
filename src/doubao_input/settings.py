@@ -7,6 +7,7 @@ import sys
 import tempfile
 from urllib.parse import urlsplit
 from doubao_input.i18n import LANGUAGES, tr
+from doubao_input.trigger.backend import trigger_backend
 from doubao_input.recognition_providers import RECOGNITION_PROVIDER_IDS
 
 KEY_CHOICES = {"Disabled": 0, "Fn": 464, "Ctrl": 29, "Shift": 42,
@@ -309,10 +310,14 @@ class Settings:
             raise ValueError(tr("Switch settings must be boolean", "开关设置必须为布尔值"))
 
     @classmethod
+    def desktop_defaults(cls):
+        return cls(doubao_key=66, doubao_modifiers=(29,)) if trigger_backend() == "portal" else cls()
+
+    @classmethod
     def load(cls):
         path = config_dir() / "doubao-say" / "settings.json"
         if not path.exists():
-            return cls()
+            return cls.desktop_defaults()
         values = json.loads(path.read_text())
         # Removed experimental restoration setting; accept old files once and
         # omit the field on their next save.
@@ -352,6 +357,10 @@ class Settings:
                               canonical_shortcut(saved_key, saved_modifiers))
             values[key_field] = key
             values[modifiers_field] = modifiers
+        # Fn is the legacy built-in default, not a portal shortcut. Migrate
+        # it in memory so normal GNOME launch can ask for Ctrl+F8 immediately.
+        if trigger_backend() == "portal" and values.get("doubao_key") == 464 and not values.get("doubao_modifiers"):
+            values.update(doubao_key=66, doubao_modifiers=(29,))
         data = cls(**values)
         data.validate()
         return data

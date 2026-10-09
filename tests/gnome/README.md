@@ -2,7 +2,8 @@
 
 Run the **GNOME shortcut permissions** GitHub Actions workflow on the branch to
 build Fedora 43 with GNOME Shell/Mutter 49 and the real GNOME GlobalShortcuts
-portal. The test runs as uid 1000 without membership in `input`. No portal
+portal. It uses normal desktop detection and Settings.load(), with no trigger
+backend environment override or manually selected shortcut. The test runs as uid 1000 without membership in `input`. No portal
 implementation or GNOME permission response is mocked.
 
 Locally on a Linux Docker host:
