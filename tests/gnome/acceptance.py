@@ -49,7 +49,7 @@ def tap(value):
 
 def screenshot(name):
     # Window actors can be registered before their first compositor frame.
-    deadline = time.monotonic() + .35
+    deadline = time.monotonic() + 1.0
     while time.monotonic() < deadline:
         pump()
         time.sleep(.01)
@@ -61,7 +61,8 @@ def screenshot(name):
 
 def portal_dialog_visible():
     titles = shell('JSON.stringify(global.get_window_actors().map(a=>a.meta_window.get_title()))')
-    return 'Add Keyboard Shortcuts' in titles
+    focused = shell('JSON.stringify(global.display.focus_window?.get_title() ?? "")')
+    return 'Add Keyboard Shortcuts' in titles and json.loads(focused) == 'Add Keyboard Shortcuts' 
 
 application = Gtk.Application(application_id='md.lifeos.DoubaoSay')
 assert application.register(None)
