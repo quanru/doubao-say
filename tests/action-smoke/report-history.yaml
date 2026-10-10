@@ -1,0 +1,7 @@
+web:
+  url: ${MIDSCENE_PREVIEW_URL}
+
+tasks:
+  - name: Doubao Say report history is available
+    flow:
+      - aiAssert: the page shows the heading "Doubao Say test report history" and a table of Midscene CI reports
