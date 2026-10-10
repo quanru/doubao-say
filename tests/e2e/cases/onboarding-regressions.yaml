@@ -32,12 +32,12 @@ cases:
       - aiWaitFor:
           prompt: The Doubao Say page heading says Microphone and the page offers Check microphone · 3 seconds.
           options: { timeoutMs: 30000, checkIntervalMs: 1000 }
-      - computer.tapPoint: { target: Left-arrow Previous button in the fixed top navigation, point: { x: 240, y: 203 } }
+      - aiTap: Left-arrow Previous button in the fixed top navigation
       - aiWaitFor:
           prompt: The Sign in step shows the signed-in account status and Sign in again or change account.
           options: { timeoutMs: 30000, checkIntervalMs: 1000 }
       - aiAssert: The Sign in step shows the heading Your voice, wherever you type; left-arrow Previous is disabled, right-arrow Next is enabled, and the account status says Signed in.
-      - computer.tapPoint: { target: Right-arrow Next button in the fixed top navigation, point: { x: 1038, y: 203 } }
+      - aiTap: Right-arrow Next button in the fixed top navigation
       - aiWaitFor:
           prompt: The Microphone step shows Let's make sure we can hear you.
           options: { timeoutMs: 30000, checkIntervalMs: 1000 }
@@ -49,15 +49,17 @@ cases:
       - aiAssert: The Trigger key step shows Choose how to start speaking and Voice polishing is enabled.
       - computer.selectTriggerPreset: { preset: Disabled }
       - aiAssert: Active trigger says Disabled, and the Voice polishing switch remains enabled.
-      - computer.tapPoint: { target: Right-arrow Next button in the fixed top navigation, point: { x: 1038, y: 203 } }
-      - aiAssert: The current step is still Trigger key and the message Choose an enabled trigger to continue is visible.
+      - aiTap: Right-arrow Next button in the fixed top navigation
+      - aiWaitFor:
+          prompt: The current step is still Trigger key and the message Choose an enabled trigger to continue is visible.
+          options: { timeoutMs: 30000, checkIntervalMs: 1000 }
       - computer.selectTriggerPreset: { preset: F8 }
       - aiAssert: Active trigger shows F8 and F8 is selected in the trigger dropdown.
-      - computer.tapPoint: { target: Right-arrow Next button in the fixed top navigation, point: { x: 1038, y: 203 } }
+      - aiTap: Right-arrow Next button in the fixed top navigation
       - aiWaitFor:
           prompt: Voice test shows Try a sentence. Nothing gets pasted and the right-arrow Next button is disabled.
           options: { timeoutMs: 30000, checkIntervalMs: 1000 }
-      - computer.tapPoint: { target: Left-arrow Previous button in the fixed top navigation, point: { x: 240, y: 203 } }
+      - aiTap: Left-arrow Previous button in the fixed top navigation
       - aiWaitFor:
           prompt: The Trigger key step is visible again.
           options: { timeoutMs: 30000, checkIntervalMs: 1000 }
@@ -72,12 +74,12 @@ cases:
       - aiWaitFor:
           prompt: The Trigger key step and the Voice polishing switch are visible.
           options: { timeoutMs: 30000, checkIntervalMs: 1000 }
-      - computer.tapPoint: { target: Enabled Voice polishing switch, point: { x: 1180, y: 316 } }
+      - aiTap: The blue enabled switch to the right of the Voice polishing heading
       - aiWaitFor:
           prompt: The Voice polishing switch is gray and off, and the text Voice polishing disabled. appears below it; the Base URL and Model inputs are not shown.
           options: { timeoutMs: 30000, checkIntervalMs: 1000 }
       - aiAssert: Voice polishing disabled. is visible and the polishing settings are collapsed.
-      - computer.tapPoint: { target: Disabled Voice polishing switch in the collapsed card, point: { x: 1166, y: 554 } }
+      - aiTap: The gray disabled switch to the right of the Voice polishing heading
       - aiScroll:
           options: { direction: down, scrollType: singleAction, distance: 500 }
       - aiWaitFor:
@@ -91,13 +93,19 @@ cases:
       - fixture.prepare: { mode: trigger-settings }
       - aiScroll:
           options: { direction: down, scrollType: singleAction, distance: 500 }
-      - computer.inputText: { target: The text entry to the right of Model containing synthetic-model, value: ci-fail-model, point: { x: 850, y: 477 } }
+      - computer.inputText: { target: The editable text field to the right of Model containing synthetic-model, value: ci-fail-model }
       - aiTap: Test endpoint button in the Voice polishing section
+      - aiScroll:
+          options: { direction: down, scrollType: singleAction, distance: 300 }
       - aiWaitFor:
           prompt: The endpoint feedback contains Synthetic endpoint unavailable and the retry button says Test failed — try again.
           options: { timeoutMs: 30000, checkIntervalMs: 1000 }
-      - computer.inputText: { target: The text entry to the right of Model containing ci-fail-model, value: ci-ok-model, point: { x: 850, y: 477 } }
+      - aiScroll:
+          options: { direction: up, scrollType: singleAction, distance: 300 }
+      - computer.inputText: { target: The editable text field to the right of Model containing ci-fail-model, value: ci-ok-model }
       - aiTap: Test failed — try again button in the Voice polishing section
+      - aiScroll:
+          options: { direction: down, scrollType: singleAction, distance: 300 }
       - aiWaitFor:
           prompt: The endpoint result contains Synthetic endpoint response and the button says Endpoint works.
           options: { timeoutMs: 30000, checkIntervalMs: 1000 }
@@ -108,13 +116,21 @@ cases:
       - fixture.prepare: { mode: microphone-gate }
       - aiAssert: The visible Doubao Say window starts on the Microphone step, shows Synthetic microphone one, and offers Check microphone · 3 seconds.
       - aiTap: Right-arrow Next button in the fixed top navigation
+      - aiWaitFor:
+          prompt: The current step is Trigger key and the active trigger is enabled.
+          options: { timeoutMs: 30000, checkIntervalMs: 1000 }
+      - aiTap: Right-arrow Next button in the fixed top navigation
       - aiScroll:
           options: { direction: down, scrollType: singleAction, distance: 500 }
       - aiWaitFor:
           prompt: Voice test is visible and Finish setup is fully visible.
           options: { timeoutMs: 30000, checkIntervalMs: 1000 }
       - aiAssert: The Finish setup button is visibly disabled.
-      - computer.tapPoint: { target: Left-arrow Previous button in the fixed top navigation, point: { x: 240, y: 203 } }
+      - aiTap: Left-arrow Previous button in the fixed top navigation
+      - aiWaitFor:
+          prompt: The current step is Trigger key.
+          options: { timeoutMs: 30000, checkIntervalMs: 1000 }
+      - aiTap: Left-arrow Previous button in the fixed top navigation
       - aiWaitFor:
           prompt: The Microphone step and Check microphone · 3 seconds button are visible.
           options: { timeoutMs: 30000, checkIntervalMs: 1000 }
@@ -123,6 +139,10 @@ cases:
           prompt: The visible feedback says Microphone is working and instructs the user to continue to the trigger key step.
           options: { timeoutMs: 30000, checkIntervalMs: 1000 }
       - aiAssert: The microphone result says Microphone is working and Synthetic microphone one remains selected.
+      - aiTap: Right-arrow Next button in the fixed top navigation
+      - aiWaitFor:
+          prompt: The current step is Trigger key and the active trigger is enabled.
+          options: { timeoutMs: 30000, checkIntervalMs: 1000 }
       - aiTap: Right-arrow Next button in the fixed top navigation
       - aiScroll:
           options: { direction: down, scrollType: singleAction, distance: 500 }
@@ -193,13 +213,11 @@ cases:
       - fixture.prepare: { mode: deepgram }
       - aiTap: Recognition service dropdown currently showing Doubao account
       - aiTap: Deepgram Nova-3 (English) option in the opened dropdown
-      - aiScroll:
-          options: { direction: down, scrollType: singleAction, distance: 500 }
       - aiWaitFor:
-          prompt: The Recognition page shows Deepgram Nova-3 English dictation and an empty API Key field.
+          prompt: The Recognition page shows Deepgram Nova-3 English dictation, and the API Key text entry with placeholder Enter speech API key is visible.
           options: { timeoutMs: 30000, checkIntervalMs: 1000 }
       - computer.inputText:
-          target: API Key field
+          target: The empty masked text entry to the right of API Key, with placeholder Enter speech API key
           value: synthetic-deepgram-key
       - aiTap: Test API key button below the API Key field
       - aiWaitFor:
@@ -216,12 +234,20 @@ cases:
           prompt: The visible feedback says Microphone saved and requires a new three-second check.
           options: { timeoutMs: 30000, checkIntervalMs: 1000 }
       - aiTap: Right-arrow Next button in the fixed top navigation
+      - aiWaitFor:
+          prompt: The current step is Trigger key and the active trigger is enabled.
+          options: { timeoutMs: 30000, checkIntervalMs: 1000 }
+      - aiTap: Right-arrow Next button in the fixed top navigation
       - aiScroll:
           options: { direction: down, scrollType: singleAction, distance: 500 }
       - aiWaitFor:
           prompt: Voice test is visible and Finish setup is fully visible.
           options: { timeoutMs: 30000, checkIntervalMs: 1000 }
       - aiAssert: The Finish setup button is visibly disabled.
+      - aiTap: Left-arrow Previous button in the fixed top navigation
+      - aiWaitFor:
+          prompt: The current step is Trigger key.
+          options: { timeoutMs: 30000, checkIntervalMs: 1000 }
       - aiTap: Left-arrow Previous button in the fixed top navigation
       - aiWaitFor:
           prompt: The Microphone step and Check microphone · 3 seconds button are visible.
@@ -231,6 +257,10 @@ cases:
           prompt: The visible feedback says Microphone is working and Synthetic microphone two remains selected.
           options: { timeoutMs: 30000, checkIntervalMs: 1000 }
       - aiAssert: The microphone result says Microphone is working and Synthetic microphone two remains selected.
+      - aiTap: Right-arrow Next button in the fixed top navigation
+      - aiWaitFor:
+          prompt: The current step is Trigger key and the active trigger is enabled.
+          options: { timeoutMs: 30000, checkIntervalMs: 1000 }
       - aiTap: Right-arrow Next button in the fixed top navigation
       - aiScroll:
           options: { direction: down, scrollType: singleAction, distance: 500 }

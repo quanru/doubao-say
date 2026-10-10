@@ -5,6 +5,17 @@ import os
 import signal
 import sys
 
+# Match the production entrypoint's library order before importing GTK.
+# Loading layer-shell after libwayland can leave its interposition unavailable.
+if os.environ.get("DOUBAO_E2E_REQUIRE_WAYLAND") == "1":
+    import ctypes
+    import ctypes.util
+
+    library = ctypes.util.find_library("gtk4-layer-shell")
+    if not library:
+        raise RuntimeError("Omarchy fixture requires the gtk4-layer-shell library")
+    ctypes.CDLL(library)
+
 import gi
 
 # Ubuntu 22.04 supplies PyGObject for its system Python 3.10. The application
@@ -16,11 +27,13 @@ if sys.version_info < (3, 11):
     sys.modules["tomllib"] = tomli
 
 gi.require_version("Gtk", "4.0")
-from gi.repository import GLib, Gtk
+gi.require_version("Gdk", "4.0")
+from gi.repository import Gdk, GLib, Gtk
 
 from doubao_input.i18n import set_language
 from gtk_onboarding_fixture import build_onboarding_fixture
 from gtk_runtime_fixture import build_runtime_fixture
+from doubao_input.ui.overlay import Gtk4LayerShell
 
 
 RUNTIME_MODES = {"runtime-delivery", "runtime-cancel"}
@@ -33,6 +46,16 @@ def fixture_mode():
 
 def main():
     Gtk.init()
+    if os.environ.get("DOUBAO_E2E_REQUIRE_WAYLAND") == "1":
+        # Omarchy acceptance needs the native Wayland overlay, not an XWayland
+        # fallback window that the compositor can tile over the test controls.
+        display = Gdk.Display.get_default()
+        if display is None or display.__gtype__.name != "GdkWaylandDisplay":
+            raise RuntimeError("Omarchy fixture requires a native Wayland display")
+        if Gtk4LayerShell is None:
+            raise RuntimeError("Omarchy fixture requires the Gtk4LayerShell typelib")
+        if not Gtk4LayerShell.is_supported():
+            raise RuntimeError("Omarchy fixture cannot initialize native layer-shell")
     set_language("en")
     mode = fixture_mode()
     cleanup = (

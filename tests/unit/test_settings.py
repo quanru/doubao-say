@@ -4,10 +4,13 @@ import json
 from pathlib import Path
 import tempfile
 from unittest.mock import patch
-from doubao_input.settings import Settings, desktop_entry, trigger_shortcut_display
+from doubao_input.settings import Settings, desktop_entry, install_desktop, trigger_shortcut_display
 from doubao_input.i18n import tr, set_language
 from doubao_input.settings import (DEFAULT_POLISH_PROMPT_EN, DEFAULT_POLISH_PROMPT_ZH,
-                                   FORMATTING_POLISH_PROMPT)
+                                   FORMATTING_POLISH_PROMPT, PREVIOUS_POLISH_PROMPT_ZH,
+                                   PREVIOUS_POLISH_PROMPT_EN, PHONETIC_POLISH_PROMPT_ZH,
+                                   PHONETIC_POLISH_PROMPT_EN, NUMBERED_POLISH_PROMPT_ZH,
+                                   NUMBERED_POLISH_PROMPT_EN)
 
 
 class SettingsTest(unittest.TestCase):
@@ -29,6 +32,55 @@ class SettingsTest(unittest.TestCase):
             migrated = Settings.load()
             self.assertEqual(migrated.polish_prompt_zh, custom)
             self.assertEqual(migrated.polish_prompt_en, custom)
+    def test_language_defaults_upgrade_without_overwriting_custom_prompt(self):
+        with tempfile.TemporaryDirectory() as root, patch.dict(
+                "os.environ", {"XDG_CONFIG_HOME": root}):
+            values = asdict(Settings())
+            values.update(polish_prompt_zh=PREVIOUS_POLISH_PROMPT_ZH,
+                          polish_prompt_en=PREVIOUS_POLISH_PROMPT_EN)
+            path = Path(root) / "doubao-say/settings.json"
+            path.parent.mkdir()
+            path.write_text(json.dumps(values))
+            loaded = Settings.load()
+            self.assertEqual(loaded.polish_prompt_zh, DEFAULT_POLISH_PROMPT_ZH)
+            self.assertEqual(loaded.polish_prompt_en, DEFAULT_POLISH_PROMPT_EN)
+            values["polish_prompt_zh"] += "\n保留我定义的词汇。"
+            values["polish_prompt_en"] = "Custom instructions"
+            path.write_text(json.dumps(values))
+            loaded = Settings.load()
+            self.assertEqual(loaded.polish_prompt_zh, values["polish_prompt_zh"])
+            self.assertEqual(loaded.polish_prompt_en, values["polish_prompt_en"])
+
+    def test_phonetic_default_upgrades_to_multiline_enumeration(self):
+        with tempfile.TemporaryDirectory() as root, patch.dict(
+                "os.environ", {"XDG_CONFIG_HOME": root}):
+            values = asdict(Settings())
+            values.update(polish_prompt_zh=PHONETIC_POLISH_PROMPT_ZH,
+                          polish_prompt_en=PHONETIC_POLISH_PROMPT_EN)
+            path = Path(root) / "doubao-say/settings.json"
+            path.parent.mkdir()
+            path.write_text(json.dumps(values))
+            self.assertEqual(Settings.load().polish_prompt_zh, DEFAULT_POLISH_PROMPT_ZH)
+            self.assertEqual(Settings.load().polish_prompt_en, DEFAULT_POLISH_PROMPT_EN)
+            values["polish_prompt_zh"] += "\nCustom vocabulary"
+            path.write_text(json.dumps(values))
+            self.assertEqual(Settings.load().polish_prompt_zh, values["polish_prompt_zh"])
+
+    def test_numbered_default_gets_paragraph_rules_but_custom_prompt_is_preserved(self):
+        with tempfile.TemporaryDirectory() as root, patch.dict(
+                "os.environ", {"XDG_CONFIG_HOME": root}):
+            values = asdict(Settings())
+            values.update(polish_prompt_zh=NUMBERED_POLISH_PROMPT_ZH,
+                          polish_prompt_en=NUMBERED_POLISH_PROMPT_EN)
+            path = Path(root) / "doubao-say/settings.json"
+            path.parent.mkdir()
+            path.write_text(json.dumps(values))
+            self.assertEqual(Settings.load().polish_prompt_zh, DEFAULT_POLISH_PROMPT_ZH)
+            self.assertEqual(Settings.load().polish_prompt_en, DEFAULT_POLISH_PROMPT_EN)
+            values["polish_prompt_zh"] += "\nCustom paragraph rule"
+            path.write_text(json.dumps(values))
+            self.assertEqual(Settings.load().polish_prompt_zh, values["polish_prompt_zh"])
+
     def test_input_method_defaults_and_roundtrip(self):
         with tempfile.TemporaryDirectory() as root, patch.dict("os.environ", {"XDG_CONFIG_HOME": root}):
             self.assertEqual(Settings.load().input_method, "clipboard")
@@ -134,6 +186,17 @@ class SettingsTest(unittest.TestCase):
                         "vibekey_press_modifiers": (126,)}):
             with self.subTest(values=values), self.assertRaises(ValueError):
                 Settings(**values).validate()
+
+    def test_portal_identity_launcher_preserves_existing_install_entry(self):
+        with tempfile.TemporaryDirectory() as root, patch.dict("os.environ", {"XDG_DATA_HOME": root}):
+            legacy = Path(root) / "applications/doubao-say.desktop"
+            legacy.parent.mkdir()
+            legacy.write_text("Existing managed launcher")
+            registered = install_desktop(portal=True)
+            self.assertEqual(registered.name, "md.lifeos.DoubaoSay.desktop")
+            self.assertIn("Name=Doubao Say", registered.read_text())
+            self.assertIn("NoDisplay=true", registered.read_text())
+            self.assertEqual(legacy.read_text(), "Existing managed launcher")
 
     def test_launcher(self):
         self.assertIn("--background", desktop_entry(True))
