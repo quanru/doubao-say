@@ -72,4 +72,3 @@ class X11Stacking:
         process, self._process = self._process, None
         if process is not None:
             process.force_exit()
-
