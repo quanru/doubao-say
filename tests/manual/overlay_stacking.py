@@ -130,7 +130,7 @@ def exercise(artifacts, expect_hidden):
                 inspect(style + ("-reduced" if reduced else ""))
                 overlay.hide()
                 settle(50)
-                assert overlay._above_process is None and overlay._above_timeout is None
+                assert overlay._x11_stacking._process is None and overlay._x11_stacking._timeout is None
         overlay.show_polishing("Synthetic polishing result")
         settle()
         inspect("polishing")
@@ -167,14 +167,14 @@ def exercise(artifacts, expect_hidden):
                 before = len(ticks)
                 with patch.dict(os.environ, {"PATH": folder}):
                     overlay.show("Synthetic helper failure")
-                child = overlay._above_process
+                child = overlay._x11_stacking._process
                 if mode == "hide":
                     overlay.hide()
                 elif mode == "destroy":
                     overlay._window.destroy()
                 settle(650 if mode in ("missing", "slow") else 180)
                 assert len(ticks) - before >= 4, "GTK blocked by helper"
-                assert overlay._above_process is None and overlay._above_timeout is None
+                assert overlay._x11_stacking._process is None and overlay._x11_stacking._timeout is None
                 if child is not None:
                     assert child.get_if_exited() or child.get_if_signaled()
                 overlay.hide()
