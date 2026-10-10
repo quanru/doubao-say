@@ -160,11 +160,16 @@ diagnostics. Use **Test endpoint** before enabling.
 
 Native X11 uses Ctrl+V, or Ctrl+Shift+V for recognized terminal classes. Its
 floating overlay does not request activation; the window manager chooses its
-position. Hyprland keeps its bottom-anchored layer-shell overlay. PipeWire
+position. When GTK uses X11, optional `wmctrl` requests above-window stacking
+each time the overlay is shown, without activating it or waiting on the GTK main loop.
+If the helper is missing or fails, recording and input continue with the window
+manager's normal stacking. Fullscreen coverage depends on the window manager.
+Hyprland keeps its bottom-anchored layer-shell overlay. PipeWire
 microphone selection works through `pw-record` on both desktops.
 XWayland is not treated as a native X11 session. The X11 helpers are probed at
-runtime; without either one, recognition still works and the result is retained
-for manual copying.
+runtime; without `xdotool` or `xclip`, recognition still works and the result is retained
+for manual copying. Install `wmctrl` separately for X11 overlay stacking
+(`sudo apt install wmctrl` or `sudo pacman -S --needed wmctrl`).
 
 ### Text input method
 
