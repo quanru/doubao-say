@@ -40,6 +40,8 @@ class RecognitionProvider:
     credential_help_zh: str
     privacy_en: str
     privacy_zh: str
+    failure_en: str
+    failure_zh: str
 
     @property
     def name(self) -> str:
@@ -71,6 +73,14 @@ class RecognitionProvider:
     @property
     def privacy(self) -> str:
         return tr(self.privacy_en, self.privacy_zh)
+
+    @property
+    def failure_message(self) -> str:
+        return tr(self.failure_en, self.failure_zh)
+
+    @property
+    def is_local(self) -> bool:
+        return not self.interactive_auth and not self.uses_api_key
 
     def credentials_from_secret(self, secret: str):
         if self.secret_credentials_factory is None:
@@ -118,6 +128,16 @@ def _deepgram_credentials(secret):
     return DeepgramCredentials(secret)
 
 
+def _voxtype_client():
+    from doubao_input.voxtype.asr_client import VoxtypeASRClient
+    return VoxtypeASRClient()
+
+
+def _voxtype_store():
+    from doubao_input.voxtype.runtime import VoxtypeRuntimeStore
+    return VoxtypeRuntimeStore
+
+
 _PROVIDERS = (
     RecognitionProvider(
         id="doubao",
@@ -136,6 +156,8 @@ _PROVIDERS = (
         credential_help_zh="",
         privacy_en="Doubao receives audio during dictation and voice tests. Microphone checks stay local. No recording files or transcript history are saved. Recent text stays in memory until cleared or the app exits.",
         privacy_zh="听写和语音测试会向豆包发送音频，麦克风检查仅在本机进行。不保存录音文件和转写历史，最近文字仅在内存保留，清除或退出后消失。",
+        failure_en="Connection failed; check your network and retry",
+        failure_zh="连接出错，请检查网络后重试",
     ),
     RecognitionProvider(
         id="volcengine",
@@ -154,6 +176,8 @@ _PROVIDERS = (
         credential_help_zh="新版豆包语音控制台只使用一个 API Key；资源 ID volc.seedasr.sauc.duration 已内置。App ID 和 Access Key 仅用于旧版控制台，这里不需要填写。",
         privacy_en="Volcengine receives audio during dictation and voice tests. Usage and data handling follow your Volcengine account and service terms. Microphone checks stay local. No recording files or transcript history are saved; recent text stays in memory until cleared or the app exits.",
         privacy_zh="听写和试说时会向火山引擎发送音频，用量和数据处理遵循你的火山引擎账号及服务条款。麦克风检查仅在本机进行。不保存录音文件和转写历史；最近文字仅在内存保留，清除或退出后消失。",
+        failure_en="Connection failed; check your network and retry",
+        failure_zh="连接出错，请检查网络后重试",
     ),
     RecognitionProvider(
         id="deepgram",
@@ -172,6 +196,28 @@ _PROVIDERS = (
         credential_help_zh="使用 Deepgram Nova-3 美式英语模型，并启用中间结果、标点和智能格式化。请在 Deepgram 控制台创建和管理 API Key。",
         privacy_en="Deepgram receives audio during dictation and voice tests. Usage and data handling follow your Deepgram account and service terms. Microphone checks stay local. No recording files or transcript history are saved; recent text stays in memory until cleared or the app exits.",
         privacy_zh="听写和试说时会向 Deepgram 发送音频，用量和数据处理遵循你的 Deepgram 账号及服务条款。麦克风检查仅在本机进行。不保存录音文件和转写历史；最近文字仅在内存保留，清除或退出后消失。",
+        failure_en="Connection failed; check your network and retry",
+        failure_zh="连接出错，请检查网络后重试",
+    ),
+    RecognitionProvider(
+        id="voxtype",
+        name_en="Voxtype (local)",
+        name_zh="Voxtype（本地）",
+        client_factory=_voxtype_client,
+        credential_store_factory=_voxtype_store,
+        interactive_auth=False,
+        clear_rejected_credentials=False,
+        secret_credentials_factory=None,
+        setup_heading_en="Use your local Voxtype daemon.",
+        setup_heading_zh="使用本机 Voxtype 服务。",
+        setup_body_en="Voxtype records and transcribes locally with its configured engine and model. Install Voxtype 1.0.0 or newer, complete `voxtype setup --download`, and keep its daemon running. Doubao Say requests file output and reads the finalized transcript; it does not change your Voxtype configuration.",
+        setup_body_zh="Voxtype 会用已配置的引擎和模型在本机录音、转写。请安装 Voxtype 1.0.0 或更高版本，完成 `voxtype setup --download`，并保持 daemon 运行。豆包说只请求文件输出并读取最终文字，不会修改你的 Voxtype 配置。",
+        credential_help_en="Requires a running Voxtype 1.0.0+ daemon with a configured model. The selected Voxtype engine, model, device, and acceleration settings remain owned by Voxtype.",
+        credential_help_zh="需要已运行的 Voxtype 1.0.0+ daemon 和已配置模型。所选引擎、模型、设备和加速方式仍由 Voxtype 管理。",
+        privacy_en="Voxtype owns microphone capture for this provider. Local engines keep audio on this device; cloud engines configured inside Voxtype follow their own service terms. Doubao Say reads a private transcript file and deletes it and its completion record after each session.",
+        privacy_zh="使用该服务时，麦克风由 Voxtype 采集。本地引擎不会把音频发出设备；若你在 Voxtype 中配置了云端引擎，则适用对应服务条款。豆包说会读取一份私有转写文件，并在每次结束后删除该文件及完成记录。",
+        failure_en="Voxtype failed; check that its daemon is running, idle, and configured with a model",
+        failure_zh="Voxtype 运行失败，请确认 daemon 正在运行、处于空闲状态且已配置模型",
     ),
 )
 

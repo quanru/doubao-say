@@ -8,6 +8,8 @@ from doubao_input.doubao.volcengine_asr_client import VolcengineASRClient
 from doubao_input.doubao.volcengine_credentials import VolcengineCredentialsStore
 from doubao_input.deepgram.asr_client import DeepgramASRClient
 from doubao_input.deepgram.credentials import DeepgramCredentialsStore
+from doubao_input.voxtype.asr_client import VoxtypeASRClient
+from doubao_input.voxtype.runtime import VoxtypeRuntimeStore
 from doubao_input.result import RecentResult
 from doubao_input.settings import Settings
 
@@ -172,6 +174,16 @@ class AppSetupEdgesTest(TestCase):
         self.assertIsInstance(manager.asr_client, DeepgramASRClient)
         self.assertIs(manager.credential_store, DeepgramCredentialsStore)
         self.assertFalse(manager.interactive_auth)
+
+    def test_voxtype_provider_builds_delegated_local_backend(self):
+        app = SimpleNamespace(settings=Settings(asr_provider="voxtype"),
+                              app_state=AppState())
+        manager = DoubaoInputApp._new_transcription_manager(app)
+        self.addCleanup(manager.asr_client.disconnect)
+        self.assertIsInstance(manager.asr_client, VoxtypeASRClient)
+        self.assertIs(manager.credential_store, VoxtypeRuntimeStore)
+        self.assertTrue(manager.asr_client.owns_audio_capture)
+        self.assertIn("Voxtype", manager.failure_message)
 
     def test_microphone_selection_uses_normal_settings_pipeline(self):
         app = SimpleNamespace(settings=Settings(microphone=""), apply_settings=Mock())

@@ -224,6 +224,28 @@ cases:
           prompt: The API key is accepted by the synthetic endpoint and the speech API is ready.
           options: { timeoutMs: 30000, checkIntervalMs: 1000 }
 
+  - name: Show Voxtype local setup requirements
+    tags: [shard-3, provider]
+    steps:
+      - fixture.prepare: { mode: voxtype }
+      - aiAct: Switch the recognition service from Doubao account to Voxtype (local).
+      - aiAssert: The page explains that Voxtype owns local recording and transcription, no API Key field or Doubao sign-in button is visible, and Refresh Voxtype status is available.
+      - aiAssert: The page says Voxtype 1.0.0 or newer must be installed, configured with a model, and running.
+  - name: Complete a Voxtype CLI voice test
+    tags: [shard-3, provider]
+    steps:
+      - fixture.prepare: { mode: voxtype-live }
+      - aiAssert: The Doubao Say window starts on Microphone and says local recognition is ready.
+      - aiAct: Continue through setup until the Voice test step is visible.
+      - aiAssert: The current step is Voice test and Start voice test is available.
+      - aiAct: Start the voice test.
+      - aiWaitFor:
+          prompt: The Listening overlay is visible and Finish & check result is available.
+          options: { timeoutMs: 30000, checkIntervalMs: 1000 }
+      - aiAct: Finish the voice test and check its result.
+      - aiWaitFor:
+          prompt: The voice test shows Synthetic Voxtype English transcript, the Listening overlay is gone, and feedback says the synthetic Voxtype CLI completed with transcript files removed and nothing pasted or sent.
+          options: { timeoutMs: 30000, checkIntervalMs: 1000 }
   - name: Changing microphone requires another check
     tags: [shard-2]
     steps:

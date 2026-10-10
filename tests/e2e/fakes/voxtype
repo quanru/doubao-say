@@ -1,0 +1,69 @@
+#!/usr/bin/env python3
+"""CI-only Voxtype CLI fixture; no microphone, model, or daemon is started."""
+
+import json
+import os
+from pathlib import Path
+import sys
+
+
+def main():
+    arguments = sys.argv[1:]
+    state_file = Path(os.environ["XDG_CONFIG_HOME"]) / "fake-voxtype-state.json"
+    if arguments == ["--version"]:
+        print("voxtype 1.0.1")
+        return 0
+    if arguments == ["record", "start", "--help"]:
+        print("record start --file=PATH --no-osd")
+        return 0
+    if arguments == ["record", "stop", "--help"]:
+        print("record stop --wait --timeout SECONDS")
+        return 0
+
+    state = json.loads(state_file.read_text()) if state_file.exists() else {}
+    if arguments[:1] == ["status"] and "--format" in arguments:
+        payload = {
+            "alt": "recording" if state.get("file") else "idle",
+            "model": "synthetic-english-model",
+            "device": "CI-only synthetic microphone",
+            "backend": "cpu",
+        }
+        print(json.dumps(payload))
+        return 0
+    if arguments == ["config", "schema", "--json"]:
+        print(json.dumps({
+            "schema_version": 1,
+            "voxtype_version": "1.0.1",
+            "daemon_version_label": "1.0.1",
+            "engine": "whisper",
+            "config_path": str(state_file.parent / "synthetic-voxtype.toml"),
+        }))
+        return 0
+    if arguments[:2] == ["record", "start"]:
+        if state.get("file"):
+            print("Synthetic Voxtype is already recording", file=sys.stderr)
+            return 1
+        output = next((value.removeprefix("--file=") for value in arguments[2:]
+                       if value.startswith("--file=")), None)
+        if not output:
+            return 2
+        state_file.write_text(json.dumps({"file": output}))
+        return 0
+    if arguments[:2] == ["record", "stop"]:
+        if not state.get("file"):
+            return 3
+        output = Path(state["file"])
+        output.write_text("Synthetic Voxtype English transcript.")
+        output.chmod(0o600)
+        Path(f"{output}.done").write_text("done")
+        state_file.unlink()
+        return 0
+    if arguments == ["record", "cancel"]:
+        state_file.unlink(missing_ok=True)
+        return 0
+    print("Unsupported synthetic Voxtype command", file=sys.stderr)
+    return 2
+
+
+if __name__ == "__main__":
+    raise SystemExit(main())
