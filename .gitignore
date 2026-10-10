@@ -101,6 +101,7 @@ settings.json
 *.rej
 
 # Local promotional drafts and desktop automation output
+/promotion/
 /.tmp/
 /midscene_run/
 /tests/midscene/node_modules/

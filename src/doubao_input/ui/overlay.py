@@ -15,6 +15,7 @@ import tomllib
 from html import escape
 from pathlib import Path
 from typing import TYPE_CHECKING
+from doubao_input.ui.x11_stacking import X11Stacking
 from doubao_input.i18n import tr
 from doubao_input.ui.voice_motion import VoiceMotion
 from doubao_input.ui.waveform import draw_waveform
@@ -78,6 +79,7 @@ class Overlay:
         self.waveform_style = "bars"
         self._app_state = app_state
         self._window: Gtk.Window | None = None
+        self._x11_stacking = X11Stacking()
         self._label: Gtk.Label | None = None
         self._status_label: Gtk.Label | None = None
         self._status_row = None
@@ -282,6 +284,9 @@ class Overlay:
             from gi.repository import GdkX11
             win.connect("realize", lambda window: GdkX11.X11Surface.set_user_time(
                 window.get_surface(), 0))
+            win.connect("map", self._x11_stacking.request)
+            win.connect("unmap", self._x11_stacking.cancel)
+            win.connect("unrealize", self._x11_stacking.cancel)
         elif Gtk4LayerShell is not None and Gtk4LayerShell.is_supported():
             try:
                 Gtk4LayerShell.init_for_window(win)

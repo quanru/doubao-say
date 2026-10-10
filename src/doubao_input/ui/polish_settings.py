@@ -16,6 +16,7 @@ class PolishSettings(Gtk.Box):
         self._save, self._test = save, test
         self._changing = False
         self._save_source = 0
+        self._dirty = False
         self._testing = False
 
         header = Gtk.Box(spacing=10)
@@ -151,22 +152,21 @@ class PolishSettings(Gtk.Box):
             self.status.set_text(tr("Enter an API key to enable voice polishing.",
                                     "请输入 API Key 以启用语音润色。"))
             return
-        try:
-            settings, key = self._values()
-            self._save(settings, key)
-            self._settings = settings
+        if self._save_now():
             self.status.set_text(tr("Voice polishing enabled." if enabled else "Voice polishing disabled.",
                                     "语音润色已开启。" if enabled else "语音润色已关闭。"))
-        except (ValueError, OSError) as error:
+        else:
             self._changing = True
-            self.enabled.set_active(not enabled)
-            self.details.set_visible(not enabled)
-            self._changing = False
-            self.status.set_text(str(error))
+            try:
+                self.enabled.set_active(not enabled)
+                self.details.set_visible(not enabled)
+            finally:
+                self._changing = False
 
     def _queue_save(self, *_):
         if self._changing:
             return
+        self._dirty = True
         if self._save_source:
             GLib.source_remove(self._save_source)
         self._save_source = GLib.timeout_add(500, self._run_save)
@@ -187,6 +187,12 @@ class PolishSettings(Gtk.Box):
             settings, key = self._values()
             self._save(settings, key)
             self._settings, self._has_key = settings, self._has_key or bool(key)
+            # Immediate saves (toggle/test) supersede pending debounce work.
+            # Only a confirmed save may mark the form clean.
+            if self._save_source:
+                GLib.source_remove(self._save_source)
+                self._save_source = 0
+            self._dirty = False
             self.status.set_text(tr("Saved automatically.", "已自动保存。"))
             return True
         except (ValueError, OSError) as error:
@@ -197,7 +203,11 @@ class PolishSettings(Gtk.Box):
         if self._save_source:
             GLib.source_remove(self._save_source)
             self._save_source = 0
-        if self._save_now() and self.api_key.get_text():
+        # Unmapping can happen when the trigger page is left, not only when
+        # the settings are dirty. Do not write the constructor-time snapshot
+        # over newer application settings just because this widget disappeared.
+        saved = not self._dirty or self._save_now()
+        if saved and self.api_key.get_text():
             self._changing = True
             try:
                 self.api_key.set_text("")

@@ -29,6 +29,47 @@ class StreamResponse(Response):
 
 
 class PolishTest(TestCase):
+    def test_readable_layout_rules_preserve_paragraph_and_list_spacing(self):
+        self.assertIn("各段之间空一行", DEFAULT_POLISH_PROMPT_ZH)
+        self.assertIn("简短表达无需拆段", DEFAULT_POLISH_PROMPT_ZH)
+        self.assertIn("项目之间不额外空行", DEFAULT_POLISH_PROMPT_ZH)
+        self.assertIn("今天核对需求，已经确认。\n\n明天开始开发", DEFAULT_POLISH_PROMPT_ZH)
+        self.assertIn("Related sentences belong together", DEFAULT_POLISH_PROMPT_EN)
+        formatted = "引言。\n\n1. 核对需求\n2. 开发\n\n明天验收。"
+        body = json.dumps({"choices": [{"message": {"content": formatted}}]}).encode()
+        with patch("doubao_input.polish.request.urlopen", return_value=Response(body)):
+            result = PolishClient().polish(
+                "synthetic text", base_url="https://example.com/v1", api_key="fake-key",
+                model="test", prompt=DEFAULT_POLISH_PROMPT_ZH)
+        self.assertEqual(result, formatted)
+
+
+    def test_enumeration_rules_specify_literal_multiline_markdown(self):
+        self.assertIn("第一、第二、第三", DEFAULT_POLISH_PROMPT_ZH)
+        self.assertIn("1. 核对需求。\n2. 完成开发。\n3. 验收结果。", DEFAULT_POLISH_PROMPT_ZH)
+        self.assertIn("第一天出发，第二天到达", DEFAULT_POLISH_PROMPT_ZH)
+        self.assertIn("1. Confirm requirements.\n2. Implement.\n3. Verify.", DEFAULT_POLISH_PROMPT_EN)
+        self.assertIn("An ordinal referring to a date", DEFAULT_POLISH_PROMPT_EN)
+
+
+    def test_contextual_sound_rules_reach_request_without_rewriting_input_locally(self):
+        raw = "请重心打开设置页面。"
+        settings = Settings()
+        with patch("doubao_input.polish.request.urlopen", return_value=Response(
+                b'{"choices":[{"message":{"content":"result"}}]}')) as call:
+            PolishClient().polish(raw, base_url="https://example.com/v1",
+                                 api_key="synthetic", model="test",
+                                 prompt=polish_prompt_for_text(raw, settings))
+        messages = json.loads(call.call_args.args[0].data)["messages"]
+        self.assertEqual(messages[1]["content"], raw)
+        self.assertEqual(messages[0]["content"], DEFAULT_POLISH_PROMPT_ZH)
+        for prompt in (DEFAULT_POLISH_PROMPT_ZH, DEFAULT_POLISH_PROMPT_EN):
+            for pair in ("z/zh", "c/ch", "s/sh", "an/ang", "en/eng", "in/ing", "n/l", "f/h"):
+                self.assertIn(pair, prompt)
+        self.assertIn("否定表达", DEFAULT_POLISH_PROMPT_ZH)
+        self.assertIn("无法排除其他解释", DEFAULT_POLISH_PROMPT_ZH)
+
+
     def test_zhipu_low_latency_parameters_in_streaming_and_non_streaming_requests(self):
         for path in ("/api/paas/v4", "/api/coding/paas/v4"):
             for model, expected in (

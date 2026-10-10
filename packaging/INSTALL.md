@@ -1,4 +1,4 @@
-# Doubao Say 1.3.1
+# Doubao Say 1.4.0
 
 [Website](https://doubao-say.lifeos.md/) · [简体中文安装指南](https://doubao-say.lifeos.md/zh/guide/install)
 
@@ -38,12 +38,19 @@ Automatic paste on native X11 additionally uses the optional `xdotool` and
 `xclip` helpers. They are probed at runtime and can be installed on Arch with
 `sudo pacman -S --needed xdotool xclip`. If either is unavailable, installation
 and startup still succeed and recognized text is retained for manual copying.
+For X11 overlay stacking, install optional `wmctrl` (`sudo apt install wmctrl`
+or `sudo pacman -S --needed wmctrl`). It requests ABOVE without activation on
+each mapping; missing or failed requests leave recording and input operational.
+The window manager decides whether ABOVE also covers fullscreen windows.
 CopyQ is not required. Ordinary clipboard paste replaces clipboard contents and
 may be stored by a clipboard manager. Direct typing through optional `wtype`
 remains a Hyprland/Wayland feature; choose Clipboard paste on native X11.
 Other Wayland compositors do not gain automatic input from this X11 support.
 
-Your user needs read access to keyboard events and write access to `/dev/uinput`.
+GNOME automatically uses permission-scoped GlobalShortcuts for the dictation
+trigger; it does not need raw keyboard read access. Other desktops use evdev
+and need read access to keyboard events. Input delivery may still require write
+access to `/dev/uinput`.
 On this Omarchy setup, membership in `input` provides these permissions. If absent,
 run `sudo usermod -aG input "$USER"` and log out/in. Never run the application as root.
 Review this broad keyboard access before enabling it. Other Linux distributions
@@ -121,9 +128,10 @@ matching archive again; do not run install.py from the managed installation tree
 
 Open the launcher and either sign in to Doubao or select the Volcengine official
 API backend in Settings and add/test your speech API key. Then focus a text field
-and press Fn.
+and press Ctrl+;.
 Tap to start/stop; hold to talk/release to finish; double-tap sends Enter.
-Choose another key in Settings if your keyboard does not expose Fn.
+Choose another shortcut in Settings, or use the edit button in the GNOME shortcut
+authorization dialog. Fn and raw shortcut recording remain evdev-only.
 Double-tap can submit a message or execute a terminal command.
 
 The control center checks the latest stable GitHub Release at most daily. A newer

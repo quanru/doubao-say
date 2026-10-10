@@ -49,7 +49,7 @@ class TriggerController:
         settings = replace(settings, doubao_key=key, doubao_modifiers=modifiers)
         fields = ("doubao_key", "doubao_modifiers", "hold_ms", "double_ms", "double_enter",
                   "vibekey_enabled")
-        if (self._reader and self._listener_capture == self.capturing and self._settings
+        if (self._reader and self._reader.is_running() and self._listener_capture == self.capturing and self._settings
                 and all(getattr(settings, field) == getattr(self._settings, field) for field in fields)):
             self._settings = replace(settings)
             return self._available
@@ -65,7 +65,8 @@ class TriggerController:
             on_aux_error=lambda message: self._error(message)
             if generation == self._generation else None,
             on_error=lambda message: self._device_error(message) if generation == self._generation else None,
-            key_codes=keys, vibekey_enabled=settings.vibekey_enabled)
+            key_codes=keys, vibekey_enabled=settings.vibekey_enabled,
+            shortcut=(settings.doubao_key, settings.doubao_modifiers), capturing=self.capturing)
         try:
             started = candidate.start()
             if strict and not started:

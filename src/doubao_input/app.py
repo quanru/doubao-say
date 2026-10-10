@@ -13,6 +13,7 @@ from __future__ import annotations
 
 import logging
 import signal
+from dataclasses import replace
 
 import gi
 
@@ -102,7 +103,7 @@ class DoubaoInputApp(Gtk.Application):
             self.settings = Settings.load()
         except (ValueError, TypeError, OSError):
             logger.exception("Invalid settings; using defaults without overwriting the file")
-            self.settings = Settings()
+            self.settings = Settings.desktop_defaults()
         set_language(self.settings.language)
 
     @property
@@ -638,6 +639,15 @@ class DoubaoInputApp(Gtk.Application):
                 or bool(self._polisher and self._polisher.busy))
 
     def _save_polish(self, settings, api_key=None):
+        # PolishSettings can outlive other UI changes and hold a stale full
+        # Settings snapshot. Merge only its fields into the current settings so
+        # a delayed polish save cannot revert the trigger key or other options.
+        settings = replace(self.settings,
+            polish_enabled=settings.polish_enabled,
+            polish_base_url=settings.polish_base_url,
+            polish_model=settings.polish_model,
+            polish_prompt_zh=settings.polish_prompt_zh,
+            polish_prompt_en=settings.polish_prompt_en)
         settings.validate()
         previous_key = self._polish_key()
         effective_key = api_key or previous_key

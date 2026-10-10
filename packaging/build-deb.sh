@@ -7,7 +7,7 @@
 #        python3-installer
 #
 # Usage:
-#   ./packaging/build-deb.sh           # builds ../doubao-say_1.3.1-1_all.deb
+#   ./packaging/build-deb.sh           # builds ../doubao-say_1.4.0-1_all.deb
 #   ./packaging/build-deb.sh --install # also installs it locally
 set -e
 

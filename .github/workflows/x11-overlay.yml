@@ -1,0 +1,60 @@
+name: X11 overlay stacking
+
+on:
+  pull_request:
+    branches: [main]
+    paths:
+      - .github/workflows/x11-overlay.yml
+      - src/doubao_input/ui/overlay.py
+      - src/doubao_input/ui/x11_stacking.py
+      - src/doubao_input/doubao/host_tools.py
+      - tests/manual/overlay_stacking.py
+      - tests/manual/x11.py
+      - tests/manual/safety.py
+  push:
+    branches: [main]
+    paths:
+      - .github/workflows/x11-overlay.yml
+      - src/doubao_input/ui/overlay.py
+      - src/doubao_input/ui/x11_stacking.py
+      - src/doubao_input/doubao/host_tools.py
+      - tests/manual/overlay_stacking.py
+      - tests/manual/x11.py
+      - tests/manual/safety.py
+  workflow_dispatch:
+
+permissions:
+  contents: read
+
+concurrency:
+  group: x11-overlay-${{ github.ref }}
+  cancel-in-progress: true
+
+jobs:
+  xfwm-overlay:
+    runs-on: ubuntu-24.04
+    timeout-minutes: 10
+    steps:
+      - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1
+        with:
+          persist-credentials: false
+      - name: Install isolated X11 test environment
+        run: |
+          sudo apt-get update
+          sudo apt-get install -y python3-gi python3-cairo gir1.2-gtk-4.0 \
+            python3-xlib xvfb xfwm4 wmctrl xdotool imagemagick dbus-x11
+      - name: Verify stacking, focus and bounded helper cleanup
+        env:
+          PYTHONPATH: src
+          PYTHONDONTWRITEBYTECODE: "1"
+        run: |
+          timeout --signal=TERM --kill-after=5s 40s /usr/bin/python3 \
+            tests/manual/overlay_stacking.py --run --artifacts artifacts/x11
+      - name: Upload X11 observations and screenshots
+        if: always()
+        uses: actions/upload-artifact@043fb46d1a93c77aae656e7c1c64a875d1fc6a0a
+        with:
+          name: x11-overlay-evidence
+          path: artifacts/x11/
+          if-no-files-found: warn
+          retention-days: 14

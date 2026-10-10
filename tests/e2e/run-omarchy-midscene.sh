@@ -78,6 +78,8 @@ ssh_session_tty() {
     -o LogLevel=ERROR \
     omarchy@127.0.0.1 "export XDG_RUNTIME_DIR=/run/user/\$(id -u); \
       export DBUS_SESSION_BUS_ADDRESS=unix:path=\$XDG_RUNTIME_DIR/bus; \
+      export HYPRLAND_INSTANCE_SIGNATURE=\$(ls -t \$XDG_RUNTIME_DIR/hypr | head -1); \
+      export WAYLAND_DISPLAY=\$(find \$XDG_RUNTIME_DIR -maxdepth 1 -name 'wayland-*' ! -name '*.lock' -printf '%f\\n' | head -1); \
       export OMARCHY_PATH=/usr/share/omarchy; \
       export PATH=\$OMARCHY_PATH/bin:\$PATH; \
       $command"
@@ -156,8 +158,10 @@ echo "Installing the source checkout through its unified installer."
 # omarchy-pkg-add use, matching a user who has just authenticated in a terminal.
 # The compact prebuilt VM omits Pacman's sync databases, so refresh metadata in
 # this disposable guest before asking the unchanged installer to resolve packages.
+# Preserve its native Wayland session so the installer includes layer-shell.
 ssh_session_tty "printf '%s\\n' omarchy | sudo -S -v && \
   sudo pacman -Sy --noconfirm && '$PLUGIN_DIR/install.sh' --yes"
+ssh_session "pacman -Q gtk4-layer-shell && python3 -c \"import gi; gi.require_version('Gtk4LayerShell', '1.0'); from gi.repository import Gtk4LayerShell\""
 ssh_guest "test -f /home/omarchy/.local/share/applications/doubao-say.desktop && \
   grep -Fq '$PLUGIN_DIR/start.sh' /home/omarchy/.local/share/applications/doubao-say.desktop"
 

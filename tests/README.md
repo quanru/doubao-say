@@ -79,3 +79,22 @@ for underlying logic. Synthetic onboarding does not verify real credentials,
 microphone capture, live ASR, system clipboard paste, or delivery into an
 unrelated application; those require separate acceptance. The synthetic runtime
 target does exercise the real Delivery state machine against its own GTK field.
+
+## GlobalShortcuts protocol acceptance
+
+On a Linux host with PyGObject, run the bounded, isolated protocol test:
+
+```sh
+DOUBAO_PORTAL_ISOLATED_TEST=1 PYTHONPATH=src timeout --signal=TERM --kill-after=3s 10s \
+  dbus-run-session -- .venv/bin/python tests/manual/portal_protocol.py
+```
+
+It uses the real Gio/D-Bus transport and a synthetic portal on a private session
+bus. It checks binding, hold/release through the gesture controller, rejection,
+and session cleanup while prohibiting construction of the raw input reader.
+It does not verify a compositor's permission dialog, physical shortcuts, GNOME
+compatibility, microphone capture or text delivery. Never run its fake portal
+on the user's existing session bus.
+
+For real GNOME Wayland permission-dialog and shortcut acceptance, see
+[tests/gnome/README.md](gnome/README.md) and the GNOME shortcut permissions workflow.
