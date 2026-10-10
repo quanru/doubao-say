@@ -138,10 +138,11 @@ const setup = defineProjectSetup<DesktopContext>({
             ? 'Synthetic dictation target'
             : 'Doubao Say';
           stopGuestFixture();
-          guest(`rm -rf /tmp/doubao-midscene-config; mkdir -p /tmp/doubao-midscene-config; export PYTHONPATH='/home/omarchy/.config/omarchy/plugins/md.lifeos.doubao-say/src'; export XDG_CONFIG_HOME=/tmp/doubao-midscene-config; export PYTHONDONTWRITEBYTECODE=1; export DOUBAO_E2E_MODE_B64='${encodedMode}'; nohup setsid python3 '/home/omarchy/.config/omarchy/plugins/md.lifeos.doubao-say/tests/e2e/gtk_fixture.py' >/tmp/doubao-midscene-fixture.log 2>&1 </dev/null & echo $! >/tmp/doubao-midscene-fixture.pid`);
+          guest(`rm -rf /tmp/doubao-midscene-config; mkdir -p /tmp/doubao-midscene-config; export PYTHONPATH='/home/omarchy/.config/omarchy/plugins/md.lifeos.doubao-say/src'; export XDG_CONFIG_HOME=/tmp/doubao-midscene-config; export PYTHONDONTWRITEBYTECODE=1; export GDK_BACKEND=wayland; export DOUBAO_E2E_REQUIRE_WAYLAND=1; export DOUBAO_E2E_MODE_B64='${encodedMode}'; nohup setsid python3 '/home/omarchy/.config/omarchy/plugins/md.lifeos.doubao-say/tests/e2e/gtk_fixture.py' >/tmp/doubao-midscene-fixture.log 2>&1 </dev/null & echo $! >/tmp/doubao-midscene-fixture.pid`);
           for (let attempt = 0; attempt < 30; attempt++) {
             const ready = guest(`grep -q 'READY: synthetic Doubao Say GTK fixture' /tmp/doubao-midscene-fixture.log && hyprctl -j clients | jq -r --arg title ${shellQuote(expectedTitle)} '[.[] | select(.title == $title)] | length' || true`);
             if (ready === '1') return;
+            if (guest('kill -0 "$(cat /tmp/doubao-midscene-fixture.pid)" 2>/dev/null && echo running || echo exited') === 'exited') break;
             await sleep(2000);
           }
           const fixtureLog = guest(
@@ -218,10 +219,6 @@ const inputText = z.strictObject({
   value: z.string(),
   point: z.strictObject({ x: z.number(), y: z.number() }).optional(),
 });
-const tapPoint = z.strictObject({
-  target: z.string().min(1),
-  point: z.strictObject({ x: z.number(), y: z.number() }),
-});
 const triggerPreset = z.strictObject({
   preset: z.enum(['Disabled', 'F8']),
 });
@@ -275,28 +272,14 @@ const inputTextField = defineNode<typeof inputText, void, DesktopContext>({
     }
   },
 });
-const tapFixedPoint = defineNode<typeof tapPoint, void, DesktopContext>({
-  name: 'computer.tapPoint',
-  description: 'Tap a fixed point in the 1280x800 Omarchy fixture.',
-  inputSchema: tapPoint,
-  async execute({ context, input }) {
-    if (!context.agent) throw new Error('Midscene Computer Agent is not active');
-    await context.agent.interface.inputPrimitives.pointer.tap(input.point);
-  },
-});
 const selectTriggerPreset = defineNode<typeof triggerPreset, void, DesktopContext>({
   name: 'computer.selectTriggerPreset',
-  description: 'Select a trigger preset through the GTK dropdown in the fixed Omarchy fixture.',
+  description: 'Select a trigger preset through the visually located GTK dropdown.',
   inputSchema: triggerPreset,
   async execute({ context, input }) {
-    if (!context.agent || context.environment !== 'omarchy') {
-      throw new Error('Omarchy Computer Agent is not active');
-    }
-    await context.agent.interface.inputPrimitives.pointer.tap({ x: 640, y: 498 });
-    await sleep(250);
-    const keys = ['Home', ...Array(input.preset === 'F8' ? 6 : 0).fill('Down'), 'Return'];
-    guest(keys.map((key) => `wtype -k ${key}`).join('; '));
-    await sleep(250);
+    if (!context.agent) throw new Error('Midscene Computer Agent is not active');
+    await context.agent.aiTap('The trigger selection dropdown showing the current active shortcut');
+    await context.agent.aiTap(`${input.preset} option in the open trigger dropdown`);
   },
 });
 const openSystemMenu = defineNode<typeof empty, void, DesktopContext>({
@@ -424,7 +407,6 @@ export default defineTestProject<DesktopContext>({
     prepareFixture,
     pressKeyboardKey,
     inputTextField,
-    tapFixedPoint,
     selectTriggerPreset,
     openSystemMenu,
     closeSystemMenu,

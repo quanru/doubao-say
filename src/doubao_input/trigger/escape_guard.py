@@ -7,11 +7,13 @@ import json
 import os
 import subprocess
 import time
+from doubao_input.trigger.backend import trigger_backend
 
 
 class EscapeGuard:
     def __init__(self, error=lambda message: None):
-        self.enabled = bool(os.environ.get("HYPRLAND_INSTANCE_SIGNATURE"))
+        self.enabled = bool(os.environ.get("HYPRLAND_INSTANCE_SIGNATURE")) and (
+            trigger_backend() != "portal")
         self.active = self.held = False
         self._renewed = 0
         self._name = f"doubao_escape_{os.getpid()}"

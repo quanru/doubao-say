@@ -11,7 +11,7 @@ cases:
       - aiAssert: The listening overlay is visible and the target field remains empty.
       - computer.keyPress: { keyName: F8 }
       - aiWaitFor:
-          prompt: The overlay is gone and the target field contains Synthetic dictation delivered exactly once.
+          prompt: The large Synthetic dictation delivery target window remains visible, its text field contains Synthetic dictation delivered exactly once., and its status says Delivered once · 1 delivery. The small floating recording panel labeled Listening to synthetic speech is no longer visible.
           options: { timeoutMs: 30000, checkIntervalMs: 1000 }
       - aiAssert: The target field contains exactly Synthetic dictation delivered exactly once, and the status says Delivered once with 1 delivery.
   - name: Cancel synthetic dictation without delivering text
