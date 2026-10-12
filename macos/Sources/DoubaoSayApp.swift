@@ -61,6 +61,7 @@ final class AppDelegate: NSObject, NSApplicationDelegate, NSMenuDelegate {
             self.rebuildMenu()
         }
         updates.onStatus = { [weak self] value in self?.state.updateStatus = value }
+        updates.onChecking = { [weak self] value in self?.state.updateChecking = value }
         updateInstaller.onStatus = { [weak self] value in self?.state.updateStatus = value }
         updateInstaller.onFinished = { [weak self] in self?.state.updateBusy = false }
         updateInstaller.onReady = { [weak self] stage in

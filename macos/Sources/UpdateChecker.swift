@@ -5,6 +5,7 @@ final class UpdateChecker {
     private var task: URLSessionDataTask?
     var onResult: ((UpdateRelease?) -> Void)?
     var onStatus: ((String) -> Void)?
+    var onChecking: ((Bool) -> Void)?
     #if arch(arm64)
     private let architecture = "arm64"
     #else
@@ -21,11 +22,13 @@ final class UpdateChecker {
             deliver(data, current: current); return
         }
         onStatus?(L("Checking for updates…", "正在检查更新…"))
+        onChecking?(true)
         var request = URLRequest(url: URL(string: "https://api.github.com/repos/quanru/doubao-say/releases/latest")!, timeoutInterval: 8)
         request.setValue("application/vnd.github+json", forHTTPHeaderField: "Accept")
         request.setValue("Doubao-Say/" + current, forHTTPHeaderField: "User-Agent")
         task = URLSession.shared.dataTask(with: request) { [weak self] data, response, _ in Task { @MainActor in
             guard let self = self else { return }; self.task = nil
+            self.onChecking?(false)
             guard let http = response as? HTTPURLResponse, http.statusCode == 200, let data = data, data.count <= 1_000_000,
                   let json = try? JSONSerialization.jsonObject(with: data) as? [String: Any],
                   let tag = json["tag_name"] as? String, UpdateRelease.version(tag) != nil else {
@@ -42,5 +45,5 @@ final class UpdateChecker {
         onResult?(info)
         onStatus?(info == nil ? L("You are using the latest version.", "当前已是最新版本。") : L("An update is available.", "发现新版本。"))
     }
-    func cancel() { task?.cancel(); task = nil }
+    func cancel() { task?.cancel(); task = nil; onChecking?(false) }
 }
