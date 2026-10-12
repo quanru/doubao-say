@@ -199,6 +199,10 @@ class PolishSettings(Gtk.Box):
             self.status.set_text(str(error))
             return False
 
+    def flush_edits(self):
+        self._flush()
+        return not self._dirty
+
     def _flush(self, *_):
         if self._save_source:
             GLib.source_remove(self._save_source)

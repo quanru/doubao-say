@@ -105,3 +105,7 @@ settings.json
 /.tmp/
 /midscene_run/
 /tests/midscene/node_modules/
+
+# macOS development products
+/macos/.build/
+/macos/.swiftpm/

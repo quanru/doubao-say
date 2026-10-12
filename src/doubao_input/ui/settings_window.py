@@ -493,6 +493,12 @@ class SettingsWindow:
         self.asr_status.set_text(tr("API key saved automatically.", "API Key 已自动保存。"))
         return True
 
+    def flush_edits(self):
+        if self._asr_save_source:
+            GLib.source_remove(self._asr_save_source)
+            self._asr_save_source = 0
+        return self._save_asr_key_now()
+
     def _flush_asr_key(self, *_):
         if self._asr_save_source:
             GLib.source_remove(self._asr_save_source)

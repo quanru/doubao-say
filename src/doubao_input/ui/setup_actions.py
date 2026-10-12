@@ -23,3 +23,8 @@ class SetupActions:
     asr_has_key: Callable[[], bool] = lambda: False
     save_asr: Callable[[str], None] = lambda key: None
     test_asr: Callable = lambda key, done: None
+
+    check_updates: Callable[[], None] = lambda: None
+    install_update: Callable = lambda info: None
+
+    open_personal: Callable[[], None] = lambda: None
