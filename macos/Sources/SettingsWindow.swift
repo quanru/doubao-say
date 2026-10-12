@@ -47,6 +47,7 @@ final class SettingsModel: ObservableObject {
     var installUpdate: (() -> Void)?
     var releaseNotes: (() -> Void)?
     var languageChanged: (() -> Void)?
+    var clearNavigationFocus: (() -> Void)?
     private var testASRClient: APIASRClient?
     var cancelCapture: (() -> Void)?
     private var testClient: PolishClient?
@@ -283,6 +284,7 @@ struct SettingsView: View {
                         // Mouse navigation should not leave a keyboard focus ring behind.
                         if let event = NSApp.currentEvent, [.leftMouseDown, .leftMouseUp].contains(event.type) {
                             sidebarFocus = nil
+                            model.clearNavigationFocus?()
                         }
                     } label: {
                         Label(page.1, systemImage: page.2)
@@ -321,12 +323,11 @@ struct SettingsView: View {
                 }.padding(18)
             }.background(Color(nsColor: .windowBackgroundColor))
         }.frame(width: 900, height: 650)
-            .onAppear {
-                // Allow the initial focus assignment to finish before clearing it.
-                DispatchQueue.main.async { sidebarFocus = nil }
-            }
             .onChange(of: model.selectedTab) { page in
-                if sidebarFocus != page { sidebarFocus = nil }
+                if sidebarFocus != page {
+                    sidebarFocus = nil
+                    model.clearNavigationFocus?()
+                }
             }
     }
     @ViewBuilder private var selectedPage: some View {
@@ -577,6 +578,7 @@ final class SettingsWindow: NSObject, NSWindowDelegate {
         window.title = "Doubao Say · " + L("Settings", "设置")
         window.isReleasedWhenClosed = false; window.delegate = self
         window.contentView = NSHostingView(rootView: SettingsView(model: model, state: state))
+        model.clearNavigationFocus = { [weak window] in window?.makeFirstResponder(nil) }
         window.center()
     }
     func show(refresh: Bool = true) {
