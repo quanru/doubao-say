@@ -17,6 +17,8 @@ final class AppDelegate: NSObject, NSApplicationDelegate, NSMenuDelegate {
     private var settingsWindow: SettingsWindow!
     private let receiver = VibekeyReceiver()
     private let updates = UpdateChecker()
+    private let updateInstaller = UpdateInstaller()
+    private var updateInfo: UpdateRelease?
     private var updateURL: URL?
     private var updateTag: String?
     private var extracting = false
@@ -48,12 +50,39 @@ final class AppDelegate: NSObject, NSApplicationDelegate, NSMenuDelegate {
         statusItem.button?.image = NSImage(systemSymbolName: "waveform", accessibilityDescription: "Doubao Say")
         statusItem.menu = NSMenu(); statusItem.menu?.delegate = self
         rebuildMenu(); transcription.start(); configureReceiver()
-        updates.onResult = { [weak self] tag, url in self?.updateTag = tag; self?.updateURL = url }
+        updates.onResult = { [weak self] info in
+            guard let self = self else { return }
+            self.updateInfo = info; self.updateTag = info?.tag; self.updateURL = info?.pageURL
+            self.state.updateVersion = info?.version ?? ""; self.state.updateCanInstall = info?.canInstall ?? false
+            self.statusItem.button?.image = NSImage(systemSymbolName: info == nil ? "waveform" : "arrow.down.circle.fill", accessibilityDescription: "Doubao Say")
+            self.rebuildMenu()
+        }
+        updates.onStatus = { [weak self] value in self?.state.updateStatus = value }
+        updateInstaller.onStatus = { [weak self] value in self?.state.updateStatus = value }
+        updateInstaller.onFinished = { [weak self] in self?.state.updateBusy = false }
+        updateInstaller.onReady = { [weak self] stage in
+            guard let self = self else { stage.discard(); return }
+            guard self.transcription.canInstallUpdate, !self.settingsWindow.model.testing, !self.settingsWindow.model.capturing, self.settingsWindow.model.saveIfNeeded() else {
+                stage.discard(); self.state.updateStatus = L("Finish dictation, testing or input before installing the update.", "请先结束听写、测试或输入，再安装更新。"); return
+            }
+            do {
+                UserDefaults.standard.set(self.updateInfo?.version, forKey: "installingUpdateVersion")
+                try stage.launch(); NSApp.terminate(nil)
+            }
+            catch { UserDefaults.standard.removeObject(forKey: "installingUpdateVersion"); stage.discard(); self.state.updateStatus = L("Could not start the updater. The installed app is unchanged.", "无法启动更新程序，已安装的应用未改变。") }
+        }
         updates.check()
-        if !SettingsStore.shared.value.onboardingComplete { settingsWindow.show() }
+        if let pending = UserDefaults.standard.string(forKey: "installingUpdateVersion") {
+            UserDefaults.standard.removeObject(forKey: "installingUpdateVersion")
+            let current = Bundle.main.infoDictionary?["CFBundleShortVersionString"] as? String ?? ""
+            settingsWindow.model.feedback = current == pending
+                ? L("Update completed: ", "更新完成：") + current
+                : L("The update did not complete. You are still using the previous version; the updater log is kept beside the staged app.", "上次更新未完成，仍在使用旧版本；更新日志保存在待安装应用旁。")
+            settingsWindow.model.selectedTab = "updates"; settingsWindow.show()
+        } else if !SettingsStore.shared.value.onboardingComplete { settingsWindow.show() }
     }
     func applicationWillTerminate(_ notification: Notification) {
-        transcription?.cancel(); hotkey?.stop(); web?.destroyWebView(); settingsWindow?.close(); updates.cancel(); receiver.stop()
+        transcription?.cancel(); hotkey?.stop(); web?.destroyWebView(); settingsWindow?.close(); updates.cancel(); updateInstaller.cancel(); receiver.stop()
     }
     func menuWillOpen(_ menu: NSMenu) { rebuildMenu() }
     private func rebuildMenu() {
@@ -137,7 +166,14 @@ final class AppDelegate: NSObject, NSApplicationDelegate, NSMenuDelegate {
     @objc private func retryLast() { transcription.retryLast() }
     @objc private func clearLast() { transcription.cancel(); state.lastTranscript = ""; state.feedback = L("Cleared from app memory; clipboard unchanged.", "已清除应用内文字，剪贴板不变。") }
     @objc private func checkUpdates() {
-        if let url = updateURL { NSWorkspace.shared.open(url) } else { updates.check(force: true); state.feedback = L("Checking releases…", "正在检查发行版…") }
+        settingsWindow.model.selectedTab = "updates"; settingsWindow.show()
+        if !state.updateBusy { updates.check(force: true) }
+    }
+    private func installUpdate() {
+        guard !state.updateBusy, transcription.canInstallUpdate,
+              !settingsWindow.model.testing, !settingsWindow.model.capturing,
+              let info = updateInfo, info.canInstall, settingsWindow.model.saveIfNeeded() else { return }
+        state.updateBusy = true; updateInstaller.install(info)
     }
     private func refreshLoginStatus() {
         let provider = SettingsStore.shared.value.provider
@@ -146,6 +182,10 @@ final class AppDelegate: NSObject, NSApplicationDelegate, NSMenuDelegate {
     }
     private func wireSettings() {
         let model = settingsWindow.model
+        model.checkUpdates = { [weak self] in self?.checkUpdates() }
+        model.cancelUpdate = { [weak self] in self?.updateInstaller.cancel() }
+        model.installUpdate = { [weak self] in self?.installUpdate() }
+        model.releaseNotes = { [weak self] in if let url = self?.updateURL { NSWorkspace.shared.open(url) } }
         model.languageChanged = { [weak self] in
             self?.state.objectWillChange.send()
             self?.settingsWindow.updateTitle()

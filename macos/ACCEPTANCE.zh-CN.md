@@ -73,3 +73,12 @@
 - [ ] 火山与 Deepgram 配置分支、英文布局、实际保存与重启保持。
 
 本轮使用隔离 Bundle ID 和合成状态，没有保存设置、连接硬件或调用真实接口；证据见 `artifacts/verification/studio-settings/2026-10-11/verification.md`。
+
+
+## 应用内更新
+
+- 更新页展示版本、检查状态、下载进度与取消入口。
+- 安装前核验 SHA-256、Bundle ID、版本、同一开发者签名和 Apple 公证。
+- 安装失败恢复旧应用；安装完成重启并保留偏好和 Keychain 数据。
+- 公开更新源要求更高版本的稳定版、原生 DMG 和合并的 SHA256SUMS，详见 `packaging/UPDATES.md`。
+- 本轮隔离验证记录见 `artifacts/verification/in-app-update/2026-10-12/`；不把隔离替换验证描述为正式线上升级。

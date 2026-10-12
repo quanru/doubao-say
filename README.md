@@ -232,8 +232,15 @@ The application checks the repository's latest stable GitHub Release at startup
 and while running, with network checks limited to once every 24 hours. A newer
 version adds a small red dot to the recording overlay: hover or click for
 version information. Finish dictation, then use the control center's red
-**Update** button to open the release page without interrupting your paste target.
-Updates are never downloaded or installed automatically.
+**Update** button to download, verify and install the update, then restart.
+Checks are automatic; installation starts only when you choose it. Recording,
+polishing and text delivery must finish first. Settings and login data are retained.
+Linux supports official clean Git checkouts and managed app/plugin archives;
+package-manager and relocated installs report that their original installer is needed.
+Archives must match the CPU and Python version. Failed installation checks restore
+the previous app. On macOS, Settings → Updates shows download progress and cancellation;
+DMGs require SHA256SUMS, the same Developer ID, notarization and a matching bundle ID.
+See [update packaging](packaging/UPDATES.md) for release prerequisites.
 
 ## Feedback
 

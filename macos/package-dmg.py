@@ -2,11 +2,15 @@
 import argparse
 import json
 import os
+import plistlib
+import platform
+import hashlib
 from pathlib import Path
 import subprocess
 
 parser = argparse.ArgumentParser()
 parser.add_argument('--identity', required=True)
+parser.add_argument('--arch', choices=['arm64', 'x86_64'], default=platform.machine())
 parser.add_argument('--profile')
 parser.add_argument('--key')
 parser.add_argument('--key-id')
@@ -18,7 +22,8 @@ elif args.key and args.key_id and args.issuer:
     credentials = ['--key', args.key, '--key-id', args.key_id, '--issuer', args.issuer]
 else:
     parser.error('Provide a keychain profile or an API key path, key ID and issuer')
-app = Path('build/macos/arm64/Doubao Say.app').resolve()
+app = Path(f'build/macos/{args.arch}/Doubao Say.app').resolve()
+version = plistlib.loads((app / 'Contents/Info.plist').read_bytes())['CFBundleShortVersionString']
 stage = Path('build/macos/dmg-stage')
 stage.mkdir(parents=True, exist_ok=True)
 
@@ -54,9 +59,10 @@ shortcut = stage / 'Applications'
 if not shortcut.is_symlink():
     os.symlink('/Applications', shortcut)
 commit = subprocess.check_output(['git', 'rev-parse', '--short', 'HEAD'], text=True).strip()
-dmg = Path(f'build/macos/Doubao-Say-1.4.0-macos-arm64-{commit}.dmg').resolve()
+dmg = Path(f'build/macos/Doubao-Say-{version}-macos-{args.arch}-{commit}.dmg').resolve()
 run(str(Path.home() / '.local/bin/dev-gate'), 'run', '--label', 'doubao-dmg-image', '--', 'hdiutil', 'create', '-volname', 'Doubao Say', '-srcfolder', str(stage), '-fs', 'HFS+', '-format', 'UDZO', '-ov', str(dmg))
 run('codesign', '--sign', args.identity, '--timestamp', str(dmg))
 notarize(dmg)
 run('spctl', '--assess', '--type', 'open', '--context', 'context:primary-signature', '--verbose=2', str(dmg))
+dmg.with_suffix('.dmg.sha256').write_text(hashlib.sha256(dmg.read_bytes()).hexdigest() + '  ' + dmg.name + '\n')
 print(f'PASS: signed, notarized and stapled DMG: {dmg}', flush=True)

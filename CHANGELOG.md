@@ -10,6 +10,8 @@
 
 ## Unreleased
 
+- Add in-app update notifications, manual checks, verified downloads and restart installation on macOS and Linux, with retained settings and rollback on failed installation checks.
+
 - Hide receiver mappings while AU05 support is disabled and clarify when settings take effect.
 
 - Rework macOS settings with sidebar navigation, grouped forms, labeled polishing fields and a pinned save area, following the studio application settings structure.

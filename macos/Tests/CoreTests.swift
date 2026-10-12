@@ -1,4 +1,5 @@
 import XCTest
+import Foundation
 @testable import DoubaoSayCore
 
 final class CoreTests: XCTestCase {
@@ -57,5 +58,32 @@ final class LanguageTests: XCTestCase {
         XCTAssertEqual(UILanguage.resolve("zh", preferred: ["en-US"]), .zh)
         XCTAssertEqual(UILanguage.resolve("zh-Hans", preferred: ["en-US"]), .zh)
         XCTAssertEqual(UILanguage.resolve("invalid", preferred: ["zh-CN"]), .en)
+    }
+}
+
+final class UpdateManifestTests: XCTestCase {
+    private func manifest(tag: String = "v1.5.0", archive: String = "Doubao-Say-1.5.0-macos-arm64-build.dmg", url: String? = nil) -> Data {
+        try! JSONSerialization.data(withJSONObject: ["tag_name": tag, "assets": [
+            ["name": archive, "browser_download_url": url ?? "https://github.com/quanru/doubao-say/releases/download/\(tag)/\(archive)"],
+            ["name": "SHA256SUMS", "browser_download_url": "https://github.com/quanru/doubao-say/releases/download/\(tag)/SHA256SUMS"]]])
+    }
+    func testMatchingOfficialMacAssetAndChecksumEnableInstallation() {
+        let release = UpdateRelease.parse(manifest(), current: "1.4.0", architecture: "arm64")!
+        XCTAssertEqual(release.version, "1.5.0")
+        XCTAssertTrue(release.canInstall)
+        XCTAssertEqual(release.pageURL.absoluteString, "https://github.com/quanru/doubao-say/releases/tag/v1.5.0")
+    }
+    func testWrongHostArchitectureAndVersionNeverEnableInstallation() {
+        XCTAssertFalse(UpdateRelease.parse(manifest(url: "https://example.invalid/update.dmg"), current: "1.4.0", architecture: "arm64")!.canInstall)
+        XCTAssertFalse(UpdateRelease.parse(manifest(), current: "1.4.0", architecture: "x86_64")!.canInstall)
+        XCTAssertNil(UpdateRelease.parse(manifest(), current: "1.5.0", architecture: "arm64"))
+        XCTAssertNil(UpdateRelease.parse(manifest(tag: "bad/tag"), current: "1.4.0", architecture: "arm64"))
+    }
+    func testMissingAndDuplicateChecksumsAreRejected() {
+        let hash = String(repeating: "a", count: 64)
+        XCTAssertEqual(UpdateRelease.checksum(hash + "  update.dmg\n", name: "update.dmg"), hash)
+        XCTAssertNil(UpdateRelease.checksum(hash + " update.dmg\n" + hash + " update.dmg", name: "update.dmg"))
+        XCTAssertNil(UpdateRelease.checksum("bad update.dmg\n" + hash + " update.dmg", name: "update.dmg"))
+        XCTAssertNil(UpdateRelease.checksum(hash + " another.dmg", name: "update.dmg"))
     }
 }

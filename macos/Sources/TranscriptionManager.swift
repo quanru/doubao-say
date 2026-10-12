@@ -20,6 +20,8 @@ final class TranscriptionManager {
     private var settings = MacSettings()
     private var session = UUID()
     private var target: InputTarget?
+    private var updateSafeAfter: TimeInterval = 0
+    var canInstallUpdate: Bool { state.recordingState == .idle && !primed && ProcessInfo.processInfo.systemUptime >= updateSafeAfter }
     private var finalGate = FinalResultGate()
     private var quietTimer: DispatchWorkItem?
     private var timeout: DispatchWorkItem?
@@ -203,6 +205,7 @@ final class TranscriptionManager {
         guard UserDefaults.standard.object(forKey: "autoPaste") as? Bool ?? true else { return }
         let token = session
         hotkey.setEscapeHandlingEnabled(true)
+        updateSafeAfter = ProcessInfo.processInfo.systemUptime + 1.2
         delivery.deliver(text, target: captured, method: settings.inputMethod, sendEnter: enter) { [weak self] sent in
             guard self?.session == token else { return }
             self?.hotkey.setEscapeHandlingEnabled(false)
@@ -225,6 +228,7 @@ final class TranscriptionManager {
         if state.recordingState == .idle { testMode = false }
     }
     func retryLast() {
+        updateSafeAfter = ProcessInfo.processInfo.systemUptime + 4.5
         guard state.recordingState == .idle, !state.lastTranscript.isEmpty else { return }
         let token = session, text = state.lastTranscript
         hotkey.setEscapeHandlingEnabled(true)

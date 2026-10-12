@@ -163,6 +163,10 @@ class Overlay:
 
     def _set_update(self, info):
         self._update_info = info
+        if info is None:
+            if self._update_button is not None:
+                self._update_button.set_visible(False)
+            return
         if self._update_button is not None:
             message = tr(
                 f"Doubao Say {info.version} is available (current: {VERSION}). Finish dictation, then open the control center to update.",

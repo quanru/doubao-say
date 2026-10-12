@@ -47,10 +47,11 @@ def release_info(payload):
 
 
 class UpdateChecker:
-    def __init__(self, dispatch, available, *, clock=time.time):
+    def __init__(self, dispatch, available, *, clock=time.time, status=None):
         self._dispatch = dispatch
         self._available = available
         self._clock = clock
+        self._status = status
         self._closed = Event()
         self._fetching = False
 
@@ -58,20 +59,24 @@ class UpdateChecker:
     def cache_path():
         return config_dir() / "doubao-say" / "update-check.json"
 
-    def check(self):
+    def check(self, force=False):
         if self._closed.is_set() or self._fetching:
             return
         cached = self._load_cache()
-        if cached and 0 <= self._clock() - cached.get("checked_at", 0) < CHECK_INTERVAL_SECONDS:
+        if not force and cached and 0 <= self._clock() - cached.get("checked_at", 0) < CHECK_INTERVAL_SECONDS:
             try:
-                self._deliver(release_info(cached))
+                info = release_info(cached)
+                self._deliver(info)
+                self._notify_status("available" if info else "current")
                 return
             except ValueError:
                 pass
         self._fetching = True
+        self._notify_status("checking")
         Thread(target=self._fetch, name="doubao-update-check", daemon=True).start()
 
     def _fetch(self):
+        self._notify_status("checking")
         req = request.Request(LATEST_RELEASE_API, headers={
             "Accept": "application/vnd.github+json",
             "User-Agent": f"Doubao-Say/{VERSION}",
@@ -89,6 +94,7 @@ class UpdateChecker:
         except (error.URLError, TimeoutError, OSError, ValueError, KeyError,
                 TypeError) as exc:
             logger.info("Update check unavailable: %s", exc)
+            self._notify_status("failed")
             # Cache the attempt as the current version so repeated app launches
             # cannot turn a provider outage into repeated network requests.
             cached = self._load_cache() or {"tag_name": VERSION}
@@ -102,6 +108,16 @@ class UpdateChecker:
         finally:
             self._fetching = False
         self._deliver(info)
+        self._notify_status("available" if info else "current")
+
+    def _notify_status(self, message):
+        if self._status is None:
+            return
+        def notify():
+            if not self._closed.is_set():
+                self._status(message)
+            return False
+        self._dispatch(notify)
 
     def _save_cache(self, tag, draft=False, prerelease=False):
         cache = {"checked_at": self._clock(), "current_version": VERSION, "tag_name": tag,

@@ -41,6 +41,10 @@ final class SettingsModel: ObservableObject {
     var clear: (() -> Void)?
     var shortcutReady: (() -> Bool)?
     var onFinishSetup: (() -> Void)?
+    var checkUpdates: (() -> Void)?
+    var cancelUpdate: (() -> Void)?
+    var installUpdate: (() -> Void)?
+    var releaseNotes: (() -> Void)?
     var languageChanged: (() -> Void)?
     private var testASRClient: APIASRClient?
     var cancelCapture: (() -> Void)?
@@ -262,7 +266,8 @@ struct SettingsView: View {
         ("polishing", L("Polishing", "语音润色"), "sparkles"),
         ("shortcuts", L("Shortcuts", "快捷键"), "keyboard"),
         ("general", L("General", "通用"), "gearshape"),
-        ("result", L("Recent text", "最近文字"), "text.alignleft") ] }
+        ("result", L("Recent text", "最近文字"), "text.alignleft"),
+        ("updates", L("Updates", "软件更新"), "arrow.triangle.2.circlepath") ] }
     private var pageTitle: String { pages.first { $0.0 == model.selectedTab }?.1 ?? L("Settings", "设置") }
     var body: some View {
         HStack(spacing: 0) {
@@ -283,6 +288,13 @@ struct SettingsView: View {
             Divider()
             VStack(alignment: .leading, spacing: 0) {
                 Text(pageTitle).font(.system(size: 20, weight: .semibold)).padding(24)
+                if !state.updateVersion.isEmpty {
+                    HStack {
+                        Label(L("Update available: ", "发现新版本：") + state.updateVersion, systemImage: "arrow.down.circle.fill")
+                        Spacer()
+                        Button(L("View update", "查看更新")) { model.selectedTab = "updates" }
+                    }.padding(.horizontal, 24).padding(.bottom, 12)
+                }
                 Divider()
                 selectedPage.frame(maxWidth: .infinity, maxHeight: .infinity, alignment: .topLeading)
                     .textFieldStyle(.roundedBorder)
@@ -306,8 +318,28 @@ struct SettingsView: View {
         case "shortcuts": shortcuts
         case "general": general
         case "result": result
+        case "updates": updatePage
         default: setup
         }
+    }
+    private var updatePage: some View {
+        Form {
+            Text(L("Current version: ", "当前版本：") + (Bundle.main.infoDictionary?["CFBundleShortVersionString"] as? String ?? "development"))
+            Text(state.updateStatus.isEmpty ? L("Updates are checked automatically once a day.", "每天自动检查更新。") : state.updateStatus)
+            if state.updateBusy {
+                ProgressView()
+                Button(L("Cancel download", "取消下载")) { model.cancelUpdate?() }
+            }
+            Button(L("Check for updates", "检查更新")) { model.checkUpdates?() }.disabled(state.updateBusy)
+            if !state.updateVersion.isEmpty {
+                Label(L("New version: ", "新版本：") + state.updateVersion, systemImage: "arrow.down.circle")
+                Button(L("Download and restart", "下载并重启")) { model.installUpdate?() }
+                    .disabled(state.updateBusy || !state.updateCanInstall || model.setupBusy)
+                if !state.updateCanInstall { Text(L("This release has no compatible Mac update package yet.", "此版本暂未提供适合这台 Mac 的更新包。")) }
+                Button(L("Release notes", "更新说明")) { model.releaseNotes?() }
+            }
+            Text(L("Updates preserve your settings and login. Finish dictation before installing; the previous app is kept as a backup.", "更新保留设置和登录。请结束听写后安装，旧应用会保留为备份。"))
+        }.formStyle(.grouped).padding(8)
     }
     private var setupTitles: [String] { [L("Recognition", "识别服务"), L("Microphone", "麦克风"), L("Shortcut", "快捷键"), L("Voice test", "语音试说")] }
     private var setup: some View {
