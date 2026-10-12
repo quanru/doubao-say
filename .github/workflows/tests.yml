@@ -74,7 +74,7 @@ jobs:
       - name: Install GTK test environment
         run: |
           sudo apt-get update
-          sudo apt-get install -y python3-gi python3-cairo python3-pil gir1.2-gtk-4.0 python3-venv libportaudio2 xvfb
+          sudo apt-get install -y python3-gi python3-cairo python3-pil fonts-noto-cjk gir1.2-gtk-4.0 python3-venv libportaudio2 xvfb
           /usr/bin/python3 -m venv --system-site-packages .venv
           .venv/bin/pip install -r packaging/runtime-requirements.txt -r requirements-dev.txt
       - name: Lint, test and enforce branch coverage
@@ -87,7 +87,10 @@ jobs:
           GTK_A11Y: none
           PYTHONPATH: src:.
           PERSONAL_UI_SCREENSHOTS: artifacts/verification/personal-ui
-        run: timeout --signal=TERM --kill-after=5s 35s xvfb-run -a .venv/bin/python tests/manual/personal_ui.py
+        run: |
+          for language in en zh_CN; do
+            PERSONAL_UI_LANGUAGE="$language" timeout --signal=TERM --kill-after=5s 35s xvfb-run -a .venv/bin/python tests/manual/personal_ui.py
+          done
       - name: Upload synthetic GTK personal UI captures
         if: always()
         uses: actions/upload-artifact@043fb46d1a93c77aae656e7c1c64a875d1fc6a0a # v7.0.1

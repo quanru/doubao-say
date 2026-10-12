@@ -14,6 +14,9 @@ from doubao_input.personal import PersonalStore
 from doubao_input.result import RecentResult
 from doubao_input.settings import Settings
 from doubao_input.ui.personal_window import PersonalWindow
+from doubao_input.i18n import set_language, tr
+
+set_language(os.environ.get("PERSONAL_UI_LANGUAGE", "en"))
 
 
 def drain(seconds=0.15):
@@ -45,8 +48,9 @@ def capture(name):
     folder = os.environ.get("PERSONAL_UI_SCREENSHOTS")
     if folder:
         from PIL import ImageGrab
-        Path(folder).mkdir(parents=True, exist_ok=True)
-        ImageGrab.grab(xdisplay=os.environ["DISPLAY"]).save(Path(folder) / (name + ".png"))
+        destination = Path(folder) / os.environ.get("PERSONAL_UI_LANGUAGE", "en")
+        destination.mkdir(parents=True, exist_ok=True)
+        ImageGrab.grab(xdisplay=os.environ["DISPLAY"]).save(destination / (name + ".png"))
 
 
 with tempfile.TemporaryDirectory() as temp:
@@ -101,23 +105,26 @@ with tempfile.TemporaryDirectory() as temp:
     entries[0].set_text("Midjourney"); entries[1].set_text("Midscene"); drain()
     assert store.corrections() == []
     capture("correction-preview")
-    click(window.correction_window, "Cancel")
+    click(window.correction_window, tr("Cancel", "取消"))
     assert window.correction_window is None and store.corrections() == []
     window.edit_correction(row); drain()
     entries = [item for item in widgets(window.correction_window) if isinstance(item, Gtk.Entry)]
     entries[0].set_text("missing"); entries[1].set_text("Midscene"); drain()
-    confirm = [item for item in widgets(window.correction_window) if isinstance(item, Gtk.Button) and item.get_label() == "Confirm & remember"][0]
+    confirm = [item for item in widgets(window.correction_window) if isinstance(item, Gtk.Button) and item.get_label() == tr("Confirm & remember", "确认并记住")][0]
     assert not confirm.get_sensitive()
     entries[0].set_text("Midjourney"); drain()
-    click(window.correction_window, "Confirm & remember")
+    click(window.correction_window, tr("Confirm & remember", "确认并记住"))
     assert window.correction_window is None and len(store.corrections()) == 1
     confirmed = store.history()[0]
     assert confirmed["confirmed"] == "用 Midscene 编写自动化测试"
     assert confirmed["output"] == confirmed["original"] == "用 Midjourney 编写自动化测试"
     capture("history-confirmed")
-    notebook.set_current_page(1); drain(); capture("vocabulary-memory")
+    notebook.set_current_page(1); drain()
+    adjustment = notebook.get_nth_page(1).get_vadjustment()
+    adjustment.set_value(adjustment.get_upper() - adjustment.get_page_size()); drain()
+    capture("vocabulary-memory")
     assert "Midscene" in window.hotword_preview.get_text()
-    click(window.memory_box, "Forget")
+    click(window.memory_box, tr("Forget", "忘记"))
     assert store.corrections() == [] and store.history()[0]["confirmed"] == confirmed["confirmed"]
     window.close(); assert not window.window.get_visible()
     print("PASS: real GTK window, padded editors, debounce, recording toggle, history, counts-only AI, reviewed vocabulary, correction preview/cancel/confirm, immutable originals, hotword preview, forget and close flush")

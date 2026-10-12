@@ -42,7 +42,7 @@ the current streaming protocol and send audio at approximately recording speed.
 
 The installed Python package also provides `doubao-say-eval` with the same options.
 On Mac, pass `--personal-db` with the app's personal SQLite file, usually
-`~/Library/Application Support/md.lifeos.doubao-say/personal.sqlite3`.
+`~/Library/Application Support/md.lifeos.doubao-say.macos/personal.sqlite3`.
 Mac credentials remain in Keychain; supply the ASR key via the environment.
 The DMG does not bundle a Python interpreter or this developer CLI.
 

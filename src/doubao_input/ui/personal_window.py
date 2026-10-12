@@ -235,6 +235,7 @@ class PersonalWindow:
         source = Gtk.Entry(placeholder_text=tr("For example: Midjourney", "例如：Midjourney")); box.append(source)
         box.append(self.label(tr("Correct spelling", "正确写法")))
         target = Gtk.Entry(placeholder_text=tr("For example: Midscene", "例如：Midscene")); box.append(target)
+        box.append(self.label(tr("After confirmation", "确认后的文字")))
         preview = self.label("")
         preview_scroll = Gtk.ScrolledWindow(min_content_height=60, max_content_height=120)
         preview_scroll.set_child(preview); box.append(preview_scroll)
