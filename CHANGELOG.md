@@ -8,6 +8,10 @@
 
 - macOS: expose English, Simplified Chinese and system language selection in General settings with immediate switching and persistent preferences.
 
+## 1.5.2
+
+- Check a public update manifest first, fall back to the GitHub API, allow longer requests, reject invalid caches and show specific Mac connection, HTTP, timeout and rate-limit errors. Ignore stale responses after cancellation.
+
 ## 1.5.1
 
 - Simplify the Mac update page to one state-dependent action, show release notes as a text link, and prevent repeated checks while a request is active.
