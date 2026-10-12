@@ -19,6 +19,11 @@ final class PersonalModel: ObservableObject {
     @Published var selected = Set<String>()
     @Published var feedback = ""
     @Published var busy = false
+    @Published var corrections: [ConfirmedCorrection] = []
+    @Published var hotwords = ""
+    @Published var correctionTarget: InputHistory?
+    @Published var recognizedTerm = ""
+    @Published var correctedTerm = ""
     private var loading = false
     private var limit = 100
     private var saveTimer: DispatchWorkItem?
@@ -28,7 +33,8 @@ final class PersonalModel: ObservableObject {
         loading = true; defer { loading = false }
         do {
             if saveTimer == nil { words = try store.words().joined(separator: "\n") }
-            enabled = try store.enabled(); history = try store.history(limit: limit)
+            enabled = try store.enabled(); history = try store.history(limit: limit); corrections = try store.corrections()
+            refreshHotwords()
         } catch { feedback = L("Could not read local vocabulary or history.", "无法读取本地词汇或历史。") }
     }
     private func scheduleSave() {
@@ -37,20 +43,44 @@ final class PersonalModel: ObservableObject {
         saveTimer = work
         DispatchQueue.main.asyncAfter(deadline: .now() + 0.6, execute: work)
     }
+    private func refreshHotwords() {
+        let context = try? PersonalCorrections.hotwordContext(store.recognitionWords())
+        let value = context.flatMap { try? JSONSerialization.jsonObject(with: Data($0.utf8)) as? [String: [[String: String]]] }
+        hotwords = (value?["hotwords"] ?? []).compactMap { $0["word"] }.joined(separator: " · ")
+    }
     @discardableResult func flush() -> Bool {
         saveTimer?.cancel(); saveTimer = nil
-        do { try store.saveWords(words); feedback = L("Vocabulary saved automatically.", "个人词汇已自动保存。"); return true }
+        do { try store.saveWords(words); refreshHotwords(); feedback = L("Vocabulary saved automatically.", "个人词汇已自动保存。"); return true }
         catch { feedback = L("Could not save vocabulary. Use one term per line, up to 200 terms of 80 characters each.", "词汇保存失败：每行一个词，最多 200 个，每个最多 80 个字符。"); return false }
     }
     func more() { limit += 100; refresh() }
+    func beginCorrection(_ item: InputHistory) {
+        recognizedTerm = ""; correctedTerm = ""; correctionTarget = item
+    }
+    var correctionPreview: String? {
+        guard let item = correctionTarget else { return nil }
+        return try? PersonalCorrections.confirmation(original: item.original, output: item.confirmed.isEmpty ? item.output : item.confirmed, recognized: recognizedTerm, corrected: correctedTerm).2
+    }
+    func confirmCorrection() {
+        guard let item = correctionTarget else { return }
+        do {
+            try store.confirmCorrection(item.id, recognized: recognizedTerm, corrected: correctedTerm)
+            correctionTarget = nil; refresh()
+            feedback = L("Correction remembered. Future matching contexts can use it.", "已记住这次纠正，之后遇到相似语境时参考。")
+        } catch { feedback = L("Could not confirm. Check both terms and refresh the history entry.", "无法确认，请检查两个词，并确认这条历史仍然存在。") }
+    }
+    func forget(_ item: ConfirmedCorrection) {
+        do { try store.forgetCorrection(item.id); refresh(); feedback = L("Correction forgotten.", "已忘记这条纠错记忆。") }
+        catch { feedback = L("Could not remove correction memory.", "无法删除纠错记忆。") }
+    }
     func clearHistory() {
         client?.cancel(); client = nil; busy = false
-        do { try store.clearHistory(); history = []; candidates = []; selected = []; feedback = L("Local history cleared. Vocabulary was retained.", "本地历史已清空，个人词汇保留。") }
+        do { try store.clearHistory(); history = []; candidates = []; selected = []; feedback = L("Local history cleared. Vocabulary and correction memory were retained.", "本地历史已清空，个人词汇和纠错记忆保留。") }
         catch { feedback = L("Could not clear local history.", "本地历史清空失败。") }
     }
     func statistics() {
         do { candidates = try store.candidates(); selected = []
-            feedback = candidates.isEmpty ? L("No repeated terms in sent, polished results yet.", "已发送的润色结果中暂时没有重复词汇。") : L("Local frequency candidates. Select useful terms before adding.", "本地词频候选，请选择有用的词再添加。")
+            feedback = candidates.isEmpty ? L("No repeated terms in polished results or confirmed corrections yet.", "润色结果和已确认的纠正中暂时没有重复词汇。") : L("Local frequency candidates. Select useful terms before adding.", "本地词频候选，请选择有用的词再添加。")
         } catch { feedback = L("Could not calculate local frequencies.", "本地词频统计失败。") }
     }
     func organize() {
@@ -75,7 +105,7 @@ final class PersonalModel: ObservableObject {
                 self.feedback = L("Review the AI suggestions and select terms to add.", "请检查 AI 候选，选择需要添加的词。")
             } catch { self.feedback = L("AI organization failed. Local candidates remain available.", "AI 整理失败，本地候选仍可使用。") }
         }
-        request.start(text: input, settings: settings, apiKey: key, timeout: 25)
+        request.start(text: input, settings: settings, apiKey: key, timeout: 25, personalize: false)
     }
     func cancelAI() { client?.cancel(); client = nil; busy = false }
     func addSelected() {
@@ -92,19 +122,30 @@ struct PersonalVocabularyView: View {
     var body: some View {
         ScrollView {
             VStack(alignment: .leading, spacing: 12) {
-                Text(L("One term per line. Saved automatically. Used as contextual reference during AI polishing; enable polishing for corrections. ASR itself does not learn this list.", "每行一个词，自动保存。词汇作为 AI 润色的上下文参考，启用润色后用于纠词；不会让 ASR 自动学习词库。"))
+                Text(L("One term per line, saved automatically. Official Volcengine ASR sends a length-limited subset as hotwords, prioritizing confirmed spellings. Doubao Web and other engines use this list only during AI polishing. This does not train the recognition model.", "每行一个词，自动保存。官方火山引擎 ASR 会发送受长度限制的热词，已确认的词优先；豆包 Web 和其他引擎仅在 AI 润色时参考。不会训练识别模型。"))
                 PaddedTextEditor(text: $model.words).font(.system(size: 13)).frame(height: 160)
+                Text(L("Official ASR hotword preview: ", "官方 ASR 热词预览：") + (model.hotwords.isEmpty ? L("None", "暂无") : model.hotwords)).font(.caption).foregroundColor(.secondary)
                 HStack {
                     Button(L("Local frequencies", "本地词频")) { model.statistics() }.disabled(model.busy)
                     Button(L("AI organize frequencies", "AI 整理高频词")) { model.organize() }.disabled(model.busy)
                     if model.busy { ProgressView().controlSize(.small); Button(L("Cancel", "取消")) { model.cancelAI() } }
                 }
-                Text(L("Counts come from the last 30 days of sent, polished results. AI receives only candidate terms and counts through your configured polishing service. Suggestions require your selection.", "词频来自最近 30 天已发送的润色结果。AI 仅通过你配置的润色服务接收候选词和次数，需要你选择后才添加。"))
+                Text(L("Counts come from the last 30 days of sent, polished results and corrections you confirmed. AI receives only candidate terms and counts through your configured polishing service. Suggestions require your selection.", "词频来自最近 30 天已发送的润色结果和你确认过的纠正。AI 仅通过你配置的润色服务接收候选词和次数，需要你选择后才添加。"))
                     .font(.caption).foregroundColor(.secondary)
                 ForEach(model.candidates) { candidate in
                     Toggle("\(candidate.term) · \(candidate.count)", isOn: Binding(get: { model.selected.contains(candidate.term) }, set: { if $0 { model.selected.insert(candidate.term) } else { model.selected.remove(candidate.term) } }))
                 }
                 Button(L("Add selected terms", "添加所选词汇")) { model.addSelected() }.disabled(model.selected.isEmpty || model.busy)
+                Divider()
+                Text(L("Confirmed correction memory", "已确认的纠错记忆")).font(.headline)
+                Text(L("Only corrections you confirm in Input history are remembered. Context is kept to avoid replacing legitimate words elsewhere.", "只记住你在输入历史中确认过的纠正，保留语境，避免误改其他地方的正确词。"))
+                if model.corrections.isEmpty { Text(L("No confirmed corrections yet.", "暂无已确认的纠错记忆。")).foregroundColor(.secondary) }
+                ForEach(model.corrections) { item in
+                    VStack(alignment: .leading, spacing: 4) {
+                        HStack { Text(item.recognized + " → " + item.corrected); Spacer(); Button(L("Forget", "忘记")) { model.forget(item) } }
+                        Text(item.context).font(.caption).foregroundColor(.secondary).textSelection(.enabled)
+                    }
+                }
                 Text(model.feedback).font(.callout).foregroundColor(.secondary)
             }.padding(16)
         }.onAppear { settingsModel.flushPersonal = { [weak personal = model] in personal?.flush() ?? true } }
@@ -117,6 +158,7 @@ struct InputHistoryView: View {
     @ObservedObject var state: AppState
     @State private var clearing = false
     init(state: AppState, store: PersonalDataStore = .shared) { self.state = state; _model = StateObject(wrappedValue: PersonalModel(store: store)) }
+    init(state: AppState, model: PersonalModel) { self.state = state; _model = StateObject(wrappedValue: model) }
     var body: some View {
         VStack(alignment: .leading, spacing: 12) {
             Toggle(L("Record this app's dictation history for 30 days", "记录本应用最近 30 天的听写历史"), isOn: $model.enabled)
@@ -135,9 +177,16 @@ struct InputHistoryView: View {
                                 Text(item.polished ? L("Polished", "已润色") : L("Original", "原文"))
                                 Text(["sent", "attempted"].contains(item.status) ? L("Input sent", "已发送输入操作") : L("Kept / not confirmed", "已保留／未确认输入"))
                             }.font(.caption).foregroundColor(.secondary)
-                            Text(item.output).textSelection(.enabled)
+                            Text(item.confirmed.isEmpty ? item.output : item.confirmed).textSelection(.enabled)
+                            if !item.confirmed.isEmpty {
+                                Text(L("Correction confirmed by you", "你已确认纠正")).font(.caption).foregroundColor(.secondary)
+                                DisclosureGroup(L("Before your correction", "确认前的文字")) { Text(item.output).textSelection(.enabled) }
+                            }
                             if item.original != item.output { DisclosureGroup(L("Recognition original", "识别原文")) { Text(item.original).textSelection(.enabled) } }
-                            Button(L("Use in Recent text", "放入最近文字")) { state.lastTranscript = item.output }
+                            HStack {
+                                Button(L("Use in Recent text", "放入最近文字")) { state.lastTranscript = item.confirmed.isEmpty ? item.output : item.confirmed }
+                                Button(L("Correct & remember…", "纠正并记住…")) { model.beginCorrection(item) }
+                            }
                             Divider()
                         }
                     }
@@ -150,6 +199,39 @@ struct InputHistoryView: View {
         .alert(L("Clear all local input history?", "清空全部本地输入历史？"), isPresented: $clearing) {
             Button(L("Clear", "清空"), role: .destructive) { model.clearHistory() }
             Button(L("Cancel", "取消"), role: .cancel) { }
-        } message: { Text(L("Personal vocabulary is retained.", "个人词汇会保留。")) }
+        } message: { Text(L("Personal vocabulary and confirmed correction memory are retained.", "个人词汇和已确认的纠错记忆会保留。")) }
+        .sheet(item: $model.correctionTarget) { _ in ConfirmCorrectionView(model: model) }
+    }
+}
+
+struct ConfirmCorrectionView: View {
+    @ObservedObject var model: PersonalModel
+    var body: some View {
+        VStack(alignment: .leading, spacing: 12) {
+            Text(L("Confirm & remember a correction", "确认并记住这次纠正")).font(.headline)
+            if let item = model.correctionTarget {
+                ScrollView { Text(item.confirmed.isEmpty ? item.output : item.confirmed).textSelection(.enabled).frame(maxWidth: .infinity, alignment: .leading) }.frame(maxHeight: 120)
+            }
+            Text(L("Misrecognized word or phrase", "误识别的词或短语"))
+            TextField(L("For example: Midjourney", "例如：Midjourney"), text: $model.recognizedTerm)
+            Text(L("Correct spelling", "正确写法"))
+            TextField(L("For example: Midscene", "例如：Midscene"), text: $model.correctedTerm)
+            if let preview = model.correctionPreview {
+                Text(L("After confirmation", "确认后的文字")).font(.headline)
+                ScrollView { Text(preview).textSelection(.enabled).frame(maxWidth: .infinity, alignment: .leading) }.frame(maxHeight: 120)
+            } else {
+                Text(L("Enter a term from this entry and its correct spelling. Review the result before confirming.", "填写这条记录中出现的词和正确写法，检查结果后再确认。"))
+                    .fixedSize(horizontal: false, vertical: true)
+            }
+            Text(L("Future polishing uses the example context to help avoid unrelated replacements. No other app's typing is monitored.", "之后润色会参考示例语境，减少误改其他地方的词。不监控其他应用的键盘输入。"))
+                .font(.caption).foregroundColor(.secondary).fixedSize(horizontal: false, vertical: true)
+            Text(model.feedback).font(.caption).foregroundColor(.secondary).fixedSize(horizontal: false, vertical: true)
+            HStack {
+                Button(L("Cancel", "取消")) { model.correctionTarget = nil }.keyboardShortcut(.cancelAction)
+                Spacer()
+                Button(L("Confirm & remember", "确认并记住")) { model.confirmCorrection() }
+                    .keyboardShortcut(.defaultAction).disabled(model.correctionPreview == nil)
+            }
+        }.textFieldStyle(.roundedBorder).padding(20).frame(width: 540)
     }
 }

@@ -111,3 +111,21 @@ signed `.app`. On a resource-managed development Mac, wrap these commands with
 real nonactivating overlay and exits; run it under a runtime slot. Live sign-in,
 audio and paste acceptance remain separate checks. See
 [the Mac guide](../macos/README.zh-CN.md) for scope and permissions.
+
+## Personal speech and correction checks
+
+`tests.unit.test_personal_corrections` verifies explicit confirmation, immutable
+history, database rollback, expiry, memory deletion, contextual boundaries and
+hotword wire limits. `tests.unit.test_speech_eval` verifies failed/missing samples,
+negative cases, private offline reports and reference isolation. These tests use
+synthetic data and do not access live services or record audio.
+
+Linux CI runs `tests/manual/personal_ui.py` under isolated Xvfb, exercises the real
+GTK preview/cancel/confirm/forget controls, and retains synthetic screenshots.
+`macos/Tests/Settings/PersonalUICheck.swift` is a native fixture; compile it with all
+app sources except DoubaoSayApp.swift, wrap it in a unique
+`md.lifeos.doubao-say.update-verify.<uuid>` bundle, and run with a process timeout.
+PERSONAL_PAGE selects vocabulary, history, editor, cancel, confirmed or memory.
+It activates the real sheet's Return/Escape shortcuts and checks persisted state.
+Live microphone/ASR quality is separate; use the opt-in
+[personal speech evaluation tool](../packaging/SPEECH_EVAL.md) with real recordings.

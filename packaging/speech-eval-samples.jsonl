@@ -1,0 +1,8 @@
+{"id":"midscene-cn","audio":"audio/midscene-cn.wav","reference":"用 Midscene 编写自动化测试。","terms":["Midscene"],"protected_terms":[]}
+{"id":"midscene-en","audio":"audio/midscene-en.wav","reference":"Run the test with Midscene.","terms":["Midscene"],"protected_terms":[]}
+{"id":"vibelet","audio":"audio/vibelet.wav","reference":"打开 Vibelet 的语音输入功能。","terms":["Vibelet"],"protected_terms":[]}
+{"id":"cxx","audio":"audio/cxx.wav","reference":"这个项目同时使用 C++ 和 C#。","terms":["C++","C#"],"protected_terms":[]}
+{"id":"midjourney-cn","audio":"audio/midjourney-cn.wav","reference":"用 Midjourney 画一张海报。","terms":[],"protected_terms":["Midjourney"]}
+{"id":"midjourney-en","audio":"audio/midjourney-en.wav","reference":"Generate an image in Midjourney.","terms":[],"protected_terms":["Midjourney"]}
+{"id":"mixed","audio":"audio/mixed.wav","reference":"Midscene 负责测试，Midjourney 负责画图。","terms":["Midscene"],"protected_terms":["Midjourney"]}
+{"id":"ordinary","audio":"audio/ordinary.wav","reference":"明天下午三点开会，周四上线。","terms":[],"protected_terms":[]}

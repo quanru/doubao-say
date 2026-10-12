@@ -36,7 +36,7 @@ def _header(message_type: int, flags: int, serialization: int, compression: int)
                   (serialization << 4) | compression, 0x00))
 
 
-def full_request(sequence: int = 1) -> bytes:
+def full_request(sequence: int = 1, *, hotwords=()) -> bytes:
     payload = {
         "user": {"uid": "doubao-say"},
         "audio": {
@@ -49,6 +49,10 @@ def full_request(sequence: int = 1) -> bytes:
             "show_utterances": False,
         },
     }
+    from doubao_input.personal_corrections import hotword_context
+    context = hotword_context(hotwords)
+    if context:
+        payload["request"]["corpus"] = {"context": context}
     compressed = gzip.compress(json.dumps(payload, separators=(",", ":")).encode())
     return (_header(CLIENT_FULL_REQUEST, POSITIVE_SEQUENCE,
                     JSON_SERIALIZATION, GZIP_COMPRESSION)

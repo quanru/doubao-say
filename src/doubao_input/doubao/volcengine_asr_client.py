@@ -3,6 +3,7 @@
 from __future__ import annotations
 
 import asyncio
+import sqlite3
 from collections import deque
 from dataclasses import dataclass, field
 import inspect
@@ -39,10 +40,11 @@ class _Session:
 class VolcengineASRClient:
     """Thread-safe client with the same lifecycle contract as the web client."""
 
-    def __init__(self, connect_factory=None) -> None:
+    def __init__(self, connect_factory=None, hotwords=None) -> None:
         self._lock = threading.RLock()
         self._session: _Session | None = None
         self._connect_factory = connect_factory
+        self._hotwords = hotwords
         self.on_open = self.on_result = self.on_finish = None
         self.on_error = self.on_auth_error = None
 
@@ -124,7 +126,15 @@ class VolcengineASRClient:
                 VOLCENGINE_ASR_URL, open_timeout=5, close_timeout=3,
                 max_size=2**20, **_websocket_header_kwargs(factory, headers),
             ) as websocket:
-                await websocket.send(full_request())
+                if self._hotwords is None:
+                    from doubao_input.personal import PersonalStore
+                    try:
+                        words = PersonalStore().recognition_words()
+                    except (OSError, ValueError, sqlite3.Error):
+                        words = []
+                else:
+                    words = self._hotwords()
+                await websocket.send(full_request(hotwords=words))
                 acknowledgement = parse_response(await asyncio.wait_for(websocket.recv(), 5))
                 if acknowledgement.code:
                     self._emit_rejection(session, acknowledgement.code)

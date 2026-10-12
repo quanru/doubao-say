@@ -57,7 +57,7 @@ final class APIASRClient: ASRTransport {
             self.queue.asyncAfter(deadline: .now() + 5, execute: deadline)
             if self.provider == .volcengine {
                 do {
-                    let frame = try SeedProtocol.initial()
+                    let frame = try SeedProtocol.initial(hotwords: (try? PersonalDataStore.shared.recognitionWords()) ?? [])
                     task.send(.data(frame)) { error in self.queue.async {
                         if error != nil { self.fail() } else { self.receive(acknowledgement: true) }
                     } }

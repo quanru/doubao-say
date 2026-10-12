@@ -68,7 +68,7 @@ class VolcengineASRClientTest(unittest.TestCase):
     credentials = VolcengineCredentials("fake-api-key")
 
     def client(self, socket):
-        client = VolcengineASRClient(lambda *args, **kwargs: socket)
+        client = VolcengineASRClient(lambda *args, **kwargs: socket, hotwords=lambda: [])
         self.addCleanup(client.disconnect)
         return client
 
@@ -77,6 +77,18 @@ class VolcengineASRClientTest(unittest.TestCase):
             VOLCENGINE_ASR_URL,
             "wss://openspeech.bytedance.com/api/v3/sauc/bigmodel",
         )
+
+    def test_hotwords_reach_the_connection_request_before_audio(self):
+        socket = FakeSocket()
+        client = VolcengineASRClient(lambda *args, **kwargs: socket, hotwords=lambda: ["Midscene"])
+        self.addCleanup(client.disconnect)
+        finished = threading.Event()
+        client.on_finish = finished.set
+        client.prepare(); client.send_audio(b"pcm"); client.finish_sending(); client.connect(self.credentials)
+        session = client._session
+        self.assertTrue(finished.wait(2)); session.thread.join(2)
+        payload = json.loads(gzip.decompress(socket.sent[0][12:]))
+        self.assertEqual(json.loads(payload["request"]["corpus"]["context"]), {"hotwords": [{"word": "Midscene"}]})
 
     def stop(self, client, session):
         client.disconnect()
