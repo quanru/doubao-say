@@ -34,14 +34,19 @@ enum WaveformRenderer {
                     let point = CGPoint(x: 12 + x * (size.width - 24), y: y)
                     if i == 0 { path.move(to: point) } else { path.addLine(to: point) }
                 }
-                context.stroke(path, with: .color(.cyan.opacity(0.85 - Double(layer) * 0.24)), lineWidth: 1.6 - Double(layer) * 0.25)
+                context.stroke(path, with: .color(OverlayAppearance.accent.opacity(0.85 - Double(layer) * 0.24)), lineWidth: 1.6 - Double(layer) * 0.25)
             }
         default:
-            let values = motion.bars(48), step = size.width / 48
+            let values = motion.bars(48), step = 7.0
+            let startX = (size.width - 48 * step + 3) / 2
+            let gradient = Gradient(colors: [OverlayAppearance.accent.opacity(0.55), OverlayAppearance.foreground.opacity(0.95), OverlayAppearance.accent.opacity(0.55)])
             for i in values.indices {
-                let amplitude = 0.85 + values[i] * (size.height / 2 - 2)
-                let rect = CGRect(x: Double(i) * step, y: size.height / 2 - amplitude, width: max(1, step - 2), height: amplitude * 2)
-                context.fill(Path(roundedRect: rect, cornerRadius: 2), with: .linearGradient(Gradient(colors: [.cyan.opacity(0.55), .white.opacity(0.95), .cyan.opacity(0.55)]), startPoint: .zero, endPoint: CGPoint(x: 0, y: size.height)))
+                let amplitude = 0.85 + values[i] * 10
+                let x = startX + Double(i) * step
+                let halo = CGRect(x: x - 1.5, y: 12 - amplitude - 1.5, width: 7, height: amplitude * 2 + 3)
+                context.fill(Path(roundedRect: halo, cornerRadius: 3), with: .color(OverlayAppearance.accent.opacity(motion.level * 0.18)))
+                let rect = CGRect(x: x, y: 12 - amplitude, width: 4, height: amplitude * 2)
+                context.fill(Path(roundedRect: rect, cornerRadius: 2), with: .linearGradient(gradient, startPoint: .zero, endPoint: CGPoint(x: 0, y: 24)))
             }
         }
     }
@@ -49,7 +54,7 @@ enum WaveformRenderer {
         for ring in 0..<4 {
             let progress = (phase / (2 * .pi) + Double(ring) / 4).truncatingRemainder(dividingBy: 1)
             let scale = 0.12 + 0.88 * progress
-            context.stroke(Path(ellipseIn: CGRect(x: center.x - rx * scale, y: center.y - ry * scale, width: 2 * rx * scale, height: 2 * ry * scale)), with: .color(.cyan.opacity((0.12 + level * 0.75) * (1 - progress))), lineWidth: 1)
+            context.stroke(Path(ellipseIn: CGRect(x: center.x - rx * scale, y: center.y - ry * scale, width: 2 * rx * scale, height: 2 * ry * scale)), with: .color(OverlayAppearance.accent.opacity((0.12 + level * 0.75) * (1 - progress))), lineWidth: 1)
         }
     }
     private static func limb(_ path: inout Path, _ a: CGPoint, _ b: CGPoint, _ radius: Double) {
@@ -83,7 +88,7 @@ enum WaveformRenderer {
         let hip = CGPoint(x: -13 - 1.5 * p.twist + p.bodyX * 0.55, y: 3 + 1.6 * p.crouch)
         let elbow = CGPoint(x: 5 + 4 * p.twist + p.bodyX * 0.65, y: -3 + p.crouch + p.handY * 0.25)
         let hand = CGPoint(x: 16 + p.carryX, y: p.handY)
-        threads(context, width: size.width, phase: phase, level: level, color: .cyan, opacity: 0.05)
+        threads(context, width: size.width, phase: phase, level: level, color: OverlayAppearance.accent, opacity: 0.05)
         var figure = Path(ellipseIn: CGRect(x: -13.2 + 2 * p.headTurn + p.headX, y: -13.2 + 1.5 * p.crouch, width: 6.4, height: 6.4))
         // A broader upper torso, swept hair and vest straps clarify the silhouette.
         var hair = Path()
@@ -100,15 +105,15 @@ enum WaveformRenderer {
         limb(&figure, hip, leftKnee, 1.9); limb(&figure, leftKnee, CGPoint(x: -20, y: 13), 1.6)
         limb(&figure, hip, rightKnee, 1.9); limb(&figure, rightKnee, CGPoint(x: 3, y: 13), 1.6)
         var masked = context; masked.clip(to: figure)
-        threads(masked, width: size.width, phase: phase, level: level, color: .white, opacity: 0.62)
+        threads(masked, width: size.width, phase: phase, level: level, color: OverlayAppearance.foreground, opacity: 0.62)
         var straps = Path()
         limb(&straps, CGPoint(x: neck.x - 2, y: neck.y), CGPoint(x: hip.x - 2, y: hip.y), 0.7)
         limb(&straps, CGPoint(x: neck.x + 2, y: neck.y), CGPoint(x: hip.x + 2, y: hip.y), 0.7)
         masked = context; masked.clip(to: straps)
-        threads(masked, width: size.width, phase: phase, level: level, color: .cyan, opacity: 0.95)
+        threads(masked, width: size.width, phase: phase, level: level, color: OverlayAppearance.accent, opacity: 0.95)
         var arm = Path(); limb(&arm, back, shoulder, 2); limb(&arm, shoulder, elbow, 1.5); limb(&arm, elbow, hand, 1.2)
         masked = context; masked.clip(to: arm)
-        threads(masked, width: size.width, phase: phase, level: level, color: .white, opacity: 0.50)
+        threads(masked, width: size.width, phase: phase, level: level, color: OverlayAppearance.foreground, opacity: 0.50)
         let rx = 4.1 * (1 + 0.25 * p.squash), ry = 4.1 * (1 - 0.4 * p.squash)
         masked = context; masked.clip(to: Path(ellipseIn: CGRect(x: 18 + p.carryX - rx, y: p.ballY - ry, width: rx * 2, height: ry * 2)))
         threads(masked, width: size.width, phase: phase, level: level, color: Color(red: 1, green: 0.64, blue: 0.34), opacity: 0.85)

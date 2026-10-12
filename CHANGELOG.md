@@ -10,6 +10,8 @@
 
 ## Unreleased
 
+- Match the macOS dictation overlay to the compact Linux layout, colors and state borders; center transcript and polishing activity on both platforms.
+
 - Add in-app update notifications, manual checks, verified downloads and restart installation on macOS and Linux, with retained settings and rollback on failed installation checks.
 
 - Hide receiver mappings while AU05 support is disabled and clarify when settings take effect.

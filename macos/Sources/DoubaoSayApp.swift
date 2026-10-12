@@ -358,7 +358,10 @@ final class AppDelegate: NSObject, NSApplicationDelegate, NSMenuDelegate {
         DispatchQueue.main.asyncAfter(deadline: .now() + 1) {
             let focusPreserved = NSWorkspace.shared.frontmostApplication?.processIdentifier == frontPID
             guard !self.overlay.isKeyWindow, focusPreserved, self.overlay.isVisible,
-                  NSScreen.screens.contains(where: { abs(self.overlay.frame.minY - ($0.visibleFrame.minY + 20)) < 1 }) else { exit(1) }
+                  abs(self.overlay.frame.width - OverlayAppearance.width) < 1,
+                  abs(self.overlay.frame.height - OverlayAppearance.height) < 1,
+                  NSScreen.screens.contains(where: { abs(self.overlay.frame.midX - $0.frame.midX) < 1 }),
+                  NSScreen.screens.contains(where: { abs(self.overlay.frame.minY - ($0.visibleFrame.minY + OverlayAppearance.bottomMargin)) < 1 }) else { exit(1) }
             if ProcessInfo.processInfo.environment["DOUBAO_SMOKE_IMAGE"] != nil {
                 WindowCapture.request(self.overlay)
             }
