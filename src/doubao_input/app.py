@@ -13,6 +13,8 @@ from __future__ import annotations
 
 import logging
 import signal
+import shutil
+from threading import Thread
 from dataclasses import replace
 
 import gi
@@ -41,6 +43,7 @@ from doubao_input.ui.setup_actions import SetupActions
 from doubao_input.ui.overlay import Overlay
 from doubao_input.polish import ApiKeyStore, PolishManager
 from doubao_input.updates import UpdateChecker
+from doubao_input.update_install import prepare as prepare_update, launch as launch_update, consume_result as consume_update_result
 from doubao_input.polish_preview import PolishPreview
 from doubao_input.trigger.escape_guard import EscapeGuard
 from doubao_input.diagnostics import DiagnosticTrace, report as diagnostic_report
@@ -76,6 +79,7 @@ class DoubaoInputApp(Gtk.Application):
         self.app_state = AppState()
         self._overlay: Overlay | None = None
         self._control: ControlWindow | None = None
+        self._settings_window = None
         self._login_window = None
         self._login_attempt = None
         self._tray = None
@@ -86,11 +90,16 @@ class DoubaoInputApp(Gtk.Application):
         self._enter_after_paste = False
         self.app_state.connect("recording-state-changed", self._finish_preview_state)
         self.recent = RecentResult()
+        from doubao_input.personal import PersonalStore
+        self._personal_store = PersonalStore()
+        self._history_id = None
+        self._personal_window = None
         self._target = None
         self._recovery_timer = None
         self._delivery = None
         self._polisher = None
         self._update_checker = None
+        self._update_installing = False
         self._update_timer = None
         self._polish_context = None
         self._polish_mode = None
@@ -239,10 +248,20 @@ class DoubaoInputApp(Gtk.Application):
                 asr_has_key=self._api_key_has_saved,
                 save_asr=self._save_asr_key,
                 test_asr=self._test_asr_key,
+                check_updates=lambda: self._update_checker.check(force=True),
+                install_update=self._install_update,
+                open_personal=self._show_personal,
             ),
         )
-        self._update_checker = UpdateChecker(GLib.idle_add, self._update_available)
+        self._update_checker = UpdateChecker(GLib.idle_add, self._update_available, status=self._update_status)
+        try:
+            self._personal_store.history(limit=0)
+        except Exception:
+            self._control.set_feedback(tr("Could not open local input history.", "无法打开本地输入历史。"))
         self._update_checker.check()
+        update_result = consume_update_result()
+        if update_result and not update_result["success"]:
+            self.app_state.error_message = tr("The previous update failed. The previous installation was restored; details are in the update log.", "上次更新失败，已恢复旧安装；详情保存在更新日志中。")
         self._update_timer = GLib.timeout_add_seconds(3600, self._check_updates)
 
         self._setup_session = SetupSession(self._audio_capture, self._overlay,
@@ -291,7 +310,96 @@ class DoubaoInputApp(Gtk.Application):
         self._control.set_update(info)
         self._overlay.set_update(info)
 
+    def _update_status(self, value):
+        if self._update_installing:
+            return
+        if value == "current":
+            self._control.set_update(None); self._overlay.set_update(None)
+        messages = {
+            "checking": tr("Checking for updates…", "正在检查更新…"),
+            "current": tr("You are using the latest version.", "当前已是最新版本。"),
+            "available": tr("Update available. Click Update to download and restart.", "发现新版本，点击更新即可下载并重启。"),
+            "failed": tr("Could not check for updates. Try again later.", "更新检查失败，请稍后重试。"),
+        }
+        self._control.set_update_status(messages[value], value == "checking")
+
+    def _install_update(self, info):
+        if self._update_installing:
+            return
+        if self._busy():
+            self._control.set_feedback(tr("Finish dictation or testing before updating.", "请先结束听写或测试，再安装更新。"))
+            return
+        if not self._control.flush_edits() or (self._settings_window and not self._settings_window.flush_edits()) or (self._personal_window and not self._personal_window.flush()):
+            self._control.set_feedback(tr("Correct unsaved settings before updating.", "请先修正未保存的设置，再更新。"))
+            return
+        self._update_installing = True
+        self._control.set_update_status(tr("Downloading update…", "正在下载更新…"), True)
+        def prepared(scratch, error):
+            self._update_installing = False
+            if error or self._busy():
+                if scratch:
+                    shutil.rmtree(scratch)
+                self._control.set_update_status(tr("Update was not installed: ", "更新未安装：") + (error or tr("finish dictation first", "请先结束听写")))
+                return False
+            if not self._control.flush_edits() or (self._settings_window and not self._settings_window.flush_edits()) or (self._personal_window and not self._personal_window.flush()):
+                shutil.rmtree(scratch)
+                self._control.set_update_status(tr("Correct unsaved settings before updating.", "请先修正未保存的设置，再更新。"))
+                return False
+            try:
+                launch_update(scratch)
+            except OSError:
+                shutil.rmtree(scratch)
+                self._control.set_update_status(tr("Could not start the updater; the installed app is unchanged.", "无法启动更新程序，已安装的应用未改变。"))
+                return False
+            self._quit()
+            return False
+        def worker():
+            scratch = None
+            try:
+                def status(message):
+                    phases = {
+                        "Downloading release source…": tr("Downloading release source…", "正在下载更新源码…"),
+                        "Downloading update…": tr("Downloading update…", "正在下载更新…"),
+                        "Verifying update…": tr("Verifying update…", "正在核验更新包…"),
+                    }
+                    GLib.idle_add(lambda: self._control.set_update_status(phases.get(message, message), True))
+                scratch = prepare_update(info, status=status)
+                error = None
+            except Exception as exc:
+                logger.info("Update preparation failed (%s)", type(exc).__name__)
+                message = str(exc)
+                if "Local changes exist" in message:
+                    error = tr("Local source changes exist. Commit or move them before updating.", "源码中有本地修改，请先提交或移走，再更新。")
+                elif "package manager" in message:
+                    error = tr("Use your package manager to update this installation.", "此安装由系统包管理器管理，请通过包管理器更新。")
+                elif "Release is missing" in message:
+                    error = tr("No update package matches this CPU and Python version.", "此版本没有匹配当前 CPU 和 Python 的更新包。")
+                else:
+                    error = tr("Check the connection, release package and installation permissions.", "请检查网络、更新包和安装目录权限。")
+            GLib.idle_add(prepared, scratch, error)
+        Thread(target=worker, name="doubao-update-download", daemon=True).start()
+
+    def _remember_input(self, original, output, polished):
+        store = getattr(self, "_personal_store", None)
+        if not store:
+            return
+        try:
+            self._history_id = store.record(original, output, polished)
+        except Exception:
+            self._history_id = None
+            self._control.set_feedback(tr("Could not save local input history. Input is still available.", "本地输入历史保存失败，文字仍可输入。"))
+
+    def _show_personal(self):
+        from doubao_input.ui.personal_window import PersonalWindow
+        if self._personal_window is None:
+            self._personal_window = PersonalWindow(self._personal_store, lambda: self.settings, self._polish_key, self.recent, self._retry_recent)
+        self._personal_window.show()
+
     def _check_updates(self):
+        try:
+            self._personal_store.history(limit=0)
+        except Exception:
+            logger.warning("Could not prune local history")
         self._update_checker.check()
         return True
 
@@ -498,6 +606,7 @@ class DoubaoInputApp(Gtk.Application):
         self._submit_transcript(text, self._target, send_enter)
 
     def _submit_transcript(self, text, target, send_enter=False, *, original=None):
+        self._remember_input(original if original is not None else text, text, original is not None)
         self.recent.keep(text)
         self._control.set_result(self.recent.text, tr("Ready to input", "准备输入"))
         self._overlay.set_status(
@@ -557,6 +666,12 @@ class DoubaoInputApp(Gtk.Application):
                                           "已停止润色并使用原文。"))
 
     def _delivery_changed(self, status):
+        store = getattr(self, "_personal_store", None)
+        if store:
+            try:
+                store.status(self._history_id, status)
+            except Exception:
+                logger.warning("Could not update local input history")
         diagnostics = getattr(self, "_diagnostics", None)
         if diagnostics:
             diagnostics.add("delivery_pending" if status == "pending"
@@ -612,6 +727,7 @@ class DoubaoInputApp(Gtk.Application):
         text = self.recent.text
         def retry():
             self._recovery_timer = None
+            self._remember_input(text, text, False)
             self._delivery.submit(text, focused_target())
             return False
         self._recovery_timer = GLib.timeout_add(3000, retry)
@@ -1078,6 +1194,8 @@ class DoubaoInputApp(Gtk.Application):
         self._setup_session.check_microphone()
 
     def _quit(self) -> None:
+        if self._personal_window:
+            self._personal_window.close()
         self._login_attempt = None
         self._cancel_input()
         if self._triggers:

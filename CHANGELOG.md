@@ -1,5 +1,36 @@
 # Changelog
 
+- macOS: turn Setup into a four-step guided flow with completion gates, Back navigation and automatic saving.
+
+- macOS: place recognition at the bottom of the active screen, recover one startup audio reconfiguration, and keep microphone/recognition failure messages visible.
+
+- macOS: save settings automatically, flush edits before tests and on close, defer changes during dictation, and remove the Save settings button.
+
+- macOS: expose English, Simplified Chinese and system language selection in General settings with immediate switching and persistent preferences.
+
+## 1.5.0
+
+- Add personal vocabulary for contextual polishing, a local rolling 30-day input ledger, reviewed AI frequency suggestions, and padded recent-text editors on macOS and Linux.
+
+- Match the macOS dictation overlay to the compact Linux layout, colors and state borders; center transcript and polishing activity on both platforms.
+
+- Add in-app update notifications, manual checks, verified downloads and restart installation on macOS and Linux, with retained settings and rollback on failed installation checks.
+
+- Hide receiver mappings while AU05 support is disabled and clarify when settings take effect.
+
+- Rework macOS settings with sidebar navigation, grouped forms, labeled polishing fields and a pinned save area, following the studio application settings structure.
+
+- Add a distinct macOS basketball shoulder drive with backward loading, forward torso travel, leading shoulder, delayed head follow-through and planted feet.
+
+- Refine the macOS basketball waveform with stronger shoulder and crouch poses, palm contact, grounded ball flight and clearer hair/vest detail.
+
+- Align macOS waveform motion and basketball speech cadence with Linux, add a synthetic appearance preview, delay the polishing shortcut hint, and migrate legacy built-in prompts while preserving custom text.
+
+- Add a native macOS development preview with Doubao web sign-in, Keychain credentials, tap/hold dictation, a nonactivating overlay, guarded paste and last-result recovery.
+- Align the Mac client with Linux recognition providers, bilingual polishing prompts, speculative previews, five-second fallback, configurable tap/hold/double-tap shortcuts, microphones, receiver mappings, settings and recent-text recovery.
+- Add loopback polishing and official-provider protocol acceptance, and isolated native settings screenshots.
+- Add local Swift/loopback transport checks and a separate Mac build workflow. Release Mac packages use Developer ID signing and Apple notarization; live microphone/paste acceptance remains separate.
+
 ## 1.4.0
 
 - Automatically use permission-scoped GlobalShortcuts on GNOME without a special launch command or raw keyboard read permission for the dictation trigger.

@@ -98,3 +98,16 @@ on the user's existing session bus.
 
 For real GNOME Wayland permission-dialog and shortcut acceptance, see
 [tests/gnome/README.md](gnome/README.md) and the GNOME shortcut permissions workflow.
+
+## macOS preview
+
+`make macos-check` builds and tests the independent Swift client core and runs a
+loopback WebSocket and HTTP fixtures. They cover all three recognition providers,
+streaming polishing, timeout fallback, cancellation and preview cache invalidation.
+They use synthetic data and fake credentials, never
+microphone capture or keyboard injection. `make macos-build` builds a locally
+signed `.app`. On a resource-managed development Mac, wrap these commands with
+`dev-gate run` (heavy). The opt-in `--smoke-test` application argument verifies a
+real nonactivating overlay and exits; run it under a runtime slot. Live sign-in,
+audio and paste acceptance remain separate checks. See
+[the Mac guide](../macos/README.zh-CN.md) for scope and permissions.

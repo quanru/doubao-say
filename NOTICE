@@ -36,3 +36,18 @@ it does not bundle a local speech recognition engine.
 
 Distributions must retain LICENSE and NOTICE. Bundled dependency wheels retain
 their embedded license files; see packaging/DEPENDENCIES.md in the source tree.
+
+macOS source provenance:
+The initial Swift implementation under macos/Sources/ was imported from
+lilong7676/doubao-murmur commit 7549daf8f669eed38f1f2b4ac7cfadae8d17b0c6.
+AudioCaptureManager.swift, AppState.swift, OverlayPanel.swift, OverlayView.swift,
+and the DoubaoASRParams data type retain adapted upstream code. The application
+entry point, credential store, hotkey handling, transport lifecycle, login window,
+transcription controller and protected paste implementation were reworked here.
+macos/Resources/inject-*.js are copies of the inherited Linux login resources.
+The upstream MIT license is retained at macos/UPSTREAM-LICENSE and in Mac bundles,
+alongside this repository's LICENSE and NOTICE. No upstream updater is included.
+The optional Mac polishing policies, default prompts, gesture semantics, official
+ASR framing and AU05 protocol are ports of this repository's Linux implementation.
+
+The native macOS voice envelope, speech cadence, basketball pose keyframes and waveform rendering are adapted from this repository’s Linux ui/voice_motion.py, ui/basketball_motion.py and ui/waveform.py.

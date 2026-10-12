@@ -1,4 +1,6 @@
 from types import SimpleNamespace
+from pathlib import Path
+import tempfile
 from unittest import TestCase
 from unittest.mock import Mock, patch
 
@@ -9,10 +11,32 @@ from doubao_input.doubao.volcengine_credentials import VolcengineCredentialsStor
 from doubao_input.deepgram.asr_client import DeepgramASRClient
 from doubao_input.deepgram.credentials import DeepgramCredentialsStore
 from doubao_input.result import RecentResult
+from doubao_input.personal import PersonalStore
 from doubao_input.settings import Settings
 
 
 class AppLifecycleEdgesTest(TestCase):
+    def test_update_before_settings_are_opened_downloads_and_launches(self):
+        with tempfile.TemporaryDirectory() as root, patch(
+                "doubao_input.app.GLib.unix_signal_add"), patch(
+                "doubao_input.app.prepare_update", return_value=Path(root)), patch(
+                "doubao_input.app.launch_update") as launch, patch(
+                "doubao_input.app.GLib.idle_add",
+                side_effect=lambda callback, *args: callback(*args)), patch(
+                "doubao_input.app.Thread") as thread:
+            app = DoubaoInputApp()
+            self.assertIsNone(app._settings_window)
+            app._control = Mock()
+            app._busy = Mock(return_value=False)
+            app._quit = Mock()
+            app._control.flush_edits.return_value = True
+            info = SimpleNamespace(version="1.6.0")
+            DoubaoInputApp._install_update(app, info)
+            thread.call_args.kwargs["target"]()
+            launch.assert_called_once_with(Path(root))
+            app._quit.assert_called_once()
+            self.assertFalse(app._update_installing)
+
     def test_activity_properties_reflect_owned_sessions(self):
         app = SimpleNamespace(
             _delivery=SimpleNamespace(busy=True),
@@ -93,9 +117,10 @@ class AppDeliveryEdgesTest(TestCase):
 
     def test_submit_rejection_enters_recovery(self):
         app = SimpleNamespace(recent=RecentResult(), _control=Mock(), _overlay=Mock(),
-                              _delivery=Mock(), _delivery_changed=Mock())
+                              _delivery=Mock(), _delivery_changed=Mock(), _remember_input=Mock())
         app._delivery.submit.return_value = False
         DoubaoInputApp._submit_transcript(app, "polished", "target", True, original="raw")
+        app._remember_input.assert_called_once_with("raw", "polished", True)
         self.assertEqual(app.recent.text, "polished")
         app._delivery_changed.assert_called_once_with("failed")
 
@@ -238,10 +263,32 @@ class AppSetupEdgesTest(TestCase):
     def test_quit_closes_input_owners(self):
         injector = Mock()
         app = SimpleNamespace(_login_attempt=object(), _cancel_input=Mock(), _triggers=Mock(),
-                              _delivery=Mock(), _injector=injector, quit=Mock())
+                              _delivery=Mock(), _injector=injector, _personal_window=Mock(), quit=Mock())
         DoubaoInputApp._quit(app)
         self.assertIsNone(app._login_attempt)
         app._cancel_input.assert_called_once()
+        app._personal_window.close.assert_called_once()
         app._triggers.close.assert_called_once()
         app._delivery.close.assert_called_once_with(injector.close)
         app.quit.assert_called_once()
+
+
+class PersonalHistoryDeliveryTest(TestCase):
+    def test_delivery_attempt_records_once_then_updates_status_without_duplicate_rows(self):
+        with tempfile.TemporaryDirectory() as temp:
+            store = PersonalStore(Path(temp) / "personal.sqlite3")
+            app = SimpleNamespace(_personal_store=store, _history_id=None, recent=RecentResult(),
+                                  _control=Mock(), _overlay=Mock(), _delivery=Mock(), _notify_recovery=Mock())
+            app._remember_input = lambda *args: DoubaoInputApp._remember_input(app, *args)
+            app._delivery_changed = lambda status: DoubaoInputApp._delivery_changed(app, status)
+            app._delivery.submit.return_value = False
+            DoubaoInputApp._submit_transcript(app, "Midscene", "target", original="Midjourney")
+            self.assertEqual(store.history()[0]["status"], "failed")
+            app._delivery.submit.return_value = True
+            DoubaoInputApp._submit_transcript(app, "Midscene", "target", original="Midjourney")
+            app._delivery_changed("pending"); app._delivery_changed("attempted")
+            rows = store.history()
+            self.assertEqual(len(rows), 2)
+            self.assertEqual(rows[0]["original"], "Midjourney")
+            self.assertEqual(rows[0]["status"], "attempted")
+            self.assertEqual(rows[1]["status"], "failed")

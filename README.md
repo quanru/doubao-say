@@ -1,5 +1,7 @@
 # Doubao Say
 
+> **macOS development preview:** A native Swift menu-bar client supports Doubao web sign-in, official Volcengine and Deepgram recognition, optional polishing, configurable shortcuts, microphone selection and input recovery. See the [Mac build and usage guide](macos/README.zh-CN.md) (Chinese). No Developer ID signed or notarized Mac release is available yet.
+
 [Website](https://doubao-say.lifeos.md/) · [简体中文](README.zh-CN.md)
 
 ![Doubao Say voice input running on Omarchy Linux](images/readme-en.jpeg)
@@ -230,8 +232,15 @@ The application checks the repository's latest stable GitHub Release at startup
 and while running, with network checks limited to once every 24 hours. A newer
 version adds a small red dot to the recording overlay: hover or click for
 version information. Finish dictation, then use the control center's red
-**Update** button to open the release page without interrupting your paste target.
-Updates are never downloaded or installed automatically.
+**Update** button to download, verify and install the update, then restart.
+Checks are automatic; installation starts only when you choose it. Recording,
+polishing and text delivery must finish first. Settings and login data are retained.
+Linux supports official clean Git checkouts and managed app/plugin archives;
+package-manager and relocated installs report that their original installer is needed.
+Archives must match the CPU and Python version. Failed installation checks restore
+the previous app. On macOS, Settings → Updates shows download progress and cancellation;
+DMGs require SHA256SUMS, the same Developer ID, notarization and a matching bundle ID.
+See [update packaging](packaging/UPDATES.md) for release prerequisites.
 
 ## Feedback
 
@@ -260,7 +269,16 @@ restoration of one payload, not all original clipboard formats.
 A copy made by the user during delivery is never overwritten.
 Cancellation stops remaining input and cannot undo text already delivered.
 Failed recognition can preserve partial text; failed paste preserves the result.
-This slot is memory-only, not a transcript history. Exiting loses it.
+The editable recent-text slot is memory-only. Completed dictation attempts are
+stored separately in a local 30-day history, with recognition original, final
+output, polishing and input status. History has no record-count cap and can be
+paused or cleared in Vocabulary & history; voice tests and cancelled recognition
+are excluded. Personal vocabulary is saved automatically (one term per line,
+up to 200 terms of 80 characters) and supplied as context during AI polishing.
+It does not retrain ASR or force global replacements. Local frequencies use
+sent, polished results only; AI organization sends candidate terms and counts
+to the configured polishing service, not the full history. Review and select
+suggestions before adding. Data is local to each device; there is no cross-device sync.
 
 Automatic paste requires a known, unchanged Hyprland or native X11 window.
 On X11, missing window metadata, a closed window or the app's own window prevents
@@ -479,7 +497,7 @@ validate package metadata and scan for secrets. The current whole-package branch
 coverage floor is 55%; desktop UI, WebKit and real-device paths remain included
 in the denominator.
 
-The current release version is **1.4.0**. A `v1.4.0` tag must match every embedded
+The current release version is **1.5.0**. A `v1.5.0` tag must match every embedded
 version before CI can publish. Tag releases rebuild both offline app and Omarchy
 plugin archives for Python 3.11–3.14 and attach SHA-256 checksums. A manually started
 release workflow builds artifacts for inspection but does not publish them. Real

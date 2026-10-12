@@ -60,6 +60,7 @@ class ControlWindow:
         self._start_button = None
         self._update_button = None
         self._update_info = None
+        self._polish_widget = None
         app_state.connect("login-status-changed", self._refresh)
         app_state.connect("recording-state-changed", self._refresh)
         app_state.connect("error-message-changed", self._error)
@@ -98,17 +99,24 @@ class ControlWindow:
         self._refresh()
 
     def set_result(self, text, status):
+        personal = getattr(self._app, "_personal_window", None)
+        if personal:
+            personal.set_recent(text, status)
         if self._result:
             self._result.get_buffer().set_text(text)
             self._result_status.set_text(status)
 
     def set_update(self, info):
         self._update_info = info
+        if info is None:
+            if self._update_button:
+                self._update_button.set_label(tr("Check updates", "检查更新"))
+            return
         if self._update_button:
-            self._update_button.set_label(tr("Update", "更新"))
+            self._update_button.set_label(tr(f"Update {info.version}", f"更新 {info.version}"))
             self._update_button.set_tooltip_text(tr(
-                f"Doubao Say {info.version} is available. Current version: {VERSION}. Click to open the release page.",
-                f"豆包说 {info.version} 已发布，当前版本为 {VERSION}。点击打开发布页面。"))
+                f"Doubao Say {info.version} is available. Current version: {VERSION}. Click to download and restart.",
+                f"豆包说 {info.version} 已发布，当前版本为 {VERSION}。点击下载并重启。"))
             self._update_button.set_visible(True)
 
     def advance_after_login(self):
@@ -246,7 +254,7 @@ class ControlWindow:
         heading.set_ellipsize(Pango.EllipsizeMode.END)
         heading.set_width_chars(5)
         header.append(heading)
-        self._update_button = Gtk.Button(label=tr("Update", "更新"), visible=False)
+        self._update_button = Gtk.Button(label=tr("Check updates", "检查更新"))
         self._update_button.add_css_class("update-button")
         self._update_button.connect("clicked", self._open_update)
         header.append(self._update_button)
@@ -279,6 +287,10 @@ class ControlWindow:
         self._scroll.set_policy(Gtk.PolicyType.NEVER, Gtk.PolicyType.AUTOMATIC)
         self._scroll.set_child(content)
         outer.append(self._scroll)
+        personal_button = Gtk.Button(label=tr("Vocabulary & history", "个人词汇与历史"))
+        personal_button.connect("clicked", lambda *_: self._actions.open_personal())
+        outer.append(personal_button)
+
         self._stack = Gtk.Stack(transition_type=Gtk.StackTransitionType.SLIDE_LEFT_RIGHT,
                                 transition_duration=180)
         self._stack.connect("notify::visible-child-name", self._page_changed)
@@ -396,6 +408,7 @@ class ControlWindow:
         polish = PolishSettings(self._actions.polish_settings(),
             self._actions.polish_has_key(), self._actions.save_polish,
             self._actions.test_polish)
+        self._polish_widget = polish
         trigger.append(polish)
 
         voice = page("voice", tr("Voice test", "试说"),
@@ -430,13 +443,24 @@ class ControlWindow:
         self._page_changed()
         self._refresh()
 
+    def flush_edits(self):
+        if self._asr_key_save_source:
+            GLib.source_remove(self._asr_key_save_source)
+            self._asr_key_save_source = 0
+        if self._asr_key and self._asr_key.get_text().strip() and not self._save_asr_key_now():
+            return False
+        return not self._polish_widget or self._polish_widget.flush_edits()
+
+    def set_update_status(self, message, busy=False):
+        self.set_feedback(message)
+        if self._update_button:
+            self._update_button.set_sensitive(not busy)
+
     def _open_update(self, *_):
         if self._update_info:
-            try:
-                Gio.AppInfo.launch_default_for_uri(self._update_info.url, None)
-            except GLib.Error:
-                self.set_feedback(tr("Could not open the release page. Check your default browser.",
-                                     "无法打开发布页面，请检查默认浏览器。"))
+            self._actions.install_update(self._update_info)
+        else:
+            self._actions.check_updates()
 
     def _page_changed(self, *_):
         if self._trigger_picker and self._stack.get_visible_child_name() != "trigger":

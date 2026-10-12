@@ -129,7 +129,9 @@ class Overlay:
         self._show(tr("Polishing…", "润色中"))
         self._polishing_since = time.monotonic()
         self._waveform.set_visible(False)
-        self._status_label.set_xalign(0.0)
+        self._status_label.set_xalign(0.5)
+        self._status_label.set_hexpand(False)
+        self._status_row.set_halign(Gtk.Align.CENTER)
         self._status_row.add_css_class("polishing-status")
         self._status_row.set_tooltip_text(
             tr("Press shortcut again to use original", "再次按快捷键使用原文"))
@@ -142,6 +144,8 @@ class Overlay:
         self._polishing_since = None
         if self._status_row is not None:
             self._status_label.set_xalign(0.5)
+            self._status_label.set_hexpand(True)
+            self._status_row.set_halign(Gtk.Align.FILL)
             self._status_row.remove_css_class("polishing-status")
             self._status_row.set_tooltip_text(None)
             self._hint_label.set_visible(False)
@@ -163,6 +167,10 @@ class Overlay:
 
     def _set_update(self, info):
         self._update_info = info
+        if info is None:
+            if self._update_button is not None:
+                self._update_button.set_visible(False)
+            return
         if self._update_button is not None:
             message = tr(
                 f"Doubao Say {info.version} is available (current: {VERSION}). Finish dictation, then open the control center to update.",
@@ -425,8 +433,10 @@ class Overlay:
             }}
             .polishing-status {{
                 color: {self._theme['accent']};
-                padding: 6px 0 10px 0;
-                margin-bottom: 8px;
+                padding: 6px 0 8px 0;
+            }}
+            .polishing-status .doubao-overlay-label {{
+                color: {self._theme['accent']};
             }}
             .doubao-polish-hint {{
                 font-size: 10px;

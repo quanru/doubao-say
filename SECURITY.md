@@ -9,8 +9,8 @@ group membership and `/dev/uinput` permissions before installation.
 
 Recordings are sent to the selected provider for recognition; the microphone-only
 check stays local. Volcengine API usage and data handling follow the user's
-account and provider terms. The application does not intentionally retain recordings or transcripts
-on disk. The clipboard and target application may retain text. Older development
+account and provider terms. The application does not retain recordings on disk. Optional local input history
+retains original and final text for a rolling 30 days; it can be disabled or cleared. The clipboard and target application may retain text. Older development
 logs can contain transcript excerpts: never attach them without review.
 
 When optional voice polishing is enabled, recognized text is sent to the
@@ -45,7 +45,8 @@ attachments in an issue.
 
 ## Release limits
 
-Local bundles are unsigned. Their file manifests/SHA256 sums detect changes only
+Linux bundles are unsigned. Published Mac DMGs use Developer ID signing and
+Apple notarization. Their file manifests/SHA256 sums detect changes only
 when obtained through a trusted channel; they do not establish publisher identity.
 Run `make marketplace-check` with Gitleaks on PATH to repeat a redacted scan of
 all locally available Git refs and the Git-visible working tree. It requires a

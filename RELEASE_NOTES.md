@@ -1,40 +1,42 @@
-# Doubao Say 1.4.0
+# Doubao Say 1.5.0
 
-## Permission-scoped shortcuts on GNOME
+## macOS client and in-app updates
 
-Doubao Say now selects the GNOME GlobalShortcuts portal automatically on normal
-launch. Authorize the dictation shortcut in the desktop dialog; no special launch
-command or input-group membership is needed for this trigger. Hold-to-talk uses
-both activation and deactivation events. Rejected authorization can be retried;
-there is no silent fallback to raw keyboard reading.
+Add a native macOS client for macOS 13 or later, with Apple Silicon and Intel
+DMG installers signed with Developer ID and notarized by Apple. Features include
+Doubao web sign-in, Volcengine Seed ASR 2.0 and Deepgram Nova-3, configurable
+shortcuts and microphones, AI polishing, bilingual settings, guided setup and a
+bottom-screen overlay aligned with Linux.
 
-New installations on every desktop default to **Ctrl+;**. Existing shortcuts are
-preserved on other desktops. On GNOME, saved shortcuts supported by the portal
-and Disabled are retained; unsupported saved evdev shortcuts (including Fn,
-modifier-only keys and unsupported custom keys) become Ctrl+;. You can edit the shortcut in GNOME's permission dialog. Other desktops
-retain evdev and their existing shortcut editing and recording behavior.
+macOS and supported Linux installations now check the public GitHub update feed,
+show update availability, verify downloads and install after exit. Settings and
+sign-in data are retained. Mac updates also verify publisher identity and Apple
+notarization. Failed replacement or installation checks restore the previous app.
+The update feed does not use or include Feishu credentials.
 
-## Verification and scope
+## Personal vocabulary and history
 
-A new GitHub Actions acceptance test runs real GNOME 49 / Mutter Wayland and the
-GNOME portal as a non-root user without input-group membership. It checks normal
-launch detection, the real Cancel/Add permission flow, hold/release, shortcut
-consumption and cleanup. Unit, compatibility and release checks also run in CI.
+Both platforms support automatically saved personal vocabulary for contextual
+AI polishing, padded recent-text editors and an optional local rolling 30-day
+input history. Frequency suggestions use polished output; AI organization sends
+only candidate terms and counts to the configured endpoint. Review and select
+suggestions before adding them. This does not train the ASR provider. History
+starts with this version and does not recover entries older versions never saved.
 
-This verifies the dictation trigger, not complete GNOME support for overlays,
-audio or text delivery. Text injection and optional Vibekey devices retain their
-own permissions. Portal mode does not support Fn, modifier-only shortcuts or raw
-shortcut recording; use the desktop dialog to customize the authorized shortcut.
+## Download and verification
 
-Doubao web-account recognition, Volcengine Seed ASR 2.0 and Deepgram Nova-3 remain
-available. This release also includes prompt and English interface refinements
-already merged since 1.3.1.
+On Mac, choose the arm64 or x86_64 DMG for your computer and drag Doubao Say into
+Applications. Existing 1.4.0 Mac previews can discover this release through
+Settings → Updates → Check for updates. Linux users should choose the app or
+Omarchy plugin archive matching their Python 3.11–3.14 runtime. SHA256SUMS covers
+all published Linux archives and Mac DMGs.
 
-## Download and upgrade
+Swift behavior tests, loopback protocol/polishing checks, Linux unit and contract
+tests, GTK interface checks, and archive installation checks cover the release.
+Signing, notarization and update staging are checked on the local Mac. These
+checks do not establish real microphone, physical hotkey or live-account
+acceptance on every desktop, or execution on Intel hardware. Marketplace
+verification is a separate publication process.
 
-Choose the app or Omarchy plugin archive matching your Python 3.11–3.14 runtime,
-verify SHA256SUMS, and run its ./install.sh. Settings and sign-in data are retained.
-Git-installed plugins update through omarchy plugin update md.lifeos.doubao-say.
-
-[Installation guide](https://doubao-say.lifeos.md/guide/install) ·
-[Full changes](https://github.com/quanru/doubao-say/compare/v1.3.1...v1.4.0)
+[Installation guide](https://github.com/quanru/doubao-say/blob/v1.5.0/packaging/INSTALL.md) ·
+[Full changes](https://github.com/quanru/doubao-say/compare/v1.4.0...v1.5.0)
