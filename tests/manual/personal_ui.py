@@ -41,6 +41,12 @@ with tempfile.TemporaryDirectory() as temp:
     window.enabled.set_active(False); assert not store.enabled()
     window.enabled.set_active(True); assert store.enabled()
     assert window.history_box.get_first_child() is not None
+    recent.keep("New completed dictation")
+    window.set_recent(recent.text, "Input sent")
+    assert window.text(window.recent_editor) == "New completed dictation"
+    assert window.recent_status.get_text() == "Input sent"
+    window.words_editor.get_buffer().set_text("Vibelet")
+    assert window.flush()
     window.statistics(); assert ("Midscene", 2) in window.candidates
     payloads = []
     def ai(text, **kwargs):
@@ -56,6 +62,7 @@ with tempfile.TemporaryDirectory() as temp:
                 break
         assert not window.busy and window.candidates == [("Midscene", 2)]
     assert payloads
+    assert store.words() == ["Vibelet"]
     assert all(not choice.get_active() for _, choice in window.choices)
     window.choices[0][1].set_active(True); window.add_selected()
     assert store.words() == ["Vibelet", "Midscene"]

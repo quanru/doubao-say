@@ -51,9 +51,15 @@ class PersonalWindow:
     def show(self):
         if self.window is None:
             self.build()
-        self.recent_editor.get_buffer().set_text(self.recent.text)
+        self.set_recent(self.recent.text)
         self.refresh()
         self.window.present()
+
+    def set_recent(self, text, status=None):
+        if self.window:
+            self.recent_editor.get_buffer().set_text(text)
+            if status:
+                self.recent_status.set_text(status)
 
     def build(self):
         self.window = Gtk.Window(title=tr("Vocabulary & history", "个人词汇与历史"), default_width=740, default_height=640)
@@ -67,6 +73,8 @@ class PersonalWindow:
         self.recent_editor, scroll = self.editor()
         self.recent_editor.get_buffer().connect("changed", lambda buffer: setattr(self.recent, "text", self.text(self.recent_editor)))
         recent.append(scroll)
+        self.recent_status = self.label("")
+        recent.append(self.recent_status)
         buttons = Gtk.Box(spacing=8)
         self.button(buttons, tr("Copy", "复制"), lambda: Gdk.Display.get_default().get_clipboard().set(self.text(self.recent_editor)))
         self.button(buttons, tr("Retry in 3 seconds", "三秒后重试"), self.retry)

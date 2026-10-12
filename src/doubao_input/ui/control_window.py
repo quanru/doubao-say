@@ -99,6 +99,9 @@ class ControlWindow:
         self._refresh()
 
     def set_result(self, text, status):
+        personal = getattr(self._app, "_personal_window", None)
+        if personal:
+            personal.set_recent(text, status)
         if self._result:
             self._result.get_buffer().set_text(text)
             self._result_status.set_text(status)
