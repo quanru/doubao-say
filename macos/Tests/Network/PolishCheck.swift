@@ -6,6 +6,8 @@ struct PolishCheck {
         guard CommandLine.arguments.count == 2 else { exit(1) }
         var settings = MacSettings(); settings.polishEnabled = true
         settings.polishBaseURL = CommandLine.arguments[1]; settings.polishModel = "synthetic-model"
+        try? PersonalDataStore.shared.saveWords("Midscene")
+        defer { try? PersonalDataStore.shared.saveWords("") }
         var failed = false
         func check(_ condition: Bool, _ name: String) {
             if !condition { failed = true; print("FAIL: " + name) }

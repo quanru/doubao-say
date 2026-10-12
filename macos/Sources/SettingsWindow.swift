@@ -37,6 +37,7 @@ final class SettingsModel: ObservableObject {
     var captureShortcut: ((@escaping (Shortcut?) -> Void) -> Void)?
     var voiceTest: (() -> Void)?
     var stopVoiceTest: (() -> Void)?
+    var flushPersonal: (() -> Bool)?
     var retry: (() -> Void)?
     var clear: (() -> Void)?
     var shortcutReady: (() -> Bool)?
@@ -79,7 +80,7 @@ final class SettingsModel: ObservableObject {
     private func resumeAutosave() {
         if !suppressAutosave && hasPendingAutosave && !testing && !capturing && state.recordingState == .idle { scheduleAutosave() }
     }
-    @discardableResult func saveIfNeeded() -> Bool { !hasPendingAutosave || save() }
+    @discardableResult func saveIfNeeded() -> Bool { (!hasPendingAutosave || save()) && (flushPersonal?() ?? true) }
     func closeEditor() {
         stopTests(); cancelCapture?(); capturing = false
         if saveIfNeeded() {
@@ -267,6 +268,8 @@ struct SettingsView: View {
         ("shortcuts", L("Shortcuts", "快捷键"), "keyboard"),
         ("general", L("General", "通用"), "gearshape"),
         ("result", L("Recent text", "最近文字"), "text.alignleft"),
+        ("vocabulary", L("Personal vocabulary", "个人词汇"), "character.book.closed"),
+        ("history", L("Input history", "输入历史"), "clock"),
         ("updates", L("Updates", "软件更新"), "arrow.triangle.2.circlepath") ] }
     private var pageTitle: String { pages.first { $0.0 == model.selectedTab }?.1 ?? L("Settings", "设置") }
     var body: some View {
@@ -318,6 +321,8 @@ struct SettingsView: View {
         case "shortcuts": shortcuts
         case "general": general
         case "result": result
+        case "vocabulary": PersonalVocabularyView(settingsModel: model)
+        case "history": InputHistoryView(state: state)
         case "updates": updatePage
         default: setup
         }
@@ -530,8 +535,8 @@ struct SettingsView: View {
     }
     private var result: some View {
         VStack(alignment: .leading, spacing: 12) {
-            Text(L("Recent text stays only in app memory. Edit it before copying or retrying.", "最近文字仅保留在应用内存，可编辑后复制或重试输入。"))
-            TextEditor(text: $state.lastTranscript).border(Color.secondary.opacity(0.25))
+            Text(L("Edit before copying or retrying. Completed dictation is stored locally for 30 days; manage it in Input history.", "可编辑后复制或重试输入。已完成的听写会保存在本机 30 天，可在「输入历史」管理。"))
+            PaddedTextEditor(text: $state.lastTranscript)
             HStack {
                 Button(L("Copy", "复制")) { PasteHelper.copyOnly(state.lastTranscript) }.disabled(state.lastTranscript.isEmpty)
                 Button(L("Retry in 3 seconds", "三秒后重试")) { model.retry?() }.disabled(state.lastTranscript.isEmpty || state.recordingState != .idle)

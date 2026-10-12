@@ -78,29 +78,31 @@ final class PolishClient: NSObject, URLSessionDataDelegate {
     private var parser = PolishStream()
     private var stopped = false
     private var startedAt: TimeInterval = 0
+    private var timeout: TimeInterval = 5
     var progress: ((String) -> Void)?
     var completion: ((String?, String?) -> Void)?
 
-    func start(text: String, settings: MacSettings, apiKey: String) {
+    func start(text: String, settings: MacSettings, apiKey: String, timeout: TimeInterval = 5) {
+        self.timeout = min(30, max(1, timeout))
         startedAt = ProcessInfo.processInfo.systemUptime
         guard let url = PolishPolicy.endpoint(settings.polishBaseURL) else { finish(nil, "endpoint"); return }
-        var request = URLRequest(url: url, timeoutInterval: 5)
+        var request = URLRequest(url: url, timeoutInterval: self.timeout)
         request.httpMethod = "POST"
         request.setValue("Bearer " + apiKey, forHTTPHeaderField: "Authorization")
         request.setValue("application/json", forHTTPHeaderField: "Content-Type")
         request.setValue("text/event-stream", forHTTPHeaderField: "Accept")
         var body: [String: Any] = ["model": settings.polishModel, "temperature": 0.2, "stream": true,
-            "messages": [["role": "system", "content": PolishPolicy.prompt(text: text, chinese: settings.polishPromptZH, english: settings.polishPromptEN)], ["role": "user", "content": text]]]
+            "messages": [["role": "system", "content": PersonalVocabulary.prompt(PolishPolicy.prompt(text: text, chinese: settings.polishPromptZH, english: settings.polishPromptEN), words: (try? PersonalDataStore.shared.words()) ?? [])], ["role": "user", "content": text]]]
         body.merge(PolishPolicy.reasoning(baseURL: settings.polishBaseURL, model: settings.polishModel)) { _, new in new }
         guard let data = try? JSONSerialization.data(withJSONObject: body) else { finish(nil, "request"); return }
         request.httpBody = data
         let config = URLSessionConfiguration.ephemeral
         config.urlCache = nil; config.httpCookieStorage = nil
-        config.timeoutIntervalForRequest = 5; config.timeoutIntervalForResource = 5
+        config.timeoutIntervalForRequest = self.timeout; config.timeoutIntervalForResource = self.timeout
         session = URLSession(configuration: config, delegate: self, delegateQueue: .main)
         let expiry = DispatchWorkItem { [weak self] in self?.finish(nil, "timeout") }
         deadline = expiry
-        DispatchQueue.main.asyncAfter(deadline: .now() + 5, execute: expiry)
+        DispatchQueue.main.asyncAfter(deadline: .now() + self.timeout, execute: expiry)
         task = session?.dataTask(with: request); task?.resume()
     }
     func cancel() {
@@ -111,7 +113,7 @@ final class PolishClient: NSObject, URLSessionDataDelegate {
     private func finish(_ text: String?, _ error: String?) {
         guard !stopped else { return }
         let callback = completion
-        let expired = ProcessInfo.processInfo.systemUptime - startedAt >= 5
+        let expired = ProcessInfo.processInfo.systemUptime - startedAt >= timeout
         cancel(); callback?(expired ? nil : text, expired ? "timeout" : error)
     }
     func urlSession(_ session: URLSession, task: URLSessionTask, willPerformHTTPRedirection response: HTTPURLResponse,
@@ -125,7 +127,7 @@ final class PolishClient: NSObject, URLSessionDataDelegate {
     }
     func urlSession(_ session: URLSession, dataTask: URLSessionDataTask, didReceive data: Data) {
         guard !stopped else { return }
-        guard ProcessInfo.processInfo.systemUptime - startedAt < 5 else { finish(nil, "timeout"); return }
+        guard ProcessInfo.processInfo.systemUptime - startedAt < timeout else { finish(nil, "timeout"); return }
         do { if let text = try parser.append(data) { progress?(text) } }
         catch { finish(nil, "response") }
     }

@@ -269,7 +269,16 @@ restoration of one payload, not all original clipboard formats.
 A copy made by the user during delivery is never overwritten.
 Cancellation stops remaining input and cannot undo text already delivered.
 Failed recognition can preserve partial text; failed paste preserves the result.
-This slot is memory-only, not a transcript history. Exiting loses it.
+The editable recent-text slot is memory-only. Completed dictation attempts are
+stored separately in a local 30-day history, with recognition original, final
+output, polishing and input status. History has no record-count cap and can be
+paused or cleared in Vocabulary & history; voice tests and cancelled recognition
+are excluded. Personal vocabulary is saved automatically (one term per line,
+up to 200 terms of 80 characters) and supplied as context during AI polishing.
+It does not retrain ASR or force global replacements. Local frequencies use
+sent, polished results only; AI organization sends candidate terms and counts
+to the configured polishing service, not the full history. Review and select
+suggestions before adding. Data is local to each device; there is no cross-device sync.
 
 Automatic paste requires a known, unchanged Hyprland or native X11 window.
 On X11, missing window metadata, a closed window or the app's own window prevents

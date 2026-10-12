@@ -26,3 +26,5 @@ class SetupActions:
 
     check_updates: Callable[[], None] = lambda: None
     install_update: Callable = lambda info: None
+
+    open_personal: Callable[[], None] = lambda: None

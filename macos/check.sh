@@ -12,7 +12,7 @@ python3 macos/Tests/Transport/check.py build/macos/tests/transport-check
 xcrun swiftc -swift-version 5 -target "$(uname -m)-apple-macos13.0" \
     -module-cache-path build/macos/module-cache \
     macos/Sources/Strings.swift macos/Sources/MacSettings.swift macos/Sources/PolishDefaults.swift \
-    macos/Sources/PolishClient.swift macos/Sources/PolishCoordinator.swift \
+    macos/Sources/PersonalData.swift macos/Sources/PolishClient.swift macos/Sources/PolishCoordinator.swift \
     macos/Tests/Network/PolishCheck.swift -o build/macos/tests/polish-check
 python3 macos/Tests/Network/check.py build/macos/tests/polish-check
 

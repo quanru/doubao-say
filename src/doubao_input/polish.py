@@ -5,6 +5,7 @@ import logging
 import os
 import re
 import stat
+import sqlite3
 from threading import Event, Timer
 import time
 from urllib import error, request
@@ -19,9 +20,12 @@ def polish_prompt_for_text(text, settings):
     """Choose the Chinese or English prompt from the transcript's dominant script."""
     han_characters = len(re.findall(r"[\u3400-\u4dbf\u4e00-\u9fff\uf900-\ufaff]", text))
     latin_words = len(re.findall(r"[A-Za-z]+", text))
-    if han_characters > latin_words:
-        return settings.polish_prompt_zh
-    return settings.polish_prompt_en
+    from doubao_input.personal import PersonalStore, vocabulary_prompt
+    prompt = settings.polish_prompt_zh if han_characters > latin_words else settings.polish_prompt_en
+    try:
+        return vocabulary_prompt(prompt, PersonalStore().words())
+    except (OSError, ValueError, sqlite3.Error):
+        return prompt
 
 
 class ApiKeyStore:

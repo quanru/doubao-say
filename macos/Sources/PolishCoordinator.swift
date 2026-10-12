@@ -8,6 +8,7 @@ final class PolishCoordinator {
     private var timer: DispatchWorkItem?
     private var snapshot = ""
     private var cached: String?
+    private var cachedPolished = false
     private var finalCompletion: ((String, Bool) -> Void)?
     private var finalOriginal = ""
     private var settings: MacSettings = MacSettings()
@@ -26,7 +27,7 @@ final class PolishCoordinator {
         currentText = text; self.speaking = speaking
         guard settings.polishEnabled, !key.isEmpty, !isFinal else { return }
         timer?.cancel(); timer = nil
-        if changed && text != snapshot { invalidateRequest(); snapshot = ""; cached = nil }
+        if changed && text != snapshot { invalidateRequest(); snapshot = ""; cached = nil; cachedPolished = false }
         if speaking || text.isEmpty || snapshot == text { return }
         let token = generation
         let timer = DispatchWorkItem { [weak self] in
@@ -38,14 +39,14 @@ final class PolishCoordinator {
     }
     private func startPreview() {
         guard !isFinal, !currentText.isEmpty, snapshot != currentText else { return }
-        snapshot = currentText; cached = nil
+        snapshot = currentText; cached = nil; cachedPolished = false
         onPreview?(currentText, true)
         request(snapshot)
     }
     func finish(text: String, completion: @escaping (String, Bool) -> Void) {
         timer?.cancel(); timer = nil
         guard settings.polishEnabled, !key.isEmpty else { cancel(); completion(text, false); return }
-        if snapshot == text, let cached = cached { cancel(); completion(cached, cached != text); return }
+        if snapshot == text, let cached = cached { let polished = cachedPolished; cancel(); completion(cached, polished); return }
         finalOriginal = text; finalCompletion = completion
         // A matching in-flight preview already has its own five-second deadline.
         if snapshot == text && client != nil { return }
@@ -71,7 +72,7 @@ final class PolishCoordinator {
                 let original = self.finalOriginal
                 self.cancel(); completion(result ?? original, result != nil)
             } else if self.currentText == text {
-                self.cached = result ?? text
+                self.cached = result ?? text; self.cachedPolished = result != nil
                 self.onPreview?(result ?? text, false)
             }
         }
@@ -80,6 +81,6 @@ final class PolishCoordinator {
     private func invalidateRequest() { generation = UUID(); client?.cancel(); client = nil }
     func cancel() {
         timer?.cancel(); timer = nil; invalidateRequest()
-        snapshot = ""; cached = nil; finalCompletion = nil; finalOriginal = ""; currentText = ""; speaking = false
+        snapshot = ""; cached = nil; cachedPolished = false; finalCompletion = nil; finalOriginal = ""; currentText = ""; speaking = false
     }
 }

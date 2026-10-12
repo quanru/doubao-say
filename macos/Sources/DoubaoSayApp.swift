@@ -16,6 +16,7 @@ final class AppDelegate: NSObject, NSApplicationDelegate, NSMenuDelegate {
     private var overlay: OverlayPanel!
     private var settingsWindow: SettingsWindow!
     private let receiver = VibekeyReceiver()
+    private var personalCleanup: Timer?
     private let updates = UpdateChecker()
     private let updateInstaller = UpdateInstaller()
     private var updateInfo: UpdateRelease?
@@ -31,6 +32,8 @@ final class AppDelegate: NSObject, NSApplicationDelegate, NSMenuDelegate {
         if CommandLine.arguments.contains("--smoke-test") { smokeTest(); return }
         if CommandLine.arguments.contains("--settings-smoke-test") { settingsSmokeTest(); return }
         if CommandLine.arguments.contains("--microphone-capture-check") { microphoneCaptureCheck(); return }
+        _ = try? PersonalDataStore.shared.history(limit: 0)
+        personalCleanup = Timer.scheduledTimer(withTimeInterval: 3600, repeats: true) { _ in _ = try? PersonalDataStore.shared.history(limit: 0) }
         web = WebViewManager(appState: state)
         hotkey = HotkeyManager()
         transcription = TranscriptionManager(appState: state, overlayPanel: overlay, hotkeyManager: hotkey)
@@ -82,6 +85,7 @@ final class AppDelegate: NSObject, NSApplicationDelegate, NSMenuDelegate {
         } else if !SettingsStore.shared.value.onboardingComplete { settingsWindow.show() }
     }
     func applicationWillTerminate(_ notification: Notification) {
+        personalCleanup?.invalidate()
         transcription?.cancel(); hotkey?.stop(); web?.destroyWebView(); settingsWindow?.close(); updates.cancel(); updateInstaller.cancel(); receiver.stop()
     }
     func menuWillOpen(_ menu: NSMenu) { rebuildMenu() }

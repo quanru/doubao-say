@@ -30,6 +30,7 @@ class Handler(http.server.BaseHTTPRequestHandler):
             assert self.headers.get('Authorization') == 'Bearer fake-polish-key'
             assert body['stream'] is True and body['model'] == 'synthetic-model'
             assert body['messages'][0]['role'] == 'system'
+            assert "Midscene" in body['messages'][0]['content']
             sample = body['messages'][1]['content']
             requests.append(sample)
             if sample == 'slow':

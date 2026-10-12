@@ -284,6 +284,10 @@ class ControlWindow:
         self._scroll.set_policy(Gtk.PolicyType.NEVER, Gtk.PolicyType.AUTOMATIC)
         self._scroll.set_child(content)
         outer.append(self._scroll)
+        personal_button = Gtk.Button(label=tr("Vocabulary & history", "个人词汇与历史"))
+        personal_button.connect("clicked", lambda *_: self._actions.open_personal())
+        outer.append(personal_button)
+
         self._stack = Gtk.Stack(transition_type=Gtk.StackTransitionType.SLIDE_LEFT_RIGHT,
                                 transition_duration=180)
         self._stack.connect("notify::visible-child-name", self._page_changed)

@@ -87,3 +87,49 @@ final class UpdateManifestTests: XCTestCase {
         XCTAssertNil(UpdateRelease.checksum(hash + " another.dmg", name: "update.dmg"))
     }
 }
+
+final class PersonalDataTests: XCTestCase {
+    func testVocabularyPersistenceValidationAndReferencePrompt() throws {
+        let folder = FileManager.default.temporaryDirectory.appendingPathComponent(UUID().uuidString)
+        defer { try? FileManager.default.removeItem(at: folder) }
+        let path = folder.appendingPathComponent("personal.sqlite3")
+        let store = PersonalDataStore(path: path)
+        try store.saveWords("Midscene\nmidscene\n火山引擎\nC++\nC#")
+        XCTAssertEqual(try PersonalDataStore(path: path).words(), ["Midscene", "火山引擎", "C++", "C#"])
+        XCTAssertThrowsError(try store.saveWords(String(repeating: "x", count: 81)))
+        XCTAssertEqual(try store.words().first, "Midscene")
+        XCTAssertEqual(try PersonalVocabulary.normalize("Cafe\u{0301}\nCafé"), ["Café"])
+        XCTAssertTrue(PersonalVocabulary.prompt("BASE", words: try store.words()).contains("Midscene"))
+        XCTAssertEqual(PersonalVocabulary.prompt("BASE", words: []), "BASE")
+    }
+    func testHistoryRetentionPauseClearAndFrequencyEvidence() throws {
+        let folder = FileManager.default.temporaryDirectory.appendingPathComponent(UUID().uuidString)
+        defer { try? FileManager.default.removeItem(at: folder) }
+        var now = Date(timeIntervalSince1970: 2_000_000_000)
+        let store = PersonalDataStore(path: folder.appendingPathComponent("personal.sqlite3"), clock: { now })
+        try store.saveWords("Midscene")
+        let id = try store.record(original: "Midjourney", output: "Midscene. 火山引擎", polished: true)
+        try store.status(id, "sent")
+        try store.record(original: "MIDSCENE 火山引擎", output: "MIDSCENE 火山引擎", polished: true, status: "sent")
+        try store.record(original: "Midscene", output: "Midscene", polished: true, status: "failed")
+        let counts = Dictionary(uniqueKeysWithValues: try store.candidates().map { ($0.term, $0.count) })
+        XCTAssertEqual(counts["Midscene"], 2); XCTAssertEqual(counts["火山引擎"], 2)
+        XCTAssertEqual(try store.history().last?.original, "Midjourney")
+        now = now.addingTimeInterval(30 * 86400)
+        XCTAssertEqual(try store.history().count, 3)
+        now = now.addingTimeInterval(1)
+        XCTAssertTrue(try store.history().isEmpty)
+        try store.setEnabled(false)
+        XCTAssertNil(try store.record(original: "paused", output: "paused", polished: false))
+        try store.setEnabled(true)
+        try store.record(original: "keep", output: "keep", polished: false)
+        try store.clearHistory(); XCTAssertTrue(try store.history().isEmpty)
+        XCTAssertEqual(try store.words(), ["Midscene"])
+    }
+    func testAISuggestionsCannotInventWords() throws {
+        let candidates = [VocabularyCandidate(term: "Midscene", count: 3)]
+        XCTAssertEqual(try PersonalVocabulary.suggestions("[\"Midscene\",\"Midscene\"]", candidates: candidates), ["Midscene"])
+        XCTAssertThrowsError(try PersonalVocabulary.suggestions("[\"Midjourney\"]", candidates: candidates))
+        XCTAssertThrowsError(try PersonalVocabulary.suggestions("{}", candidates: candidates))
+    }
+}

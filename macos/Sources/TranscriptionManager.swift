@@ -196,17 +196,24 @@ final class TranscriptionManager {
     private func submit(_ text: String, polished: Bool) {
         let captured = target
         let enter = sendEnter
+        let original = rawText
+        var historyID: String?
+        var historyFailed = false
+        do { historyID = try PersonalDataStore.shared.record(original: original, output: text, polished: polished) }
+        catch { historyFailed = true }
         cancel()
         state.lastTranscript = text
         if polished { state.feedback = L("Polished", "已润色") }
         else if settings.polishEnabled {
             state.feedback = polishAvailable ? L("Polishing unavailable or skipped; original text used.", "润色未完成或已跳过，本次使用原文。") : L("Polishing is enabled but no API key is saved; original text used.", "润色已开启但未保存 API Key，本次使用原文。")
         } else { state.feedback = L("Original text", "原文") }
+        if historyFailed { state.feedback += L(" Local history could not be saved.", " 本地历史保存失败。") }
         guard UserDefaults.standard.object(forKey: "autoPaste") as? Bool ?? true else { return }
         let token = session
         hotkey.setEscapeHandlingEnabled(true)
         updateSafeAfter = ProcessInfo.processInfo.systemUptime + 1.2
         delivery.deliver(text, target: captured, method: settings.inputMethod, sendEnter: enter) { [weak self] sent in
+            try? PersonalDataStore.shared.status(historyID, sent ? "sent" : "failed")
             guard self?.session == token else { return }
             self?.hotkey.setEscapeHandlingEnabled(false)
             if !sent { self?.state.errorMessage = L("Target changed or input failed. Text kept in the app.", "目标已变化或输入失败，文字已保留在应用中。") }
@@ -235,7 +242,9 @@ final class TranscriptionManager {
         state.feedback = L("Choose a text field within 3 seconds. No Enter will be sent.", "请在三秒内点击目标输入框，本次不发送回车。")
         DispatchQueue.main.asyncAfter(deadline: .now() + 3) { [weak self] in
             guard let self = self, self.session == token, self.state.recordingState == .idle else { return }
+            let historyID = try? PersonalDataStore.shared.record(original: text, output: text, polished: false)
             self.delivery.deliver(text, target: InputTarget.capture(), method: SettingsStore.shared.value.inputMethod) { sent in
+                try? PersonalDataStore.shared.status(historyID, sent ? "sent" : "failed")
                 guard self.session == token else { return }
                 self.hotkey.setEscapeHandlingEnabled(false)
                 self.state.feedback = sent ? L("Input attempted", "已发送输入操作") : L("Target unavailable; text kept", "目标不可用，文字已保留")

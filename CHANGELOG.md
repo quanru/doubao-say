@@ -10,6 +10,8 @@
 
 ## Unreleased
 
+- Add personal vocabulary for contextual polishing, a local rolling 30-day input ledger, reviewed AI frequency suggestions, and padded recent-text editors on macOS and Linux.
+
 - Match the macOS dictation overlay to the compact Linux layout, colors and state borders; center transcript and polishing activity on both platforms.
 
 - Add in-app update notifications, manual checks, verified downloads and restart installation on macOS and Linux, with retained settings and rollback on failed installation checks.
