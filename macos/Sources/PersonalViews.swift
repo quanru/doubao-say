@@ -221,10 +221,11 @@ struct ConfirmCorrectionView: View {
                 ScrollView { Text(preview).textSelection(.enabled).frame(maxWidth: .infinity, alignment: .leading) }.frame(maxHeight: 120)
             } else {
                 Text(L("Enter a term from this entry and its correct spelling. Review the result before confirming.", "填写这条记录中出现的词和正确写法，检查结果后再确认。"))
+                    .fixedSize(horizontal: false, vertical: true)
             }
             Text(L("Future polishing uses the example context to help avoid unrelated replacements. No other app's typing is monitored.", "之后润色会参考示例语境，减少误改其他地方的词。不监控其他应用的键盘输入。"))
-                .font(.caption).foregroundColor(.secondary)
-            Text(model.feedback).font(.caption).foregroundColor(.secondary)
+                .font(.caption).foregroundColor(.secondary).fixedSize(horizontal: false, vertical: true)
+            Text(model.feedback).font(.caption).foregroundColor(.secondary).fixedSize(horizontal: false, vertical: true)
             HStack {
                 Button(L("Cancel", "取消")) { model.correctionTarget = nil }.keyboardShortcut(.cancelAction)
                 Spacer()
