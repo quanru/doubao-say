@@ -22,6 +22,7 @@ class AppState: ObservableObject {
     @Published var updateVersion = ""
     @Published var updateStatus = ""
     @Published var updateBusy = false
+    @Published var updateChecking = false
     @Published var updateCanInstall = false
 
     @Published var loginStatus: LoginStatus = .checking

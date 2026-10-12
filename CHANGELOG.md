@@ -8,6 +8,10 @@
 
 - macOS: expose English, Simplified Chinese and system language selection in General settings with immediate switching and persistent preferences.
 
+## 1.5.1
+
+- Simplify the Mac update page to one state-dependent action, show release notes as a text link, and prevent repeated checks while a request is active.
+
 ## 1.5.0
 
 - Add personal vocabulary for contextual polishing, a local rolling 30-day input ledger, reviewed AI frequency suggestions, and padded recent-text editors on macOS and Linux.
