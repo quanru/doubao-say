@@ -12,6 +12,7 @@ final class SettingsModel: ObservableObject {
     @Published var testing = false
     @Published var microphones = AudioDevices.inputs()
     @Published var asrKeySaved = false
+    @Published var doubaoSessionSaved = false
     @Published var polishKeySaved = false
     let state: AppState
     var apply: ((MacSettings, String?, String?) throws -> Void)?
@@ -32,11 +33,15 @@ final class SettingsModel: ObservableObject {
     private var peak: Double = 0
     private var testTimer: DispatchWorkItem?
     init(state: AppState) { self.state = state }
+    var isDoubaoSignedIn: Bool {
+        SettingsStore.shared.value.provider == .doubao ? state.loginStatus == .loggedIn : doubaoSessionSaved
+    }
     func refresh() {
         guard !testing, !capturing else { return }
         draft = SettingsStore.shared.value
         microphones = AudioDevices.inputs()
-        asrKeySaved = draft.provider == .doubao ? ASRParamsStore.hasSavedParams : SecretStore.load(draft.provider.rawValue + "-api-key") != nil
+        doubaoSessionSaved = ASRParamsStore.hasSavedParams
+        asrKeySaved = draft.provider == .doubao ? doubaoSessionSaved : SecretStore.load(draft.provider.rawValue + "-api-key") != nil
         polishKeySaved = SecretStore.load("polish-api-key") != nil
         recognitionKey = ""; polishKey = ""
     }
@@ -224,7 +229,7 @@ struct SettingsView: View {
         Form {
             Text(L("Connect recognition, check the microphone, then try dictation.", "连接识别服务，检查麦克风，再试一次语音识别。")).font(.headline)
             Label(state.loginStatus == .loggedIn ? L("Recognition credentials ready", "识别凭证已准备") : L("Recognition setup required", "请先配置识别服务"), systemImage: state.loginStatus == .loggedIn ? "checkmark.circle.fill" : "circle")
-            Button(L("Sign in to Doubao", "登录豆包")) { model.signIn?() }
+            if model.draft.provider == .doubao { doubaoAccountStatus }
             HStack {
                 Button(L("Enable global shortcut", "启用全局快捷键")) { model.enableShortcut?() }
                 Text(model.draft.shortcut.label)
@@ -248,8 +253,7 @@ struct SettingsView: View {
                 ForEach(RecognitionProvider.allCases, id: \.self) { Text($0.name).tag($0) }
             }
             if model.draft.provider == .doubao {
-                Text(L("Uses your Doubao web account. Sign in through the secure web window.", "使用豆包网页登录会话，请通过登录窗口连接账号。"))
-                Button(L("Sign in", "登录")) { model.signIn?() }
+                doubaoAccountStatus
             } else {
                 SecureField(L("API key (blank keeps saved key)", "API Key（留空保留已存凭证）"), text: $model.recognitionKey)
                 HStack {
@@ -262,6 +266,17 @@ struct SettingsView: View {
             Text(L("Credentials are saved in macOS Keychain.", "凭证保存在 macOS 钥匙串。"))
             Text(L("Save settings before running a voice test.", "保存设置后再运行语音测试。"))
         }.formStyle(.grouped).padding(8)
+    }
+    private var doubaoAccountStatus: some View {
+        Group {
+            Label(model.isDoubaoSignedIn ? L("Signed in to Doubao", "豆包已登录") : L("Not signed in to Doubao", "豆包未登录"),
+                  systemImage: model.isDoubaoSignedIn ? "checkmark.circle.fill" : "person.crop.circle.badge.exclamationmark")
+                .foregroundColor(model.isDoubaoSignedIn ? .green : .secondary)
+            Text(model.isDoubaoSignedIn
+                 ? L("Your login session is saved securely. You can now test voice recognition.", "登录会话已安全保存，可以开始语音识别测试。")
+                 : L("Sign in through the Doubao window to connect your account.", "请通过豆包登录窗口连接账号。"))
+            Button(model.isDoubaoSignedIn ? L("Sign in again", "重新登录") : L("Sign in to Doubao", "登录豆包")) { model.signIn?() }
+        }
     }
     private var polishing: some View {
         ScrollView {

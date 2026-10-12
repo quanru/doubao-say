@@ -113,7 +113,10 @@ final class AppDelegate: NSObject, NSApplicationDelegate, NSMenuDelegate {
                 return
             }
             refreshLoginStatus(); state.errorMessage = nil
+            settingsWindow.model.doubaoSessionSaved = true
+            settingsWindow.model.feedback = L("Signed in to Doubao. Login session saved.", "豆包登录成功，登录会话已保存。")
             web.hideLoginWindow(); web.destroyWebView()
+            settingsWindow.show(refresh: false)
         }
     }
     @objc private func logout() {
@@ -126,6 +129,7 @@ final class AppDelegate: NSObject, NSApplicationDelegate, NSMenuDelegate {
             state.errorMessage = L("Could not remove Keychain credentials.", "无法删除钥匙串凭证。"); return
         }
         web.destroyWebView(); state.loginStatus = .notLoggedIn
+        if provider == .doubao { settingsWindow.model.doubaoSessionSaved = false }
         state.lastTranscript = ""; state.errorMessage = nil
     }
     @objc private func showSettings() { settingsWindow.show() }
@@ -261,6 +265,10 @@ final class AppDelegate: NSObject, NSApplicationDelegate, NSMenuDelegate {
         state.lastTranscript = L("Synthetic recent text. No network or microphone used.", "合成的最近文字，未使用网络或麦克风。")
         settingsWindow.model.selectedTab = ProcessInfo.processInfo.environment["DOUBAO_SMOKE_TAB"] ?? "setup"
         settingsWindow.model.draft.polishEnabled = true
+        if ProcessInfo.processInfo.environment["DOUBAO_SMOKE_SIGNED_IN"] == "1" {
+            state.loginStatus = .loggedIn
+            settingsWindow.model.doubaoSessionSaved = true
+        }
         settingsWindow.show(refresh: false)
         DispatchQueue.main.asyncAfter(deadline: .now() + 1) {
             if let path = ProcessInfo.processInfo.environment["DOUBAO_SMOKE_IMAGE"] { self.settingsWindow.captureImage(to: path) }
