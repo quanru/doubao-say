@@ -484,7 +484,7 @@ struct SettingsView: View {
                 TextEditor(text: $model.draft.polishPromptZH).font(.system(size: 12)).frame(height: 150).border(Color.secondary.opacity(0.25))
                 Text(L("English prompt", "英文提示词")).font(.headline)
                 TextEditor(text: $model.draft.polishPromptEN).font(.system(size: 12)).frame(height: 150).border(Color.secondary.opacity(0.25))
-                Text(L("The dominant script of the transcript selects the prompt. No hidden vocabulary or correction examples are added.", "按转写的主要语言选择提示词，不额外注入隐藏词汇或纠错示例。"))
+                Text(L("The transcript's main language selects the prompt. Your personal vocabulary and confirmed corrections are added as contextual references.", "按转写的主要语言选择提示词；个人词汇和你确认过的纠错会作为上下文参考。"))
             }.padding(16)
         }
     }

@@ -45,10 +45,12 @@ enum SeedProtocol {
         return Data([0x11, (type << 4) | (last ? 3 : 1), (json ? 0x10 : 0) | 1, 0])
             + integer(last ? -sequence : sequence) + integer(Int32(bytes.count)) + bytes
     }
-    static func initial() throws -> Data {
+    static func initial(hotwords: [String] = []) throws -> Data {
+        var request: [String: Any] = ["model_name": "bigmodel", "enable_itn": true, "enable_punc": true, "enable_ddc": false, "show_utterances": false]
+        if let context = try PersonalCorrections.hotwordContext(hotwords) { request["corpus"] = ["context": context] }
         let body: [String: Any] = ["user": ["uid": "doubao-say"],
             "audio": ["format": "pcm", "codec": "raw", "rate": 16000, "bits": 16, "channel": 1],
-            "request": ["model_name": "bigmodel", "enable_itn": true, "enable_punc": true, "enable_ddc": false, "show_utterances": false]]
+            "request": request]
         return try frame(type: 1, sequence: 1, json: true, payload: JSONSerialization.data(withJSONObject: body))
     }
     static func parse(_ data: Data) throws -> Response {

@@ -68,6 +68,7 @@ def check(provider):
                     assert opcode == 2 and data[:4] == bytes([0x11, 0x11, 0x11, 0])
                     body = json.loads(gzip.decompress(data[12:]))
                     assert body['audio']['rate'] == 16000 and body['request']['enable_punc'] is True
+                    assert json.loads(body['request']['corpus']['context']) == {'hotwords': [{'word': 'Midscene'}, {'word': 'Vibelet'}]}
                     payload = gzip.compress(b'{}')
                     send(2, bytes([0x11, 0x91, 0x11, 0]) + struct.pack('!iI', 1, len(payload)) + payload)
                     opcode, data = receive()

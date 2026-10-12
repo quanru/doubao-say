@@ -7,7 +7,13 @@ struct PolishCheck {
         var settings = MacSettings(); settings.polishEnabled = true
         settings.polishBaseURL = CommandLine.arguments[1]; settings.polishModel = "synthetic-model"
         try? PersonalDataStore.shared.saveWords("Midscene")
-        defer { try? PersonalDataStore.shared.saveWords("") }
+        let id = try! PersonalDataStore.shared.record(original: "用Midjourney写测试", output: "用Midjourney写测试", polished: false)!
+        try! PersonalDataStore.shared.confirmCorrection(id, recognized: "Midjourney", corrected: "Midscene")
+        defer {
+            try? PersonalDataStore.shared.saveWords("")
+            for correction in (try? PersonalDataStore.shared.corrections()) ?? [] { try? PersonalDataStore.shared.forgetCorrection(correction.id) }
+            try? PersonalDataStore.shared.clearHistory()
+        }
         var failed = false
         func check(_ condition: Bool, _ name: String) {
             if !condition { failed = true; print("FAIL: " + name) }
@@ -15,6 +21,12 @@ struct PolishCheck {
         func drain(until complete: () -> Bool, seconds: Double = 7) {
             let deadline = Date().addingTimeInterval(seconds)
             while !complete() && Date() < deadline { RunLoop.current.run(until: Date().addingTimeInterval(0.01)) }
+        }
+        for sample in ["用Midjourney写测试", "counts-only"] {
+            let client = PolishClient(); var done = false
+            client.completion = { _, _ in done = true }
+            client.start(text: sample, settings: settings, apiKey: "fake-polish-key", personalize: sample != "counts-only")
+            drain(until: { done }); check(done, "context and organization request")
         }
         for (sample, expected) in [("success", "周四上线。"), ("incomplete", nil), ("length", nil), ("error", nil), ("redirect", nil), ("slow", nil)] as [(String, String?)] {
             let client = PolishClient()

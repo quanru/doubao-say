@@ -274,11 +274,26 @@ stored separately in a local 30-day history, with recognition original, final
 output, polishing and input status. History has no record-count cap and can be
 paused or cleared in Vocabulary & history; voice tests and cancelled recognition
 are excluded. Personal vocabulary is saved automatically (one term per line,
-up to 200 terms of 80 characters) and supplied as context during AI polishing.
-It does not retrain ASR or force global replacements. Local frequencies use
-sent, polished results only; AI organization sends candidate terms and counts
+up to 200 terms of 80 characters). Official Volcengine ASR sends a length-limited
+subset as session hotwords, prioritizing spellings you explicitly confirmed.
+The vocabulary page previews the actual subset. Doubao Web and other engines use
+this list only as context during AI polishing. This does not retrain the model.
+From an input-history entry, choose **Correct & remember…**, enter the recognized
+term and correct spelling, review the preview, then confirm. Only that explicit
+action creates memory. Original recognition and polishing output are preserved.
+Future polishing receives relevant correction pairs and example contexts as
+reference data, never global replacements. You can forget pairs individually;
+clearing or expiring history retains vocabulary and correction memory.
+Local frequencies use sent, polished results and explicitly confirmed corrections;
+AI organization sends candidate terms and counts
 to the configured polishing service, not the full history. Review and select
 suggestions before adding. Data is local to each device; there is no cross-device sync.
+
+For repeatable comparisons on the same recordings, use the opt-in
+[personal speech evaluation CLI](packaging/SPEECH_EVAL.md). It separately scores
+raw ASR, hotword ASR and optional polishing, including negative examples where
+Midjourney is correct. Offline scoring supports manually collected competitor
+outputs. No personal-accent improvement is claimed without actual recordings.
 
 Automatic paste requires a known, unchanged Hyprland or native X11 window.
 On X11, missing window metadata, a closed window or the app's own window prevents
@@ -497,7 +512,7 @@ validate package metadata and scan for secrets. The current whole-package branch
 coverage floor is 55%; desktop UI, WebKit and real-device paths remain included
 in the denominator.
 
-The current release version is **1.5.3**. A `v1.5.3` tag must match every embedded
+The current release version is **1.6.0**. A `v1.6.0` tag must match every embedded
 version before CI can publish. Tag releases rebuild both offline app and Omarchy
 plugin archives for Python 3.11–3.14 and attach SHA-256 checksums. A manually started
 release workflow builds artifacts for inspection but does not publish them. Real

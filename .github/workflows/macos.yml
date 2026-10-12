@@ -25,13 +25,17 @@ jobs:
         run: bash macos/build.sh
       - name: Build opt-in sidebar focus probe
         run: bash macos/Tests/Settings/build-sidebar-focus.sh
+      - name: Build opt-in personal learning UI probe
+        run: bash macos/Tests/Settings/build-personal-ui.sh
       - name: Archive preview (development signing only)
         run: |
           ditto -c -k --sequesterRsrc --keepParent "build/macos/$(uname -m)/Doubao Say.app" build/Doubao-Say-macos-preview.zip
           ditto -c -k build/macos/tests/sidebar-focus-check build/Sidebar-Focus-Check.zip
+          ditto -c -k build/macos/tests/personal-ui-check build/Personal-Learning-Check.zip
       - uses: actions/upload-artifact@043fb46d1a93c77aae656e7c1c64a875d1fc6a0a # v7.0.1
         with:
           name: Doubao-Say-macos-development-preview
           path: |
             build/Doubao-Say-macos-preview.zip
             build/Sidebar-Focus-Check.zip
+            build/Personal-Learning-Check.zip

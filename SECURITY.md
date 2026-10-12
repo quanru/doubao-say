@@ -19,6 +19,19 @@ submitted after a pause while recording is still active. The endpoint operator's
 retention, training and privacy terms apply. Doubao Say does not log the text or
 include the polishing API key in diagnostics.
 
+Official Volcengine recognition sends a bounded subset of personal vocabulary,
+including explicitly confirmed spellings, as request hotwords. Optional polishing
+also receives your vocabulary and relevant confirmed correction pairs with example
+contexts. These are reference data, not model training. Correction memory is local
+and persists until you forget entries; clearing the rolling history does not
+delete it. AI frequency organization sends only candidate terms and counts, not
+full history or correction contexts.
+
+The opt-in speech evaluation CLI uploads only recordings listed explicitly in
+its replay manifest. Offline scoring does not access recognition services. Local
+owner-only reports include private transcripts and hotwords; do not publish them.
+The tool never records the microphone or automatically learns reference texts.
+
 The application checks the fixed public GitHub release manifest, with the Releases
 API as a fallback, at most once
 every 24 hours. GitHub receives normal HTTPS connection metadata. The local
