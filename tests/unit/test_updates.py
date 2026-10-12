@@ -21,6 +21,28 @@ class Response:
 
 
 class UpdateTest(TestCase):
+    def test_public_feed_succeeds_without_using_the_api(self):
+        with tempfile.TemporaryDirectory() as root, patch.dict(os.environ, {"XDG_CONFIG_HOME": root}), patch(
+                "doubao_input.updates.request.urlopen", return_value=Response({"tag_name": "v1.6.0"})) as fetch:
+            found = []
+            UpdateChecker(lambda callback: callback(), found.append)._fetch()
+            self.assertEqual(found[0].version, "1.6.0")
+            self.assertEqual(fetch.call_count, 1)
+            req = fetch.call_args.args[0]
+            self.assertTrue(req.full_url.endswith("/releases/latest/download/update.json"))
+            self.assertIsNone(req.get_header("Authorization"))
+
+    def test_missing_or_invalid_feed_falls_back_to_api(self):
+        for first in (URLError("offline"), Response({"tag_name": "invalid"})):
+            with self.subTest(first=type(first).__name__), tempfile.TemporaryDirectory() as root, patch.dict(
+                    os.environ, {"XDG_CONFIG_HOME": root}), patch(
+                    "doubao_input.updates.request.urlopen", side_effect=[first, Response({"tag_name": "v1.6.0"})]) as fetch:
+                found = []
+                UpdateChecker(lambda callback: callback(), found.append)._fetch()
+                self.assertEqual(found[0].version, "1.6.0")
+                self.assertEqual(fetch.call_count, 2)
+                self.assertIn("api.github.com", fetch.call_args.args[0].full_url)
+
     def test_semantic_version_comparison_does_not_compare_strings(self):
         self.assertTrue(newer_release("v1.10.0", "1.3.0"))
         self.assertFalse(newer_release("1.3.0", "1.3.0"))
