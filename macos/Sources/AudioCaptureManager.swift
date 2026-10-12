@@ -9,6 +9,9 @@ class AudioCaptureManager {
     private let lock = NSLock()
     private var callback: ((Data) -> Void)?
     private var isCapturing = false
+    private var captureGeneration = UUID()
+    private var startedAt: TimeInterval = 0
+    private var startupRecoveryAvailable = true
     private var configurationObserver: NSObjectProtocol?
     var onError: (() -> Void)?
     private var rmsCallback: ((Double) -> Void)?
@@ -24,7 +27,14 @@ class AudioCaptureManager {
     }
 
     func startCapture(deviceID: String = "") throws {
+        try beginCapture(deviceID: deviceID, allowStartupRecovery: true)
+    }
+    private func beginCapture(deviceID: String, allowStartupRecovery: Bool) throws {
         guard !isCapturing else { return }
+        let token = UUID()
+        lock.lock(); captureGeneration = token; lock.unlock()
+        startupRecoveryAvailable = allowStartupRecovery
+        startedAt = ProcessInfo.processInfo.systemUptime
 
         let engine = AVAudioEngine()
         let inputNode = engine.inputNode
@@ -37,7 +47,7 @@ class AudioCaptureManager {
                 throw NSError(domain: "AudioCapture", code: -4)
             }
         }
-        let inputFormat = inputNode.inputFormat(forBus: 0)
+        let inputFormat = inputNode.outputFormat(forBus: 0)
 
         guard inputFormat.sampleRate > 0, inputFormat.channelCount > 0 else {
             throw NSError(domain: "AudioCapture", code: -1,
@@ -58,7 +68,8 @@ class AudioCaptureManager {
         }
         inputNode.installTap(onBus: 0, bufferSize: 4096, format: inputFormat) {
             [weak self] buffer, _ in
-            self?.processAudioBuffer(buffer, converter: conv, onAudioData: self?.onAudioData)
+            guard let self = self, self.isCurrent(token) else { return }
+            self.processAudioBuffer(buffer, converter: conv, token: token, onAudioData: self.onAudioData)
         }
 
         engine.prepare()
@@ -70,13 +81,28 @@ class AudioCaptureManager {
 
         self.audioEngine = engine
         self.isCapturing = true
-        configurationObserver = NotificationCenter.default.addObserver(forName: .AVAudioEngineConfigurationChange, object: engine, queue: .main) { [weak self] _ in
-            guard let self = self, self.isCapturing else { return }
-            self.onError?()
+        configurationObserver = NotificationCenter.default.addObserver(forName: .AVAudioEngineConfigurationChange, object: engine, queue: nil) { [weak self, weak engine] _ in
+            // Never tear down an engine on the notification's internal audio queue.
+            DispatchQueue.main.async {
+                guard let self = self, let engine = engine, self.isCurrent(token), self.isCapturing else { return }
+                let format = engine.inputNode.outputFormat(forBus: 0)
+                let deviceAvailable = deviceID.isEmpty || AudioDevices.inputs().contains { $0.id == deviceID }
+                let formatMatches = format.sampleRate == inputFormat.sampleRate && format.channelCount == inputFormat.channelCount
+                if deviceAvailable && engine.isRunning && formatMatches { return }
+                if deviceAvailable && self.startupRecoveryAvailable && ProcessInfo.processInfo.systemUptime - self.startedAt <= 2 {
+                    self.stopCapture()
+                    do { try self.beginCapture(deviceID: deviceID, allowStartupRecovery: false) }
+                    catch { self.onError?() }
+                } else { self.onError?() }
+            }
         }
+    }
+    private func isCurrent(_ token: UUID) -> Bool {
+        lock.lock(); defer { lock.unlock() }; return captureGeneration == token
     }
 
     func stopCapture() {
+        lock.lock(); captureGeneration = UUID(); lock.unlock()
         guard isCapturing else { return }
         if let observer = configurationObserver { NotificationCenter.default.removeObserver(observer); configurationObserver = nil }
         audioEngine?.inputNode.removeTap(onBus: 0)
@@ -88,7 +114,7 @@ class AudioCaptureManager {
     // MARK: - Audio Processing
 
     /// Resample native audio to 16kHz mono Float32, then convert to Int16 LE PCM.
-    private func processAudioBuffer(_ buffer: AVAudioPCMBuffer, converter: AVAudioConverter,
+    private func processAudioBuffer(_ buffer: AVAudioPCMBuffer, converter: AVAudioConverter, token: UUID,
                                     onAudioData: ((Data) -> Void)?) {
         let ratio = 16000.0 / converter.inputFormat.sampleRate
         let outputFrameCapacity = AVAudioFrameCount(ceil(Double(buffer.frameLength) * ratio))
@@ -117,6 +143,7 @@ class AudioCaptureManager {
         let floats = outputBuffer.floatChannelData![0]
         let count = Int(outputBuffer.frameLength)
         let energy = (0..<count).reduce(0.0) { $0 + Double(floats[$1] * floats[$1]) }
+        guard isCurrent(token) else { return }
         onRMS?(sqrt(energy / Double(count)))
         var pcm = Data(count: count * 2)
         pcm.withUnsafeMutableBytes { raw in
@@ -128,6 +155,7 @@ class AudioCaptureManager {
             }
         }
 
+        guard isCurrent(token) else { return }
         onAudioData?(pcm)
     }
 }

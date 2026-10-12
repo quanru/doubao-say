@@ -55,7 +55,7 @@ final class TranscriptionManager {
         hotkey.start()
     }
     func startRecording() {
-        defer { hotkey.setEscapeHandlingEnabled(state.recordingState != .idle, recording: state.isRecording) }
+        defer { hotkey.setEscapeHandlingEnabled(state.recordingState != .idle || overlay.isVisible, recording: state.isRecording) }
         if state.recordingState == .polishing { polisher.useOriginal(); return }
         guard state.recordingState == .idle, canRecord?() ?? true else { return }
         settings = SettingsStore.shared.value
@@ -115,18 +115,16 @@ final class TranscriptionManager {
             Task { @MainActor in
                 guard let self = self, self.session == token, self.client != nil else { return }
                 let partial = self.rawText
-                self.cancel()
+                self.showFailure(L("Recognition failed. Check your connection and retry.", "识别失败，请检查连接后重试。"), status: L("Recognition failed", "识别失败"))
                 if !partial.isEmpty { self.state.lastTranscript = partial; self.state.feedback = L("Incomplete recognition — not pasted", "识别未完成，未粘贴") }
-                self.state.errorMessage = L("Recognition failed. Check your connection and retry.", "识别失败，请检查连接后重试。")
             }
         }
         transport.onAuthError = { [weak self] in
             Task { @MainActor in
                 guard let self = self, self.session == token, self.client != nil else { return }
-                self.cancel()
+                self.showFailure(L("Session expired. Sign in again.", "登录已过期，请重新登录。"), status: L("Sign in required", "请重新登录"))
                 if self.settings.provider == .doubao { ASRParamsStore.clear() }
                 self.state.loginStatus = .notLoggedIn
-                self.state.errorMessage = L("Session expired. Sign in again.", "登录已过期，请重新登录。")
             }
         }
         // Capture references the session's transport, never a subsequently created one.
@@ -140,8 +138,7 @@ final class TranscriptionManager {
             if let api = transport as? APIASRClient, let key = apiKey { api.connect(apiKey: key) }
             scheduleTimeout(seconds: 60, token: token) { [weak self] in self?.stopRecording() }
         } catch {
-            cancel()
-            state.errorMessage = L("Microphone could not start.", "麦克风启动失败。")
+            showFailure(L("The selected microphone could not start. Check the device or select System default.", "所选麦克风无法启动，请检查设备或选择系统默认。"))
         }
     }
     func stopRecording() {
@@ -247,9 +244,8 @@ final class TranscriptionManager {
             Task { @MainActor in
                 guard let self = self, self.session == audioToken else { return }
                 let partial = self.rawText
-                self.cancel()
+                self.showFailure(L("Audio input changed or disconnected. Check the selected microphone; nothing pasted.", "音频输入变化或断开，请检查所选麦克风；未粘贴文字。"))
                 if !partial.isEmpty { self.state.lastTranscript = partial }
-                self.state.errorMessage = L("Audio input changed or disconnected. Partial text kept; nothing pasted.", "音频输入变化或断开，已保留部分文字，未粘贴。")
             }
         }
         audio.onRMS = { [weak self] rms in
@@ -284,6 +280,14 @@ final class TranscriptionManager {
     private func discardPrime() {
         guard primed else { return }
         primed = false; primedAudio.removeAll(); audio.stopCapture(); audio.onAudioData = nil; audio.onRMS = nil; audio.onError = nil; target = nil
+    }
+    private func showFailure(_ message: String, status: String = L("Microphone unavailable", "麦克风不可用")) {
+        cancel()
+        state.errorMessage = message
+        state.overlayStatus = status
+        overlay.showOverlay()
+        hotkey.setEscapeHandlingEnabled(true)
+        scheduleTimeout(seconds: 6, token: session) { [weak self] in self?.cancel() }
     }
     func cancel() {
         session = UUID(); timeout?.cancel(); timeout = nil; quietTimer?.cancel(); quietTimer = nil; finalGate = FinalResultGate()

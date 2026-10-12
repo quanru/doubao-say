@@ -1,5 +1,7 @@
 # Changelog
 
+- macOS: place recognition at the bottom of the active screen, recover one startup audio reconfiguration, and keep microphone/recognition failure messages visible.
+
 - macOS: save settings automatically, flush edits before tests and on close, defer changes during dictation, and remove the Save settings button.
 
 - macOS: expose English, Simplified Chinese and system language selection in General settings with immediate switching and persistent preferences.

@@ -13,10 +13,10 @@ class OverlayPanel: NSPanel {
         let width: CGFloat = 560
         let height: CGFloat = 110
 
-        // Position at top-center of main screen
+        // Position at bottom-center of main screen
         let screenFrame = NSScreen.main?.visibleFrame ?? NSRect(x: 0, y: 0, width: 1440, height: 900)
         let x = screenFrame.midX - width / 2
-        let y = screenFrame.maxY - height - 20
+        let y = screenFrame.minY + 20
 
         super.init(
             contentRect: NSRect(x: x, y: y, width: width, height: height),
@@ -38,12 +38,12 @@ class OverlayPanel: NSPanel {
     }
 
     func showOverlay() {
-        // Reposition to top-center in case screen changed
+        // Reposition to bottom-center in case screen changed
         if let screen = NSScreen.screens.first(where: { $0.frame.contains(NSEvent.mouseLocation) }) ?? NSScreen.main {
             let width: CGFloat = 560
             let height: CGFloat = 110
             let x = screen.visibleFrame.midX - width / 2
-            let y = screen.visibleFrame.maxY - height - 20
+            let y = screen.visibleFrame.minY + 20
             let frame = NSRect(x: x, y: y, width: width, height: height)
             setFrame(frame, display: true)
         }

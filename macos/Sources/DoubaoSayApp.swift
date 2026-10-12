@@ -28,6 +28,7 @@ final class AppDelegate: NSObject, NSApplicationDelegate, NSMenuDelegate {
         overlay = OverlayPanel(appState: state)
         if CommandLine.arguments.contains("--smoke-test") { smokeTest(); return }
         if CommandLine.arguments.contains("--settings-smoke-test") { settingsSmokeTest(); return }
+        if CommandLine.arguments.contains("--microphone-capture-check") { microphoneCaptureCheck(); return }
         web = WebViewManager(appState: state)
         hotkey = HotkeyManager()
         transcription = TranscriptionManager(appState: state, overlayPanel: overlay, hotkeyManager: hotkey)
@@ -276,6 +277,37 @@ final class AppDelegate: NSObject, NSApplicationDelegate, NSMenuDelegate {
             DispatchQueue.main.asyncAfter(deadline: .now() + self.smokeHoldSeconds) { self.settingsWindow.close(); NSApp.terminate(nil) }
         }
     }
+    /// Opt-in local microphone check; no ASR, credentials, audio files or keyboard events.
+    private func microphoneCaptureCheck() {
+        guard AVCaptureDevice.authorizationStatus(for: .audio) == .authorized else {
+            print("FAIL: microphone permission unavailable"); exit(1)
+        }
+        let selected = SettingsStore.shared.value.microphoneID
+        let explicit = selected.isEmpty ? AudioDevices.inputs().first?.id : selected
+        guard let explicit = explicit else { print("FAIL: no microphone available"); exit(1) }
+        let devices = ["", explicit]
+        let audio = AudioCaptureManager()
+        var index = 0
+        let lock = NSLock()
+        var bytes = 0
+        var failed = false
+        func next() {
+            guard index < devices.count else { print("PASS: default and explicit microphone capture; no audio saved or sent"); NSApp.terminate(nil); return }
+            bytes = 0; failed = false
+            audio.onAudioData = { data in lock.lock(); bytes += data.count; lock.unlock() }
+            audio.onError = { lock.lock(); failed = true; lock.unlock() }
+            do { try audio.startCapture(deviceID: devices[index]) }
+            catch { print("FAIL: microphone startup"); exit(1) }
+            DispatchQueue.main.asyncAfter(deadline: .now() + 3) {
+                audio.stopCapture()
+                lock.lock(); let success = bytes > 0 && !failed; lock.unlock()
+                guard success else { print("FAIL: capture stopped or no PCM received"); exit(1) }
+                print("PASS: local capture \(index == 0 ? "default" : "explicit")")
+                index += 1; next()
+            }
+        }
+        next()
+    }
     /// Opt-in synthetic runtime check: no login, audio, event tap or paste.
     private func smokeTest() {
         let frontPID = NSWorkspace.shared.frontmostApplication?.processIdentifier
@@ -284,7 +316,8 @@ final class AppDelegate: NSObject, NSApplicationDelegate, NSMenuDelegate {
         overlay.showOverlay()
         DispatchQueue.main.asyncAfter(deadline: .now() + 1) {
             let focusPreserved = NSWorkspace.shared.frontmostApplication?.processIdentifier == frontPID
-            guard !self.overlay.isKeyWindow, focusPreserved, self.overlay.isVisible else { exit(1) }
+            guard !self.overlay.isKeyWindow, focusPreserved, self.overlay.isVisible,
+                  NSScreen.screens.contains(where: { abs(self.overlay.frame.minY - ($0.visibleFrame.minY + 20)) < 1 }) else { exit(1) }
             if ProcessInfo.processInfo.environment["DOUBAO_SMOKE_IMAGE"] != nil {
                 WindowCapture.request(self.overlay)
             }
