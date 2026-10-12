@@ -82,8 +82,9 @@ final class AppDelegate: NSObject, NSApplicationDelegate, NSMenuDelegate {
         add(updateTag.map { L("Update available: ", "发现新版本：") + $0 } ?? L("Check for updates", "检查更新"), #selector(checkUpdates))
         let language = add("Language / 语言", nil)
         let submenu = NSMenu()
-        for (title, value) in [("System / 跟随系统", "system"), ("English", "en"), ("简体中文", "zh")] {
-            let item = NSMenuItem(title: title, action: #selector(setLanguage(_:)), keyEquivalent: "")
+        for language in UILanguage.allCases {
+            let value = language.rawValue
+            let item = NSMenuItem(title: language.name, action: #selector(setLanguage(_:)), keyEquivalent: "")
             item.target = self; item.representedObject = value
             item.state = (UserDefaults.standard.string(forKey: "language") ?? "en") == value ? .on : .off
             submenu.addItem(item)
@@ -140,6 +141,11 @@ final class AppDelegate: NSObject, NSApplicationDelegate, NSMenuDelegate {
     }
     private func wireSettings() {
         let model = settingsWindow.model
+        model.languageChanged = { [weak self] in
+            self?.state.objectWillChange.send()
+            self?.settingsWindow.updateTitle()
+            self?.rebuildMenu()
+        }
         transcription.canRecord = { [weak model] in !(model?.testing ?? false) && !(model?.capturing ?? false) }
         model.cancelCapture = { [weak self] in self?.hotkey.cancelCapture() }
         model.apply = { [weak self] settings, recognitionKey, polishKey in

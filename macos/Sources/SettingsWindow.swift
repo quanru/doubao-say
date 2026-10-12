@@ -24,6 +24,7 @@ final class SettingsModel: ObservableObject {
     var clear: (() -> Void)?
     var shortcutReady: (() -> Bool)?
     var onFinishSetup: (() -> Void)?
+    var languageChanged: (() -> Void)?
     private var testASRClient: APIASRClient?
     var cancelCapture: (() -> Void)?
     private var testClient: PolishClient?
@@ -160,6 +161,7 @@ struct SettingsView: View {
     @ObservedObject var model: SettingsModel
     @ObservedObject var state: AppState
     @State private var showingAppearance = false
+    @AppStorage("language") private var language = "en"
     private var pages: [(String, String, String)] { [
         ("setup", L("Setup", "使用准备"), "checkmark.circle"),
         ("recognition", L("Recognition", "识别服务"), "waveform"),
@@ -326,6 +328,10 @@ struct SettingsView: View {
     }
     private var general: some View {
         Form {
+            Picker(L("Interface language", "界面语言"), selection: $language) {
+                ForEach(UILanguage.allCases, id: \.rawValue) { Text($0.name).tag($0.rawValue) }
+            }.onChange(of: language) { _ in model.languageChanged?() }
+            Text(L("Language changes take effect immediately. Recognition and polishing languages are configured separately.", "语言切换立即生效。识别和润色语言由各自配置决定。"))
             microphonePicker
             Picker(L("Input method", "输入方式"), selection: $model.draft.inputMethod) {
                 Text(L("Clipboard (restores previous contents)", "剪贴板（恢复原内容）")).tag("clipboard")

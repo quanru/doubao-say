@@ -1,5 +1,7 @@
 # Changelog
 
+- macOS: expose English, Simplified Chinese and system language selection in General settings with immediate switching and persistent preferences.
+
 ## Unreleased
 
 - Hide receiver mappings while AU05 support is disabled and clarify when settings take effect.

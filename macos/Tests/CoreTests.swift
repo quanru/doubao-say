@@ -44,3 +44,18 @@ final class CoreTests: XCTestCase {
     }
     private func parse(_ text: String) -> ASRResponse { ASRResponse.parse(Data(text.utf8)) }
 }
+
+final class LanguageTests: XCTestCase {
+    func testSystemLanguageUsesFirstSupportedPreference() {
+        XCTAssertEqual(UILanguage.resolve("system", preferred: ["fr-FR", "zh-Hans-CN", "en-US"]), .zh)
+        XCTAssertEqual(UILanguage.resolve("system", preferred: ["en-GB", "zh-CN"]), .en)
+        XCTAssertEqual(UILanguage.resolve("system", preferred: ["fr-FR"]), .en)
+        XCTAssertEqual(UILanguage.resolve("system", preferred: []), .en)
+    }
+    func testExplicitChoiceOverridesSystemAndLegacyChineseCodesWork() {
+        XCTAssertEqual(UILanguage.resolve("en", preferred: ["zh-CN"]), .en)
+        XCTAssertEqual(UILanguage.resolve("zh", preferred: ["en-US"]), .zh)
+        XCTAssertEqual(UILanguage.resolve("zh-Hans", preferred: ["en-US"]), .zh)
+        XCTAssertEqual(UILanguage.resolve("invalid", preferred: ["zh-CN"]), .en)
+    }
+}
