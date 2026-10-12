@@ -16,6 +16,27 @@ from doubao_input.settings import Settings
 
 
 class AppLifecycleEdgesTest(TestCase):
+    def test_update_before_settings_are_opened_downloads_and_launches(self):
+        with tempfile.TemporaryDirectory() as root, patch(
+                "doubao_input.app.GLib.unix_signal_add"), patch(
+                "doubao_input.app.prepare_update", return_value=Path(root)), patch(
+                "doubao_input.app.launch_update") as launch, patch(
+                "doubao_input.app.GLib.idle_add",
+                side_effect=lambda callback, *args: callback(*args)), patch(
+                "doubao_input.app.Thread") as thread:
+            app = DoubaoInputApp()
+            self.assertIsNone(app._settings_window)
+            app._control = Mock()
+            app._busy = Mock(return_value=False)
+            app._quit = Mock()
+            app._control.flush_edits.return_value = True
+            info = SimpleNamespace(version="1.6.0")
+            DoubaoInputApp._install_update(app, info)
+            thread.call_args.kwargs["target"]()
+            launch.assert_called_once_with(Path(root))
+            app._quit.assert_called_once()
+            self.assertFalse(app._update_installing)
+
     def test_activity_properties_reflect_owned_sessions(self):
         app = SimpleNamespace(
             _delivery=SimpleNamespace(busy=True),

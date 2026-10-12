@@ -149,8 +149,16 @@ final class PersonalDataStore {
                     if spellings[key] == nil { spellings[key] = term }
                 }
             }
-            return counts.filter { $0.value >= 2 }.map { VocabularyCandidate(term: spellings[$0.key]!, count: $0.value) }
-                .sorted { $0.count != $1.count ? $0.count > $1.count : $0.term.count != $1.term.count ? $0.term.count > $1.term.count : $0.term < $1.term }.prefix(limit).map { $0 }
+            let candidates: [VocabularyCandidate] = counts.compactMap { key, count in
+                guard count >= 2, let term = spellings[key] else { return nil }
+                return VocabularyCandidate(term: term, count: count)
+            }
+            let sorted = candidates.sorted { first, second in
+                if first.count != second.count { return first.count > second.count }
+                if first.term.count != second.term.count { return first.term.count > second.term.count }
+                return first.term < second.term
+            }
+            return Array(sorted.prefix(limit))
         }
     }
 }

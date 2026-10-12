@@ -79,6 +79,7 @@ class DoubaoInputApp(Gtk.Application):
         self.app_state = AppState()
         self._overlay: Overlay | None = None
         self._control: ControlWindow | None = None
+        self._settings_window = None
         self._login_window = None
         self._login_attempt = None
         self._tray = None
