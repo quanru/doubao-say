@@ -260,6 +260,7 @@ struct SettingsView: View {
     @ObservedObject var model: SettingsModel
     @ObservedObject var state: AppState
     @State private var showingAppearance = false
+    @FocusState private var sidebarFocus: String?
     @AppStorage("language") private var language = "en"
     private var pages: [(String, String, String)] { [
         ("setup", L("Setup", "使用准备"), "checkmark.circle"),
@@ -277,13 +278,20 @@ struct SettingsView: View {
             VStack(alignment: .leading, spacing: 8) {
                 Text("Doubao Say").font(.headline).padding(.horizontal, 12).padding(.vertical, 16)
                 ForEach(pages, id: \.0) { page in
-                    Button { model.selectedTab = page.0 } label: {
+                    Button {
+                        model.selectedTab = page.0
+                        // Mouse navigation should not leave a keyboard focus ring behind.
+                        if let event = NSApp.currentEvent, [.leftMouseDown, .leftMouseUp].contains(event.type) {
+                            sidebarFocus = nil
+                        }
+                    } label: {
                         Label(page.1, systemImage: page.2)
                             .font(.system(size: 13, weight: model.selectedTab == page.0 ? .semibold : .regular))
                             .frame(maxWidth: .infinity, alignment: .leading).padding(10)
                             .foregroundColor(model.selectedTab == page.0 ? .accentColor : .primary)
                             .background(RoundedRectangle(cornerRadius: 7).fill(model.selectedTab == page.0 ? Color.accentColor.opacity(0.12) : .clear))
-                    }.buttonStyle(.plain)
+                            .contentShape(RoundedRectangle(cornerRadius: 7))
+                    }.buttonStyle(.plain).focused($sidebarFocus, equals: page.0)
                 }
                 Spacer()
                 Text(L("Settings", "设置")).font(.caption).foregroundColor(.secondary).padding(12)
@@ -313,6 +321,13 @@ struct SettingsView: View {
                 }.padding(18)
             }.background(Color(nsColor: .windowBackgroundColor))
         }.frame(width: 900, height: 650)
+            .onAppear {
+                // Allow the initial focus assignment to finish before clearing it.
+                DispatchQueue.main.async { sidebarFocus = nil }
+            }
+            .onChange(of: model.selectedTab) { page in
+                if sidebarFocus != page { sidebarFocus = nil }
+            }
     }
     @ViewBuilder private var selectedPage: some View {
         switch model.selectedTab {
@@ -564,7 +579,12 @@ final class SettingsWindow: NSObject, NSWindowDelegate {
         window.contentView = NSHostingView(rootView: SettingsView(model: model, state: state))
         window.center()
     }
-    func show(refresh: Bool = true) { if refresh { model.refresh() }; NSApp.activate(ignoringOtherApps: true); window.makeKeyAndOrderFront(nil) }
+    func show(refresh: Bool = true) {
+        if refresh { model.refresh() }
+        NSApp.activate(ignoringOtherApps: true)
+        window.makeKeyAndOrderFront(nil)
+        window.makeFirstResponder(nil)
+    }
     func windowWillClose(_ notification: Notification) { model.closeEditor() }
     func close() { model.stopTests(); window.close() }
     func hide() { window.orderOut(nil) }

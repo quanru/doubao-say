@@ -8,6 +8,10 @@
 
 - macOS: expose English, Simplified Chinese and system language selection in General settings with immediate switching and persistent preferences.
 
+## 1.5.3
+
+- Clear stale Mac settings sidebar focus when opening or navigating with the mouse, preserve Tab/Space navigation, and keep keyboard focus outlines aligned to the full rounded row.
+
 ## 1.5.2
 
 - Check a public update manifest first, fall back to the GitHub API, allow longer requests, reject invalid caches and show specific Mac connection, HTTP, timeout and rate-limit errors. Ignore stale responses after cancellation.
