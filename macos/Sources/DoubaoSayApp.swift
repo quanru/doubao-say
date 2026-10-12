@@ -266,6 +266,7 @@ final class AppDelegate: NSObject, NSApplicationDelegate, NSMenuDelegate {
         state.lastTranscript = L("Synthetic recent text. No network or microphone used.", "合成的最近文字，未使用网络或麦克风。")
         settingsWindow.model.selectedTab = ProcessInfo.processInfo.environment["DOUBAO_SMOKE_TAB"] ?? "setup"
         settingsWindow.model.draft.polishEnabled = true
+        settingsWindow.model.setupStep = min(max(Int(ProcessInfo.processInfo.environment["DOUBAO_SMOKE_SETUP_STEP"] ?? "0") ?? 0, 0), 3)
         if ProcessInfo.processInfo.environment["DOUBAO_SMOKE_SIGNED_IN"] == "1" {
             state.loginStatus = .loggedIn
             settingsWindow.model.doubaoSessionSaved = true

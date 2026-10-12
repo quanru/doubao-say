@@ -7,7 +7,9 @@ final class SettingsModel: ObservableObject {
     @Published var draft = SettingsStore.shared.value {
         didSet {
             guard !suppressAutosave, draft != oldValue else { return }
+            if draft.microphoneID != oldValue.microphoneID { state.microphoneChecked = false; state.voiceChecked = false }
             if draft.provider != oldValue.provider {
+                state.voiceChecked = false
                 suppressAutosave = true
                 recognitionKey = ""; savedRecognitionKey = ""
                 suppressAutosave = false
@@ -20,6 +22,8 @@ final class SettingsModel: ObservableObject {
     @Published var polishKey = "" { didSet { if polishKey != oldValue { scheduleAutosave() } } }
     @Published var feedback = ""
     @Published var selectedTab = "setup"
+    @Published var setupStep = 0
+    @Published var shortcutAvailable = false
     @Published var capturing = false { didSet { if !capturing { resumeAutosave() } } }
     @Published var testing = false { didSet { if !testing { resumeAutosave() } } }
     @Published var microphones = AudioDevices.inputs()
@@ -120,8 +124,27 @@ final class SettingsModel: ObservableObject {
             return false
         }
     }
+    var setupBusy: Bool { testing || capturing || state.recordingState != .idle }
+    func setupComplete(_ step: Int) -> Bool {
+        switch step {
+        case 0: return draft.provider == .doubao ? isDoubaoSignedIn : (draft.provider == SettingsStore.shared.value.provider && state.loginStatus == .loggedIn)
+        case 1: return state.microphoneChecked
+        case 2: return shortcutAvailable
+        case 3: return state.voiceChecked
+        default: return false
+        }
+    }
+    var canAdvanceSetup: Bool { !setupBusy && (0...setupStep).allSatisfy { setupComplete($0) } }
+    func advanceSetup() {
+        guard saveIfNeeded(), canAdvanceSetup, setupStep < 3 else { return }
+        setupStep += 1; feedback = ""
+    }
+    func previousSetupStep() {
+        guard !setupBusy else { return }
+        setupStep = max(0, setupStep - 1); feedback = ""
+    }
     func finishSetup() {
-        guard saveIfNeeded() else { return }
+        guard setupStep == 3, canAdvanceSetup, saveIfNeeded() else { return }
         let saved = SettingsStore.shared.value
         guard state.loginStatus == .loggedIn, state.microphoneChecked, state.voiceChecked,
               shortcutReady?() == true, draft.provider == saved.provider, draft.microphoneID == saved.microphoneID else {
@@ -286,27 +309,70 @@ struct SettingsView: View {
         default: setup
         }
     }
+    private var setupTitles: [String] { [L("Recognition", "识别服务"), L("Microphone", "麦克风"), L("Shortcut", "快捷键"), L("Voice test", "语音试说")] }
     private var setup: some View {
-        Form {
-            Text(L("Connect recognition, check the microphone, then try dictation.", "连接识别服务，检查麦克风，再试一次语音识别。")).font(.headline)
-            Label(state.loginStatus == .loggedIn ? L("Recognition credentials ready", "识别凭证已准备") : L("Recognition setup required", "请先配置识别服务"), systemImage: state.loginStatus == .loggedIn ? "checkmark.circle.fill" : "circle")
-            if model.draft.provider == .doubao { doubaoAccountStatus }
+        VStack(alignment: .leading, spacing: 16) {
+            HStack(spacing: 12) {
+                ForEach(0..<4) { index in
+                    HStack(spacing: 6) {
+                        Image(systemName: index < model.setupStep && model.setupComplete(index) ? "checkmark.circle.fill" : "\(index + 1).circle\(index == model.setupStep ? ".fill" : "")")
+                        Text(setupTitles[index]).font(.system(size: 12, weight: index == model.setupStep ? .semibold : .regular))
+                    }.foregroundColor(index == model.setupStep ? .accentColor : .secondary)
+                    if index < 3 { Image(systemName: "chevron.right").font(.caption).foregroundColor(.secondary) }
+                }
+            }.padding(.horizontal, 16)
+            Text(L("Step ", "第 ") + "\(model.setupStep + 1) / 4 · " + setupTitles[model.setupStep])
+                .font(.headline).padding(.horizontal, 16)
+            setupContent.frame(maxWidth: .infinity, maxHeight: .infinity, alignment: .topLeading)
             HStack {
+                Button(L("Back", "上一步")) { model.previousSetupStep() }.disabled(model.setupStep == 0 || model.setupBusy)
+                Spacer()
+                if model.setupStep == 3 {
+                    Button(L("Finish setup", "完成设置")) { model.finishSetup() }
+                        .buttonStyle(.borderedProminent).disabled(!model.canAdvanceSetup)
+                } else {
+                    Button(L("Continue", "下一步")) { model.advanceSetup() }
+                        .buttonStyle(.borderedProminent).disabled(!model.canAdvanceSetup)
+                }
+            }.padding(.horizontal, 16)
+        }.padding(.vertical, 20)
+        .onReceive(Timer.publish(every: 0.5, on: .main, in: .common).autoconnect()) { _ in
+            let ready = model.shortcutReady?() ?? false
+            if model.shortcutAvailable != ready { model.shortcutAvailable = ready }
+        }
+    }
+    @ViewBuilder private var setupContent: some View {
+        switch model.setupStep {
+        case 0: recognition
+        case 1:
+            Form {
+                Text(L("Select the microphone you will use, then speak normally during the three-second check.", "选择要使用的麦克风，然后在三秒检查期间正常说话。"))
+                microphonePicker
+                Button(L("Check microphone · 3 seconds", "检查麦克风 · 三秒")) { model.checkMicrophone() }.disabled(model.setupBusy)
+                Label(state.microphoneChecked ? L("Microphone checked", "麦克风检查通过") : L("Microphone check pending", "请先检查麦克风"), systemImage: state.microphoneChecked ? "checkmark.circle.fill" : "circle")
+                ProgressView(value: min(state.rms * 10, 1))
+                Text(L("This check stays on your Mac and sends no audio to a recognition service.", "此步骤仅在本机检查，不向识别服务发送音频。"))
+            }.formStyle(.grouped).padding(8)
+        case 2:
+            Form {
+                Text(L("Allow Accessibility access to use the shortcut in other applications.", "允许辅助功能权限后，即可在其他应用中使用快捷键。"))
                 Button(L("Enable global shortcut", "启用全局快捷键")) { model.enableShortcut?() }
-                Text(model.draft.shortcut.label)
-            }
-            microphonePicker
-            Button(L("Check microphone · 3 seconds", "检查麦克风 · 三秒")) { model.checkMicrophone() }.disabled(model.testing || state.recordingState != .idle)
-            Label(state.microphoneChecked ? L("Microphone checked", "麦克风已检查") : L("Microphone check pending", "麦克风待检查"), systemImage: state.microphoneChecked ? "checkmark.circle" : "circle")
-            ProgressView(value: min(state.rms * 10, 1)).frame(width: 360)
-            HStack {
-                Button(L("Voice test · 5 seconds", "语音测试 · 五秒")) { model.voiceTest?() }.disabled(model.testing || state.recordingState != .idle)
-                Button(L("Stop / Cancel", "停止／取消")) { model.stopVoiceTest?(); model.stopTests() }
-            }
-            Text(L("Voice tests use the saved recognition service and never paste text.", "语音测试使用已保存的识别服务，不会粘贴文字。")).foregroundColor(.secondary)
-            Text(state.previewText).textSelection(.enabled).lineLimit(4)
-            Button(L("Finish setup", "完成设置")) { model.finishSetup() }.disabled(model.testing || state.recordingState != .idle)
-        }.formStyle(.grouped).padding(8)
+                HStack { Text(model.draft.shortcut.label); Button(L("Choose shortcut", "选择快捷键")) { model.chooseShortcut() } }.disabled(model.setupBusy)
+                Label(model.shortcutAvailable ? L("Shortcut ready", "快捷键已就绪") : L("Shortcut permission required", "请启用快捷键权限"), systemImage: model.shortcutAvailable ? "checkmark.circle.fill" : "circle")
+                Text(L("Tap to start or stop; hold to talk. Esc cancels recording.", "短按开始或结束，长按说话；Esc 取消录音。"))
+            }.formStyle(.grouped).padding(8)
+        default:
+            Form {
+                Text(L("Say a short sentence to confirm the recognition service and microphone work together.", "说一句简短的话，确认识别服务和麦克风可以一起工作。"))
+                HStack {
+                    Button(L("Voice test · 5 seconds", "语音测试 · 五秒")) { model.voiceTest?() }.disabled(model.setupBusy)
+                    Button(L("Stop / Cancel", "停止／取消")) { model.stopVoiceTest?(); model.stopTests() }
+                }
+                Text(L("This test sends audio to your selected service and never pastes text.", "此步骤会把音频发送至所选识别服务，不会粘贴文字。"))
+                Text(state.previewText).textSelection(.enabled).lineLimit(6)
+                Label(state.voiceChecked ? L("Voice test passed", "语音试说通过") : L("Voice test pending", "请先完成语音试说"), systemImage: state.voiceChecked ? "checkmark.circle.fill" : "circle")
+            }.formStyle(.grouped).padding(8)
+        }
     }
     private var recognition: some View {
         Form {

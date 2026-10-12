@@ -1,5 +1,7 @@
 # Changelog
 
+- macOS: turn Setup into a four-step guided flow with completion gates, Back navigation and automatic saving.
+
 - macOS: place recognition at the bottom of the active screen, recover one startup audio reconfiguration, and keep microphone/recognition failure messages visible.
 
 - macOS: save settings automatically, flush edits before tests and on close, defer changes during dictation, and remove the Save settings button.

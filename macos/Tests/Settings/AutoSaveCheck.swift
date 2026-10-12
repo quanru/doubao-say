@@ -56,6 +56,34 @@ struct AutoSaveCheck {
         model.closeEditor()
         precondition(writes.count == 8, "Failed saves must remain retryable")
         precondition(SettingsStore(defaults: defaults).value == writes.last!.0, "Saved settings must survive store recreation")
+        let wizardState = AppState()
+        wizardState.loginStatus = .notLoggedIn
+        let wizard = SettingsModel(state: wizardState)
+        wizard.draft = MacSettings()
+        wizard.apply = { settings, _, _ in try store.save(settings) }
+        wizard.advanceSetup()
+        precondition(wizard.setupStep == 0, "Login is required before microphone setup")
+        wizardState.loginStatus = .loggedIn; wizard.doubaoSessionSaved = true
+        wizard.advanceSetup()
+        precondition(wizard.setupStep == 1)
+        wizard.advanceSetup()
+        precondition(wizard.setupStep == 1, "Microphone check is required")
+        wizardState.microphoneChecked = true
+        wizard.advanceSetup()
+        precondition(wizard.setupStep == 2)
+        wizard.advanceSetup()
+        precondition(wizard.setupStep == 2, "Shortcut readiness is required")
+        wizard.shortcutAvailable = true
+        wizard.advanceSetup()
+        precondition(wizard.setupStep == 3 && !wizard.canAdvanceSetup, "Voice test is required before completion")
+        wizardState.voiceChecked = true
+        precondition(wizard.canAdvanceSetup)
+        wizard.previousSetupStep()
+        precondition(wizard.setupStep == 2)
+        wizard.draft.microphoneID = "synthetic-new-microphone"
+        precondition(!wizardState.microphoneChecked && !wizardState.voiceChecked && !wizard.canAdvanceSetup, "Changing input invalidates microphone and voice checks")
+        wizard.closeEditor()
+        print("PASS: setup gates, Back navigation and microphone invalidation")
         print("PASS: debounce, close flush, dictation deferral, validation, credentials, provider isolation and failed-save recovery; isolated preferences and synthetic credentials only")
     }
 }
