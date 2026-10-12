@@ -1,5 +1,7 @@
 # Changelog
 
+- macOS: save settings automatically, flush edits before tests and on close, defer changes during dictation, and remove the Save settings button.
+
 - macOS: expose English, Simplified Chinese and system language selection in General settings with immediate switching and persistent preferences.
 
 ## Unreleased

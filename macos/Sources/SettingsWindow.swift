@@ -1,15 +1,27 @@
 import SwiftUI
 import AVFoundation
+import Combine
 
 @MainActor
 final class SettingsModel: ObservableObject {
-    @Published var draft = SettingsStore.shared.value
-    @Published var recognitionKey = ""
-    @Published var polishKey = ""
+    @Published var draft = SettingsStore.shared.value {
+        didSet {
+            guard !suppressAutosave, draft != oldValue else { return }
+            if draft.provider != oldValue.provider {
+                suppressAutosave = true
+                recognitionKey = ""; savedRecognitionKey = ""
+                suppressAutosave = false
+                asrKeySaved = false
+            }
+            scheduleAutosave()
+        }
+    }
+    @Published var recognitionKey = "" { didSet { if recognitionKey != oldValue { scheduleAutosave() } } }
+    @Published var polishKey = "" { didSet { if polishKey != oldValue { scheduleAutosave() } } }
     @Published var feedback = ""
     @Published var selectedTab = "setup"
-    @Published var capturing = false
-    @Published var testing = false
+    @Published var capturing = false { didSet { if !capturing { resumeAutosave() } } }
+    @Published var testing = false { didSet { if !testing { resumeAutosave() } } }
     @Published var microphones = AudioDevices.inputs()
     @Published var asrKeySaved = false
     @Published var doubaoSessionSaved = false
@@ -32,37 +44,88 @@ final class SettingsModel: ObservableObject {
     private var mic = AudioCaptureManager()
     private var peak: Double = 0
     private var testTimer: DispatchWorkItem?
-    init(state: AppState) { self.state = state }
+    @Published private(set) var saveStatus = ""
+    private var suppressAutosave = false
+    private var hasPendingAutosave = false
+    private var autosaveTimer: DispatchWorkItem?
+    private var recordingObserver: AnyCancellable?
+    private var savedRecognitionKey = ""
+    private var savedPolishKey = ""
+    init(state: AppState) {
+        self.state = state
+        recordingObserver = state.$recordingState.dropFirst().sink { [weak self] value in
+            guard value == .idle else { return }
+            // Published emits before the stored state changes.
+            DispatchQueue.main.async { self?.resumeAutosave() }
+        }
+    }
+    private func scheduleAutosave() {
+        guard !suppressAutosave, apply != nil else { return }
+        hasPendingAutosave = true
+        saveStatus = L("Saving automatically…", "正在自动保存…")
+        autosaveTimer?.cancel()
+        let work = DispatchWorkItem { [weak self] in _ = self?.save() }
+        autosaveTimer = work
+        DispatchQueue.main.asyncAfter(deadline: .now() + 0.6, execute: work)
+    }
+    private func resumeAutosave() {
+        if !suppressAutosave && hasPendingAutosave && !testing && !capturing && state.recordingState == .idle { scheduleAutosave() }
+    }
+    @discardableResult func saveIfNeeded() -> Bool { !hasPendingAutosave || save() }
+    func closeEditor() {
+        stopTests(); cancelCapture?(); capturing = false
+        if saveIfNeeded() {
+            suppressAutosave = true
+            recognitionKey = ""; polishKey = ""; savedRecognitionKey = ""; savedPolishKey = ""
+            suppressAutosave = false
+        }
+    }
     var isDoubaoSignedIn: Bool {
         SettingsStore.shared.value.provider == .doubao ? state.loginStatus == .loggedIn : doubaoSessionSaved
     }
     func refresh() {
-        guard !testing, !capturing else { return }
+        guard !testing, !capturing, !hasPendingAutosave else { return }
+        suppressAutosave = true
+        defer { suppressAutosave = false }
         draft = SettingsStore.shared.value
         microphones = AudioDevices.inputs()
         doubaoSessionSaved = ASRParamsStore.hasSavedParams
         asrKeySaved = draft.provider == .doubao ? doubaoSessionSaved : SecretStore.load(draft.provider.rawValue + "-api-key") != nil
         polishKeySaved = SecretStore.load("polish-api-key") != nil
-        recognitionKey = ""; polishKey = ""
+        recognitionKey = ""; polishKey = ""; savedRecognitionKey = ""; savedPolishKey = ""
     }
-    func save() {
-        guard !testing, !capturing else { return }
+    @discardableResult func save() -> Bool {
+        autosaveTimer?.cancel(); autosaveTimer = nil
+        guard let apply = apply else { return false }
+        guard !testing, !capturing, state.recordingState == .idle else {
+            saveStatus = L("Changes will be saved when the current operation finishes.", "当前操作结束后自动保存修改。")
+            return false
+        }
+        suppressAutosave = true
+        defer { suppressAutosave = false }
         do {
-            try apply?(draft, recognitionKey.isEmpty ? nil : recognitionKey, polishKey.isEmpty ? nil : polishKey)
-            recognitionKey = ""; polishKey = ""
-            feedback = draft.autostart && StartupService.needsApproval
-                ? L("Settings saved. Allow Doubao Say in System Settings → General → Login Items to start at login.", "设置已保存，请在系统设置 → 通用 → 登录项允许豆包说自启动。")
-                : L("Settings saved", "设置已保存")
-            refresh()
+            try draft.validate()
+            let recognition = recognitionKey.isEmpty || recognitionKey == savedRecognitionKey ? nil : recognitionKey
+            let polish = polishKey.isEmpty || polishKey == savedPolishKey ? nil : polishKey
+            try apply(draft, recognition, polish)
+            hasPendingAutosave = false
+            if recognition != nil { savedRecognitionKey = recognitionKey; asrKeySaved = true }
+            if polish != nil { savedPolishKey = polishKey; polishKeySaved = true }
+            saveStatus = draft.autostart && StartupService.needsApproval
+                ? L("Saved. Allow Doubao Say in System Settings → General → Login Items.", "已保存，请在系统设置 → 通用 → 登录项允许豆包说自启动。")
+                : L("Automatically saved", "已自动保存")
+            return true
         } catch {
-            feedback = L("Could not apply settings. Finish dictation, check values and system permissions.", "设置未生效。请先结束听写，并检查填写内容和系统权限。")
+            saveStatus = L("Changes could not be saved. Check values and system permissions.", "修改尚未保存，请检查填写内容和系统权限。")
+            return false
         }
     }
     func finishSetup() {
+        guard saveIfNeeded() else { return }
         let saved = SettingsStore.shared.value
         guard state.loginStatus == .loggedIn, state.microphoneChecked, state.voiceChecked,
               shortcutReady?() == true, draft.provider == saved.provider, draft.microphoneID == saved.microphoneID else {
-            feedback = L("Save settings and complete recognition, microphone, shortcut and voice checks first.", "请保存设置并先完成识别服务、麦克风、快捷键和语音检查。")
+            feedback = L("Complete recognition, microphone, shortcut and voice checks first.", "请先完成识别服务、麦克风、快捷键和语音检查。")
             return
         }
         var completed = draft; completed.onboardingComplete = true
@@ -88,6 +151,7 @@ final class SettingsModel: ObservableObject {
         }
     }
     func testPolish() {
+        guard saveIfNeeded() else { return }
         guard !testing else { return }
         do { try draft.validate() } catch { feedback = L("Check the endpoint, model and prompts.", "请检查接口、模型和提示词。"); return }
         let key = polishKey.isEmpty ? (SecretStore.load("polish-api-key") ?? "") : polishKey
@@ -104,15 +168,16 @@ final class SettingsModel: ObservableObject {
         guard !testing, state.recordingState == .idle else { return }
         do {
             try SecretStore.clear(account)
-            if account == "polish-api-key" { polishKey = ""; polishKeySaved = false }
+            if account == "polish-api-key" { savedPolishKey = ""; polishKey = ""; polishKeySaved = false }
             else {
-                recognitionKey = ""; asrKeySaved = false
+                savedRecognitionKey = ""; recognitionKey = ""; asrKeySaved = false
                 if account == SettingsStore.shared.value.provider.rawValue + "-api-key" { state.loginStatus = .notLoggedIn }
             }
             feedback = L("Saved key removed", "已移除保存的 Key")
         } catch { feedback = L("Could not remove the saved key.", "无法移除已存 Key。") }
     }
     func testRecognition() {
+        guard saveIfNeeded() else { return }
         guard !testing, state.recordingState == .idle, draft.provider != .doubao else { return }
         let key = recognitionKey.isEmpty ? (SecretStore.load(draft.provider.rawValue + "-api-key") ?? "") : recognitionKey
         guard !key.isEmpty, !key.contains(where: { $0.isNewline || $0 == "\0" }) else { feedback = L("Add a valid API key first.", "请先填写有效的 API Key。"); return }
@@ -132,6 +197,7 @@ final class SettingsModel: ObservableObject {
         testTimer = timer; DispatchQueue.main.asyncAfter(deadline: .now() + 8, execute: timer)
     }
     func checkMicrophone() {
+        guard saveIfNeeded() else { return }
         guard !testing, state.recordingState == .idle else { return }
         guard AVCaptureDevice.authorizationStatus(for: .audio) == .authorized else {
             AVCaptureDevice.requestAccess(for: .audio) { _ in }
@@ -204,13 +270,8 @@ struct SettingsView: View {
                         Label(feedback, systemImage: state.errorMessage == nil ? "info.circle" : "exclamationmark.circle")
                             .font(.callout).foregroundColor(.secondary).fixedSize(horizontal: false, vertical: true)
                     }
-                    HStack {
-                        Text(L("Changes take effect after saving.", "修改将在保存后生效。")).font(.caption).foregroundColor(.secondary)
-                        Spacer()
-                        Button(L("Save settings", "保存设置")) { model.save() }.keyboardShortcut("s", modifiers: .command)
-                            .buttonStyle(.borderedProminent)
-                            .disabled(model.testing || model.capturing || state.recordingState != .idle)
-                    }
+                    Text(model.saveStatus.isEmpty ? L("Settings are saved automatically.", "设置自动保存。") : model.saveStatus)
+                        .font(.caption).foregroundColor(.secondary)
                 }.padding(18)
             }.background(Color(nsColor: .windowBackgroundColor))
         }.frame(width: 900, height: 650)
@@ -264,7 +325,7 @@ struct SettingsView: View {
                 Text(L("Audio is sent to the selected service; usage is billed to your provider account.", "音频发送至所选服务，用量由服务商向你的账号计费。"))
             }
             Text(L("Credentials are saved in macOS Keychain.", "凭证保存在 macOS 钥匙串。"))
-            Text(L("Save settings before running a voice test.", "保存设置后再运行语音测试。"))
+            Text(L("Settings are saved automatically before voice tests.", "语音测试前会自动保存设置。"))
         }.formStyle(.grouped).padding(8)
     }
     private var doubaoAccountStatus: some View {
@@ -396,7 +457,7 @@ final class SettingsWindow: NSObject, NSWindowDelegate {
         window.center()
     }
     func show(refresh: Bool = true) { if refresh { model.refresh() }; NSApp.activate(ignoringOtherApps: true); window.makeKeyAndOrderFront(nil) }
-    func windowWillClose(_ notification: Notification) { model.stopTests(); model.cancelCapture?(); model.recognitionKey = ""; model.polishKey = "" }
+    func windowWillClose(_ notification: Notification) { model.closeEditor() }
     func close() { model.stopTests(); window.close() }
     func hide() { window.orderOut(nil) }
     func updateTitle() { window.title = "Doubao Say · " + L("Settings", "设置") }

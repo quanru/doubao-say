@@ -22,3 +22,5 @@ xcrun swiftc -swift-version 5 -target "$(uname -m)-apple-macos13.0" \
     macos/Sources/ASRResponse.swift macos/Sources/DoubaoASRClient.swift macos/Sources/SeedProtocol.swift \
     macos/Sources/APIASRClient.swift macos/Tests/Network/APIASRCheck.swift -o build/macos/tests/api-asr-check
 python3 macos/Tests/Network/api_check.py build/macos/tests/api-asr-check
+
+bash macos/Tests/Settings/check.sh

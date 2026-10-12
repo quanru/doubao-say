@@ -180,10 +180,10 @@ final class AppDelegate: NSObject, NSApplicationDelegate, NSMenuDelegate {
             if previous.provider != settings.provider { self.state.voiceChecked = false }
             self.hotkey.configure(settings); self.refreshLoginStatus(); self.configureReceiver()
         }
-        model.signIn = { [weak self] in self?.showLogin() }
+        model.signIn = { [weak self, weak model] in if model?.saveIfNeeded() == true { self?.showLogin() } }
         model.enableShortcut = { [weak self] in self?.hotkey.requestPermission() }
         model.captureShortcut = { [weak self] completion in self?.hotkey.captureShortcut(completion) }
-        model.voiceTest = { [weak self] in self?.transcription.voiceTest() }
+        model.voiceTest = { [weak self, weak model] in if model?.saveIfNeeded() == true { self?.transcription.voiceTest() } }
         model.stopVoiceTest = { [weak self] in self?.transcription.cancel() }
         model.retry = { [weak self] in self?.retryLast() }
         model.clear = { [weak self] in self?.clearLast() }
