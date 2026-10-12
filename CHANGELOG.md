@@ -1,5 +1,22 @@
 # Changelog
 
+## Unreleased
+
+- Hide receiver mappings while AU05 support is disabled and clarify when settings take effect.
+
+- Rework macOS settings with sidebar navigation, grouped forms, labeled polishing fields and a pinned save area, following the studio application settings structure.
+
+- Add a distinct macOS basketball shoulder drive with backward loading, forward torso travel, leading shoulder, delayed head follow-through and planted feet.
+
+- Refine the macOS basketball waveform with stronger shoulder and crouch poses, palm contact, grounded ball flight and clearer hair/vest detail.
+
+- Align macOS waveform motion and basketball speech cadence with Linux, add a synthetic appearance preview, delay the polishing shortcut hint, and migrate legacy built-in prompts while preserving custom text.
+
+- Add a native macOS development preview with Doubao web sign-in, Keychain credentials, tap/hold dictation, a nonactivating overlay, guarded paste and last-result recovery.
+- Align the Mac client with Linux recognition providers, bilingual polishing prompts, speculative previews, five-second fallback, configurable tap/hold/double-tap shortcuts, microphones, receiver mappings, settings and recent-text recovery.
+- Add loopback polishing and official-provider protocol acceptance, and isolated native settings screenshots.
+- Add local Swift/loopback transport checks and a separate Mac build workflow. Developer ID signing, notarization and live microphone/paste acceptance are pending.
+
 ## 1.4.0
 
 - Automatically use permission-scoped GlobalShortcuts on GNOME without a special launch command or raw keyboard read permission for the dictation trigger.

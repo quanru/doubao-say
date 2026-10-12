@@ -1,0 +1,401 @@
+import SwiftUI
+import AVFoundation
+
+@MainActor
+final class SettingsModel: ObservableObject {
+    @Published var draft = SettingsStore.shared.value
+    @Published var recognitionKey = ""
+    @Published var polishKey = ""
+    @Published var feedback = ""
+    @Published var selectedTab = "setup"
+    @Published var capturing = false
+    @Published var testing = false
+    @Published var microphones = AudioDevices.inputs()
+    @Published var asrKeySaved = false
+    @Published var polishKeySaved = false
+    let state: AppState
+    var apply: ((MacSettings, String?, String?) throws -> Void)?
+    var signIn: (() -> Void)?
+    var enableShortcut: (() -> Void)?
+    var captureShortcut: ((@escaping (Shortcut?) -> Void) -> Void)?
+    var voiceTest: (() -> Void)?
+    var stopVoiceTest: (() -> Void)?
+    var retry: (() -> Void)?
+    var clear: (() -> Void)?
+    var shortcutReady: (() -> Bool)?
+    var onFinishSetup: (() -> Void)?
+    private var testASRClient: APIASRClient?
+    var cancelCapture: (() -> Void)?
+    private var testClient: PolishClient?
+    private var mic = AudioCaptureManager()
+    private var peak: Double = 0
+    private var testTimer: DispatchWorkItem?
+    init(state: AppState) { self.state = state }
+    func refresh() {
+        guard !testing, !capturing else { return }
+        draft = SettingsStore.shared.value
+        microphones = AudioDevices.inputs()
+        asrKeySaved = draft.provider == .doubao ? ASRParamsStore.hasSavedParams : SecretStore.load(draft.provider.rawValue + "-api-key") != nil
+        polishKeySaved = SecretStore.load("polish-api-key") != nil
+        recognitionKey = ""; polishKey = ""
+    }
+    func save() {
+        guard !testing, !capturing else { return }
+        do {
+            try apply?(draft, recognitionKey.isEmpty ? nil : recognitionKey, polishKey.isEmpty ? nil : polishKey)
+            recognitionKey = ""; polishKey = ""
+            feedback = draft.autostart && StartupService.needsApproval
+                ? L("Settings saved. Allow Doubao Say in System Settings → General → Login Items to start at login.", "设置已保存，请在系统设置 → 通用 → 登录项允许豆包说自启动。")
+                : L("Settings saved", "设置已保存")
+            refresh()
+        } catch {
+            feedback = L("Could not apply settings. Finish dictation, check values and system permissions.", "设置未生效。请先结束听写，并检查填写内容和系统权限。")
+        }
+    }
+    func finishSetup() {
+        let saved = SettingsStore.shared.value
+        guard state.loginStatus == .loggedIn, state.microphoneChecked, state.voiceChecked,
+              shortcutReady?() == true, draft.provider == saved.provider, draft.microphoneID == saved.microphoneID else {
+            feedback = L("Save settings and complete recognition, microphone, shortcut and voice checks first.", "请保存设置并先完成识别服务、麦克风、快捷键和语音检查。")
+            return
+        }
+        var completed = draft; completed.onboardingComplete = true
+        do { try apply?(completed, nil, nil); draft = completed; onFinishSetup?() }
+        catch { feedback = L("Could not complete setup.", "无法完成使用准备。") }
+    }
+    func chooseShortcut(_ destination: String = "record") {
+        capturing = true; feedback = L("Press a shortcut. Esc cancels; selection does not use the microphone.", "请按下快捷键，Esc 取消。选键时不使用麦克风。")
+        captureShortcut? { [weak self] value in
+            guard let self = self else { return }; self.capturing = false
+            if let value = value {
+                switch destination {
+                case "vibekeyRecord": self.draft.vibekeyRecord = value
+                case "vibekeyEnter": self.draft.vibekeyEnter = value
+                case "vibekeyCancel": self.draft.vibekeyCancel = value
+                case "clockwise": self.draft.dialClockwise = value
+                case "counterclockwise": self.draft.dialCounterclockwise = value
+                case "press": self.draft.dialPress = value
+                default: self.draft.shortcut = value
+                }
+                self.feedback = L("Selected: ", "已选择：") + value.label
+            } else { self.feedback = L("Shortcut selection cancelled or unavailable", "选键已取消或当前不可用") }
+        }
+    }
+    func testPolish() {
+        guard !testing else { return }
+        do { try draft.validate() } catch { feedback = L("Check the endpoint, model and prompts.", "请检查接口、模型和提示词。"); return }
+        let key = polishKey.isEmpty ? (SecretStore.load("polish-api-key") ?? "") : polishKey
+        guard !key.isEmpty else { feedback = L("Add a polishing API key first.", "请先填写润色 API Key。"); return }
+        testing = true; feedback = L("Testing with synthetic text…", "正在用合成文字测试…")
+        let client = PolishClient(); testClient = client
+        client.completion = { [weak self] text, _ in
+            self?.testing = false; self?.testClient = nil
+            self?.feedback = text.map { L("Polishing test: ", "润色测试：") + $0 } ?? L("Polishing failed or exceeded five seconds.", "润色失败或超过五秒。")
+        }
+        client.start(text: "周三上线，不对，周四上线。", settings: draft, apiKey: key)
+    }
+    func clearKey(_ account: String) {
+        guard !testing, state.recordingState == .idle else { return }
+        do {
+            try SecretStore.clear(account)
+            if account == "polish-api-key" { polishKey = ""; polishKeySaved = false }
+            else {
+                recognitionKey = ""; asrKeySaved = false
+                if account == SettingsStore.shared.value.provider.rawValue + "-api-key" { state.loginStatus = .notLoggedIn }
+            }
+            feedback = L("Saved key removed", "已移除保存的 Key")
+        } catch { feedback = L("Could not remove the saved key.", "无法移除已存 Key。") }
+    }
+    func testRecognition() {
+        guard !testing, state.recordingState == .idle, draft.provider != .doubao else { return }
+        let key = recognitionKey.isEmpty ? (SecretStore.load(draft.provider.rawValue + "-api-key") ?? "") : recognitionKey
+        guard !key.isEmpty, !key.contains(where: { $0.isNewline || $0 == "\0" }) else { feedback = L("Add a valid API key first.", "请先填写有效的 API Key。"); return }
+        testing = true; feedback = L("Checking recognition connection…", "正在检查识别连接…")
+        let client = APIASRClient(provider: draft.provider); testASRClient = client
+        client.onOpen = { [weak self] in Task { @MainActor in
+            self?.stopTests(); self?.feedback = L("Recognition connection ready. Try a voice test next.", "识别连接已准备好，请继续语音测试。")
+        } }
+        let rejected: () -> Void = { [weak self] in Task { @MainActor in
+            self?.stopTests(); self?.feedback = L("Recognition connection failed. Check the key, service access and network.", "识别连接失败，请检查凭证、服务权限和网络。")
+        } }
+        client.onError = rejected; client.onAuthError = rejected
+        client.connect(apiKey: key)
+        let timer = DispatchWorkItem { [weak self] in
+            self?.stopTests(); self?.feedback = L("Recognition check timed out.", "识别连接检查超时。")
+        }
+        testTimer = timer; DispatchQueue.main.asyncAfter(deadline: .now() + 8, execute: timer)
+    }
+    func checkMicrophone() {
+        guard !testing, state.recordingState == .idle else { return }
+        guard AVCaptureDevice.authorizationStatus(for: .audio) == .authorized else {
+            AVCaptureDevice.requestAccess(for: .audio) { _ in }
+            feedback = L("Allow microphone access, then retry.", "允许麦克风访问后，请重试。"); return
+        }
+        testing = true; peak = 0; state.microphoneChecked = false
+        feedback = L("Speak normally for three seconds. Audio stays on this device.", "请正常说话三秒，音频仅在本机检查。")
+        mic.onRMS = { [weak self] rms in Task { @MainActor in
+            guard let self = self, self.testing else { return }
+            self.peak = max(self.peak, rms); self.state.rms = rms
+        } }
+        mic.onError = { [weak self] in
+            self?.stopTests(); self?.feedback = L("Microphone input changed or disconnected. Retry the check.", "麦克风输入变化或断开，请重新检查。")
+        }
+        do { try mic.startCapture(deviceID: draft.microphoneID) }
+        catch { stopTests(); feedback = L("Microphone could not start.", "麦克风启动失败。"); return }
+        let timer = DispatchWorkItem { [weak self] in
+            guard let self = self else { return }
+            let audible = self.peak >= 0.012
+            self.stopTests(); self.state.microphoneChecked = audible
+            self.feedback = audible ? L("Microphone signal detected", "已检测到麦克风声音") : L("No clear signal. Check input and volume.", "没有明显声音，请检查输入设备和音量。")
+        }
+        testTimer = timer; DispatchQueue.main.asyncAfter(deadline: .now() + 3, execute: timer)
+    }
+    func stopTests() {
+        testTimer?.cancel(); testTimer = nil; mic.stopCapture(); mic.onRMS = nil; mic.onError = nil
+        testClient?.cancel(); testClient = nil; testASRClient?.disconnect(); testASRClient = nil; testing = false; state.rms = 0
+    }
+}
+
+struct SettingsView: View {
+    @ObservedObject var model: SettingsModel
+    @ObservedObject var state: AppState
+    @State private var showingAppearance = false
+    private var pages: [(String, String, String)] { [
+        ("setup", L("Setup", "使用准备"), "checkmark.circle"),
+        ("recognition", L("Recognition", "识别服务"), "waveform"),
+        ("polishing", L("Polishing", "语音润色"), "sparkles"),
+        ("shortcuts", L("Shortcuts", "快捷键"), "keyboard"),
+        ("general", L("General", "通用"), "gearshape"),
+        ("result", L("Recent text", "最近文字"), "text.alignleft") ] }
+    private var pageTitle: String { pages.first { $0.0 == model.selectedTab }?.1 ?? L("Settings", "设置") }
+    var body: some View {
+        HStack(spacing: 0) {
+            VStack(alignment: .leading, spacing: 8) {
+                Text("Doubao Say").font(.headline).padding(.horizontal, 12).padding(.vertical, 16)
+                ForEach(pages, id: \.0) { page in
+                    Button { model.selectedTab = page.0 } label: {
+                        Label(page.1, systemImage: page.2)
+                            .font(.system(size: 13, weight: model.selectedTab == page.0 ? .semibold : .regular))
+                            .frame(maxWidth: .infinity, alignment: .leading).padding(10)
+                            .foregroundColor(model.selectedTab == page.0 ? .accentColor : .primary)
+                            .background(RoundedRectangle(cornerRadius: 7).fill(model.selectedTab == page.0 ? Color.accentColor.opacity(0.12) : .clear))
+                    }.buttonStyle(.plain)
+                }
+                Spacer()
+                Text(L("Settings", "设置")).font(.caption).foregroundColor(.secondary).padding(12)
+            }.padding(10).frame(width: 170).background(Color(nsColor: .controlBackgroundColor))
+            Divider()
+            VStack(alignment: .leading, spacing: 0) {
+                Text(pageTitle).font(.system(size: 20, weight: .semibold)).padding(24)
+                Divider()
+                selectedPage.frame(maxWidth: .infinity, maxHeight: .infinity, alignment: .topLeading)
+                    .textFieldStyle(.roundedBorder)
+                Divider()
+                VStack(alignment: .leading, spacing: 10) {
+                    let feedback = model.feedback.isEmpty ? (state.errorMessage ?? state.feedback) : model.feedback
+                    if !feedback.isEmpty {
+                        Label(feedback, systemImage: state.errorMessage == nil ? "info.circle" : "exclamationmark.circle")
+                            .font(.callout).foregroundColor(.secondary).fixedSize(horizontal: false, vertical: true)
+                    }
+                    HStack {
+                        Text(L("Changes take effect after saving.", "修改将在保存后生效。")).font(.caption).foregroundColor(.secondary)
+                        Spacer()
+                        Button(L("Save settings", "保存设置")) { model.save() }.keyboardShortcut("s", modifiers: .command)
+                            .buttonStyle(.borderedProminent)
+                            .disabled(model.testing || model.capturing || state.recordingState != .idle)
+                    }
+                }.padding(18)
+            }.background(Color(nsColor: .windowBackgroundColor))
+        }.frame(width: 900, height: 650)
+    }
+    @ViewBuilder private var selectedPage: some View {
+        switch model.selectedTab {
+        case "recognition": recognition
+        case "polishing": polishing
+        case "shortcuts": shortcuts
+        case "general": general
+        case "result": result
+        default: setup
+        }
+    }
+    private var setup: some View {
+        Form {
+            Text(L("Connect recognition, check the microphone, then try dictation.", "连接识别服务，检查麦克风，再试一次语音识别。")).font(.headline)
+            Label(state.loginStatus == .loggedIn ? L("Recognition credentials ready", "识别凭证已准备") : L("Recognition setup required", "请先配置识别服务"), systemImage: state.loginStatus == .loggedIn ? "checkmark.circle.fill" : "circle")
+            Button(L("Sign in to Doubao", "登录豆包")) { model.signIn?() }
+            HStack {
+                Button(L("Enable global shortcut", "启用全局快捷键")) { model.enableShortcut?() }
+                Text(model.draft.shortcut.label)
+            }
+            microphonePicker
+            Button(L("Check microphone · 3 seconds", "检查麦克风 · 三秒")) { model.checkMicrophone() }.disabled(model.testing || state.recordingState != .idle)
+            Label(state.microphoneChecked ? L("Microphone checked", "麦克风已检查") : L("Microphone check pending", "麦克风待检查"), systemImage: state.microphoneChecked ? "checkmark.circle" : "circle")
+            ProgressView(value: min(state.rms * 10, 1)).frame(width: 360)
+            HStack {
+                Button(L("Voice test · 5 seconds", "语音测试 · 五秒")) { model.voiceTest?() }.disabled(model.testing || state.recordingState != .idle)
+                Button(L("Stop / Cancel", "停止／取消")) { model.stopVoiceTest?(); model.stopTests() }
+            }
+            Text(L("Voice tests use the saved recognition service and never paste text.", "语音测试使用已保存的识别服务，不会粘贴文字。")).foregroundColor(.secondary)
+            Text(state.previewText).textSelection(.enabled).lineLimit(4)
+            Button(L("Finish setup", "完成设置")) { model.finishSetup() }.disabled(model.testing || state.recordingState != .idle)
+        }.formStyle(.grouped).padding(8)
+    }
+    private var recognition: some View {
+        Form {
+            Picker(L("Recognition service", "识别服务"), selection: $model.draft.provider) {
+                ForEach(RecognitionProvider.allCases, id: \.self) { Text($0.name).tag($0) }
+            }
+            if model.draft.provider == .doubao {
+                Text(L("Uses your Doubao web account. Sign in through the secure web window.", "使用豆包网页登录会话，请通过登录窗口连接账号。"))
+                Button(L("Sign in", "登录")) { model.signIn?() }
+            } else {
+                SecureField(L("API key (blank keeps saved key)", "API Key（留空保留已存凭证）"), text: $model.recognitionKey)
+                HStack {
+                    Button(L("Test API key", "测试 API Key")) { model.testRecognition() }
+                    Button(L("Clear saved key", "清除已存 Key")) { model.clearKey(model.draft.provider.rawValue + "-api-key") }
+                }.disabled(model.testing || state.recordingState != .idle)
+                Text(model.draft.provider == .volcengine ? L("One API Key; resource volc.seedasr.sauc.duration is built in. No App ID required.", "只需一个 API Key，已内置 volc.seedasr.sauc.duration，无需 App ID。") : L("Nova-3, US English, punctuation and smart formatting.", "Nova-3，美式英语，启用标点和智能格式化。"))
+                Text(L("Audio is sent to the selected service; usage is billed to your provider account.", "音频发送至所选服务，用量由服务商向你的账号计费。"))
+            }
+            Text(L("Credentials are saved in macOS Keychain.", "凭证保存在 macOS 钥匙串。"))
+            Text(L("Save settings before running a voice test.", "保存设置后再运行语音测试。"))
+        }.formStyle(.grouped).padding(8)
+    }
+    private var polishing: some View {
+        ScrollView {
+            VStack(alignment: .leading, spacing: 12) {
+                Toggle(L("Voice polishing · experimental", "语音润色 · 实验特性"), isOn: $model.draft.polishEnabled)
+                Text(L("Transcripts and pause previews go to this endpoint. Five-second limit; failures use original text. Press the dictation shortcut during final polishing to skip.", "转写和停顿预览会发送到下方接口。最多等待五秒，失败时使用原文；最终润色期间再按听写快捷键可跳过。"))
+                Text(L("API endpoint", "接口地址")).font(.headline)
+                TextField("Base URL", text: $model.draft.polishBaseURL)
+                Text(L("Model", "模型")).font(.headline)
+                TextField(L("Model", "模型"), text: $model.draft.polishModel)
+                Text("API Key").font(.headline)
+                SecureField(model.polishKeySaved ? L("API key saved · blank keeps it", "API Key 已保存 · 留空保留") : "API Key", text: $model.polishKey)
+                Text(L("Prefer a fast model with thinking disabled.", "建议选择低延迟、关闭思考的模型。"))
+                HStack {
+                    Button(L("Test endpoint", "测试接口")) { model.testPolish() }.disabled(model.testing)
+                    Button(L("Clear saved key", "清除已存 Key")) { model.clearKey("polish-api-key") }.disabled(model.testing || state.recordingState != .idle)
+                    Button(L("Restore default prompts", "恢复默认提示词")) { model.draft.polishPromptZH = PolishDefaults.chinese; model.draft.polishPromptEN = PolishDefaults.english }
+                }
+                Text(L("Chinese prompt", "中文提示词")).font(.headline)
+                TextEditor(text: $model.draft.polishPromptZH).font(.system(size: 12)).frame(height: 150).border(Color.secondary.opacity(0.25))
+                Text(L("English prompt", "英文提示词")).font(.headline)
+                TextEditor(text: $model.draft.polishPromptEN).font(.system(size: 12)).frame(height: 150).border(Color.secondary.opacity(0.25))
+                Text(L("The dominant script of the transcript selects the prompt. No hidden vocabulary or correction examples are added.", "按转写的主要语言选择提示词，不额外注入隐藏词汇或纠错示例。"))
+            }.padding(16)
+        }
+    }
+    private var shortcuts: some View {
+        ScrollView {
+            VStack(alignment: .leading, spacing: 14) {
+                HStack { Text(L("Dictation: ", "听写：") + model.draft.shortcut.label); Button(L("Choose shortcut", "选择快捷键")) { model.chooseShortcut() } }
+                Text(L("Tap to toggle; hold to talk. Double-tap finishes and sends Enter, or sends Enter while idle.", "短按切换录音，长按说话。双击结束并发送回车，空闲时双击发送回车。"))
+                Toggle(L("Double-tap sends Enter", "双击发送回车"), isOn: $model.draft.doubleEnter)
+                Stepper(L("Hold threshold: ", "长按阈值：") + "\(model.draft.holdMilliseconds) ms", value: $model.draft.holdMilliseconds, in: 200...1500, step: 50)
+                Stepper(L("Double-tap interval: ", "双击间隔：") + "\(model.draft.doubleMilliseconds) ms", value: $model.draft.doubleMilliseconds, in: 150...600, step: 50)
+                Divider()
+                Toggle(L("Vibekey AU05 receiver", "Vibekey AU05 接收器"), isOn: $model.draft.vibekeyEnabled)
+                if model.draft.vibekeyEnabled {
+                    Text(L("Receiver buttons default to dictation, Enter and cancel. Customize mappings below.", "接收器按键默认控制听写、回车和取消，可在下方修改映射。"))
+                    hardwareRow(L("Record", "录音"), "vibekeyRecord", model.draft.vibekeyRecord?.label ?? L("Dictation", "听写"))
+                    hardwareRow(L("Enter", "回车"), "vibekeyEnter", model.draft.vibekeyEnter?.label ?? "↩")
+                    hardwareRow(L("Cancel", "取消"), "vibekeyCancel", model.draft.vibekeyCancel?.label ?? "Esc")
+                    hardwareRow(L("Dial clockwise", "旋钮顺时针"), "clockwise", model.draft.dialClockwise.label)
+                    hardwareRow(L("Dial counterclockwise", "旋钮逆时针"), "counterclockwise", model.draft.dialCounterclockwise.label)
+                    hardwareRow(L("Dial press", "按下旋钮"), "press", model.draft.dialPress.label)
+                    Button(L("Restore receiver defaults", "恢复接收器默认映射")) {
+                        model.draft.vibekeyRecord = nil; model.draft.vibekeyEnter = nil; model.draft.vibekeyCancel = nil
+                        model.draft.dialClockwise = Shortcut(keyCode: 125, modifiers: 0); model.draft.dialCounterclockwise = Shortcut(keyCode: 126, modifiers: 0); model.draft.dialPress = Shortcut(keyCode: 51, modifiers: 4)
+                    }
+                }
+            }.padding(16)
+        }.disabled(model.capturing)
+    }
+    private func hardwareRow(_ title: String, _ destination: String, _ value: String) -> some View {
+        HStack { Text(title + ": " + value); Spacer(); Button(L("Choose", "选择")) { model.chooseShortcut(destination) } }
+    }
+    private var microphonePicker: some View {
+        Picker(L("Microphone", "麦克风"), selection: $model.draft.microphoneID) {
+            Text(L("System default", "系统默认")).tag("")
+            ForEach(model.microphones) { Text($0.name).tag($0.id) }
+            if !model.draft.microphoneID.isEmpty && !model.microphones.contains(where: { $0.id == model.draft.microphoneID }) {
+                Text(L("Saved device unavailable", "已保存的设备不可用")).tag(model.draft.microphoneID)
+            }
+        }
+    }
+    private var general: some View {
+        Form {
+            microphonePicker
+            Picker(L("Input method", "输入方式"), selection: $model.draft.inputMethod) {
+                Text(L("Clipboard (restores previous contents)", "剪贴板（恢复原内容）")).tag("clipboard")
+                Text(L("Direct accessibility input", "辅助功能直接输入")).tag("direct")
+            }
+            Text(L("Direct input needs an editable accessibility field. If unavailable, text stays in the app.", "直接输入需要可编辑的辅助功能输入框，不可用时文字保留在应用中。"))
+            Toggle(L("Start at login", "登录时启动"), isOn: $model.draft.autostart)
+            Toggle(L("Reduce motion", "减少动态效果"), isOn: $model.draft.reducedMotion)
+            Picker(L("Waveform style", "波纹样式"), selection: $model.draft.waveformStyle) {
+                ForEach([("bars", L("Bars", "条形")), ("waves", L("Waves", "波浪")), ("ripples", L("Ripples", "涟漪")), ("basketball", L("Basketball", "篮球"))], id: \.0) { Text($0.1).tag($0.0) }
+            }
+            Button(L("Preview appearance", "预览外观")) { showingAppearance = true }
+                .popover(isPresented: $showingAppearance) {
+                    AppearancePreview(style: model.draft.waveformStyle, reduced: model.draft.reducedMotion)
+                }
+            Button(L("Copy diagnostics", "复制诊断信息")) {
+                let settings = SettingsStore.shared.value
+                PasteHelper.copyOnly("Doubao Say macOS\nVersion: \(Bundle.main.infoDictionary?["CFBundleShortVersionString"] as? String ?? "development")\nSystem: \(ProcessInfo.processInfo.operatingSystemVersionString)\nProvider: \(settings.provider.rawValue)\nShortcut: \(settings.shortcut.label)\nPolishing: \(settings.polishEnabled)\nInput: \(settings.inputMethod)\nMicrophone check: \(state.microphoneChecked)\nVoice check: \(state.voiceChecked)")
+                model.feedback = L("Diagnostics copied without credentials, device IDs or transcripts.", "已复制诊断信息，不含凭证、设备标识或转写。")
+            }
+        }.formStyle(.grouped).padding(8)
+    }
+    private var result: some View {
+        VStack(alignment: .leading, spacing: 12) {
+            Text(L("Recent text stays only in app memory. Edit it before copying or retrying.", "最近文字仅保留在应用内存，可编辑后复制或重试输入。"))
+            TextEditor(text: $state.lastTranscript).border(Color.secondary.opacity(0.25))
+            HStack {
+                Button(L("Copy", "复制")) { PasteHelper.copyOnly(state.lastTranscript) }.disabled(state.lastTranscript.isEmpty)
+                Button(L("Retry in 3 seconds", "三秒后重试")) { model.retry?() }.disabled(state.lastTranscript.isEmpty || state.recordingState != .idle)
+                Button(L("Clear", "清除")) { model.clear?() }
+            }
+        }.padding(16)
+    }
+}
+
+@MainActor
+final class SettingsWindow: NSObject, NSWindowDelegate {
+    let model: SettingsModel
+    private let window: NSWindow
+    init(state: AppState) {
+        model = SettingsModel(state: state)
+        window = NSWindow(contentRect: NSRect(x: 0, y: 0, width: 900, height: 650), styleMask: [.titled, .closable, .miniaturizable], backing: .buffered, defer: false)
+        super.init()
+        window.title = "Doubao Say · " + L("Settings", "设置")
+        window.isReleasedWhenClosed = false; window.delegate = self
+        window.contentView = NSHostingView(rootView: SettingsView(model: model, state: state))
+        window.center()
+    }
+    func show(refresh: Bool = true) { if refresh { model.refresh() }; NSApp.activate(ignoringOtherApps: true); window.makeKeyAndOrderFront(nil) }
+    func windowWillClose(_ notification: Notification) { model.stopTests(); model.cancelCapture?(); model.recognitionKey = ""; model.polishKey = "" }
+    func close() { model.stopTests(); window.close() }
+    func hide() { window.orderOut(nil) }
+    func updateTitle() { window.title = "Doubao Say · " + L("Settings", "设置") }
+    func captureImage(to path: String) {
+        WindowCapture.request(window)
+    }
+}
+
+
+private struct AppearancePreview: View {
+    let style: String
+    let reduced: Bool
+    var body: some View {
+        TimelineView(.animation(minimumInterval: 1.0 / 30)) { timeline in
+            let time = timeline.date.timeIntervalSinceReferenceDate
+            let energy = max(0, sin(time * 5)) * 0.035
+            VStack(spacing: 12) {
+                Text(L("Synthetic audio preview · microphone unused", "合成声音预览 · 不使用麦克风"))
+                ListeningWaveform(rms: energy, style: style, reducedMotion: reduced).frame(width: 336, height: 48)
+            }.padding(20).background(Color(white: 0.16)).foregroundColor(.white)
+        }
+    }
+}

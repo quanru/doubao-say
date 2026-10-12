@@ -34,3 +34,10 @@ release: check
 
 marketplace-check:
 	$(PYTHON) packaging/check-marketplace.py --secrets
+
+.PHONY: macos-build macos-check
+macos-build:
+	bash macos/build.sh
+
+macos-check:
+	bash macos/check.sh
