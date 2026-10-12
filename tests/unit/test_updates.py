@@ -8,6 +8,11 @@ from urllib.error import URLError
 from doubao_input.product import VERSION
 from doubao_input.updates import UpdateChecker, UpdateInfo, newer_release, release_info
 
+# Keep the simulated newer release newer after every product version bump.
+FUTURE = f"{int(VERSION.split('.')[0]) + 1}.0.0"
+FUTURE_TAG = "v" + FUTURE
+FUTURE_URL = "https://github.com/quanru/doubao-say/releases/tag/" + FUTURE_TAG
+
 
 class Response:
     def __init__(self, payload):
@@ -23,10 +28,10 @@ class Response:
 class UpdateTest(TestCase):
     def test_public_feed_succeeds_without_using_the_api(self):
         with tempfile.TemporaryDirectory() as root, patch.dict(os.environ, {"XDG_CONFIG_HOME": root}), patch(
-                "doubao_input.updates.request.urlopen", return_value=Response({"tag_name": "v1.6.0"})) as fetch:
+                "doubao_input.updates.request.urlopen", return_value=Response({"tag_name": FUTURE_TAG})) as fetch:
             found = []
             UpdateChecker(lambda callback: callback(), found.append)._fetch()
-            self.assertEqual(found[0].version, "1.6.0")
+            self.assertEqual(found[0].version, FUTURE)
             self.assertEqual(fetch.call_count, 1)
             req = fetch.call_args.args[0]
             self.assertTrue(req.full_url.endswith("/releases/latest/download/update.json"))
@@ -36,10 +41,10 @@ class UpdateTest(TestCase):
         for first in (URLError("offline"), Response({"tag_name": "invalid"})):
             with self.subTest(first=type(first).__name__), tempfile.TemporaryDirectory() as root, patch.dict(
                     os.environ, {"XDG_CONFIG_HOME": root}), patch(
-                    "doubao_input.updates.request.urlopen", side_effect=[first, Response({"tag_name": "v1.6.0"})]) as fetch:
+                    "doubao_input.updates.request.urlopen", side_effect=[first, Response({"tag_name": FUTURE_TAG})]) as fetch:
                 found = []
                 UpdateChecker(lambda callback: callback(), found.append)._fetch()
-                self.assertEqual(found[0].version, "1.6.0")
+                self.assertEqual(found[0].version, FUTURE)
                 self.assertEqual(fetch.call_count, 2)
                 self.assertIn("api.github.com", fetch.call_args.args[0].full_url)
 
@@ -49,9 +54,9 @@ class UpdateTest(TestCase):
         self.assertFalse(newer_release("1.1.9", "1.3.0"))
 
     def test_only_new_stable_release_produces_allowlisted_url(self):
-        self.assertEqual(release_info({"tag_name": "v1.6.0"}),
-                         UpdateInfo("1.6.0", "https://github.com/quanru/doubao-say/releases/tag/v1.6.0"))
-        self.assertIsNone(release_info({"tag_name": "v1.6.0", "prerelease": True}))
+        self.assertEqual(release_info({"tag_name": FUTURE_TAG}),
+                         UpdateInfo(FUTURE, FUTURE_URL))
+        self.assertIsNone(release_info({"tag_name": FUTURE_TAG, "prerelease": True}))
         with self.assertRaises(ValueError):
             release_info({"tag_name": "https://malicious.example"})
 
@@ -60,12 +65,12 @@ class UpdateTest(TestCase):
         with tempfile.TemporaryDirectory() as root, patch.dict(
                 os.environ, {"XDG_CONFIG_HOME": root}), patch(
                 "doubao_input.updates.request.urlopen",
-                return_value=Response({"tag_name": "v1.6.0"})):
+                return_value=Response({"tag_name": FUTURE_TAG})):
             checker = UpdateChecker(callbacks.append, found.append, clock=lambda: 1000)
             checker._fetch()
             self.assertEqual(found, [])
             callbacks.pop()()
-            self.assertEqual(found[0].version, "1.6.0")
+            self.assertEqual(found[0].version, FUTURE)
             cache = json.loads(checker.cache_path().read_text())
             self.assertEqual(cache["checked_at"], 1000)
             self.assertEqual(cache["current_version"], VERSION)
@@ -78,19 +83,19 @@ class UpdateTest(TestCase):
             checker = UpdateChecker(callbacks.append, found.append, clock=lambda: 1000)
             checker.cache_path().parent.mkdir(parents=True)
             checker.cache_path().write_text(json.dumps({
-                "checked_at": 999, "tag_name": "v1.6.0",
+                "checked_at": 999, "tag_name": FUTURE_TAG,
                 "current_version": VERSION,
                 "draft": False, "prerelease": False}))
             with patch.object(checker, "_fetch") as fetch:
                 checker.check()
             fetch.assert_not_called()
             callbacks.pop()()
-            self.assertEqual(found[0].version, "1.6.0")
+            self.assertEqual(found[0].version, FUTURE)
 
     def test_close_suppresses_queued_notification(self):
         callbacks, found = [], []
         checker = UpdateChecker(callbacks.append, found.append)
-        checker._deliver(UpdateInfo("1.6.0", "https://example.test"))
+        checker._deliver(UpdateInfo(FUTURE, "https://example.test"))
         checker.close()
         callbacks.pop()()
         self.assertEqual(found, [])
@@ -113,9 +118,9 @@ class UpdateTest(TestCase):
                 "doubao_input.updates.request.urlopen", side_effect=URLError("offline")):
             checker = UpdateChecker(lambda callback: callback(), found.append,
                                     clock=lambda: 100000)
-            checker._save_cache("v1.6.0")
+            checker._save_cache(FUTURE_TAG)
             checker._fetch()
-            self.assertEqual(found[0].version, "1.6.0")
+            self.assertEqual(found[0].version, FUTURE)
 
     def test_cache_from_another_installed_version_is_ignored(self):
         callbacks, found = [], []

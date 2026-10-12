@@ -124,7 +124,7 @@ struct PersonalVocabularyView: View {
             VStack(alignment: .leading, spacing: 12) {
                 Text(L("One term per line, saved automatically. Official Volcengine ASR sends a length-limited subset as hotwords, prioritizing confirmed spellings. Doubao Web and other engines use this list only during AI polishing. This does not train the recognition model.", "每行一个词，自动保存。官方火山引擎 ASR 会发送受长度限制的热词，已确认的词优先；豆包 Web 和其他引擎仅在 AI 润色时参考。不会训练识别模型。"))
                 PaddedTextEditor(text: $model.words).font(.system(size: 13)).frame(height: 160)
-                Text(L("Official ASR hotword preview: ", "官方 ASR 本次热词预览：") + (model.hotwords.isEmpty ? L("None", "暂无") : model.hotwords)).font(.caption).foregroundColor(.secondary)
+                Text(L("Official ASR hotword preview: ", "官方 ASR 热词预览：") + (model.hotwords.isEmpty ? L("None", "暂无") : model.hotwords)).font(.caption).foregroundColor(.secondary)
                 HStack {
                     Button(L("Local frequencies", "本地词频")) { model.statistics() }.disabled(model.busy)
                     Button(L("AI organize frequencies", "AI 整理高频词")) { model.organize() }.disabled(model.busy)
@@ -222,7 +222,7 @@ struct ConfirmCorrectionView: View {
             } else {
                 Text(L("Enter a term from this entry and its correct spelling. Review the result before confirming.", "填写这条记录中出现的词和正确写法，检查结果后再确认。"))
             }
-            Text(L("Future corrections use the example context; unrelated uses keep their original spelling. No other app's typing is monitored.", "之后按示例语境参考这次纠正，其他语境保留原词。不监控其他应用的键盘输入。"))
+            Text(L("Future polishing uses the example context to help avoid unrelated replacements. No other app's typing is monitored.", "之后润色会参考示例语境，减少误改其他地方的词。不监控其他应用的键盘输入。"))
                 .font(.caption).foregroundColor(.secondary)
             Text(model.feedback).font(.caption).foregroundColor(.secondary)
             HStack {

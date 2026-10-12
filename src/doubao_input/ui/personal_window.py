@@ -203,7 +203,7 @@ class PersonalWindow:
         from doubao_input.personal_corrections import hotword_context
         context = hotword_context(self.store.recognition_words())
         words = [item["word"] for item in json.loads(context)["hotwords"]] if context else []
-        self.hotword_preview.set_text(tr("Official ASR hotword preview: ", "官方 ASR 本次热词预览：") + (" · ".join(words) or tr("None", "暂无")))
+        self.hotword_preview.set_text(tr("Official ASR hotword preview: ", "官方 ASR 热词预览：") + (" · ".join(words) or tr("None", "暂无")))
 
     def toggle_history(self, *_):
         if not self.loading:
@@ -238,7 +238,7 @@ class PersonalWindow:
         preview = self.label("")
         preview_scroll = Gtk.ScrolledWindow(min_content_height=60, max_content_height=120)
         preview_scroll.set_child(preview); box.append(preview_scroll)
-        box.append(self.label(tr("Future corrections use the example context; unrelated uses keep their original spelling. No other app's typing is monitored.", "之后按示例语境参考这次纠正，其他语境保留原词。不监控其他应用的键盘输入。")))
+        box.append(self.label(tr("Future polishing uses the example context to help avoid unrelated replacements. No other app's typing is monitored.", "之后润色会参考示例语境，减少误改其他地方的词。不监控其他应用的键盘输入。")))
         error = self.label(""); box.append(error)
         buttons = Gtk.Box(spacing=8); box.append(buttons)
         def close(*_):
