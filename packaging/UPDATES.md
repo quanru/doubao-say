@@ -1,6 +1,9 @@
 # In-app updates
 
-The client checks the latest public stable release every 24 hours. Manual checks
+The client checks the latest public stable release every 24 hours. Version 1.5.2
+and later read the public `releases/latest/download/update.json` asset first and
+fall back to the GitHub Releases API if it is unavailable or invalid. Neither
+source needs application credentials. Manual checks
 bypass that interval. Updates are downloaded and installed only after the user
 chooses the update action and dictation, polishing and text delivery are idle.
 The installer runs after the old process exits, then restarts the application.
@@ -68,3 +71,11 @@ tag. After the Linux release workflow succeeds, upload both DMGs, merge their
 and verify the public latest-release endpoint and every download. This local
 signing/upload step uses publisher tools only; no signing key, Feishu credential
 or GitHub token belongs in application source or release artifacts.
+
+After uploading both Mac DMGs and the combined SHA256SUMS, publish the minimal
+metadata using `python3 packaging/publish-update-feed.py --tag v<version>`. The
+command requires a public stable release, exactly one Mac DMG per architecture,
+all eight Linux archives, official asset URLs and matching checksum entries. It
+omits release body, uploader/account fields and credentials. Verify the public
+`releases/latest/download/update.json` URL and both update-source paths. Older
+clients that cannot reach the API need one manual DMG upgrade to get this fallback.

@@ -8,7 +8,7 @@ from threading import Event, Thread
 import time
 from urllib import error, parse, request
 
-from doubao_input.product import LATEST_RELEASE_API, REPOSITORY_URL, VERSION
+from doubao_input.product import LATEST_RELEASE_API, LATEST_RELEASE_FEED, REPOSITORY_URL, VERSION
 from doubao_input.settings import config_dir, write_atomic
 
 logger = logging.getLogger(__name__)
@@ -77,18 +77,25 @@ class UpdateChecker:
 
     def _fetch(self):
         self._notify_status("checking")
-        req = request.Request(LATEST_RELEASE_API, headers={
-            "Accept": "application/vnd.github+json",
-            "User-Agent": f"Doubao-Say/{VERSION}",
-            "X-GitHub-Api-Version": "2022-11-28",
-        })
         try:
-            with request.urlopen(req, timeout=4) as response:
-                raw = response.read(65_537)
-            if len(raw) > 65_536:
-                raise ValueError("Release response is too large")
-            payload = json.loads(raw)
-            info = release_info(payload)
+            last_error = None
+            for source in (LATEST_RELEASE_FEED, LATEST_RELEASE_API):
+                req = request.Request(source, headers={
+                    "Accept": "application/json", "User-Agent": f"Doubao-Say/{VERSION}",
+                    "X-GitHub-Api-Version": "2022-11-28",
+                })
+                try:
+                    with request.urlopen(req, timeout=10) as response:
+                        raw = response.read(65_537)
+                    if len(raw) > 65_536:
+                        raise ValueError("Release response is too large")
+                    payload = json.loads(raw)
+                    info = release_info(payload)
+                    break
+                except (error.URLError, TimeoutError, OSError, ValueError, KeyError, TypeError) as exc:
+                    last_error = exc
+            else:
+                raise last_error
             self._save_cache(payload["tag_name"], bool(payload.get("draft")),
                              bool(payload.get("prerelease")))
         except (error.URLError, TimeoutError, OSError, ValueError, KeyError,

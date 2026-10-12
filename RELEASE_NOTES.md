@@ -1,28 +1,33 @@
-# Doubao Say 1.5.1
+# Doubao Say 1.5.2
 
-## Simpler macOS updates
+## Reliable update checks
 
-The Mac update page now shows one action for the current state:
+Mac and Linux check a public update manifest before falling back to the GitHub
+API. The manifest contains only the stable version and official package URLs;
+no API key, sign-in, settings or personal text is required. Publication checks
+require the Linux archives, both Mac DMGs and all corresponding checksum entries.
 
-- **Check for updates** when no compatible update is available.
-- **Update and restart** when a compatible newer version is available.
-- **Cancel download** during update download and preparation.
+Mac checks allow 20 seconds per source instead of eight seconds for a single API
+request. Timeout, offline, HTTP, request-limit and invalid-response failures now
+have distinct messages. Invalid caches trigger a fresh request. Cancellation
+suppresses stale results and permits a new check. Checking the current version
+shows that it is up to date. The simple single-action update page is retained.
 
-While checking, the action shows **Checking…**, is disabled, and includes a
-progress indicator. Release notes use a text link. Version information and
-update status remain visible. Both English and Simplified Chinese are supported.
+This release addresses failure handling and source availability; it does not
+claim to identify every reported network failure on another computer. If an old
+client cannot check for updates, install this version once using its DMG.
 
 ## Download and verification
 
-Existing 1.4.0 previews and 1.5.0 installations can use Settings → Updates to
-upgrade. Choose the signed, notarized arm64 or x86_64 DMG for manual Mac
-installation. Linux app/plugin archives remain available for Python 3.11–3.14;
-Linux already uses a single update action. Settings and login data are retained.
+Choose the Developer ID signed, Apple-notarized arm64 or x86_64 Mac DMG. Linux
+app/plugin archives remain available for Python 3.11–3.14. Settings and login data
+are retained. SHA256SUMS covers both platforms. update.json provides the public
+metadata used by this version's first update source.
 
-Native before/after interface checks cover both languages and the current,
-available, checking, downloading and unsupported-package states. Swift behavior,
-loopback protocol/polishing, Linux unit/contract/coverage and release archive
-installation checks also cover this release. Cross-built Intel packages are not
-Intel hardware acceptance; live microphone and physical hotkeys remain separate.
+Tests cover timeout fallback, current-version checks, invalid cache recovery,
+HTTP and rate-limit messages, cancellation and metadata privacy. Swift,
+loopback recognition/polishing, Linux unit/contract/coverage and archive
+installation checks also run. Cross-built Intel artifacts do not establish
+execution on Intel hardware; microphone and physical hotkey checks are separate.
 
-[Full changes](https://github.com/quanru/doubao-say/compare/v1.5.0...v1.5.1)
+[Full changes](https://github.com/quanru/doubao-say/compare/v1.5.1...v1.5.2)

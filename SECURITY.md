@@ -19,9 +19,10 @@ submitted after a pause while recording is still active. The endpoint operator's
 retention, training and privacy terms apply. Doubao Say does not log the text or
 include the polishing API key in diagnostics.
 
-The application checks the fixed public GitHub Releases endpoint at most once
+The application checks the fixed public GitHub release manifest, with the Releases
+API as a fallback, at most once
 every 24 hours. GitHub receives normal HTTPS connection metadata. The local
-owner-only cache contains only the check time and public release tag. The check
+owner-only cache contains only the check time and public release metadata. The check
 does not send settings, account data, transcripts or a device identifier, and it
 does not download or install an update.
 
