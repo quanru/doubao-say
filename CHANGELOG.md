@@ -8,7 +8,7 @@
 
 - macOS: expose English, Simplified Chinese and system language selection in General settings with immediate switching and persistent preferences.
 
-## Unreleased
+## 1.5.0
 
 - Add personal vocabulary for contextual polishing, a local rolling 30-day input ledger, reviewed AI frequency suggestions, and padded recent-text editors on macOS and Linux.
 
@@ -29,7 +29,7 @@
 - Add a native macOS development preview with Doubao web sign-in, Keychain credentials, tap/hold dictation, a nonactivating overlay, guarded paste and last-result recovery.
 - Align the Mac client with Linux recognition providers, bilingual polishing prompts, speculative previews, five-second fallback, configurable tap/hold/double-tap shortcuts, microphones, receiver mappings, settings and recent-text recovery.
 - Add loopback polishing and official-provider protocol acceptance, and isolated native settings screenshots.
-- Add local Swift/loopback transport checks and a separate Mac build workflow. Developer ID signing, notarization and live microphone/paste acceptance are pending.
+- Add local Swift/loopback transport checks and a separate Mac build workflow. Release Mac packages use Developer ID signing and Apple notarization; live microphone/paste acceptance remains separate.
 
 ## 1.4.0
 

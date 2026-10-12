@@ -51,14 +51,20 @@ python3 macos/package-dmg.py --arch arm64 --identity '<Developer ID Application 
 Repeat for `x86_64`. The package script produces a signed, notarized and stapled
 `Doubao-Say-<version>-macos-<arch>-<commit>.dmg` and its `.dmg.sha256` file.
 
-For a future authorized stable release, include exactly one matching DMG for each
+For each authorized stable release, include exactly one matching DMG for each
 supported Mac CPU. Append its checksum line to the release's Linux `SHA256SUMS`,
 keeping every Linux archive entry. Publish the combined `SHA256SUMS` alongside
 the Linux archives and Mac DMGs under the same newer tag. A DMG shared through
 Feishu does not populate this feed. Never overwrite a tag or remove Linux hashes
 when adding Mac assets. Missing compatible assets are reported in the client.
 
-The current v1.4.0 public release contains Linux archives only. Preview builds
-remain v1.4.0 and will not upgrade one another; an authorized stable version bump,
-protected-main merge and release publication are required for the first online
-upgrade. These prerequisites are separate from implementing the updater.
+Version 1.5.0 is the first release with both Mac DMGs and Linux archives in this
+feed. Older 1.4.0 Mac previews can upgrade to it through a manual update check;
+subsequent releases must increment the version in every product version source.
+Release tags must point to the protected-main merge, and each DMG must be built
+from that same commit. Build and notarize the Mac artifacts before pushing the
+tag. After the Linux release workflow succeeds, upload both DMGs, merge their
+`.dmg.sha256` lines into the published `SHA256SUMS` without removing Linux hashes,
+and verify the public latest-release endpoint and every download. This local
+signing/upload step uses publisher tools only; no signing key, Feishu credential
+or GitHub token belongs in application source or release artifacts.
