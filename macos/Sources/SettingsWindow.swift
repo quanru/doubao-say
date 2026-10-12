@@ -291,7 +291,7 @@ struct SettingsView: View {
             Divider()
             VStack(alignment: .leading, spacing: 0) {
                 Text(pageTitle).font(.system(size: 20, weight: .semibold)).padding(24)
-                if !state.updateVersion.isEmpty {
+                if !state.updateVersion.isEmpty && model.selectedTab != "updates" {
                     HStack {
                         Label(L("Update available: ", "发现新版本：") + state.updateVersion, systemImage: "arrow.down.circle.fill")
                         Spacer()
@@ -331,17 +331,22 @@ struct SettingsView: View {
         Form {
             Text(L("Current version: ", "当前版本：") + (Bundle.main.infoDictionary?["CFBundleShortVersionString"] as? String ?? "development"))
             Text(state.updateStatus.isEmpty ? L("Updates are checked automatically once a day.", "每天自动检查更新。") : state.updateStatus)
-            if state.updateBusy {
-                ProgressView()
-                Button(L("Cancel download", "取消下载")) { model.cancelUpdate?() }
-            }
-            Button(L("Check for updates", "检查更新")) { model.checkUpdates?() }.disabled(state.updateBusy)
             if !state.updateVersion.isEmpty {
                 Label(L("New version: ", "新版本：") + state.updateVersion, systemImage: "arrow.down.circle")
-                Button(L("Download and restart", "下载并重启")) { model.installUpdate?() }
-                    .disabled(state.updateBusy || !state.updateCanInstall || model.setupBusy)
                 if !state.updateCanInstall { Text(L("This release has no compatible Mac update package yet.", "此版本暂未提供适合这台 Mac 的更新包。")) }
-                Button(L("Release notes", "更新说明")) { model.releaseNotes?() }
+                Button(L("Release notes", "更新说明")) { model.releaseNotes?() }.buttonStyle(.link)
+            }
+            HStack(spacing: 12) {
+                if state.updateBusy || state.updateChecking { ProgressView().controlSize(.small) }
+                if state.updateBusy {
+                    Button(L("Cancel download", "取消下载")) { model.cancelUpdate?() }
+                } else if !state.updateVersion.isEmpty && state.updateCanInstall {
+                    Button(L("Update and restart", "更新并重启")) { model.installUpdate?() }
+                        .buttonStyle(.borderedProminent).disabled(state.updateChecking || model.setupBusy)
+                } else {
+                    Button(state.updateChecking ? L("Checking…", "正在检查…") : L("Check for updates", "检查更新")) { model.checkUpdates?() }
+                        .buttonStyle(.borderedProminent).disabled(state.updateChecking)
+                }
             }
             Text(L("Updates preserve your settings and login. Finish dictation before installing; the previous app is kept as a backup.", "更新保留设置和登录。请结束听写后安装，旧应用会保留为备份。"))
         }.formStyle(.grouped).padding(8)
