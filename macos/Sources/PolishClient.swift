@@ -82,7 +82,7 @@ final class PolishClient: NSObject, URLSessionDataDelegate {
     var progress: ((String) -> Void)?
     var completion: ((String?, String?) -> Void)?
 
-    func start(text: String, settings: MacSettings, apiKey: String, timeout: TimeInterval = 5) {
+    func start(text: String, settings: MacSettings, apiKey: String, timeout: TimeInterval = 5, personalize: Bool = true) {
         self.timeout = min(30, max(1, timeout))
         startedAt = ProcessInfo.processInfo.systemUptime
         guard let url = PolishPolicy.endpoint(settings.polishBaseURL) else { finish(nil, "endpoint"); return }
@@ -91,8 +91,11 @@ final class PolishClient: NSObject, URLSessionDataDelegate {
         request.setValue("Bearer " + apiKey, forHTTPHeaderField: "Authorization")
         request.setValue("application/json", forHTTPHeaderField: "Content-Type")
         request.setValue("text/event-stream", forHTTPHeaderField: "Accept")
+        let basePrompt = PolishPolicy.prompt(text: text, chinese: settings.polishPromptZH, english: settings.polishPromptEN)
+        let prompt = personalize ? PersonalVocabulary.prompt(basePrompt, words: (try? PersonalDataStore.shared.words()) ?? []) : basePrompt
+        let contextualPrompt = personalize ? PersonalCorrections.prompt(prompt, text: text, corrections: (try? PersonalDataStore.shared.corrections()) ?? []) : prompt
         var body: [String: Any] = ["model": settings.polishModel, "temperature": 0.2, "stream": true,
-            "messages": [["role": "system", "content": PersonalVocabulary.prompt(PolishPolicy.prompt(text: text, chinese: settings.polishPromptZH, english: settings.polishPromptEN), words: (try? PersonalDataStore.shared.words()) ?? [])], ["role": "user", "content": text]]]
+            "messages": [["role": "system", "content": contextualPrompt], ["role": "user", "content": text]]]
         body.merge(PolishPolicy.reasoning(baseURL: settings.polishBaseURL, model: settings.polishModel)) { _, new in new }
         guard let data = try? JSONSerialization.data(withJSONObject: body) else { finish(nil, "request"); return }
         request.httpBody = data

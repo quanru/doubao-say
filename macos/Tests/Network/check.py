@@ -30,8 +30,17 @@ class Handler(http.server.BaseHTTPRequestHandler):
             assert self.headers.get('Authorization') == 'Bearer fake-polish-key'
             assert body['stream'] is True and body['model'] == 'synthetic-model'
             assert body['messages'][0]['role'] == 'system'
-            assert "Midscene" in body['messages'][0]['content']
             sample = body['messages'][1]['content']
+            prompt = body['messages'][0]['content']
+            if sample == 'counts-only':
+                assert 'User-confirmed' not in prompt and 'Personal vocabulary' not in prompt
+                assert '用Midscene写测试' not in prompt
+            else:
+                assert "Midscene" in prompt
+                if sample == '用Midjourney写测试':
+                    assert 'User-confirmed' in prompt and '用Midscene写测试' in prompt
+                else:
+                    assert 'User-confirmed' not in prompt
             requests.append(sample)
             if sample == 'slow':
                 time.sleep(6)

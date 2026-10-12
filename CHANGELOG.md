@@ -8,6 +8,13 @@
 
 - macOS: expose English, Simplified Chinese and system language selection in General settings with immediate switching and persistent preferences.
 
+## 1.6.0
+
+- Send a conservatively bounded personal hotword subset to official Volcengine streaming ASR on Mac and Linux, prioritize confirmed spellings, and show the exact preview.
+- Add explicit history correction preview/confirmation, immutable originals, contextual polishing references, persistent memory and per-entry forgetting.
+- Count confirmed corrections in local frequencies while keeping AI frequency organization limited to candidate terms and counts.
+- Add opt-in same-audio ASR/hotwords/polishing replay and offline scoring with failures, negative cases, latency and private reports.
+
 ## 1.5.3
 
 - Clear stale Mac settings sidebar focus when opening or navigating with the mouse, preserve Tab/Space navigation, and keep keyboard focus outlines aligned to the full rounded row.

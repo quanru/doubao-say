@@ -23,6 +23,7 @@ class PersonalWindow:
         self.limit = 100
         self.candidates = []
         self.choices = []
+        self.correction_window = None
 
     def label(self, text):
         return Gtk.Label(label=text, xalign=0, wrap=True)
@@ -41,11 +42,16 @@ class PersonalWindow:
         scroll.set_child(text)
         return text, scroll
 
-    def page(self, notebook, title):
+    def page(self, notebook, title, *, scroll=False):
         box = Gtk.Box(orientation=Gtk.Orientation.VERTICAL, spacing=12)
         for side in ("top", "bottom", "start", "end"):
             getattr(box, "set_margin_" + side)(16)
-        notebook.append_page(box, Gtk.Label(label=title))
+        if scroll:
+            viewport = Gtk.ScrolledWindow(vexpand=True)
+            viewport.set_child(box)
+            notebook.append_page(viewport, Gtk.Label(label=title))
+        else:
+            notebook.append_page(box, Gtk.Label(label=title))
         return box
 
     def show(self):
@@ -80,20 +86,28 @@ class PersonalWindow:
         self.button(buttons, tr("Retry in 3 seconds", "三秒后重试"), self.retry)
         recent.append(buttons)
 
-        vocabulary = self.page(notebook, tr("Personal vocabulary", "个人词汇"))
-        vocabulary.append(self.label(tr("One term per line, saved automatically. Used as context during AI polishing; enable polishing for corrections. ASR does not automatically learn this list.", "每行一个词，自动保存。词汇作为 AI 润色的上下文参考，启用润色后用于纠词；不会让 ASR 自动学习词库。")))
+        vocabulary = self.page(notebook, tr("Personal vocabulary", "个人词汇"), scroll=True)
+        vocabulary.append(self.label(tr("One term per line, saved automatically. Official Volcengine ASR sends a length-limited subset as hotwords, prioritizing confirmed spellings. Doubao Web and other engines use this list only during AI polishing. This does not train the recognition model.", "每行一个词，自动保存。官方火山引擎 ASR 会发送受长度限制的热词，已确认的词优先；豆包 Web 和其他引擎仅在 AI 润色时参考。不会训练识别模型。")))
         self.words_editor, scroll = self.editor(130)
         self.words_editor.get_buffer().connect("changed", self.changed)
         vocabulary.append(scroll)
+        self.hotword_preview = self.label("")
+        vocabulary.append(self.hotword_preview)
         buttons = Gtk.Box(spacing=8)
         self.button(buttons, tr("Local frequencies", "本地词频"), self.statistics)
         self.ai_button = self.button(buttons, tr("AI organize frequencies", "AI 整理高频词"), self.organize)
         vocabulary.append(buttons)
-        vocabulary.append(self.label(tr("Only sent, polished results from the last 30 days are counted. AI receives candidate terms and counts via your polishing service, not full input history. Select terms before adding.", "仅统计最近 30 天已发送的润色结果。AI 通过你的润色服务接收候选词和次数，不会发送完整历史；选择后才加入词库。")))
+        vocabulary.append(self.label(tr("Sent, polished results and corrections you confirmed from the last 30 days are counted. AI receives candidate terms and counts via your polishing service, not full input history. Select terms before adding.", "统计最近 30 天已发送的润色结果和你确认过的纠正。AI 通过你的润色服务接收候选词和次数，不会发送完整历史；选择后才加入词库。")))
         self.candidate_box = Gtk.Box(orientation=Gtk.Orientation.VERTICAL, spacing=6)
         candidate_scroll = Gtk.ScrolledWindow(min_content_height=120, vexpand=True)
         candidate_scroll.set_child(self.candidate_box); vocabulary.append(candidate_scroll)
         self.button(vocabulary, tr("Add selected terms", "添加所选词汇"), self.add_selected)
+        vocabulary.append(Gtk.Separator())
+        vocabulary.append(self.label(tr("Confirmed correction memory", "已确认的纠错记忆")))
+        vocabulary.append(self.label(tr("Only corrections you confirm in Input history are remembered. Context is kept to avoid replacing legitimate words elsewhere.", "只记住你在输入历史中确认过的纠正，保留语境，避免误改其他地方的正确词。")))
+        self.memory_box = Gtk.Box(orientation=Gtk.Orientation.VERTICAL, spacing=8)
+        memory_scroll = Gtk.ScrolledWindow(min_content_height=100, vexpand=True)
+        memory_scroll.set_child(self.memory_box); vocabulary.append(memory_scroll)
 
         history = self.page(notebook, tr("30-day history", "30 天历史"))
         self.enabled = Gtk.CheckButton(label=tr("Record this app's dictation history for 30 days", "记录本应用最近 30 天的听写历史"))
@@ -135,6 +149,7 @@ class PersonalWindow:
             GLib.source_remove(self.timer); self.timer = 0
         try:
             self.store.save_words(self.text(self.words_editor))
+            self.refresh_hotwords()
             self.feedback.set_text(tr("Vocabulary saved automatically.", "个人词汇已自动保存。"))
             return True
         except Exception:
@@ -154,18 +169,41 @@ class PersonalWindow:
                 status = tr("Input sent", "已发送输入操作") if item["status"] in ("sent", "attempted") else tr("Kept / not confirmed", "已保留／未确认输入")
                 kind = tr("Polished", "已润色") if item["polished"] else tr("Original", "原文")
                 box.append(self.label(f'{datetime.fromtimestamp(item["created"]).strftime("%Y-%m-%d %H:%M:%S")} · {kind} · {status}'))
-                output = self.label(item["output"]); output.set_selectable(True); box.append(output)
+                text = item["confirmed"] or item["output"]
+                output = self.label(text); output.set_selectable(True); box.append(output)
+                if item["confirmed"]:
+                    box.append(self.label(tr("Correction confirmed by you", "你已确认纠正")))
+                    expander = Gtk.Expander(label=tr("Before your correction", "确认前的文字"))
+                    expander.set_child(self.label(item["output"])); box.append(expander)
                 if item["original"] != item["output"]:
                     expander = Gtk.Expander(label=tr("Recognition original", "识别原文"))
                     original = self.label(item["original"]); original.set_selectable(True); expander.set_child(original); box.append(expander)
-                self.button(box, tr("Use in Recent text", "放入最近文字"), lambda text=item["output"]: self.recent_editor.get_buffer().set_text(text))
+                self.button(box, tr("Use in Recent text", "放入最近文字"), lambda text=text: self.recent_editor.get_buffer().set_text(text))
+                self.button(box, tr("Correct & remember…", "纠正并记住…"), lambda item=item: self.edit_correction(item))
                 box.append(Gtk.Separator()); self.history_box.append(box)
             if not rows:
                 self.history_box.append(self.label(tr("No input history yet.", "暂无输入历史。")))
+            self.empty(self.memory_box)
+            memories = self.store.corrections()
+            self.refresh_hotwords()
+            for item in memories:
+                row = Gtk.Box(orientation=Gtk.Orientation.VERTICAL, spacing=4)
+                row.append(self.label(item["recognized"] + " → " + item["corrected"]))
+                row.append(self.label(item["context"]))
+                self.button(row, tr("Forget", "忘记"), lambda key=item["key"]: self.forget_correction(key))
+                self.memory_box.append(row)
+            if not memories:
+                self.memory_box.append(self.label(tr("No confirmed corrections yet.", "暂无已确认的纠错记忆。")))
         except Exception:
             self.feedback.set_text(tr("Could not read local vocabulary or history.", "无法读取本地词汇或历史。"))
         finally:
             self.loading = False
+
+    def refresh_hotwords(self):
+        from doubao_input.personal_corrections import hotword_context
+        context = hotword_context(self.store.recognition_words())
+        words = [item["word"] for item in json.loads(context)["hotwords"]] if context else []
+        self.hotword_preview.set_text(tr("Official ASR hotword preview: ", "官方 ASR 热词预览：") + (" · ".join(words) or tr("None", "暂无")))
 
     def toggle_history(self, *_):
         if not self.loading:
@@ -174,12 +212,65 @@ class PersonalWindow:
             except Exception:
                 self.feedback.set_text(tr("Could not save history preference.", "历史记录设置保存失败。"))
 
+    def forget_correction(self, key):
+        try:
+            self.store.forget_correction(key); self.refresh()
+            self.feedback.set_text(tr("Correction forgotten.", "已忘记这条纠错记忆。"))
+        except Exception:
+            self.feedback.set_text(tr("Could not remove correction memory.", "无法删除纠错记忆。"))
+
+    def edit_correction(self, item):
+        from doubao_input.personal_corrections import confirmation
+        if self.correction_window:
+            self.correction_window.present(); return
+        dialog = Gtk.Window(title=tr("Confirm & remember a correction", "确认并记住这次纠正"), transient_for=self.window, modal=True, default_width=540)
+        self.correction_window = dialog
+        box = Gtk.Box(orientation=Gtk.Orientation.VERTICAL, spacing=12)
+        for side in ("top", "bottom", "start", "end"):
+            getattr(box, "set_margin_" + side)(20)
+        current = item["confirmed"] or item["output"]
+        sample_scroll = Gtk.ScrolledWindow(min_content_height=70, max_content_height=120)
+        sample_scroll.set_child(self.label(current)); box.append(sample_scroll)
+        box.append(self.label(tr("Misrecognized word or phrase", "误识别的词或短语")))
+        source = Gtk.Entry(placeholder_text=tr("For example: Midjourney", "例如：Midjourney")); box.append(source)
+        box.append(self.label(tr("Correct spelling", "正确写法")))
+        target = Gtk.Entry(placeholder_text=tr("For example: Midscene", "例如：Midscene")); box.append(target)
+        box.append(self.label(tr("After confirmation", "确认后的文字")))
+        preview = self.label("")
+        preview_scroll = Gtk.ScrolledWindow(min_content_height=60, max_content_height=120)
+        preview_scroll.set_child(preview); box.append(preview_scroll)
+        box.append(self.label(tr("Future polishing uses the example context to help avoid unrelated replacements. No other app's typing is monitored.", "之后润色会参考示例语境，减少误改其他地方的词。不监控其他应用的键盘输入。")))
+        error = self.label(""); box.append(error)
+        buttons = Gtk.Box(spacing=8); box.append(buttons)
+        def close(*_):
+            self.correction_window = None; dialog.destroy()
+        self.button(buttons, tr("Cancel", "取消"), close)
+        def confirm():
+            try:
+                self.store.confirm_correction(item["id"], source.get_text(), target.get_text())
+                close(); self.refresh()
+                self.feedback.set_text(tr("Correction remembered. Future matching contexts can use it.", "已记住这次纠正，之后遇到相似语境时参考。"))
+            except Exception:
+                error.set_text(tr("Could not confirm. Check both terms and refresh the history entry.", "无法确认，请检查两个词，并确认这条历史仍然存在。"))
+        button = self.button(buttons, tr("Confirm & remember", "确认并记住"), confirm)
+        button.add_css_class("suggested-action"); button.set_sensitive(False)
+        def changed(*_):
+            try:
+                value = confirmation(item["original"], current, source.get_text(), target.get_text())[2]
+                preview.set_text(value); button.set_sensitive(True)
+            except ValueError:
+                preview.set_text(tr("Enter a term from this entry and its correct spelling. Review before confirming.", "填写这条记录中出现的词和正确写法，检查后再确认。")); button.set_sensitive(False)
+        source.connect("changed", changed); target.connect("changed", changed)
+        changed(); dialog.set_child(box)
+        dialog.connect("close-request", lambda *_: (close(), True)[1])
+        dialog.present()
+
     def more(self):
         self.limit += 100; self.refresh()
 
     def confirm_clear(self):
         dialog = Gtk.MessageDialog(transient_for=self.window, modal=True, message_type=Gtk.MessageType.QUESTION,
-                                   buttons=Gtk.ButtonsType.OK_CANCEL, text=tr("Clear all local input history? Vocabulary is retained.", "清空全部本地输入历史？个人词汇会保留。"))
+                                   buttons=Gtk.ButtonsType.OK_CANCEL, text=tr("Clear all local input history? Vocabulary and correction memory are retained.", "清空全部本地输入历史？个人词汇和纠错记忆会保留。"))
         def response(window, choice):
             if choice == Gtk.ResponseType.OK:
                 try:
@@ -194,7 +285,7 @@ class PersonalWindow:
     def statistics(self):
         try:
             self.candidates = self.store.candidates(); self.render_candidates()
-            self.feedback.set_text(tr("Select useful local candidates before adding.", "请选择有用的本地候选再添加。") if self.candidates else tr("No repeated terms in sent, polished results yet.", "已发送的润色结果中暂时没有重复词汇。"))
+            self.feedback.set_text(tr("Select useful local candidates before adding.", "请选择有用的本地候选再添加。") if self.candidates else tr("No repeated terms in polished results or confirmed corrections yet.", "润色结果和已确认的纠正中暂时没有重复词汇。"))
         except Exception:
             self.feedback.set_text(tr("Could not calculate local frequencies.", "本地词频统计失败。"))
 
@@ -249,6 +340,8 @@ class PersonalWindow:
             self.refresh(); self.render_candidates()
 
     def close(self, *_):
+        if self.correction_window:
+            self.correction_window.close()
         self.flush(); self.generation += 1; self.busy = False; self.ai_button.set_sensitive(True)
         self.window.set_visible(False)
         return True

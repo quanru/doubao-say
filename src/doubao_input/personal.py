@@ -80,7 +80,10 @@ class PersonalStore:
                 db.execute("CREATE TABLE IF NOT EXISTS history (id TEXT PRIMARY KEY, created REAL, original TEXT, output TEXT, polished INTEGER, status TEXT)")
                 db.execute("CREATE INDEX IF NOT EXISTS history_created ON history(created)")
                 db.execute("CREATE TABLE IF NOT EXISTS preferences (key TEXT PRIMARY KEY, value TEXT)")
+                db.execute("CREATE TABLE IF NOT EXISTS corrections (key TEXT PRIMARY KEY, recognized TEXT, corrected TEXT, context TEXT, created REAL)")
+                db.execute("CREATE TABLE IF NOT EXISTS confirmed_history (history_id TEXT PRIMARY KEY, text TEXT)")
                 db.execute("DELETE FROM history WHERE created < ?", (self.clock() - RETENTION,))
+                db.execute("DELETE FROM confirmed_history WHERE history_id NOT IN (SELECT id FROM history)")
                 yield db
         finally:
             db.close()
@@ -124,16 +127,50 @@ class PersonalStore:
     def history(self, limit=100):
         with self.database() as db:
             db.row_factory = sqlite3.Row
-            return [dict(row) for row in db.execute("SELECT * FROM history ORDER BY created DESC, rowid DESC LIMIT ?", (limit,))]
+            return [dict(row) for row in db.execute("SELECT history.*, COALESCE(confirmed_history.text, '') AS confirmed FROM history LEFT JOIN confirmed_history ON history.id=confirmed_history.history_id ORDER BY created DESC, history.rowid DESC LIMIT ?", (limit,))]
 
     def clear_history(self):
         with self.database() as db:
             db.execute("DELETE FROM history")
+            db.execute("DELETE FROM confirmed_history")
+
+    def corrections(self):
+        with self.database() as db:
+            db.row_factory = sqlite3.Row
+            return [dict(row) for row in db.execute("SELECT * FROM corrections ORDER BY created DESC, rowid DESC")]
+
+    def confirm_correction(self, identifier, recognized, corrected):
+        from doubao_input.personal_corrections import confirmation
+        with self.database() as db:
+            row = db.execute("SELECT original, COALESCE(confirmed_history.text, history.output) FROM history LEFT JOIN confirmed_history ON history.id=confirmed_history.history_id WHERE history.id=?", (identifier,)).fetchone()
+            if row is None:
+                raise ValueError("This history entry is no longer available")
+            source, target, text, context = confirmation(*row, recognized, corrected)
+            key = source.lower() + "\n" + target.lower()
+            if not db.execute("SELECT 1 FROM corrections WHERE key=?", (key,)).fetchone() and db.execute("SELECT COUNT(*) FROM corrections").fetchone()[0] >= 200:
+                raise ValueError("Correction memory supports up to 200 entries")
+            db.execute("INSERT OR REPLACE INTO corrections VALUES (?,?,?,?,?)", (key, source, target, context, self.clock()))
+            db.execute("INSERT OR REPLACE INTO confirmed_history VALUES (?,?)", (identifier, text))
+        return text
+
+    def forget_correction(self, key):
+        with self.database() as db:
+            db.execute("DELETE FROM corrections WHERE key=?", (key,))
+
+    def recognition_words(self):
+        # Confirmed spellings have priority; memory and manually entered words stay separately editable.
+        words = [item["corrected"] for item in self.corrections()] + self.words()
+        selected, seen = [], set()
+        for word in words:
+            if word.casefold() not in seen:
+                selected.append(word)
+                seen.add(word.casefold())
+        return selected[:200]
 
     def candidates(self, limit=120):
         counts, spellings = Counter(), {}
         with self.database() as db:
-            for (output,) in db.execute("SELECT output FROM history WHERE polished=1 AND status IN ('sent','attempted')"):
+            for (output,) in db.execute("SELECT COALESCE(confirmed_history.text, history.output) FROM history LEFT JOIN confirmed_history ON history.id=confirmed_history.history_id WHERE confirmed_history.text IS NOT NULL OR (polished=1 AND status IN ('sent','attempted'))"):
                 for term in terms(output):
                     key = term.casefold(); counts[key] += 1; spellings.setdefault(key, term)
         return sorted([(spellings[key], count) for key, count in counts.items() if count >= 2], key=lambda item: (-item[1], -len(item[0]), item[0]))[:limit]

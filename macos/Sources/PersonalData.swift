@@ -8,6 +8,7 @@ struct InputHistory: Identifiable {
     let output: String
     let polished: Bool
     let status: String
+    let confirmed: String
 }
 
 struct VocabularyCandidate: Identifiable {
@@ -86,7 +87,9 @@ final class PersonalDataStore {
         defer { sqlite3_close(db) }
         sqlite3_busy_timeout(db, 5000)
         guard sqlite3_exec(db, "PRAGMA secure_delete=ON; CREATE TABLE IF NOT EXISTS words (term TEXT PRIMARY KEY); CREATE TABLE IF NOT EXISTS history (id TEXT PRIMARY KEY, created REAL, original TEXT, output TEXT, polished INTEGER, status TEXT); CREATE INDEX IF NOT EXISTS history_created ON history(created); CREATE TABLE IF NOT EXISTS preferences (key TEXT PRIMARY KEY, value TEXT);", nil, nil, nil) == SQLITE_OK else { throw Failure.storage }
+        guard sqlite3_exec(db, "CREATE TABLE IF NOT EXISTS corrections (key TEXT PRIMARY KEY, recognized TEXT, corrected TEXT, context TEXT, created REAL); CREATE TABLE IF NOT EXISTS confirmed_history (history_id TEXT PRIMARY KEY, text TEXT);", nil, nil, nil) == SQLITE_OK else { throw Failure.storage }
         _ = try query(db, "DELETE FROM history WHERE created < ?", [clock().timeIntervalSince1970 - 30 * 86400])
+        _ = try query(db, "DELETE FROM confirmed_history WHERE history_id NOT IN (SELECT id FROM history)")
         return try body(db)
     }
     private func query(_ db: OpaquePointer, _ sql: String, _ values: [Any] = []) throws -> [[String]] {
@@ -135,15 +138,44 @@ final class PersonalDataStore {
     }
     func status(_ id: String?, _ status: String) throws { if let id = id { try database { _ = try query($0, "UPDATE history SET status=? WHERE id=?", [status, id]) } } }
     func history(limit: Int = 100) throws -> [InputHistory] {
-        try database { try query($0, "SELECT id,created,original,output,polished,status FROM history ORDER BY created DESC,rowid DESC LIMIT ?", [limit]).map {
-            InputHistory(id: $0[0], created: Date(timeIntervalSince1970: Double($0[1]) ?? 0), original: $0[2], output: $0[3], polished: $0[4] == "1", status: $0[5])
+        try database { try query($0, "SELECT history.id,created,original,output,polished,status,COALESCE(confirmed_history.text,'') FROM history LEFT JOIN confirmed_history ON history.id=confirmed_history.history_id ORDER BY created DESC,history.rowid DESC LIMIT ?", [limit]).map {
+            InputHistory(id: $0[0], created: Date(timeIntervalSince1970: Double($0[1]) ?? 0), original: $0[2], output: $0[3], polished: $0[4] == "1", status: $0[5], confirmed: $0[6])
         } }
     }
-    func clearHistory() throws { try database { _ = try query($0, "DELETE FROM history") } }
+    func clearHistory() throws { try database { db in
+        _ = try query(db, "DELETE FROM history"); _ = try query(db, "DELETE FROM confirmed_history")
+    } }
+    func corrections() throws -> [ConfirmedCorrection] {
+        try database { try query($0, "SELECT key,recognized,corrected,context FROM corrections ORDER BY created DESC,rowid DESC").map {
+            ConfirmedCorrection(id: $0[0], recognized: $0[1], corrected: $0[2], context: $0[3])
+        } }
+    }
+    @discardableResult func confirmCorrection(_ id: String, recognized: String, corrected: String) throws -> String {
+        try database { db in
+            _ = try query(db, "BEGIN IMMEDIATE")
+            do {
+                guard let row = try query(db, "SELECT original,COALESCE(confirmed_history.text,history.output) FROM history LEFT JOIN confirmed_history ON history.id=confirmed_history.history_id WHERE history.id=?", [id]).first else { throw Failure.invalid }
+                let (source, target, text, context) = try PersonalCorrections.confirmation(original: row[0], output: row[1], recognized: recognized, corrected: corrected)
+                let key = source.lowercased() + "\n" + target.lowercased()
+                let exists = try query(db, "SELECT 1 FROM corrections WHERE key=?", [key]).first != nil
+                let count = Int(try query(db, "SELECT COUNT(*) FROM corrections")[0][0]) ?? 0
+                guard exists || count < 200 else { throw Failure.invalid }
+                _ = try query(db, "INSERT OR REPLACE INTO corrections VALUES (?,?,?,?,?)", [key, source, target, context, clock().timeIntervalSince1970])
+                _ = try query(db, "INSERT OR REPLACE INTO confirmed_history VALUES (?,?)", [id, text])
+                _ = try query(db, "COMMIT")
+                return text
+            } catch { _ = try? query(db, "ROLLBACK"); throw error }
+        }
+    }
+    func forgetCorrection(_ id: String) throws { try database { _ = try query($0, "DELETE FROM corrections WHERE key=?", [id]) } }
+    func recognitionWords() throws -> [String] {
+        var seen = Set<String>()
+        return Array((try corrections().map(\.corrected) + words()).filter { seen.insert($0.lowercased()).inserted }.prefix(200))
+    }
     func candidates(limit: Int = 120) throws -> [VocabularyCandidate] {
         try database { db in
             var counts: [String: Int] = [:], spellings: [String: String] = [:]
-            for row in try query(db, "SELECT output FROM history WHERE polished=1 AND status IN ('sent','attempted')") {
+            for row in try query(db, "SELECT COALESCE(confirmed_history.text,history.output) FROM history LEFT JOIN confirmed_history ON history.id=confirmed_history.history_id WHERE confirmed_history.text IS NOT NULL OR (polished=1 AND status IN ('sent','attempted'))") {
                 for term in PersonalVocabulary.terms(row[0]) {
                     let key = term.lowercased(); counts[key, default: 0] += 1
                     if spellings[key] == nil { spellings[key] = term }

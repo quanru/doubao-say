@@ -5,6 +5,7 @@ struct APIASRCheck {
     static func main() {
         guard CommandLine.arguments.count == 3, let endpoint = URL(string: CommandLine.arguments[1]) else { exit(1) }
         let provider: RecognitionProvider = CommandLine.arguments[2] == "volcengine" ? .volcengine : .deepgram
+        try! PersonalDataStore.shared.saveWords("Midscene\nVibelet")
         let client = APIASRClient(provider: provider, endpoint: endpoint)
         var finished = false, opened = false, drained = false, text = "", failed = false
         client.onOpen = { DispatchQueue.main.async { opened = true } }
@@ -20,6 +21,7 @@ struct APIASRCheck {
         let deadline = Date().addingTimeInterval(8)
         while !finished && Date() < deadline { RunLoop.current.run(until: Date().addingTimeInterval(0.01)) }
         client.disconnect()
+        try! PersonalDataStore.shared.saveWords("")
         let expected = provider == .volcengine ? "synthetic result" : "First second"
         let passed = finished && opened && drained && text == expected && !failed
         print(passed ? "PASS: \(provider.rawValue) queued audio, final framing and recognition snapshot" : "FAIL: \(provider.rawValue) transport")

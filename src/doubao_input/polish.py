@@ -23,7 +23,9 @@ def polish_prompt_for_text(text, settings):
     from doubao_input.personal import PersonalStore, vocabulary_prompt
     prompt = settings.polish_prompt_zh if han_characters > latin_words else settings.polish_prompt_en
     try:
-        return vocabulary_prompt(prompt, PersonalStore().words())
+        from doubao_input.personal_corrections import correction_prompt
+        store = PersonalStore()
+        return correction_prompt(vocabulary_prompt(prompt, store.words()), text, store.corrections())
     except (OSError, ValueError, sqlite3.Error):
         return prompt
 
