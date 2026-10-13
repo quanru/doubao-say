@@ -148,6 +148,15 @@ class AppDeliveryEdgesTest(TestCase):
         self.assertEqual((normal.recent.text, normal.recent.status), ("partial", "partial"))
         normal._notify_recovery.assert_called_once()
 
+    def test_speech_evaluation_waits_for_prerolled_microphone(self):
+        app = SimpleNamespace(_busy=lambda: False,
+                              _audio_capture=SimpleNamespace(is_capturing=True))
+        self.assertFalse(DoubaoInputApp._can_evaluate_speech(app))
+        app._audio_capture.is_capturing = False
+        self.assertTrue(DoubaoInputApp._can_evaluate_speech(app))
+        app._busy = lambda: True
+        self.assertFalse(DoubaoInputApp._can_evaluate_speech(app))
+
     def test_cancel_input_clears_every_pending_owner(self):
         app = SimpleNamespace(_enter_after_paste=True, _triggers=Mock(), _setup_session=Mock(),
                               _recovery_timer=9, _delivery=Mock(), _polisher=Mock(),

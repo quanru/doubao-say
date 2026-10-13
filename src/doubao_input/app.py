@@ -391,10 +391,15 @@ class DoubaoInputApp(Gtk.Application):
             self._history_id = None
             self._control.set_feedback(tr("Could not save local input history. Input is still available.", "本地输入历史保存失败，文字仍可输入。"))
 
+    def _can_evaluate_speech(self):
+        audio = getattr(self, "_audio_capture", None)
+        # A held gesture may be buffering audio while the visible state is idle.
+        return not self._busy() and not (audio and audio.is_capturing)
+
     def _show_personal(self):
         from doubao_input.ui.personal_window import PersonalWindow
         if self._personal_window is None:
-            self._personal_window = PersonalWindow(self._personal_store, lambda: self.settings, self._polish_key, self.recent, self._retry_recent, lambda: not self._busy())
+            self._personal_window = PersonalWindow(self._personal_store, lambda: self.settings, self._polish_key, self.recent, self._retry_recent, self._can_evaluate_speech)
         self._personal_window.show()
 
     def _check_updates(self):
