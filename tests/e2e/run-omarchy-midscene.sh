@@ -3,6 +3,13 @@ set -euo pipefail
 
 readonly ROOT_DIR="$PWD"
 readonly MIDSCENE_PROJECT="${1:?Usage: run-omarchy-midscene.sh PROJECT}"
+case "$MIDSCENE_PROJECT" in
+  omarchy-shard-[1-4]|omarchy-shell|omarchy-providers) ;;
+  *)
+    echo "Unsupported Omarchy Midscene project: $MIDSCENE_PROJECT" >&2
+    exit 2
+    ;;
+esac
 readonly WORK_DIR="$ROOT_DIR/.midscene-omarchy"
 readonly HARNESS_DIR="$WORK_DIR/omarchy-iso"
 # shellcheck source=omarchy-vm.env
@@ -219,15 +226,4 @@ for _gate_attempt in {1..100}; do
   sleep 0.2
 done
 
-case "$MIDSCENE_PROJECT" in
-  omarchy-shard-[1-4])
-    npm --prefix tests/e2e test -- --project "$MIDSCENE_PROJECT"
-    ;;
-  omarchy-shell)
-    npm --prefix tests/e2e test -- --project "$MIDSCENE_PROJECT"
-    ;;
-  *)
-    echo "Unsupported Omarchy Midscene project: $MIDSCENE_PROJECT" >&2
-    exit 2
-    ;;
-esac
+npm --prefix tests/e2e test -- --project "$MIDSCENE_PROJECT"
