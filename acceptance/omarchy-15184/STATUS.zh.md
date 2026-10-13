@@ -1,6 +1,6 @@
 # 当前验收状态
 
-当前唯一运行：[38407307331](https://github.com/quanru/doubao-say/actions/runs/38407307331)，job 115330178510，harness e391c509c2efd4f7bd28701a0dac3aa61db13e0d，构建中。相同提交出现两条push运行；排队重复项38407310019已取消，未进入模型步骤。新轮仅使用真实QMP Shift测20次延迟；Super+I只用于初始化。
+当前唯一运行：[38407307331](https://github.com/quanru/doubao-say/actions/runs/38407307331)，job 115330178510，harness e391c509c2efd4f7bd28701a0dac3aa61db13e0d，构建和真实VM启动已通过，桌面用例执行中。相同提交出现两条push运行；排队重复项38407310019已取消，未进入模型步骤。新轮仅使用真实QMP Shift测20次延迟；Super+I只用于初始化。
 
 上轮38402519102已完成真实Pinyin输入“你好”和20次Shift引擎状态切换，所有24个只读观察中的进程身份未变化。模型用aiQuery给出了错误ROI [898,5,22,22]，两份模板相同，故20组截图/事件均不能支持500ms结论。没有报通过。
 
