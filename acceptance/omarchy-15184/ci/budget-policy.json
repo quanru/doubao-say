@@ -22,6 +22,11 @@
       "run_id": 38397021675,
       "micro_cny": 10000000,
       "purpose": "Hyprland Lua focus and verified actual fcitx5-config-qt GUI; attempt 1 only"
+    },
+    {
+      "run_id": 38402519102,
+      "micro_cny": 10000000,
+      "purpose": "Initial engine selection via real QMP Super+I; in-app Shift timings; explicit GUI Pinyin search; attempt 1 only"
     }
   ],
   "note": "Each unique run ID, attempt 1 only, requires an allocation; all allocations count cumulatively <=100 CNY, no cross-run refunds. Official regular prices 3/15; conservative ceiling 6/30 also covers documented fast tier; send default tier. Input entire 256Ki token model ceiling, all output incl reasoning capped max_completion_tokens=4096.",
