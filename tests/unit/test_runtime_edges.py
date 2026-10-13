@@ -94,13 +94,25 @@ class HostIntegrationTest(TestCase):
 
     def test_flatpak_command_candidates(self):
         with patch("os.path.exists", return_value=True), \
-                patch("shutil.which", side_effect=lambda tool: f"/bin/{tool}"):
+                patch("shutil.which", side_effect=lambda tool: f"/bin/{tool}"), \
+                patch("subprocess.run", return_value=subprocess.CompletedProcess([], 0)):
             self.assertEqual(host_tools.command_candidates("wl-copy"), [
                 ["wl-copy"], ["flatpak-spawn", "--host", "wl-copy"]])
             self.assertTrue(host_tools.has_tool("wl-copy"))
         with patch("os.path.exists", return_value=False), patch("shutil.which", return_value=None):
             self.assertFalse(host_tools.is_flatpak())
             self.assertEqual(host_tools.command_candidates("missing"), [])
+
+    def test_flatpak_wrappers_do_not_hide_missing_host_tools(self):
+        with patch.object(host_tools, "is_flatpak", return_value=True), \
+                patch("shutil.which", return_value="/app/bin/pw-record"), \
+                patch("subprocess.run", return_value=subprocess.CompletedProcess([], 1)) as probe:
+            self.assertFalse(host_tools.has_tool("pw-record"))
+            self.assertEqual(probe.call_args.args[0][-1], "pw-record")
+        with patch.object(host_tools, "is_flatpak", return_value=True), \
+                patch("shutil.which", return_value="/usr/bin/flatpak-spawn"), \
+                patch("subprocess.run", side_effect=subprocess.TimeoutExpired("probe", 2)):
+            self.assertFalse(host_tools.has_tool("pw-record"))
 
     def test_focused_target_accepts_only_valid_external_address(self):
         with patch.dict("os.environ", {"HYPRLAND_INSTANCE_SIGNATURE": "test"}), \

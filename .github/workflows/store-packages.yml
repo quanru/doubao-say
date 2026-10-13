@@ -21,13 +21,15 @@ jobs:
       - name: Build, install and remove on Fedora
         run: |
           docker run --rm -v "$RUNNER_TEMP/rpm:/build" fedora:44 bash -euxc '
-            dnf install -y desktop-file-utils rpm-build python3 gtk4 webkitgtk6.0 python3-gobject python3-cairo python3-websockets python3-evdev pipewire-utils wl-clipboard
+            dnf install -y desktop-file-utils rpm-build python3-devel gtk4 webkitgtk6.0 python3-gobject python3-cairo python3-websockets python3-evdev pipewire-utils wl-clipboard
             rpmbuild --define "_topdir /build" -bb /build/SPECS/doubao-say.spec
             dnf install -y /build/RPMS/noarch/*.rpm
             python3 -c "import gi, websockets, evdev; gi.require_version(\"Gtk\", \"4.0\"); gi.require_version(\"WebKit\", \"6.0\"); from gi.repository import Gtk, WebKit"
             test -x /usr/bin/doubao-say
-            test -f /usr/share/doubao-say/doubao_input/resources/logo.png
+            python3 -c "import doubao_input; from importlib.resources import files; assert files(doubao_input).joinpath(\"resources/logo.png\").is_file()"
             desktop-file-validate /usr/share/applications/md.lifeos.DoubaoSay.desktop
+            env -u PYTHONPATH python3 -c "import doubao_input; from doubao_input.settings import install_desktop; import tempfile, os; os.environ[\"XDG_DATA_HOME\"] = tempfile.mkdtemp(); path = install_desktop(portal=True); assert \"-m\" in path.read_text()"
+            rpm -ql doubao-say | grep "/NOTICE$"
             rpm -V doubao-say
             dnf remove -y doubao-say
             test ! -e /usr/bin/doubao-say
@@ -66,6 +68,8 @@ jobs:
           dbus-run-session -- flatpak run --command=sh md.lifeos.DoubaoSay -ec '
             test -x /app/bin/doubao-say
             test -x /app/bin/pw-record
+            test -s /app/share/licenses/doubao-say/NOTICE
+            PYTHONPATH=/app/share/doubao-say python3 -c "from doubao_input.doubao.host_tools import has_tool; assert not has_tool(\"doubao-say-missing-tool-ci\")"
             PYTHONPATH=/app/share/doubao-say python3 -c "import gi, websockets, evdev; gi.require_version(\"Gtk\", \"4.0\"); gi.require_version(\"WebKit\", \"6.0\"); gi.require_version(\"Gtk4LayerShell\", \"1.0\"); from gi.repository import Gtk, WebKit, Gtk4LayerShell"
           '
           xvfb-run -a dbus-run-session -- python3 packaging/store/smoke-launch.py -- flatpak run --env=GDK_BACKEND=x11 md.lifeos.DoubaoSay

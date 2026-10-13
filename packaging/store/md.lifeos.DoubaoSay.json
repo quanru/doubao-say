@@ -125,7 +125,9 @@
         "install -Dm755 packaging/store/host-tool.sh /app/bin/wmctrl",
         "install -Dm755 packaging/store/host-tool.sh /app/bin/hyprctl",
         "install -Dm755 packaging/store/host-tool.sh /app/bin/wtype",
-        "install -Dm644 LICENSE /app/share/licenses/doubao-say/LICENSE"
+        "install -Dm644 LICENSE /app/share/licenses/doubao-say/LICENSE",
+        "install -Dm644 NOTICE /app/share/licenses/doubao-say/NOTICE",
+        "install -Dm644 README.md /app/share/doc/doubao-say/README.md"
       ],
       "sources": [
         {

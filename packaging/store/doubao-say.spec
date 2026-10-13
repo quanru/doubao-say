@@ -6,6 +6,8 @@ License:        MIT
 URL:            https://doubao-say.lifeos.md/
 Source0:        doubao-say-%{version}.tar.gz
 BuildArch:      noarch
+BuildRequires:  python3-devel
+Requires:       python(abi) = %{python3_version}
 Requires:       python3 >= 3.11
 Requires:       python3-gobject
 Requires:       python3-cairo
@@ -32,20 +34,23 @@ No services are started and no input-group memberships are modified on install.
 %build
 
 %install
-mkdir -p %{buildroot}%{_datadir}/doubao-say %{buildroot}%{_bindir}
-cp -a src/doubao_input %{buildroot}%{_datadir}/doubao-say/
-find %{buildroot}%{_datadir}/doubao-say -name __pycache__ -type d -exec rm -rf {} +
-sed 's|@PREFIX@|/usr|g' packaging/store/launch.sh > %{buildroot}%{_bindir}/doubao-say
+mkdir -p %{buildroot}%{python3_sitelib} %{buildroot}%{_bindir}
+cp -a src/doubao_input %{buildroot}%{python3_sitelib}/
+find %{buildroot}%{python3_sitelib}/doubao_input -name __pycache__ -type d -exec rm -rf {} +
+cat > %{buildroot}%{_bindir}/doubao-say <<'LAUNCHER'
+#!/bin/sh
+exec /usr/bin/python3 -m doubao_input "$@"
+LAUNCHER
 chmod 755 %{buildroot}%{_bindir}/doubao-say
 install -Dm644 packaging/store/md.lifeos.DoubaoSay.desktop %{buildroot}%{_datadir}/applications/md.lifeos.DoubaoSay.desktop
 install -Dm644 packaging/store/md.lifeos.DoubaoSay.metainfo.xml %{buildroot}%{_datadir}/metainfo/md.lifeos.DoubaoSay.metainfo.xml
 install -Dm644 src/doubao_input/resources/logo-128.png %{buildroot}%{_datadir}/icons/hicolor/128x128/apps/md.lifeos.DoubaoSay.png
 
 %files
-%license LICENSE
+%license LICENSE NOTICE
 %doc README.md
 %{_bindir}/doubao-say
-%{_datadir}/doubao-say/
+%{python3_sitelib}/doubao_input/
 %{_datadir}/applications/md.lifeos.DoubaoSay.desktop
 %{_datadir}/metainfo/md.lifeos.DoubaoSay.metainfo.xml
 %{_datadir}/icons/hicolor/128x128/apps/md.lifeos.DoubaoSay.png

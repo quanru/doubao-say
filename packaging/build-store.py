@@ -25,7 +25,7 @@ def main():
     # Never copy Git metadata, credentials, ignored build products, or caches.
     shutil.copytree(ROOT / 'src', source / 'src', ignore=shutil.ignore_patterns('__pycache__', '*.pyc'))
     shutil.copytree(ROOT / 'packaging/store', source / 'packaging/store')
-    for name in ('README.md', 'LICENSE', 'pyproject.toml'):
+    for name in ('README.md', 'LICENSE', 'NOTICE', 'pyproject.toml'):
         shutil.copy2(ROOT / name, source / name)
     revision = subprocess.check_output(['git', 'rev-parse', 'HEAD'], cwd=ROOT, text=True).strip()
     (output / 'SOURCE.json').write_text(json.dumps({'version': version, 'commit': revision}, indent=2) + '\n')
