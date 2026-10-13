@@ -36,7 +36,7 @@ import SwiftUI
                     if page == "evaluation-results" {
                         model.samples[index].results = [SpeechResult(mode: "raw", text: "用 Midjourney 编写自动化测试", elapsedMS: 1800), SpeechResult(mode: "hotwords", text: "用 Midscene 编写自动化测试", elapsedMS: 1700), SpeechResult(mode: "hotwords+polish", text: "用 Midscene 编写自动化测试。", elapsedMS: 1900)]
                     }
-                    model.save()
+                    model.save(); model.refreshSummary()
                 }
                 let window = NSWindow(contentRect: NSRect(x: 0, y: 0, width: 700, height: 640), styleMask: [.titled, .closable], backing: .buffered, defer: false)
                 window.title = "Speech evaluation verification"; window.center(); parent = window

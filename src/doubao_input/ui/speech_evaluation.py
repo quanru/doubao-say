@@ -222,6 +222,7 @@ class SpeechEvaluationPage:
             try:
                 results = self.workbench.compare(credentials, words, polisher=polisher if key else None)
             except Exception:
+                results = list(self.workbench.completed_results)
                 failed = True
             GLib.idle_add(done, results, failed)
         def done(results, failed):

@@ -760,7 +760,7 @@ class DoubaoInputApp(Gtk.Application):
         self._recovery_timer = GLib.timeout_add(3000, retry)
 
     def _cancel_input(self):
-        if self._personal_window and self._personal_window.evaluation:
+        if getattr(self, "_personal_window", None) and self._personal_window.evaluation:
             self._personal_window.evaluation.cancel()
         self._enter_after_paste = False
         if self._triggers:

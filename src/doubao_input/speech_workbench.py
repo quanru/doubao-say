@@ -14,7 +14,7 @@ class SpeechWorkbench:
         self.directory = Path(directory)
         self.samples = []
         self.cancelled = threading.Event()
-        self.busy = False
+        self.completed_results = []
         path = self.directory / 'samples.jsonl'
         if path.exists():
             self.samples = read_rows(path)
@@ -71,6 +71,7 @@ class SpeechWorkbench:
     def compare(self, credentials, words, *, polisher=None, progress=lambda *_: None, recognizer=recognize):
         rows = self.validated()
         results = []
+        self.completed_results = results
         for row in rows:
             if self.cancelled.is_set():
                 break

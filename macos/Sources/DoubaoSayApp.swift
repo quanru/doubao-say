@@ -196,6 +196,7 @@ final class AppDelegate: NSObject, NSApplicationDelegate, NSMenuDelegate {
             self?.settingsWindow.updateTitle()
             self?.rebuildMenu()
         }
+        model.canEvaluate = { [weak self] in self?.transcription.canInstallUpdate ?? false }
         transcription.canRecord = { [weak model] in !(model?.testing ?? false) && !(model?.capturing ?? false) }
         model.cancelCapture = { [weak self] in self?.hotkey.cancelCapture() }
         model.apply = { [weak self] settings, recognitionKey, polishKey in

@@ -43,6 +43,7 @@ final class SettingsModel: ObservableObject {
     var shortcutReady: (() -> Bool)?
     var onFinishSetup: (() -> Void)?
     var checkUpdates: (() -> Void)?
+    var canEvaluate: (() -> Bool)?
     var cancelEvaluation: (() -> Void)?
     var cancelUpdate: (() -> Void)?
     var installUpdate: (() -> Void)?
@@ -341,7 +342,7 @@ struct SettingsView: View {
         case "result": result
         case "vocabulary": PersonalVocabularyView(settingsModel: model)
         case "history": InputHistoryView(state: state)
-        case "speech-evaluation": SpeechEvaluationView(state: state, settingsModel: model, canStart: { !model.testing && !model.capturing })
+        case "speech-evaluation": SpeechEvaluationView(state: state, settingsModel: model, canStart: { !model.testing && !model.capturing && (model.canEvaluate?() ?? true) })
         case "updates": updatePage
         default: setup
         }

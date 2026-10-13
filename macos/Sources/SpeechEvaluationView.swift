@@ -68,8 +68,8 @@ struct SpeechEvaluationView: View {
                         Text(L("Comparison summary", "对比汇总")).font(.headline)
                         Text(L("Lower character errors and protected-term loss are better. Higher target-term accuracy is better. Missing/failed samples count as failures. Timing includes connection and recording playback; it is separate from daily input delay.", "字错率和受保护词丢失率越低越好，目标词准确率越高越好。缺失或失败样本按失败计分。此处耗时包含连接和录音回放，与日常输入等待时间分开。"))
                             .font(.caption).foregroundColor(.secondary).fixedSize(horizontal: false, vertical: true)
-                        ForEach(["raw", "hotwords", "hotwords+polish"].filter { mode in model.samples.contains { $0.results.contains { $0.mode == mode } } }, id: \.self) { mode in
-                            let report = SpeechScoring.summary(model.samples, mode: mode)
+                        ForEach(["raw", "hotwords", "hotwords+polish"].filter { model.summaries[$0] != nil }, id: \.self) { mode in
+                            let report = model.summaries[mode] ?? [:]
                             VStack(alignment: .leading, spacing: 4) {
                                 Text(title(mode)).font(.headline)
                                 Text(String(format: L("Character error rate %.1f%% · Failed %.0f/%.0f", "字错率 %.1f%% · 失败 %.0f/%.0f"), (report["cer"] ?? 0) * 100, report["failed"] ?? 0, report["samples"] ?? 0))
@@ -88,7 +88,7 @@ struct SpeechEvaluationView: View {
                     }
                 } else { Text(L("Add your first sample to begin.", "添加第一条样本开始评测。")) }
             }.padding(16)
-        }.onAppear { settingsModel?.cancelEvaluation = { [weak model] in model?.cancel() } }
+        }.onAppear { settingsModel?.cancelEvaluation = { [weak evaluation = model] in evaluation?.cancel() } }
         .onDisappear { model.cancel(); model.save(); settingsModel?.cancelEvaluation = nil }
     }
 }

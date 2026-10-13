@@ -55,6 +55,8 @@ import Combine
     @Published var includePolish = true
     @Published var feedback = ""
     @Published var hotwords = ""
+    @Published var summaries: [String: [String: Double]] = [:]
+    private var summaryRevision = UUID()
     let store: SpeechSampleStore
     private let state: AppState
     private let audio = AudioCaptureManager()
@@ -69,6 +71,7 @@ import Combine
     init(state: AppState, store: SpeechSampleStore = SpeechSampleStore(), canStart: @escaping () -> Bool = { true }) {
         self.state = state; self.store = store; self.canStart = canStart
         do { samples = try store.load(); selected = samples.first?.id } catch { feedback = L("Could not read local speech samples.", "无法读取本地语音样本。") }
+        refreshSummary()
     }
     var index: Int? { samples.firstIndex { $0.id == selected } }
     func add() {
@@ -78,11 +81,11 @@ import Combine
     func save() { do { try store.save(samples) } catch { feedback = L("Could not save local speech samples.", "本地语音样本保存失败。") } }
     func edit(_ field: WritableKeyPath<SpeechSample, String>, _ text: String) {
         guard !busy, !recording, let index = index else { return }
-        samples[index][keyPath: field] = text; samples[index].results = []; save()
+        samples[index][keyPath: field] = text; samples[index].results = []; save(); refreshSummary()
     }
     func delete() {
         guard !busy, !recording, let index = index else { return }
-        do { try store.remove(samples[index].id); samples.remove(at: index); selected = samples.first?.id; save() }
+        do { try store.remove(samples[index].id); samples.remove(at: index); selected = samples.first?.id; save(); refreshSummary() }
         catch { feedback = L("Could not delete the local recording.", "无法删除本地录音。") }
     }
     func record() {
@@ -128,9 +131,9 @@ import Combine
         hotwords = context ?? "[]"
         let snapshot = samples; generation = UUID(); let token = generation
         busy = true; state.evaluationBusy = true
-        samples.indices.forEach { samples[$0].results = [] }; save()
+        samples.indices.forEach { samples[$0].results = [] }; summaries = [:]; summaryRevision = UUID(); save()
         task = Task { @MainActor in
-            defer { if generation == token { busy = false; state.evaluationBusy = false; replay = nil; task = nil; save() } }
+            defer { if generation == token { busy = false; state.evaluationBusy = false; replay = nil; task = nil; save(); refreshSummary() } }
             do {
                 // Validate every recording before any paid request.
                 for sample in snapshot {
@@ -179,5 +182,19 @@ import Combine
         pcm = Data(); task?.cancel(); task = nil; replay?.cancel(); replay = nil
         polisher?.cancel(); finishPolish(nil); recording = false; busy = false; state.evaluationBusy = false
         feedback = L("Cancelled. Completed results remain available.", "已取消，已完成的结果保留。")
+        refreshSummary()
+    }
+    func refreshSummary() {
+        let snapshot = samples; summaryRevision = UUID(); let revision = summaryRevision
+        Task { @MainActor in
+            let reports = await Task.detached(priority: .utility) { () -> [String: [String: Double]] in
+                var result: [String: [String: Double]] = [:]
+                for mode in ["raw", "hotwords", "hotwords+polish"] where snapshot.contains(where: { $0.results.contains { $0.mode == mode } }) {
+                    result[mode] = SpeechScoring.summary(snapshot, mode: mode)
+                }
+                return result
+            }.value
+            if summaryRevision == revision { summaries = reports }
+        }
     }
 }
