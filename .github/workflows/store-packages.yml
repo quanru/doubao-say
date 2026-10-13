@@ -66,7 +66,7 @@ jobs:
           dbus-run-session -- flatpak run --command=sh md.lifeos.DoubaoSay -ec '
             test -x /app/bin/doubao-say
             test -x /app/bin/pw-record
-            PYTHONPATH=/app/share/doubao-say python3 -c "import gi, websockets, evdev; gi.require_version(\"Gtk\", \"4.0\"); gi.require_version(\"WebKit\", \"6.0\"); from gi.repository import Gtk, WebKit"
+            PYTHONPATH=/app/share/doubao-say python3 -c "import gi, websockets, evdev; gi.require_version(\"Gtk\", \"4.0\"); gi.require_version(\"WebKit\", \"6.0\"); gi.require_version(\"Gtk4LayerShell\", \"1.0\"); from gi.repository import Gtk, WebKit, Gtk4LayerShell"
           '
           xvfb-run -a dbus-run-session -- python3 packaging/store/smoke-launch.py -- flatpak run --env=GDK_BACKEND=x11 md.lifeos.DoubaoSay --show
           flatpak info --user --show-permissions md.lifeos.DoubaoSay

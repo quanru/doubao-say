@@ -20,7 +20,8 @@
         "-Ddocs=false",
         "-Dexamples=false",
         "-Dtests=false",
-        "-Dvapi=false"
+        "-Dvapi=false",
+        "--libdir=lib"
       ],
       "sources": [
         {
@@ -30,7 +31,7 @@
         }
       ],
       "post-install": [
-        "install -Dm644 LICENSE /app/share/licenses/gtk4-layer-shell/LICENSE"
+        "install -Dm644 /run/build/gtk4-layer-shell/LICENSE /app/share/licenses/gtk4-layer-shell/LICENSE"
       ]
     },
     {
