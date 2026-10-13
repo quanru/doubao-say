@@ -203,7 +203,7 @@ cases:
           prompt: The page title is Recognition and the empty API Key field is visible.
           options: { timeoutMs: 30000, checkIntervalMs: 1000 }
       - aiAssert: Open Doubao sign-in is hidden, and both Test API key and right-arrow Next are disabled while the API Key is empty.
-      - aiAct: Enter synthetic-ci-key in the API Key field.
+      - aiAct: Enter synthetic-ci-key in the API Key field. Then scroll down within the Recognition page until the Test API key button and the credential status below it are fully visible.
       - aiWaitFor:
           prompt: The API Key field is empty with the Saved — leave blank to keep placeholder, API key saved automatically is visible, and Test API key is enabled.
           options: { timeoutMs: 30000, checkIntervalMs: 1000 }
@@ -228,7 +228,7 @@ cases:
       - computer.inputText:
           target: The empty masked text entry to the right of API Key, with placeholder Enter speech API key
           value: synthetic-deepgram-key
-      - aiAct: Test the saved Deepgram API key. Scroll within the page if the Test API key button is below the visible area.
+      - aiAct: Click Test API key to test the saved Deepgram key, scrolling within the Recognition page if needed. After the test completes, scroll down within the page to bring the result message below the button into view.
       - aiWaitFor:
           prompt: The API key is accepted by the synthetic endpoint and the speech API is ready.
           options: { timeoutMs: 30000, checkIntervalMs: 1000 }
@@ -237,11 +237,11 @@ cases:
           prompt: The Volcengine API credential instructions are visible, the empty API Key entry says Enter speech API key, and Test API key is disabled.
           options: { timeoutMs: 30000, checkIntervalMs: 1000 }
       - aiAssert: The page says no API key is saved for this service and does not show the previous accepted result.
-      - aiAct: Switch the Recognition service back to Deepgram Nova-3 (English). Then scroll within the Recognition page until the API Key entry and Test API key button are visible.
+      - aiAct: Keep the Recognition page open and scroll up within its content to find the Recognition service dropdown. Select Deepgram Nova-3 (English) in that dropdown. Then scroll down within the same page until the API Key entry and Test API key button are fully visible.
       - aiWaitFor:
           prompt: The Deepgram API credential instructions are visible, the empty API Key entry says Saved — leave blank to keep, and Test API key is enabled.
           options: { timeoutMs: 30000, checkIntervalMs: 1000 }
-      - aiAct: Test the saved Deepgram API key.
+      - aiAct: Click Test API key to test the saved Deepgram key again, scrolling within the Recognition page if needed. After the test completes, scroll down within the page to bring the result message below the button into view.
       - aiWaitFor:
           prompt: The API key is accepted by the synthetic endpoint and the speech API is ready.
           options: { timeoutMs: 30000, checkIntervalMs: 1000 }

@@ -153,6 +153,21 @@ class OnboardingKeyPersistenceTest(TestCase):
         self.assertEqual(self.provider, "deepgram")
         view._actions.save_asr.assert_not_called()
 
+    def test_saved_key_replaces_stale_provider_feedback(self):
+        view = self.view()
+        self.assertTrue(view._save_asr_key_now())
+        view.set_feedback.assert_called_with("API key saved automatically.")
+
+    def test_key_test_result_replaces_stale_feedback(self):
+        for result, error, expected in (
+            ("accepted", "", "accepted"),
+            (None, "synthetic rejection", "Test failed: synthetic rejection"),
+        ):
+            with self.subTest(error=error):
+                view = self.view()
+                view._asr_tested(result, error)
+                view.set_feedback.assert_called_with(expected)
+
     def test_empty_entry_reflects_saved_key_for_current_provider(self):
         view = self.view()
         self.draft = ""
@@ -171,6 +186,7 @@ class OnboardingKeyPersistenceTest(TestCase):
         view.hide()
         self.assertEqual(self.provider, "volcengine")
         self.assertEqual(self.draft, "synthetic-volcengine")
+        view.set_feedback.assert_called_with("synthetic write failure")
         view._window.set_visible.assert_not_called()
 
     def test_key_test_blocks_switch_and_restores_controls_on_completion(self):
