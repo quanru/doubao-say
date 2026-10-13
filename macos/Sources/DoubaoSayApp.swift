@@ -105,9 +105,9 @@ final class AppDelegate: NSObject, NSApplicationDelegate, NSMenuDelegate {
         if SettingsStore.shared.value.provider == .doubao { add(L("Sign in to Doubao…", "登录豆包…"), #selector(showLogin)) }
         if state.loginStatus == .loggedIn { add(L("Sign out", "退出登录"), #selector(logout)) }
         add(L("Copy last result", "复制最近结果"), #selector(copyLast)).isEnabled = !state.lastTranscript.isEmpty
-        add(L("Retry input in 3 seconds", "三秒后重试输入"), #selector(retryLast)).isEnabled = !state.lastTranscript.isEmpty && state.recordingState == .idle
+        add(L("Retry input in 3 seconds", "三秒后重试输入"), #selector(retryLast)).isEnabled = !state.lastTranscript.isEmpty && state.recordingState == .idle && !state.inputPending && !state.evaluationBusy
         add(L("Clear recent text", "清除最近文字"), #selector(clearLast)).isEnabled = !state.lastTranscript.isEmpty
-        add(L("Cancel recording", "取消录音"), #selector(cancelRecording)).isEnabled = state.recordingState != .idle
+        add(L("Cancel input", "取消输入"), #selector(cancelRecording)).isEnabled = state.recordingState != .idle || state.inputPending
         let paste = add(L("Automatically paste", "自动粘贴"), #selector(togglePaste))
         paste.state = (UserDefaults.standard.object(forKey: "autoPaste") as? Bool ?? true) ? .on : .off
         menu.addItem(.separator())
@@ -196,6 +196,7 @@ final class AppDelegate: NSObject, NSApplicationDelegate, NSMenuDelegate {
             self?.settingsWindow.updateTitle()
             self?.rebuildMenu()
         }
+        model.canEvaluate = { [weak self] in self?.transcription.canInstallUpdate ?? false }
         transcription.canRecord = { [weak model] in !(model?.testing ?? false) && !(model?.capturing ?? false) }
         model.cancelCapture = { [weak self] in self?.hotkey.cancelCapture() }
         model.apply = { [weak self] settings, recognitionKey, polishKey in
@@ -282,21 +283,23 @@ final class AppDelegate: NSObject, NSApplicationDelegate, NSMenuDelegate {
         let alert = NSAlert()
         alert.messageText = "Doubao Say · macOS"
         alert.informativeText = L("""
-        Sign in to Doubao, then enable the microphone and global shortcut.
+        Configure your recognition service, then enable the microphone and global shortcut.
         Focus an input field before recording.
         Your configured shortcut: tap to toggle, hold to talk; double-tap sends Enter.
         Escape: cancel. Maximum recording: 60 seconds.
         If the input target changes, use Copy last result from this menu.
-        Audio is sent to Doubao for recognition. No local audio files are saved.
+        Dictation audio is sent to your selected service without saving local audio files.
+        Speech evaluation recordings are saved locally until you delete them; running a comparison uploads them.
         Settings includes recognition services, polishing, microphones, shortcuts and input recovery.
         Polishing sends text to your configured endpoint, with a five-second limit.
         """, """
-        登录豆包，并启用麦克风和全局快捷键权限。
+        配置识别服务，并启用麦克风和全局快捷键权限。
         录音前将光标放到输入框。
         使用你配置的快捷键：短按切换录音，长按说话；双击发送回车。
         Esc 取消。单次最多录音 60 秒。
         输入目标变化时，请从菜单复制最近结果。
-        音频发送至豆包识别，不保存本地录音文件。
+        普通听写音频发送至所选识别服务，不保存本地录音文件。
+        语音评测录音会保存在本机，直到手动删除；开始对比时才上传。
         可在设置中配置识别服务、润色、麦克风、快捷键和输入恢复。
         润色将文字发送至你配置的接口，最多等待五秒。
         """)

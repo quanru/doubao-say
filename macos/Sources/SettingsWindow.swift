@@ -43,6 +43,8 @@ final class SettingsModel: ObservableObject {
     var shortcutReady: (() -> Bool)?
     var onFinishSetup: (() -> Void)?
     var checkUpdates: (() -> Void)?
+    var canEvaluate: (() -> Bool)?
+    var cancelEvaluation: (() -> Void)?
     var cancelUpdate: (() -> Void)?
     var installUpdate: (() -> Void)?
     var releaseNotes: (() -> Void)?
@@ -83,7 +85,7 @@ final class SettingsModel: ObservableObject {
     }
     @discardableResult func saveIfNeeded() -> Bool { (!hasPendingAutosave || save()) && (flushPersonal?() ?? true) }
     func closeEditor() {
-        stopTests(); cancelCapture?(); capturing = false
+        cancelEvaluation?(); stopTests(); cancelCapture?(); capturing = false
         if saveIfNeeded() {
             suppressAutosave = true
             recognitionKey = ""; polishKey = ""; savedRecognitionKey = ""; savedPolishKey = ""
@@ -194,7 +196,7 @@ final class SettingsModel: ObservableObject {
         client.start(text: "周三上线，不对，周四上线。", settings: draft, apiKey: key)
     }
     func clearKey(_ account: String) {
-        guard !testing, state.recordingState == .idle else { return }
+        guard !testing, !state.evaluationBusy, state.recordingState == .idle else { return }
         do {
             try SecretStore.clear(account)
             if account == "polish-api-key" { savedPolishKey = ""; polishKey = ""; polishKeySaved = false }
@@ -227,7 +229,7 @@ final class SettingsModel: ObservableObject {
     }
     func checkMicrophone() {
         guard saveIfNeeded() else { return }
-        guard !testing, state.recordingState == .idle else { return }
+        guard !testing, !state.evaluationBusy, state.recordingState == .idle else { return }
         guard AVCaptureDevice.authorizationStatus(for: .audio) == .authorized else {
             AVCaptureDevice.requestAccess(for: .audio) { _ in }
             feedback = L("Allow microphone access, then retry.", "允许麦克风访问后，请重试。"); return
@@ -272,6 +274,7 @@ struct SettingsView: View {
         ("result", L("Recent text", "最近文字"), "text.alignleft"),
         ("vocabulary", L("Personal vocabulary", "个人词汇"), "character.book.closed"),
         ("history", L("Input history", "输入历史"), "clock"),
+        ("speech-evaluation", L("Speech evaluation", "语音评测"), "chart.bar"),
         ("updates", L("Updates", "软件更新"), "arrow.triangle.2.circlepath") ] }
     private var pageTitle: String { pages.first { $0.0 == model.selectedTab }?.1 ?? L("Settings", "设置") }
     var body: some View {
@@ -339,6 +342,7 @@ struct SettingsView: View {
         case "result": result
         case "vocabulary": PersonalVocabularyView(settingsModel: model)
         case "history": InputHistoryView(state: state)
+        case "speech-evaluation": SpeechEvaluationView(state: state, settingsModel: model, canStart: { !model.testing && !model.capturing && (model.canEvaluate?() ?? true) })
         case "updates": updatePage
         default: setup
         }
@@ -560,7 +564,7 @@ struct SettingsView: View {
             PaddedTextEditor(text: $state.lastTranscript)
             HStack {
                 Button(L("Copy", "复制")) { PasteHelper.copyOnly(state.lastTranscript) }.disabled(state.lastTranscript.isEmpty)
-                Button(L("Retry in 3 seconds", "三秒后重试")) { model.retry?() }.disabled(state.lastTranscript.isEmpty || state.recordingState != .idle)
+                Button(L("Retry in 3 seconds", "三秒后重试")) { model.retry?() }.disabled(state.lastTranscript.isEmpty || state.recordingState != .idle || state.inputPending || state.evaluationBusy)
                 Button(L("Clear", "清除")) { model.clear?() }
             }
         }.padding(16)

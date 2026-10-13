@@ -19,6 +19,8 @@ enum RecordingState {
 class AppState: ObservableObject {
     static let shared = AppState()
 
+    @Published var evaluationBusy = false
+    @Published var inputPending = false
     @Published var updateVersion = ""
     @Published var updateStatus = ""
     @Published var updateBusy = false
@@ -45,6 +47,7 @@ class AppState: ObservableObject {
 
     func reset() {
         recordingState = .idle
+        inputPending = false
         transcriptionText = ""
         showOverlay = false
         errorMessage = nil

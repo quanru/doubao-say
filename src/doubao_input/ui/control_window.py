@@ -78,8 +78,8 @@ class ControlWindow:
         if self._actions.is_preview_testing():
             self._actions.cancel_preview()
         flush = getattr(self, "_flush_asr_key", None)
-        if flush:
-            flush()
+        if flush and not flush():
+            return
         if self._window:
             self._window.set_visible(False)
 
@@ -159,6 +159,7 @@ class ControlWindow:
         summary = self._actions.summary()
         provider = recognition_provider(summary.get("asr_provider", "doubao"))
         uses_api_key = provider.uses_api_key
+        self._sync_asr_controls()
         if self._page_headings:
             self._page_titles["account"] = (tr("Recognition", "语音识别")
                                             if uses_api_key else tr("Sign in", "登录"))
@@ -530,8 +531,16 @@ class ControlWindow:
     def _asr_provider_changed(self, *_):
         if self._changing_asr_provider:
             return
+        if self._asr_testing:
+            self._refresh()
+            return
         selected = self._asr_provider.get_selected()
         if selected >= len(ASR_PROVIDERS):
+            return
+        # Saving can refresh the dropdown, so keep the requested selection but
+        # flush the draft while callbacks still refer to its original provider.
+        if not self._flush_asr_key():
+            self._refresh()
             return
         try:
             self._actions.apply_asr_provider(ASR_PROVIDERS[selected])
@@ -542,8 +551,20 @@ class ControlWindow:
         self.set_feedback(tr(
             "Recognition service switched. Configure its credentials below to continue.",
             "语音识别服务已切换，请在下方配置对应凭证后继续。"))
+        self._asr_status.set_text("")
+
+    def _sync_asr_controls(self):
+        if not self._asr_key:
+            return
+        has_key = self._actions.asr_has_key()
+        self._asr_key.set_placeholder_text(tr(
+            "Saved — leave blank to keep" if has_key else "Enter speech API key",
+            "已保存，留空则保持不变" if has_key else "填写语音 API Key"))
+        self._asr_test_button.set_sensitive(
+            not self._asr_testing and bool(has_key or self._asr_key.get_text().strip()))
 
     def _queue_asr_key_save(self, *_):
+        self._sync_asr_controls()
         if not self._asr_key or not self._asr_key.get_text().strip():
             return
         if self._asr_key_save_source:
@@ -557,15 +578,16 @@ class ControlWindow:
 
     def _save_asr_key_now(self):
         if not self._asr_key:
-            return self._actions.asr_has_key()
+            return True
         key = self._asr_key.get_text().strip()
         if not key:
-            return self._actions.asr_has_key()
+            return True
         try:
             self._actions.save_asr(key)
         except (ValueError, OSError) as error:
             self._asr_status.set_text(str(error))
             return False
+        self._asr_key.set_text("")
         self._asr_key.set_placeholder_text(tr(
             "Saved — leave blank to keep", "已保存，留空则保持不变"))
         self._asr_status.set_text(tr(
@@ -576,7 +598,7 @@ class ControlWindow:
         if self._asr_key_save_source:
             GLib.source_remove(self._asr_key_save_source)
             self._asr_key_save_source = 0
-        self._save_asr_key_now()
+        return self._save_asr_key_now()
 
     def _test_asr_clicked(self, *_):
         if self._asr_testing:
@@ -585,10 +607,13 @@ class ControlWindow:
             GLib.source_remove(self._asr_key_save_source)
             self._asr_key_save_source = 0
         if not self._save_asr_key_now():
+            return
+        if not self._actions.asr_has_key():
             self._asr_status.set_text(tr(
                 "Enter an API key first.", "请先填写 API Key。"))
             return
         self._asr_testing = True
+        self._asr_provider.set_sensitive(False)
         self._asr_test_button.set_sensitive(False)
         self._asr_test_button.set_label(tr("Testing…", "正在测试…"))
         self._asr_status.set_text(tr(
@@ -601,6 +626,7 @@ class ControlWindow:
 
     def _asr_tested(self, result, error):
         self._asr_testing = False
+        self._asr_provider.set_sensitive(True)
         self._asr_test_button.set_sensitive(True)
         self._asr_test_button.set_label(tr("Test API key", "测试 API Key"))
         self._asr_status.set_text(

@@ -170,7 +170,11 @@ class TranscriptionManager:
 
     def _trace(self, stage):
         if self.on_diagnostic:
-            self.on_diagnostic(stage)
+            try:
+                self.on_diagnostic(stage)
+            except Exception:
+                # Support metadata must never prevent audio cleanup or recovery.
+                logger.warning("Could not record diagnostic stage")
 
     def _commit_primed_audio(self) -> None:
         with self._prime_lock:
@@ -276,6 +280,7 @@ class TranscriptionManager:
     def _stop_recording(self) -> None:
         logger.info("Stopping recording...")
         self._stopped_at = time.monotonic()
+        self._trace("stop_requested")
         self._set_state(RecordingState.STOPPING)
         try:
             self.audio_capture.finish()

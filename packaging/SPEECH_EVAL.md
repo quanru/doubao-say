@@ -101,3 +101,33 @@ accuracy. Repeat the complete test under the same conditions, check per-sample
 failures, and inspect negative cases. A hotword improving Midscene while corrupting
 legitimate Midjourney is a regression. The tool makes no claim of measurable
 personal-accent improvement until actual recordings have been evaluated.
+
+## In-app evaluation (Mac and Linux)
+
+Open **Speech evaluation** in Mac Settings, or in Linux **Vocabulary & history**.
+Add a sample, record locally (maximum 60 seconds), and enter the reference you
+actually spoke. Target and protected terms use one term per line and must occur
+in that reference. Drafts save automatically; deleting a sample removes its local
+recording. Evaluation recordings remain until you delete them, separately from
+the 30-day dictation history.
+
+**Start comparison** explicitly uploads each recording twice to the official
+Volcengine ASR using the saved key, with and without the current bounded personal
+hotword list. Optional polishing uses the configured polishing credentials.
+References and scoring labels never enter requests or personal vocabulary.
+The view shows per-sample texts, character errors, term accuracy, protected-term
+loss, failed samples and P50/P95 replay time. Cancel stops subsequent requests;
+completed results remain available. Linux may wait for an in-flight polishing
+request to time out before finishing cancellation. Closing the page/window stops
+recording and comparison. Evaluation cannot run alongside dictation or mic checks.
+
+Reference/label edits and recording again clear that sample's old results.
+Repeating comparison clears previous results for the whole set to avoid mixing
+runs. Scores include missing/failed samples. Replay times include connection and
+recording playback; they are not daily input latency.
+
+Input history now shows daily **stop-to-ASR / polishing / input / total** timings.
+The clock starts when dictation stops, excluding recording duration. Polishing
+measures remaining work after ASR (a speculative cached result can be nearly
+instant). Input measures the attempt to deliver text, and its status still needs
+to be checked separately. Old entries without timing metadata remain readable.

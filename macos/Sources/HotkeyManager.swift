@@ -100,7 +100,7 @@ final class HotkeyManager {
             }
         }
     }
-    private func handle(_ type: CGEventType, _ event: CGEvent) -> Unmanaged<CGEvent>? {
+    func handle(_ type: CGEventType, _ event: CGEvent) -> Unmanaged<CGEvent>? {
         if event.getIntegerValueField(.eventSourceUserData) == Self.syntheticMarker { return Unmanaged.passUnretained(event) }
         if type == .tapDisabledByTimeout || type == .tapDisabledByUserInput {
             if let tap = eventTap { CGEvent.tapEnable(tap: tap, enable: true) }

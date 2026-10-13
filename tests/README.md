@@ -112,6 +112,24 @@ real nonactivating overlay and exits; run it under a runtime slot. Live sign-in,
 audio and paste acceptance remain separate checks. See
 [the Mac guide](../macos/README.zh-CN.md) for scope and permissions.
 
+The Mac checks also cover HTTP handshake authentication failures, synthetic paste
+event markers, retry deduplication, pending Enter suppression and cancellation.
+Retry checks compile the real transcription manager with inert device adapters;
+they do not establish acceptance of paste into another application.
+
+`tests.unit.test_polish_transport` uses bounded loopback HTTP/S fixtures to check
+redirect rejection, certificate verification, heartbeat/header/proxy deadlines,
+TLS handshake cancellation and worker recovery. Its TLS fixture generates a disposable
+self-signed certificate with OpenSSL; only that TLS case skips if OpenSSL is absent.
+
+`test_asr_key_persistence` and `test_app_edges` also cover pending credential
+drafts in onboarding and Settings, save failures, provider switches across both
+windows, and ownership of an in-flight API-key test. All keys are synthetic.
+Linux CI also runs `tests/manual/asr_key_ui.py` under isolated Xvfb and D-Bus
+sessions in English and Chinese. It exercises real GTK controls, temporary
+credential stores, cross-window saves and main-loop completion, retaining
+screenshots. Audio, keyboard injection, update checks and ASR transport are inert.
+
 ## Personal speech and correction checks
 
 `tests.unit.test_personal_corrections` verifies explicit confirmation, immutable
@@ -125,7 +143,10 @@ GTK preview/cancel/confirm/forget controls, and retains synthetic screenshots.
 `macos/Tests/Settings/PersonalUICheck.swift` is a native fixture; compile it with all
 app sources except DoubaoSayApp.swift, wrap it in a unique
 `md.lifeos.doubao-say.update-verify.<uuid>` bundle, and run with a process timeout.
-PERSONAL_PAGE selects vocabulary, history, editor, cancel, confirmed or memory.
+PERSONAL_PAGE selects vocabulary, history, editor, cancel, confirmed, memory,
+selection, evaluation or evaluation-results. Selection verifies the native text
+selection callback and correction of the second occurrence; evaluation uses local
+synthetic PCM and results without microphone access or paid services.
 It activates the real sheet's Return/Escape shortcuts and checks persisted state.
 Live microphone/ASR quality is separate; use the opt-in
 [personal speech evaluation tool](../packaging/SPEECH_EVAL.md) with real recordings.
