@@ -236,16 +236,19 @@ class SetupActionsTest(unittest.TestCase):
     def test_official_key_test_saves_first_and_has_adjacent_feedback(self):
         view = SimpleNamespace(
             _asr_testing=False,
+            _asr_save_source=0,
             asr_provider=Mock(),
             _asr_has_key=False,
             _save_asr=Mock(),
             _test_asr=Mock(),
             asr_key=Mock(),
             asr_status=Mock(),
+            status=Mock(),
             asr_test_button=Mock(),
         )
         view.asr_key.get_text.return_value = "test-key"
         view._save_asr_key_now = lambda: SettingsWindow._save_asr_key_now(view)
+        view.flush_edits = lambda: SettingsWindow.flush_edits(view)
         view._asr_tested = lambda result, error: SettingsWindow._asr_tested(
             view, result, error)
 
