@@ -17,7 +17,7 @@ jobs:
         env:
           GH_TOKEN: ${{ github.token }}
         run: |
-          gh api repos/quanru/doubao-say/actions/jobs/115294720215/logs > /tmp/existing-job.log
+          gh api --allow-escape-sequences repos/quanru/doubao-say/actions/jobs/115294720215/logs > /tmp/existing-job.log
           python3 acceptance/omarchy-15184/ci/recover-evidence.py
           git config user.name 'github-actions[bot]'
           git config user.email '41898282+github-actions[bot]@users.noreply.github.com'
