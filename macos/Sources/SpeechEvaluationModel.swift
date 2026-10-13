@@ -76,7 +76,7 @@ import Combine
     var index: Int? { samples.firstIndex { $0.id == selected } }
     func add() {
         guard !busy, !recording, samples.count < 200 else { return }
-        let sample = SpeechSample(); samples.append(sample); selected = sample.id; save()
+        let sample = SpeechSample(); samples.append(sample); selected = sample.id; save(); refreshSummary()
     }
     func save() { do { try store.save(samples) } catch { feedback = L("Could not save local speech samples.", "本地语音样本保存失败。") } }
     func edit(_ field: WritableKeyPath<SpeechSample, String>, _ text: String) {
@@ -116,7 +116,7 @@ import Combine
         guard recording, let index = index else { return }
         recordDeadline?.cancel(); recordDeadline = nil
         audio.stopCapture(); audio.onAudioData = nil; audio.onError = nil; recording = false; state.evaluationBusy = false; generation = UUID()
-        do { try store.saveAudio(pcm, id: samples[index].id); samples[index].audioBytes = pcm.count; samples[index].results = []; save(); feedback = L("Recording saved locally. Review the reference before comparing.", "录音已保存在本机，请核对参考文字后再对比。") }
+        do { try store.saveAudio(pcm, id: samples[index].id); samples[index].audioBytes = pcm.count; samples[index].results = []; save(); refreshSummary(); feedback = L("Recording saved locally. Review the reference before comparing.", "录音已保存在本机，请核对参考文字后再对比。") }
         catch { feedback = L("Could not save recording. Record again.", "录音保存失败，请重新录制。") }
         pcm = Data()
     }

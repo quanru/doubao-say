@@ -3,10 +3,11 @@ import Foundation
 @main
 struct APIASRCheck {
     static func main() {
-        guard CommandLine.arguments.count == 3, let endpoint = URL(string: CommandLine.arguments[1]) else { exit(1) }
+        guard (3...4).contains(CommandLine.arguments.count), let endpoint = URL(string: CommandLine.arguments[1]) else { exit(1) }
         let provider: RecognitionProvider = CommandLine.arguments[2] == "volcengine" ? .volcengine : .deepgram
         try! PersonalDataStore.shared.saveWords("Midscene\nVibelet")
-        let client = APIASRClient(provider: provider, endpoint: endpoint)
+        let raw = CommandLine.arguments.last == "raw"
+        let client = APIASRClient(provider: provider, endpoint: endpoint, hotwords: raw ? [] : nil)
         var finished = false, opened = false, drained = false, text = "", failed = false
         client.onOpen = { DispatchQueue.main.async { opened = true } }
         client.onAudioDrained = { DispatchQueue.main.async { drained = true } }

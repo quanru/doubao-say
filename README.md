@@ -278,8 +278,8 @@ up to 200 terms of 80 characters). Official Volcengine ASR sends a length-limite
 subset as session hotwords, prioritizing spellings you explicitly confirmed.
 The vocabulary page previews the actual subset. Doubao Web and other engines use
 this list only as context during AI polishing. This does not retrain the model.
-From an input-history entry, choose **Correct & remember…**, enter the recognized
-term and correct spelling, review the preview, then confirm. Only that explicit
+From an input-history entry, select the wrong term and choose **Correct & remember…**,
+or select it in the dialog to fill it in. Enter the correct spelling, review the preview, then confirm. Only that explicit
 action creates memory. Original recognition and polishing output are preserved.
 Future polishing receives relevant correction pairs and example contexts as
 reference data, never global replacements. You can forget pairs individually;
