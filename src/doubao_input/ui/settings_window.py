@@ -539,6 +539,7 @@ class SettingsWindow:
         finally:
             self._updating = False
         self.asr_status.set_text(tr("API key cleared.", "API Key 已清除。"))
+        self.status.set_text(tr("API key cleared.", "API Key 已清除。"))
 
     def _test_asr_clicked(self, *_):
         if self._asr_testing:
