@@ -1,0 +1,46 @@
+{
+  "overall": "NOT_ACCEPTED_INCONCLUSIVE_AND_INCOMPLETE",
+  "run": 38407307331,
+  "job": 115330178510,
+  "harness_commit": "e391c509c2efd4f7bd28701a0dac3aa61db13e0d",
+  "head": "a1ead6b37605d5f3b63a9ebba2f6a621d6a43b6c",
+  "timing": {
+    "valid_trials": 20,
+    "pass": 13,
+    "inconclusive": 7,
+    "proven_fail": 0,
+    "threshold_ms": 500,
+    "minimum_upper_ms": 158.859085,
+    "maximum_upper_ms": 647.222422,
+    "median_upper_ms": 370.4416145,
+    "original_frames": 1497,
+    "frame_integrity_failures": 0,
+    "unstable_transitions": 0
+  },
+  "gui": {
+    "complete_rounds": 1,
+    "planned_rounds": 3,
+    "successful_removals": 2,
+    "successful_additions": 1,
+    "processes_unchanged": true,
+    "observations_checked": 25,
+    "blocker": "Midscene navigated to Global Options; subsequent search field unavailable. Automation failure, not proven product defect."
+  },
+  "restoration": {
+    "config_byte_identical": true,
+    "service_restarted_only_during_cleanup": true,
+    "gui_list_restore_completed": false
+  },
+  "cost": {
+    "requests_this_run": 29,
+    "conservative_cny_this_run": 1.62834,
+    "conservative_cny_cumulative": 3.532866,
+    "unsettled_reservations": 0,
+    "invoice_verified": false,
+    "allocated_cny": 60,
+    "task_limit_cny": 100
+  },
+  "archive_sha256": "79d9eff3b6f7ad84e001ad3f8b8237848594bf28e208fdc47ad8f8133c5868ff",
+  "original_manifest_verified_files": 1619,
+  "new_runs_scheduled": false
+}
