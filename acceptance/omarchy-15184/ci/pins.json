@@ -1,0 +1,9 @@
+{
+  "omarchy": "a1ead6b37605d5f3b63a9ebba2f6a621d6a43b6c",
+  "base_tip": "124328fd83214b41d8969d40ea8ae1b2a57a1c20",
+  "iso": "53b80d406cdcb56cd757562e0f31d2c13cb57f47",
+  "pkgs": "eba2a95f2e9ef209e906a93e93db70b9a856b910",
+  "reference": "3380f7b46076f7a1981368a05097d2a4e0377140",
+  "midscene": "1.15.3",
+  "builder_image": "ghcr.io/archlinux/archlinux@sha256:86092797e32aa19d3f45a831b2873cf557c21c5280e9d197ca7a43c8ea79bcd3"
+}

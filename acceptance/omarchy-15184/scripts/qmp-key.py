@@ -1,0 +1,23 @@
+"""Send a real virtual-keyboard chord to an explicitly supplied disposable QEMU socket.
+Example: python3 qmp-key.py /tmp/test-vm.qmp ctrl spc --disposable-vm
+Host timestamps are diagnostic only, not proof of guest presentation latency.
+"""
+import argparse,socket,json,time
+p=argparse.ArgumentParser(description=__doc__);p.add_argument('socket');p.add_argument('keys',nargs='+');p.add_argument('--disposable-vm',action='store_true',required=True);a=p.parse_args()
+s=socket.socket(socket.AF_UNIX);s.settimeout(5);s.connect(a.socket);f=s.makefile('rwb')
+def read():
+ line=f.readline()
+ if not line:raise RuntimeError('QMP disconnected')
+ return json.loads(line)
+def execute(name,args=None):
+ f.write((json.dumps({'execute':name,'arguments':args or {}})+'\n').encode());f.flush()
+ while True:
+  r=read()
+  if 'error' in r:raise RuntimeError(r['error'].get('class','QMP error'))
+  if 'return' in r:return r
+try:
+ if 'QMP' not in read():raise RuntimeError('Not a QMP endpoint')
+ execute('qmp_capabilities')
+ t0=time.monotonic_ns();execute('send-key',{'keys':[{'type':'qcode','data':k} for k in a.keys],'hold-time':80});t1=time.monotonic_ns()
+ print(json.dumps({'keys':a.keys,'host_send_start_ns':t0,'host_ack_ns':t1,'timing_valid_for_500ms':False}))
+finally:f.close();s.close()
