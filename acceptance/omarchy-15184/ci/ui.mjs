@@ -15,7 +15,8 @@ try {
  agent=await agentForComputer({headless:false,keepXvfbAliveUntilProcessExit:true,generateReport:true,reportFileName:'omarchy-15184-real-desktop'});
  await sleep(2000);guest('focus');await sleep(500);
  const initial=snapshot('ui-initial');const ids=identity(initial);
- const stable=()=>{const s=snapshot('latest');if(identity(s)!==ids)throw Error('Shell/fcitx/indicator process changed during measurement');return s;};
+ let observation=0;const stable=()=>{const s=snapshot(`observation-${observation++}`);if(identity(s)!==ids)throw Error('Shell/fcitx/indicator process changed during measurement');return s;};
+ try {
  if(initial.active!=='2'){key('shift');await sleep(700);}
  if(stable().active!=='2')throw Error('Configured Shift did not activate Pinyin');
  for(const k of ['n','i','h','a','o','spc','ret'])key(k);
@@ -41,13 +42,18 @@ try {
   results.push({trial,expectedState:expected,status:'TIMING_PENDING_PIXEL_REVIEW'});
  }
  guest('screenshot','success-repeat-switch');
+ } catch(error) {
+  results.push({trial:'in-app-switching',status:'FAILED_OR_INCONCLUSIVE',message:String(error)});process.exitCode=1;
+  try{guest('screenshot','failure-switching');}catch{}
+ }
+ // Continue the independent list-change case even when switching cannot complete.
  // Each list mutation is performed through the real configtool, not D-Bus setters.
  guest('configtool');await sleep(1000);
  for(let round=0;round<3;round++){
   await agent.aiAct('In the real Fcitx 5 Configuration window, remove only Pinyin from the current input-method list. Keep Keyboard - English (US). Click Apply to save. Do not restart Fcitx or the desktop shell.');
   await sleep(5000);const removed=stable();if(JSON.stringify(removed.info).includes('pinyin'))throw Error('Pinyin still registered after GUI removal');
   guest('screenshot',`success-config-remove-${round}`);
-  await agent.aiAssert('The real Fcitx configuration list has no Pinyin; the Omarchy top-bar indicator reflects the single-keyboard state, with no stale Chinese label.');
+  await agent.aiAssert('The real Fcitx configuration list has only Keyboard - English (US), without Pinyin. The keyboard/input-method text indicator in the Omarchy top bar is hidden, because only one keyboard layout and one input method remain. No stale EN, en or Chinese input-method label remains.');
   await agent.aiAct('In the real Fcitx 5 Configuration window add the Pinyin input method to the current group, alongside Keyboard - English (US). If needed disable Only Show Current Language, search Pinyin, select it and confirm. Click Apply to save. Do not restart Fcitx or the desktop shell.');
   await sleep(5000);const added=stable();if(!JSON.stringify(added.info).includes('pinyin'))throw Error('Pinyin missing after GUI addition');
   guest('screenshot',`success-config-add-${round}`);

@@ -13,6 +13,17 @@ def processes():
     out.append({'pid':int(p.name),'comm':comm,'start_ticks':(p/'stat').read_text().split()[21],'cmd':cmd})
   except (OSError,UnicodeError):pass
  return out
+def target_window():
+ clients=json.loads(run('hyprctl','-j','clients'))
+ matches=[c for c in clients if c.get('class')=='org.omarchy.pr15184' or c.get('initialClass')=='org.omarchy.pr15184']
+ save('test-windows',[{k:c.get(k) for k in ['address','class','initialClass','title','pid']} for c in matches])
+ assert len(matches)==1,'Expected one real test terminal window'
+ return matches[0]
+def focus_target():
+ c=target_window();address=c['address']
+ p=subprocess.run(['hyprctl','dispatch','hl.dsp.focus({ window = "address:'+address+'" })'],text=True,capture_output=True)
+ if p.returncode:run('hyprctl','dispatch','focuswindow','address:'+address)
+ active=json.loads(run('hyprctl','-j','activewindow'));assert active.get('address')==address,'Test terminal did not gain focus'
 def snap():
  group=run('fcitx5-remote','-q')
  info=json.loads(run('busctl','--user','--json=short','call','org.fcitx.Fcitx5','/controller','org.fcitx.Fcitx.Controller1','InputMethodGroupInfo','s',group))
@@ -25,7 +36,7 @@ if cmd=='bootstrap':
   if not p.is_file() or hashlib.sha256(p.read_bytes()).hexdigest()!=digest:bad.append(name)
  save('candidate-integrity',{'checked_files':len(manifest),'mismatches':bad})
  if bad:raise SystemExit('Installed runtime does not match complete candidate manifest')
- for command in ['fcitx5','fcitx5-configtool','grim','hyprctl','foot']:assert shutil.which(command),command
+ for command in ['fcitx5','fcitx5-configtool','fcitx5-config-qt','grim','hyprctl','foot']:assert shutil.which(command),command
  monitors=json.loads(run('hyprctl','-j','monitors'));assert len(monitors)==1 and monitors[0]['width']==1280 and monitors[0]['height']==800 and monitors[0]['scale']==1,'Require 1280x800 scale=1 guest for 1:1 VNC ROI'
  save('package-versions',{'packages':run('pacman','-Q'),'kernel':run('uname','-r'),'monitors':json.loads(run('hyprctl','-j','monitors'))})
  config=pathlib.Path.home()/'.config/fcitx5';shutil.copytree(config,R/'fcitx5-backup',symlinks=True)
@@ -34,7 +45,12 @@ if cmd=='bootstrap':
  assert any('/usr/share/omarchy/default/input-methods/indicator.py' in p['cmd'] for p in initial['processes']),'Candidate indicator not running'
  save('initial',initial)
  run('omarchy-shell','idle','disable')
- subprocess.Popen(['foot','--app-id=org.omarchy.pr15184','sh','-c','cat > /tmp/pr15184/committed.txt'],stdout=subprocess.DEVNULL,stderr=subprocess.DEVNULL,start_new_session=True)
+ subprocess.Popen(['foot','--app-id=org.omarchy.pr15184','sh','-c','cat > /tmp/pr15184/committed.txt'],stdout=subprocess.DEVNULL,stderr=open(E/'terminal.log','a'),start_new_session=True)
+ for _ in range(50):
+  try:focus_target();break
+  except (AssertionError,subprocess.CalledProcessError):time.sleep(.1)
+ else:raise SystemExit('Test terminal focus preflight failed; see terminal.log')
+ subprocess.run(['omarchy-shell','notifications','dismissAll'],check=False,stdout=subprocess.DEVNULL)
 elif cmd=='preflight-report':
  for name in ['candidate-integrity','package-versions','initial']:
   obj=json.loads((E/(name+'.json')).read_text());print(json.dumps({name:obj},ensure_ascii=False))
@@ -45,7 +61,7 @@ elif cmd=='screenshot':
 elif cmd=='configtool':
  subprocess.Popen(['fcitx5-configtool'],stdout=subprocess.DEVNULL,stderr=subprocess.DEVNULL,start_new_session=True)
 elif cmd=='focus':
- run('hyprctl','dispatch','focuswindow','class:^(org.omarchy.pr15184)$')
+ focus_target()
 elif cmd=='committed':
  s=(R/'committed.txt').read_text();assert any('\u4e00'<=c<='\u9fff' for c in s),'No actual committed Han text'
  save('composition',{'committed':s});print(s)
@@ -65,5 +81,5 @@ elif cmd=='restore':
  subprocess.run(['systemctl','--user','start','omarchy-fcitx5.service'],check=True)
  def hashes(root):return {str(p.relative_to(root)):hashlib.sha256(p.read_bytes()).hexdigest() for p in root.rglob('*') if p.is_file()}
  save('restore',{'config_byte_identical':hashes(dst)==hashes(R/'fcitx5-backup'),'service_restarted_only_during_cleanup':True})
- subprocess.run(['hyprctl','dispatch','closewindow','class:^(org.omarchy.pr15184)$'],check=False)
+ c=target_window();subprocess.run(['hyprctl','dispatch','hl.dsp.window.close({ window = "address:'+c['address']+'" })'],check=False)
 else:raise SystemExit('Unknown operation')

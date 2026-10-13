@@ -12,7 +12,7 @@ for p in pathlib.Path('/dev/input').glob('event*'):
   except (NameError,OSError):pass
 if not fds:raise SystemExit('No evdev devices with monotonic clock')
 events=[];frames=[];fmt='llHHI';size=struct.calcsize(fmt)
-(out/'ready').touch();deadline=time.monotonic()+3
+deadline=time.monotonic()+3
 try:
  while time.monotonic()<deadline:
   for fd in select.select(fds,[],[],0)[0]:
@@ -24,6 +24,7 @@ try:
   path=out/f'{len(frames):04}.png';a=time.monotonic_ns()
   subprocess.run(['grim','-g',f'{x},{y} {w}x{h}',str(path)],check=True,timeout=2)
   b=time.monotonic_ns();frames.append({'file':path.name,'lo_ns':a,'hi_ns':b,'sha256':hashlib.sha256(path.read_bytes()).hexdigest()})
+  if len(frames)==1:(out/'ready').touch()
 finally:
  for fd in fds:os.close(fd)
  (out/'capture.json').write_text(json.dumps({'events':events,'frames':frames,'clock':'CLOCK_MONOTONIC','input_clock_precision_ns':1000,'presentation_limit':'grim capture brackets; pixel equality against stable templates'},indent=2))
