@@ -31,6 +31,14 @@ class ASRKeyPersistenceTest(TestCase):
             setattr(view, name, MethodType(getattr(SettingsWindow, name), view))
         return view
 
+    def test_successful_key_clear_replaces_footer_error(self):
+        view = self.view()
+        view._clear_asr = Mock()
+        view.status.set_text("API key could not be saved. Try again.")
+        SettingsWindow._clear_asr_clicked(view)
+        self.assertFalse(view._asr_has_key)
+        view.status.set_text.assert_called_with("API key cleared.")
+
     def test_saved_and_pending_drafts_never_overwrite_other_provider(self):
         for already_saved in (False, True):
             with self.subTest(already_saved=already_saved):
