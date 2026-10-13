@@ -9,7 +9,7 @@ group membership and `/dev/uinput` permissions before installation.
 
 Recordings are sent to the selected provider for recognition; the microphone-only
 check stays local. Volcengine API usage and data handling follow the user's
-account and provider terms. The application does not retain recordings on disk. Optional local input history
+account and provider terms. Daily dictation does not retain recordings on disk. The opt-in speech evaluation page stores local recordings until you delete the samples; starting comparison explicitly uploads them to official ASR. Reference transcripts and labels are used only for scoring. Optional local input history
 retains original and final text for a rolling 30 days; it can be disabled or cleared. The clipboard and target application may retain text. Older development
 logs can contain transcript excerpts: never attach them without review.
 

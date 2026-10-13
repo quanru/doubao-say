@@ -1,3 +1,10 @@
+doubao-say (1.7.0-1) noble; urgency=medium
+
+  * Add personal speech evaluation, selected corrections and input timings.
+  * Improve API-key persistence, polishing cancellation and input reliability.
+
+ -- doubao-say contributors <code-dream@qq.com>  Tue, 13 Oct 2026 12:00:00 +0800
+
 doubao-say (1.3.1-1) noble; urgency=medium
 
   * Prefer plain text over HTML when restoring the clipboard after dictation.

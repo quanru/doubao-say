@@ -1,47 +1,21 @@
-# Doubao Say 1.6.0
+# Doubao Say 1.7.0
 
-## Personal vocabulary and confirmed corrections
+## Personal speech evaluation
 
-Mac and Linux now send a length-limited subset of personal vocabulary to the
-existing official Volcengine streaming ASR endpoint as session hotwords. Spellings
-you confirmed have priority, and the vocabulary page previews the actual subset.
-Doubao Web and other engines continue using vocabulary during polishing only.
-This does not train a personal recognition model.
+Mac and Linux now provide an in-app speech evaluation page. Record locally, review what you actually said, then compare the same recording with raw official ASR, personal hotwords and optional polishing. Review character errors, target terms, protected-term loss, failed samples and replay timings. Starting comparison explicitly uploads recordings to your configured paid official ASR. Reference text is only used for scoring and never becomes vocabulary or enters recognition requests. Drafts save automatically; recordings remain until deleted.
 
-Choose Correct & remember from an input-history entry, enter the misrecognized
-term and correct spelling, review the preview, then confirm. Original recognition
-and polishing output remain available. Future polishing uses relevant confirmed
-corrections and example contexts as reference data, with instructions to preserve
-legitimate words in unrelated contexts. It never performs global replacements.
-Forget individual corrections in Personal vocabulary; clearing or expiring
-history retains vocabulary and correction memory. Local frequencies now include
-corrections you explicitly confirmed. AI frequency organization still sends only
-candidate terms and counts, without full transcripts or correction contexts.
+## Selected corrections and input timings
 
-## Repeatable speech evaluation
+Select a wrong term to fill the correction form, review the exact occurrence replacement and confirm before it becomes memory. Original recognition and polishing output remain available. Future polishing uses confirmed corrections as contextual references. Input history shows recognition, remaining polishing, delivery and total waiting time after recording stops. Mac computes evaluation statistics in the background and reads timings in batches.
 
-The opt-in Python evaluation CLI compares raw official ASR, hotword ASR and
-optional polishing using identical WAV recordings. It reports character error
-rate, target-term accuracy, protected-term loss, failures and latency P50/P95.
-Offline scoring supports manually collected outputs from other input methods.
-Reference transcripts never enter ASR requests or automatically become vocabulary.
-Reports are local and owner-only; credentials are never included. See the
-[usage guide](https://github.com/quanru/doubao-say/blob/v1.6.0/packaging/SPEECH_EVAL.md).
-The Mac DMG does not bundle the Python evaluation tool or interpreter.
+## Input reliability
 
-## Download and verification
+API-key drafts survive saves and provider changes across onboarding and settings. Polishing requests support cancellation during connection, TLS and response reads, reject redirects and incomplete output, and free the final request worker after timeout. Recording, retry delivery, microphone checks, evaluation and updates are coordinated. Mac synthetic paste shortcuts carry an event marker to prevent feedback into voice triggers.
 
-Choose the Developer ID signed, Apple-notarized arm64 or x86_64 Mac DMG. Linux
-app/plugin archives remain available for Python 3.11–3.14. Settings and login data
-are retained. SHA256SUMS covers both platforms; update.json remains the public
-update source.
+## Downloads and verification
 
-Verification covers hotword protocol framing, explicit confirmation, rollback,
-retention, forgetting, context boundaries, scoring failures and negative cases,
-Mac streaming network fixtures, and native personal-data UI checks in both
-supported languages. Linux CI exercises the actual GTK confirmation flow.
-Synthetic fixtures do not prove real microphone accuracy, personal-accent
-improvement, competitor parity or behavior on Intel hardware. Actual personal
-recordings have not been benchmarked.
+Developer ID signed, Apple-notarized Mac DMGs are available for Apple Silicon and Intel. Linux app/plugin archives support Python 3.11–3.14. Settings, login data, vocabulary and history are retained. SHA256SUMS covers all packages; update.json is the public update source.
 
-[Full changes](https://github.com/quanru/doubao-say/compare/v1.5.3...v1.6.0)
+Automated verification uses synthetic credentials, recordings and loopback network services. It covers protocol framing, selected corrections, scoring, credential persistence, cancellation, input state transitions and native interfaces. Actual personal-accent accuracy, competitor parity, physical microphones, cross-application input and Intel hardware behavior have not been established by these checks.
+
+[Full changes](https://github.com/quanru/doubao-say/compare/v1.6.0...v1.7.0)
