@@ -17,7 +17,7 @@ class ASRKeyPersistenceTest(TestCase):
         entry.set_text.side_effect = lambda text: setattr(self, "draft", text)
         view = SimpleNamespace(
             _updating=False, _asr_save_source=0, _asr_has_key=False, _asr_testing=False,
-            asr_key=entry, asr_status=Mock(), asr_provider=Mock(),
+            asr_key=entry, asr_status=Mock(), asr_provider=Mock(), status=Mock(),
             _sync_provider_details=Mock(), _restore_controls=Mock(),
             _save_asr=lambda key: self.saved.__setitem__(self.provider, key),
             _asr_has_key_func=lambda: self.provider in self.saved,
@@ -56,6 +56,16 @@ class ASRKeyPersistenceTest(TestCase):
         view._restore_controls.assert_called_once()
         self.assertEqual(self.draft, "synthetic-volcengine")
         self.assertEqual(self.saved, {"deepgram": "synthetic-deepgram"})
+        view.status.set_text.assert_called_with("API key could not be saved. Try again.")
+
+    def test_key_test_preserves_save_error_and_does_not_start_probe(self):
+        view = self.view()
+        view._save_asr = Mock(side_effect=OSError("synthetic write failure"))
+        view._test_asr = Mock()
+        SettingsWindow._test_asr_clicked(view)
+        view._test_asr.assert_not_called()
+        view.asr_status.set_text.assert_called_with("synthetic write failure")
+        self.assertFalse(view._asr_testing)
 
     def test_failed_key_save_keeps_settings_open(self):
         view = self.view()
