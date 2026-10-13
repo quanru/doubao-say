@@ -586,12 +586,14 @@ class ControlWindow:
             self._actions.save_asr(key)
         except (ValueError, OSError) as error:
             self._asr_status.set_text(str(error))
+            self.set_feedback(str(error))
             return False
         self._asr_key.set_text("")
         self._asr_key.set_placeholder_text(tr(
             "Saved — leave blank to keep", "已保存，留空则保持不变"))
-        self._asr_status.set_text(tr(
-            "API key saved automatically.", "API Key 已自动保存。"))
+        message = tr("API key saved automatically.", "API Key 已自动保存。")
+        self._asr_status.set_text(message)
+        self.set_feedback(message)
         return True
 
     def _flush_asr_key(self):
@@ -629,9 +631,11 @@ class ControlWindow:
         self._asr_provider.set_sensitive(True)
         self._asr_test_button.set_sensitive(True)
         self._asr_test_button.set_label(tr("Test API key", "测试 API Key"))
-        self._asr_status.set_text(
+        message = (
             tr("Test failed: ", "测试失败：") + error if error else
             (result or tr("API key accepted.", "API Key 可用。")))
+        self._asr_status.set_text(message)
+        self.set_feedback(message)
         return GLib.SOURCE_REMOVE
 
     def _continue_from_trigger(self):
