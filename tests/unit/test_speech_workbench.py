@@ -51,6 +51,19 @@ class SpeechWorkbenchTests(unittest.TestCase):
             self.assertEqual(len(results), 1)
             self.assertEqual(len(calls), 1)
 
+    def test_cancel_after_asr_does_not_start_polishing(self):
+        with tempfile.TemporaryDirectory() as temp:
+            model = SpeechWorkbench(temp); row = model.add(); row['reference'] = 'Hello'
+            model.record(row, b'\x00\x00' * 16)
+            calls, polish_calls = [], []
+            def recognize(*_args, **_kwargs):
+                calls.append(1)
+                if len(calls) == 2:
+                    model.cancelled.set()
+                return {'text': 'Hello', 'latency_ms': 1}
+            model.compare(None, [], recognizer=recognize, polisher=lambda text: polish_calls.append(text))
+            self.assertEqual(polish_calls, [])
+
     def test_selected_second_occurrence_and_unicode(self):
         text = '用 Midjourney 画图，用 Midjourney 写测试'
         start = text.rindex('Midjourney')

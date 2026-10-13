@@ -87,6 +87,8 @@ class SpeechWorkbench:
                     break
                 results.append(result)
                 if mode == 'hotwords' and polisher:
+                    if self.cancelled.is_set():
+                        break
                     import time
                     polished = {**result, 'mode': 'hotwords+polish'}
                     if not result.get('error'):

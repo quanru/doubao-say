@@ -72,7 +72,7 @@ final class PersonalModel: ObservableObject {
         guard let item = correctionTarget else { return }
         do {
             try store.confirmCorrection(item.id, recognized: recognizedTerm, corrected: correctedTerm, selection: correctionSelection)
-            correctionTarget = nil; refresh()
+            correctionTarget = nil; selectedHistory = nil; refresh()
             feedback = L("Correction remembered. Future matching contexts can use it.", "已记住这次纠正，之后遇到相似语境时参考。")
         } catch { feedback = L("Could not confirm. Check both terms and refresh the history entry.", "无法确认，请检查两个词，并确认这条历史仍然存在。") }
     }
