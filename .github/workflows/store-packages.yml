@@ -1,8 +1,6 @@
 name: Linux store packages
 on:
   workflow_dispatch:
-  push:
-    branches: [feat/linux-store-packages]
   pull_request:
     paths: ['packaging/**', 'src/**', '.github/workflows/store-packages.yml']
 permissions:
