@@ -16,4 +16,4 @@ catalog={
 }
 name=os.environ.get('CONFIG_MODEL_NAME','');host=(urllib.parse.urlsplit(os.environ.get('CONFIG_MODEL_BASE_URL','')).hostname or '').lower()
 match=catalog.get(name)
-print(json.dumps({'public_catalog_match':match,'provider_is_volcengine_ark':host.endswith('.volces.com') or host.endswith('.volcengineapi.com'),'deployment_alias':name.startswith('ep-'),'no_match_requires_user_model_info':match is None,'inference_calls':0,'api_key_accessed':False},ensure_ascii=False))
+print(json.dumps({'public_catalog_match':match,'provider_is_volcengine_ark':host.endswith('.volces.com') or host.endswith('.volcengineapi.com'),'deployment_alias':name.startswith('ep-'),'no_match_requires_user_model_info':match is None,'inference_calls':0,'api_key_accessed':False,'matches_audited_chat_base':os.environ.get('CONFIG_MODEL_BASE_URL','').rstrip('/')=='https://ark.cn-beijing.volces.com/api/v3','supported_doubao_family':os.environ.get('CONFIG_MODEL_FAMILY','') in ['doubao-seed','doubao-vision']},ensure_ascii=False))
