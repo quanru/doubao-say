@@ -1,0 +1,27 @@
+name: Cancel identified duplicate acceptance (no inference)
+on:
+  push:
+    branches: [acceptance/omarchy-15184-a1ead6b3]
+    paths: [acceptance/omarchy-15184/ci/.cancel-duplicate]
+permissions:
+  actions: write
+  contents: read
+jobs:
+  cancel:
+    if: github.event.repository.private == false
+    runs-on: ubuntu-24.04
+    timeout-minutes: 3
+    steps:
+      - name: Validate identity and cancel only duplicate run
+        env:
+          GH_TOKEN: ${{ github.token }}
+        run: |
+          gh api repos/quanru/doubao-say/actions/runs/38407310019 > /tmp/duplicate.json
+          python3 - <<'PY'
+          import json
+          j=json.load(open('/tmp/duplicate.json'))
+          assert j['id']==38407310019 and j['head_sha']=='e391c509c2efd4f7bd28701a0dac3aa61db13e0d'
+          assert j['head_branch']=='acceptance/omarchy-15184-a1ead6b3' and j['event']=='push'
+          assert j['status'] in ['pending','queued','in_progress','waiting']
+          PY
+          gh api --method POST repos/quanru/doubao-say/actions/runs/38407310019/cancel
