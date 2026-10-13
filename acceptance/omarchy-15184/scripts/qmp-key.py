@@ -19,5 +19,7 @@ try:
  if 'QMP' not in read():raise RuntimeError('Not a QMP endpoint')
  execute('qmp_capabilities')
  t0=time.monotonic_ns();execute('send-key',{'keys':[{'type':'qcode','data':k} for k in a.keys],'hold-time':80});t1=time.monotonic_ns()
+ # Let QEMU release this chord before a following helper sends another one.
+ time.sleep(.12)
  print(json.dumps({'keys':a.keys,'host_send_start_ns':t0,'host_ack_ns':t1,'timing_valid_for_500ms':False}))
 finally:f.close();s.close()

@@ -17,8 +17,11 @@ try {
  const initial=snapshot('ui-initial');const ids=identity(initial);
  let observation=0;const stable=()=>{const s=snapshot(`observation-${observation++}`);if(identity(s)!==ids)throw Error('Shell/fcitx/indicator process changed during measurement');return s;};
  try {
- if(initial.active!=='2'){key('shift');await sleep(700);}
- if(stable().active!=='2')throw Error('Configured Shift did not activate Pinyin');
+ // AltTriggerKeys can only return to an engine after leaving it with Shift.
+ // Initial engine selection uses the actual compositor shortcut via QMP.
+ if(initial.active!=='2'){key('meta_l','i');await sleep(700);}
+ snapshot('engine-selected-before-shift-tests');
+ if(stable().active!=='2')throw Error('Initial QMP Super+I did not select Pinyin');
  for(const k of ['n','i','h','a','o','spc','ret'])key(k);
  await sleep(700);guest('committed');guest('screenshot','success-composition');
  await agent.aiAssert('This is a real Omarchy desktop. The focused terminal visibly contains committed Chinese text (你好 or another Han-character Pinyin candidate), and the input-method indicator is visible in the top bar.');
@@ -54,7 +57,12 @@ try {
   await sleep(5000);const removed=stable();if(JSON.stringify(removed.info).includes('pinyin'))throw Error('Pinyin still registered after GUI removal');
   guest('screenshot',`success-config-remove-${round}`);
   await agent.aiAssert('The real Fcitx configuration list has only Keyboard - English (US), without Pinyin. The keyboard/input-method text indicator in the Omarchy top bar is hidden, because only one keyboard layout and one input method remain. No stale EN, en or Chinese input-method label remains.');
-  await agent.aiAct('In the real Fcitx 5 Configuration window add the Pinyin input method to the current group, alongside Keyboard - English (US). If needed disable Only Show Current Language, search Pinyin, select it and confirm. Click Apply to save. Do not restart Fcitx or the desktop shell.');
+  await agent.aiAct('If Only Show Current Language is checked, uncheck it. Otherwise do nothing. Do not scroll or change input methods.');
+  await agent.aiTap('Search Input Method text field above the right-hand Available Input Method list');
+  key('ctrl','a');await sleep(150);
+  for(const k of ['p','i','n','y','i','n']){key(k);await sleep(120);}
+  await sleep(500);guest('screenshot',`search-pinyin-${round}`);
+  await agent.aiAct('The Available Input Method list is filtered by the search text pinyin. Select Pinyin in the right-hand list, click the LEFT-pointing arrow between the lists to add it to Current Input Method alongside Keyboard - English (US), then click Apply. Do not scroll, restart Fcitx or restart the shell.');
   await sleep(5000);const added=stable();if(!JSON.stringify(added.info).includes('pinyin'))throw Error('Pinyin missing after GUI addition');
   guest('screenshot',`success-config-add-${round}`);
   await agent.aiAssert('Pinyin is visible in the real Fcitx input-method list, and the Omarchy top-bar input-method indicator is present and reflects the available methods.');
