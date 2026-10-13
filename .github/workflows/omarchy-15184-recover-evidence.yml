@@ -17,10 +17,10 @@ jobs:
         env:
           GH_TOKEN: ${{ github.token }}
         run: |
-          gh api --allow-escape-sequences repos/quanru/doubao-say/actions/jobs/115313486621/logs > /tmp/existing-job.log
+          gh api --allow-escape-sequences repos/quanru/doubao-say/actions/jobs/115330178510/logs > /tmp/existing-job.log
           python3 acceptance/omarchy-15184/ci/recover-evidence.py
           git config user.name 'github-actions[bot]'
           git config user.email '41898282+github-actions[bot]@users.noreply.github.com'
           git add -f acceptance/omarchy-15184/evidence
-          git commit -m 'Preserve existing run 38402519102 review evidence'
+          git commit -m 'Preserve existing run 38407307331 review evidence'
           git push origin HEAD:acceptance/omarchy-15184-a1ead6b3

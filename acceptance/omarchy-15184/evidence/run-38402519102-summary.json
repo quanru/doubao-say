@@ -1,0 +1,22 @@
+{
+  "run": 38402519102,
+  "result": "PARTIAL_NOT_ACCEPTED",
+  "real_composition": "你好",
+  "switch_operations_completed": 20,
+  "usable_latency_samples": 0,
+  "latency_reason": "Model aiQuery selected blank ROI [898,5,22,22]; active and inactive pixel templates identical. Event/frame files exist but do not measure label updates.",
+  "gui_rounds_independently_reviewed": 1,
+  "gui_rounds_required": 3,
+  "gui_observation": "Pinyin removed and added through actual configtool; EN disappears and reappears; model wrongly required Omarchy branding.",
+  "process_identity_unchanged_in_all_observations": true,
+  "observations_checked": 24,
+  "config_restore_byte_identical": true,
+  "requests": 17,
+  "prompt_tokens": 128501,
+  "completion_tokens": 3441,
+  "conservative_accounted_cny": 0.874236,
+  "cumulative_conservative_accounted_cny": 1.904526,
+  "invoice_verified": false,
+  "archive_sha256": "1b562c97740ba8c5342ce6f02a350bd8961dbb389f030cbd53d1becc08aa9934",
+  "original_manifest_verified_files": 1920
+}
