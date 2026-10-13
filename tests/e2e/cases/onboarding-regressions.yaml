@@ -222,14 +222,14 @@ cases:
       - aiWaitFor:
           prompt: The API key is accepted by the synthetic endpoint and the speech API is ready.
           options: { timeoutMs: 30000, checkIntervalMs: 1000 }
-      - aiAct: Switch the Recognition service to Volcengine API.
+      - aiAct: Switch the Recognition service to Volcengine API. Then scroll within the Recognition page until the API Key entry, Test API key button, and credential status beneath it are visible.
       - aiWaitFor:
-          prompt: Volcengine is selected, the empty API Key entry says Enter speech API key, and Test API key is disabled.
+          prompt: The Volcengine API credential instructions are visible, the empty API Key entry says Enter speech API key, and Test API key is disabled.
           options: { timeoutMs: 30000, checkIntervalMs: 1000 }
       - aiAssert: The page says no API key is saved for this service and does not show the previous accepted result.
-      - aiAct: Switch the Recognition service back to Deepgram Nova-3 (English).
+      - aiAct: Switch the Recognition service back to Deepgram Nova-3 (English). Then scroll within the Recognition page until the API Key entry and Test API key button are visible.
       - aiWaitFor:
-          prompt: Deepgram is selected, the empty API Key entry says Saved — leave blank to keep, and Test API key is enabled.
+          prompt: The Deepgram API credential instructions are visible, the empty API Key entry says Saved — leave blank to keep, and Test API key is enabled.
           options: { timeoutMs: 30000, checkIntervalMs: 1000 }
       - aiAct: Test the saved Deepgram API key.
       - aiWaitFor:
