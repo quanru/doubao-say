@@ -107,6 +107,8 @@ class DoubaoInputApp(Gtk.Application):
         self._rms_speaking = False
         self._asr_probe = None
         self._diagnostics = DiagnosticTrace()
+        from doubao_input.input_latency import InputLatency
+        self._input_latency = InputLatency()
         self.app_state.connect("transcription-text-changed", self._prepolish_text_changed)
         try:
             self.settings = Settings.load()
@@ -219,7 +221,7 @@ class DoubaoInputApp(Gtk.Application):
         tm.on_cancel_enabled_changed = lambda enabled: None
         tm.on_auth_expired = self._on_auth_expired
         tm.on_params_needed = self._provide_params
-        tm.on_diagnostic = self._diagnostics.add
+        tm.on_diagnostic = self._trace_input
         self._tm = tm
 
         # ---- Control window ----
@@ -392,7 +394,7 @@ class DoubaoInputApp(Gtk.Application):
     def _show_personal(self):
         from doubao_input.ui.personal_window import PersonalWindow
         if self._personal_window is None:
-            self._personal_window = PersonalWindow(self._personal_store, lambda: self.settings, self._polish_key, self.recent, self._retry_recent)
+            self._personal_window = PersonalWindow(self._personal_store, lambda: self.settings, self._polish_key, self.recent, self._retry_recent, lambda: not self._busy())
         self._personal_window.show()
 
     def _check_updates(self):
@@ -451,6 +453,13 @@ class DoubaoInputApp(Gtk.Application):
             self._setup_session.microphone_ok = self._setup_session.voice_ok = False
         self._control.refresh()
 
+    def _trace_input(self, stage):
+        self._diagnostics.add(stage)
+        if stage == "gesture_confirmed":
+            self._input_latency.reset()
+        elif stage == "stop_requested":
+            self._input_latency.stop()
+
     def _new_transcription_manager(self):
         provider = recognition_provider(self.settings.asr_provider)
         return TranscriptionManager(
@@ -488,6 +497,8 @@ class DoubaoInputApp(Gtk.Application):
         if getattr(self, "_polish_mode", None) == "final" and self._polisher.busy:
             self._cancel_polish(use_original=True)
             return
+        if getattr(self, "_personal_window", None) and self._personal_window.evaluation and self._personal_window.evaluation.active:
+            return
         if self._mic_test_running or self._triggers.capturing or self._recovery_timer:
             return
         if self.app_state.recording_state == RecordingState.IDLE and not self._paste_pending:
@@ -501,7 +512,8 @@ class DoubaoInputApp(Gtk.Application):
     def _voice_prime(self):
         if (not self._mic_test_running and not self._triggers.capturing
                 and not self._recovery_timer and not self._paste_pending
-                and getattr(self, "_polish_mode", None) != "final"):
+                and getattr(self, "_polish_mode", None) != "final"
+                and not (getattr(self, "_personal_window", None) and self._personal_window.evaluation and self._personal_window.evaluation.active)):
             self._tm.prime_recording()
 
     def _voice_stop(self):
@@ -512,6 +524,8 @@ class DoubaoInputApp(Gtk.Application):
             self._tm.handle_toggle()
 
     def _voice_toggle(self):
+        if getattr(self, "_personal_window", None) and self._personal_window.evaluation and self._personal_window.evaluation.active:
+            return
         if getattr(self, "_polish_mode", None) == "final" and self._polisher.busy:
             self._cancel_polish(use_original=True)
             return
@@ -529,6 +543,8 @@ class DoubaoInputApp(Gtk.Application):
             self._voice_stop()
 
     def _voice_enter(self):
+        if getattr(self, "_personal_window", None) and self._personal_window.evaluation and self._personal_window.evaluation.active:
+            return
         if self._mic_test_running or self._triggers.capturing or self._recovery_timer:
             return
         if self._preview_testing:
@@ -570,6 +586,9 @@ class DoubaoInputApp(Gtk.Application):
         if self._setup_session.complete_voice(text):
             self._control.refresh()
             return
+        latency = getattr(self, "_input_latency", None)
+        if latency:
+            latency.mark("asr")
         text = DoubaoInputApp._uncommitted_text(self, text)
         if not text:
             return
@@ -606,6 +625,9 @@ class DoubaoInputApp(Gtk.Application):
         self._submit_transcript(text, self._target, send_enter)
 
     def _submit_transcript(self, text, target, send_enter=False, *, original=None):
+        latency = getattr(self, "_input_latency", None)
+        if latency:
+            latency.mark("polish")
         self._remember_input(original if original is not None else text, text, original is not None)
         self.recent.keep(text)
         self._control.set_result(self.recent.text, tr("Ready to input", "准备输入"))
@@ -670,6 +692,11 @@ class DoubaoInputApp(Gtk.Application):
         if store:
             try:
                 store.status(self._history_id, status)
+                latency = getattr(self, "_input_latency", None)
+                if latency:
+                    if status != "pending":
+                        latency.mark("delivery")
+                    store.save_timings(self._history_id, latency.values)
             except Exception:
                 logger.warning("Could not update local input history")
         diagnostics = getattr(self, "_diagnostics", None)
@@ -733,6 +760,8 @@ class DoubaoInputApp(Gtk.Application):
         self._recovery_timer = GLib.timeout_add(3000, retry)
 
     def _cancel_input(self):
+        if self._personal_window and self._personal_window.evaluation:
+            self._personal_window.evaluation.cancel()
         self._enter_after_paste = False
         if self._triggers:
             self._triggers.cancel_gesture()
@@ -749,7 +778,7 @@ class DoubaoInputApp(Gtk.Application):
             self._tm.handle_cancel()
 
     def _busy(self):
-        return (self.app_state.recording_state != RecordingState.IDLE or self._mic_test_running
+        return (bool(getattr(self, "_personal_window", None) and self._personal_window.evaluation and self._personal_window.evaluation.active) or self.app_state.recording_state != RecordingState.IDLE or self._mic_test_running
                 or self._paste_pending or (self._triggers is not None and self._triggers.capturing)
                 or self._recovery_timer is not None
                 or bool(self._polisher and self._polisher.busy))

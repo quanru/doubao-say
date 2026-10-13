@@ -309,6 +309,13 @@ Key recording accepts ordinary keyboard keys and modifier combinations. The left
 and right variants of Ctrl, Shift, Alt and Meta are treated as the same key.
 Automatic detection of every desktop shortcut conflict is not supported.
 
+The **Speech evaluation** page in Mac Settings and Linux Vocabulary & history
+records local samples and compares the same audio with raw ASR, hotwords, and
+optional polishing. References are only used for scoring. Comparison explicitly
+uploads audio to your paid official ASR; drafts save automatically and recordings
+remain until deleted. Input history also shows stop-to-ASR, polishing, input and
+total waiting times, separately from recording duration and replay timing.
+
 ## Privacy and limitations
 
 After a recording gesture is confirmed, the default unofficial backend sends the

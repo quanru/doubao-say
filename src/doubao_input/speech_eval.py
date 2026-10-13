@@ -125,7 +125,7 @@ def read_audio(path):
         return audio.readframes(audio.getnframes())
 
 
-def recognize(pcm, credentials, words, *, client_factory=None, timeout=75):
+def recognize(pcm, credentials, words, *, client_factory=None, timeout=75, cancel=None):
     from doubao_input.doubao.volcengine_asr_client import VolcengineASRClient
     client = (client_factory or VolcengineASRClient)(hotwords=lambda: words)
     opened, finished = threading.Event(), threading.Event()
@@ -136,19 +136,26 @@ def recognize(pcm, credentials, words, *, client_factory=None, timeout=75):
     client.on_result = lambda text: result.update(text=text)
     client.on_finish = finished.set
     client.on_error = client.on_auth_error = failure
+    cancel = cancel or threading.Event()
+    def wait(event, seconds):
+        deadline = time.monotonic() + seconds
+        while not cancel.is_set() and time.monotonic() < deadline:
+            if event.wait(min(.1, max(0, deadline - time.monotonic()))):
+                return True
+        return False
     started = time.monotonic()
     try:
         client.prepare(); client.connect(credentials)
-        if not opened.wait(8) or finished.is_set():
+        if not wait(opened, 8) or finished.is_set():
             raise TimeoutError("ASR did not open")
         for offset in range(0, len(pcm), 3200):
-            if finished.is_set():
+            if finished.is_set() or cancel.is_set():
                 break
             client.send_audio(pcm[offset:offset + 3200])
-            time.sleep(.1)
+            cancel.wait(.1)
         client.finish_sending()
         remaining = max(0, timeout - (time.monotonic() - started))
-        if not finished.wait(remaining):
+        if not wait(finished, remaining):
             result["error"] = "asr_timeout"
     except (OSError, ValueError, TimeoutError):
         result["error"] = "asr_failed"

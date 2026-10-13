@@ -11,6 +11,7 @@ final class TranscriptionManager {
     private var client: ASRTransport?
     private let polisher = PolishCoordinator()
     private var polishAvailable = false
+    private var latency = InputLatency()
     private var rawText = ""
     private var speaking = false
     private var sendEnter = false
@@ -21,7 +22,7 @@ final class TranscriptionManager {
     private var session = UUID()
     private var target: InputTarget?
     private var updateSafeAfter: TimeInterval = 0
-    var canInstallUpdate: Bool { state.recordingState == .idle && !primed && ProcessInfo.processInfo.systemUptime >= updateSafeAfter }
+    var canInstallUpdate: Bool { state.recordingState == .idle && !state.evaluationBusy && !primed && ProcessInfo.processInfo.systemUptime >= updateSafeAfter }
     private var finalGate = FinalResultGate()
     private var quietTimer: DispatchWorkItem?
     private var timeout: DispatchWorkItem?
@@ -59,7 +60,7 @@ final class TranscriptionManager {
     func startRecording() {
         defer { hotkey.setEscapeHandlingEnabled(state.recordingState != .idle || overlay.isVisible, recording: state.isRecording) }
         if state.recordingState == .polishing { polisher.useOriginal(); return }
-        guard state.recordingState == .idle, canRecord?() ?? true else { return }
+        guard state.recordingState == .idle, !state.evaluationBusy, canRecord?() ?? true else { return }
         settings = SettingsStore.shared.value
         delivery.cancel()
         let params = settings.provider == .doubao ? ASRParamsStore.load() : nil
@@ -77,6 +78,7 @@ final class TranscriptionManager {
         let token = session
         let transport: ASRTransport = settings.provider == .doubao ? DoubaoASRClient() : APIASRClient(provider: settings.provider)
         client = transport
+        latency = InputLatency()
         rawText = ""; speaking = false; finalGate = FinalResultGate()
         state.transcriptionText = ""; state.errorMessage = nil; state.overlayStatus = ""
         let polishKey = settings.polishEnabled ? (SecretStore.load("polish-api-key") ?? "") : ""
@@ -145,6 +147,7 @@ final class TranscriptionManager {
     }
     func stopRecording() {
         guard state.recordingState == .starting || state.recordingState == .recording else { return }
+        latency.stop(at: ProcessInfo.processInfo.systemUptime)
         setState(.stopping); audio.stopCapture(); client?.finishSending()
         // Bound slow handshakes without authorizing delivery of incomplete text.
         scheduleTimeout(seconds: 8, token: session) { [weak self] in
@@ -177,6 +180,8 @@ final class TranscriptionManager {
     }
     private func complete() {
         guard state.recordingState == .starting || state.recordingState == .recording || state.recordingState == .stopping else { return }
+        latency.stop(at: ProcessInfo.processInfo.systemUptime)
+        latency.mark("asr", at: ProcessInfo.processInfo.systemUptime)
         let text = rawText.trimmingCharacters(in: .whitespacesAndNewlines)
         timeout?.cancel(); quietTimer?.cancel(); quietTimer = nil; audio.stopCapture(); audio.onAudioData = nil; audio.onRMS = nil; audio.onError = nil
         client?.disconnect(); client = nil
@@ -194,6 +199,8 @@ final class TranscriptionManager {
         }
     }
     private func submit(_ text: String, polished: Bool) {
+        latency.mark("polish", at: ProcessInfo.processInfo.systemUptime)
+        var timing = latency
         let captured = target
         let enter = sendEnter
         let original = rawText
@@ -208,11 +215,15 @@ final class TranscriptionManager {
             state.feedback = polishAvailable ? L("Polishing unavailable or skipped; original text used.", "润色未完成或已跳过，本次使用原文。") : L("Polishing is enabled but no API key is saved; original text used.", "润色已开启但未保存 API Key，本次使用原文。")
         } else { state.feedback = L("Original text", "原文") }
         if historyFailed { state.feedback += L(" Local history could not be saved.", " 本地历史保存失败。") }
-        guard UserDefaults.standard.object(forKey: "autoPaste") as? Bool ?? true else { return }
+        guard UserDefaults.standard.object(forKey: "autoPaste") as? Bool ?? true else {
+            try? PersonalDataStore.shared.saveTimings(historyID, values: timing.values); return
+        }
         let token = session
         hotkey.setEscapeHandlingEnabled(true)
         updateSafeAfter = ProcessInfo.processInfo.systemUptime + 1.2
         delivery.deliver(text, target: captured, method: settings.inputMethod, sendEnter: enter) { [weak self] sent in
+            timing.mark("delivery", at: ProcessInfo.processInfo.systemUptime)
+            try? PersonalDataStore.shared.saveTimings(historyID, values: timing.values)
             try? PersonalDataStore.shared.status(historyID, sent ? "sent" : "failed")
             guard self?.session == token else { return }
             self?.hotkey.setEscapeHandlingEnabled(false)
@@ -220,6 +231,7 @@ final class TranscriptionManager {
         }
     }
     func finishWithEnter() {
+        guard !state.evaluationBusy else { return }
         if state.recordingState == .polishing { sendEnter = true; polisher.useOriginal() }
         else if state.isRecording { sendEnter = true; stopRecording() }
         else if state.recordingState == .stopping { sendEnter = true }
@@ -236,7 +248,7 @@ final class TranscriptionManager {
     }
     func retryLast() {
         updateSafeAfter = ProcessInfo.processInfo.systemUptime + 4.5
-        guard state.recordingState == .idle, !state.lastTranscript.isEmpty else { return }
+        guard state.recordingState == .idle, !state.evaluationBusy, !state.lastTranscript.isEmpty else { return }
         let token = session, text = state.lastTranscript
         hotkey.setEscapeHandlingEnabled(true)
         state.feedback = L("Choose a text field within 3 seconds. No Enter will be sent.", "请在三秒内点击目标输入框，本次不发送回车。")
@@ -278,7 +290,7 @@ final class TranscriptionManager {
         try audio.startCapture(deviceID: SettingsStore.shared.value.microphoneID)
     }
     private func prime() {
-        guard state.recordingState == .idle, !primed, canRecord?() ?? true,
+        guard state.recordingState == .idle, !state.evaluationBusy, !primed, canRecord?() ?? true,
               AVCaptureDevice.authorizationStatus(for: .audio) == .authorized else { return }
         delivery.cancel(); session = UUID()
         target = InputTarget.capture(); primedAudio.removeAll(); primed = true

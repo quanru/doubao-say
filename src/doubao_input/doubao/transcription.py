@@ -276,6 +276,7 @@ class TranscriptionManager:
     def _stop_recording(self) -> None:
         logger.info("Stopping recording...")
         self._stopped_at = time.monotonic()
+        self._trace("stop_requested")
         self._set_state(RecordingState.STOPPING)
         try:
             self.audio_capture.finish()

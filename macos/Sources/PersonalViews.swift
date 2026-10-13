@@ -14,6 +14,7 @@ final class PersonalModel: ObservableObject {
     let store: PersonalDataStore
     @Published var words = "" { didSet { if !loading && words != oldValue { scheduleSave() } } }
     @Published var history: [InputHistory] = []
+    @Published var timings: [String: [String: Double]] = [:]
     @Published var enabled = true { didSet { if !loading { do { try store.setEnabled(enabled) } catch { feedback = L("Could not save history preference.", "历史记录设置保存失败。") } } } }
     @Published var candidates: [VocabularyCandidate] = []
     @Published var selected = Set<String>()
@@ -22,8 +23,10 @@ final class PersonalModel: ObservableObject {
     @Published var corrections: [ConfirmedCorrection] = []
     @Published var hotwords = ""
     @Published var correctionTarget: InputHistory?
-    @Published var recognizedTerm = ""
+    var correctionSelection: NSRange?
+    @Published var recognizedTerm = "" { didSet { if recognizedTerm != oldValue { correctionSelection = nil } } }
     @Published var correctedTerm = ""
+    var selectedHistory: (String, String, NSRange)?
     private var loading = false
     private var limit = 100
     private var saveTimer: DispatchWorkItem?
@@ -33,6 +36,7 @@ final class PersonalModel: ObservableObject {
         loading = true; defer { loading = false }
         do {
             if saveTimer == nil { words = try store.words().joined(separator: "\n") }
+            timings = try store.allTimings()
             enabled = try store.enabled(); history = try store.history(limit: limit); corrections = try store.corrections()
             refreshHotwords()
         } catch { feedback = L("Could not read local vocabulary or history.", "无法读取本地词汇或历史。") }
@@ -55,16 +59,19 @@ final class PersonalModel: ObservableObject {
     }
     func more() { limit += 100; refresh() }
     func beginCorrection(_ item: InputHistory) {
-        recognizedTerm = ""; correctedTerm = ""; correctionTarget = item
+        correctionSelection = nil; recognizedTerm = ""; correctedTerm = ""; correctionTarget = item
+        if let selection = selectedHistory, selection.0 == item.id {
+            recognizedTerm = selection.1; correctionSelection = selection.2
+        }
     }
     var correctionPreview: String? {
         guard let item = correctionTarget else { return nil }
-        return try? PersonalCorrections.confirmation(original: item.original, output: item.confirmed.isEmpty ? item.output : item.confirmed, recognized: recognizedTerm, corrected: correctedTerm).2
+        return try? PersonalCorrections.confirmation(original: item.original, output: item.confirmed.isEmpty ? item.output : item.confirmed, recognized: recognizedTerm, corrected: correctedTerm, selection: correctionSelection).2
     }
     func confirmCorrection() {
         guard let item = correctionTarget else { return }
         do {
-            try store.confirmCorrection(item.id, recognized: recognizedTerm, corrected: correctedTerm)
+            try store.confirmCorrection(item.id, recognized: recognizedTerm, corrected: correctedTerm, selection: correctionSelection)
             correctionTarget = nil; refresh()
             feedback = L("Correction remembered. Future matching contexts can use it.", "已记住这次纠正，之后遇到相似语境时参考。")
         } catch { feedback = L("Could not confirm. Check both terms and refresh the history entry.", "无法确认，请检查两个词，并确认这条历史仍然存在。") }
@@ -177,7 +184,12 @@ struct InputHistoryView: View {
                                 Text(item.polished ? L("Polished", "已润色") : L("Original", "原文"))
                                 Text(["sent", "attempted"].contains(item.status) ? L("Input sent", "已发送输入操作") : L("Kept / not confirmed", "已保留／未确认输入"))
                             }.font(.caption).foregroundColor(.secondary)
-                            Text(item.confirmed.isEmpty ? item.output : item.confirmed).textSelection(.enabled)
+                            CorrectionSelectionText(text: item.confirmed.isEmpty ? item.output : item.confirmed) { term, range in
+                                model.selectedHistory = (item.id, term, range)
+                            }.frame(height: 65)
+                            if let timing = model.timings[item.id], !timing.isEmpty {
+                                Text(String(format: L("After stop: ASR %.0f ms · Polish %.0f ms · Input %.0f ms · Total %.0f ms", "结束录音后：识别 %.0f 毫秒 · 润色 %.0f 毫秒 · 输入 %.0f 毫秒 · 共 %.0f 毫秒"), timing["asr"] ?? 0, timing["polish"] ?? 0, timing["delivery"] ?? 0, timing["total"] ?? 0)).font(.caption).foregroundColor(.secondary)
+                            }
                             if !item.confirmed.isEmpty {
                                 Text(L("Correction confirmed by you", "你已确认纠正")).font(.caption).foregroundColor(.secondary)
                                 DisclosureGroup(L("Before your correction", "确认前的文字")) { Text(item.output).textSelection(.enabled) }
@@ -210,7 +222,10 @@ struct ConfirmCorrectionView: View {
         VStack(alignment: .leading, spacing: 12) {
             Text(L("Confirm & remember a correction", "确认并记住这次纠正")).font(.headline)
             if let item = model.correctionTarget {
-                ScrollView { Text(item.confirmed.isEmpty ? item.output : item.confirmed).textSelection(.enabled).frame(maxWidth: .infinity, alignment: .leading) }.frame(maxHeight: 120)
+                Text(L("Select the wrong word below to fill it in, then enter the correct spelling.", "在下方选中错词即可带入，再填写正确写法。")).font(.caption)
+                CorrectionSelectionText(text: item.confirmed.isEmpty ? item.output : item.confirmed) { term, range in
+                    model.recognizedTerm = term; model.correctionSelection = range
+                }.frame(height: 85)
             }
             Text(L("Misrecognized word or phrase", "误识别的词或短语"))
             TextField(L("For example: Midjourney", "例如：Midjourney"), text: $model.recognizedTerm)
@@ -233,5 +248,37 @@ struct ConfirmCorrectionView: View {
                     .keyboardShortcut(.defaultAction).disabled(model.correctionPreview == nil)
             }
         }.textFieldStyle(.roundedBorder).padding(20).frame(width: 540)
+    }
+}
+
+/// Read-only native text with selection callbacks; selecting a word never confirms it.
+struct CorrectionSelectionText: NSViewRepresentable {
+    let text: String
+    var selected: (String, NSRange) -> Void
+    func makeCoordinator() -> Coordinator { Coordinator(self) }
+    func makeNSView(context: Context) -> NSScrollView {
+        let scroll = NSScrollView(); scroll.hasVerticalScroller = true
+        let view = NSTextView(); view.isEditable = false; view.isSelectable = true
+        view.drawsBackground = false; view.font = .systemFont(ofSize: 13)
+        view.textContainerInset = NSSize(width: 6, height: 6)
+        view.isVerticallyResizable = true; view.isHorizontallyResizable = false
+        view.autoresizingMask = [.width]; view.textContainer?.widthTracksTextView = true
+        view.delegate = context.coordinator; scroll.documentView = view; return scroll
+    }
+    func updateNSView(_ scroll: NSScrollView, context: Context) {
+        context.coordinator.parent = self
+        if let view = scroll.documentView as? NSTextView, view.string != text { view.string = text }
+    }
+    final class Coordinator: NSObject, NSTextViewDelegate {
+        var parent: CorrectionSelectionText
+        init(_ parent: CorrectionSelectionText) { self.parent = parent }
+        func textViewDidChangeSelection(_ notification: Notification) {
+            guard let view = notification.object as? NSTextView else { return }
+            let range = view.selectedRange(), text = view.string as NSString
+            guard range.length > 0, range.location + range.length <= text.length else { return }
+            let selection = text.substring(with: range)
+            guard selection.count <= 80, !selection.contains("\n") else { return }
+            DispatchQueue.main.async { self.parent.selected(selection, range) }
+        }
     }
 }

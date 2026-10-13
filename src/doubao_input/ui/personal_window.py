@@ -12,7 +12,7 @@ from doubao_input.ui.style import apply_window_style
 
 
 class PersonalWindow:
-    def __init__(self, store, settings, api_key, recent, retry):
+    def __init__(self, store, settings, api_key, recent, retry, can_record=lambda: True):
         self.store, self.settings, self.api_key = store, settings, api_key
         self.recent, self.retry = recent, retry
         self.window = None
@@ -24,6 +24,8 @@ class PersonalWindow:
         self.candidates = []
         self.choices = []
         self.correction_window = None
+        self.can_record = can_record
+        self.evaluation = None
 
     def label(self, text):
         return Gtk.Label(label=text, xalign=0, wrap=True)
@@ -120,6 +122,9 @@ class PersonalWindow:
         self.history_box = Gtk.Box(orientation=Gtk.Orientation.VERTICAL, spacing=12)
         scroll = Gtk.ScrolledWindow(vexpand=True); scroll.set_child(self.history_box); history.append(scroll)
         self.button(history, tr("Load more", "加载更多"), self.more)
+        from doubao_input.ui.speech_evaluation import SpeechEvaluationPage
+        evaluation = self.page(notebook, tr("Speech evaluation", "语音评测"), scroll=True)
+        self.evaluation = SpeechEvaluationPage(evaluation, self.store, self.settings, self.api_key, self.can_record)
         self.feedback = self.label("")
         self.feedback.set_margin_start(16); self.feedback.set_margin_end(16); self.feedback.set_margin_bottom(12)
         outer.append(self.feedback)
@@ -179,7 +184,10 @@ class PersonalWindow:
                     expander = Gtk.Expander(label=tr("Recognition original", "识别原文"))
                     original = self.label(item["original"]); original.set_selectable(True); expander.set_child(original); box.append(expander)
                 self.button(box, tr("Use in Recent text", "放入最近文字"), lambda text=text: self.recent_editor.get_buffer().set_text(text))
-                self.button(box, tr("Correct & remember…", "纠正并记住…"), lambda item=item: self.edit_correction(item))
+                self.button(box, tr("Correct & remember…", "纠正并记住…"), lambda item=item, output=output: self.edit_correction(item, output))
+                timing = json.loads(item["timing_data"])
+                if timing:
+                    box.append(self.label(tr("After stop: ASR / polish / input / total (ms): ", "结束录音后：识别／润色／输入／总耗时（毫秒）：") + " / ".join(str(timing.get(key, 0)) for key in ("asr", "polish", "delivery", "total"))))
                 box.append(Gtk.Separator()); self.history_box.append(box)
             if not rows:
                 self.history_box.append(self.label(tr("No input history yet.", "暂无输入历史。")))
@@ -219,7 +227,7 @@ class PersonalWindow:
         except Exception:
             self.feedback.set_text(tr("Could not remove correction memory.", "无法删除纠错记忆。"))
 
-    def edit_correction(self, item):
+    def edit_correction(self, item, selected_label=None):
         from doubao_input.personal_corrections import confirmation
         if self.correction_window:
             self.correction_window.present(); return
@@ -230,7 +238,9 @@ class PersonalWindow:
             getattr(box, "set_margin_" + side)(20)
         current = item["confirmed"] or item["output"]
         sample_scroll = Gtk.ScrolledWindow(min_content_height=70, max_content_height=120)
-        sample_scroll.set_child(self.label(current)); box.append(sample_scroll)
+        sample = self.label(current); sample.set_selectable(True)
+        sample_scroll.set_child(sample); box.append(sample_scroll)
+        box.append(self.label(tr("Select the wrong word below to fill it in, then enter the correct spelling.", "选中错词即可带入，再填写正确写法。")))
         box.append(self.label(tr("Misrecognized word or phrase", "误识别的词或短语")))
         source = Gtk.Entry(placeholder_text=tr("For example: Midjourney", "例如：Midjourney")); box.append(source)
         box.append(self.label(tr("Correct spelling", "正确写法")))
@@ -247,7 +257,7 @@ class PersonalWindow:
         self.button(buttons, tr("Cancel", "取消"), close)
         def confirm():
             try:
-                self.store.confirm_correction(item["id"], source.get_text(), target.get_text())
+                self.store.confirm_correction(item["id"], source.get_text(), target.get_text(), selection[0])
                 close(); self.refresh()
                 self.feedback.set_text(tr("Correction remembered. Future matching contexts can use it.", "已记住这次纠正，之后遇到相似语境时参考。"))
             except Exception:
@@ -256,11 +266,29 @@ class PersonalWindow:
         button.add_css_class("suggested-action"); button.set_sensitive(False)
         def changed(*_):
             try:
-                value = confirmation(item["original"], current, source.get_text(), target.get_text())[2]
+                value = confirmation(item["original"], current, source.get_text(), target.get_text(), selection[0])[2]
                 preview.set_text(value); button.set_sensitive(True)
             except ValueError:
                 preview.set_text(tr("Enter a term from this entry and its correct spelling. Review before confirming.", "填写这条记录中出现的词和正确写法，检查后再确认。")); button.set_sensitive(False)
-        source.connect("changed", changed); target.connect("changed", changed)
+        selection = [None]
+        def source_changed(*_):
+            selection[0] = None; changed()
+        def selected(label, *_):
+            bounds = label.get_selection_bounds()
+            if len(bounds) == 3:
+                if not bounds[0]:
+                    return
+                bounds = bounds[1:]
+            if bounds and len(bounds) == 2 and bounds[0] != bounds[1]:
+                start, end = sorted(bounds)
+                term = current[start:end]
+                if 0 < len(term) <= 80 and "\n" not in term:
+                    source.set_text(term); selection[0] = (start, end); changed()
+        source.connect("changed", source_changed); target.connect("changed", changed)
+        sample.connect("notify::cursor-position", selected)
+        sample.connect("notify::selection-bound", selected)
+        if selected_label:
+            selected(selected_label)
         changed(); dialog.set_child(box)
         dialog.connect("close-request", lambda *_: (close(), True)[1])
         dialog.present()
@@ -340,6 +368,8 @@ class PersonalWindow:
             self.refresh(); self.render_candidates()
 
     def close(self, *_):
+        if self.evaluation:
+            self.evaluation.cancel()
         if self.correction_window:
             self.correction_window.close()
         self.flush(); self.generation += 1; self.busy = False; self.ai_button.set_sensitive(True)

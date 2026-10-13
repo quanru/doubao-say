@@ -19,6 +19,7 @@ enum RecordingState {
 class AppState: ObservableObject {
     static let shared = AppState()
 
+    @Published var evaluationBusy = false
     @Published var updateVersion = ""
     @Published var updateStatus = ""
     @Published var updateBusy = false

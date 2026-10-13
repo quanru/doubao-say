@@ -81,9 +81,11 @@ class PersonalStore:
                 db.execute("CREATE INDEX IF NOT EXISTS history_created ON history(created)")
                 db.execute("CREATE TABLE IF NOT EXISTS preferences (key TEXT PRIMARY KEY, value TEXT)")
                 db.execute("CREATE TABLE IF NOT EXISTS corrections (key TEXT PRIMARY KEY, recognized TEXT, corrected TEXT, context TEXT, created REAL)")
+                db.execute("CREATE TABLE IF NOT EXISTS input_timings (history_id TEXT PRIMARY KEY, data TEXT)")
                 db.execute("CREATE TABLE IF NOT EXISTS confirmed_history (history_id TEXT PRIMARY KEY, text TEXT)")
                 db.execute("DELETE FROM history WHERE created < ?", (self.clock() - RETENTION,))
                 db.execute("DELETE FROM confirmed_history WHERE history_id NOT IN (SELECT id FROM history)")
+                db.execute("DELETE FROM input_timings WHERE history_id NOT IN (SELECT id FROM history)")
                 yield db
         finally:
             db.close()
@@ -127,25 +129,36 @@ class PersonalStore:
     def history(self, limit=100):
         with self.database() as db:
             db.row_factory = sqlite3.Row
-            return [dict(row) for row in db.execute("SELECT history.*, COALESCE(confirmed_history.text, '') AS confirmed FROM history LEFT JOIN confirmed_history ON history.id=confirmed_history.history_id ORDER BY created DESC, history.rowid DESC LIMIT ?", (limit,))]
+            return [dict(row) for row in db.execute("SELECT history.*, COALESCE(confirmed_history.text, '') AS confirmed, COALESCE(input_timings.data, '{}') AS timing_data FROM history LEFT JOIN confirmed_history ON history.id=confirmed_history.history_id LEFT JOIN input_timings ON history.id=input_timings.history_id ORDER BY created DESC, history.rowid DESC LIMIT ?", (limit,))]
 
     def clear_history(self):
         with self.database() as db:
             db.execute("DELETE FROM history")
             db.execute("DELETE FROM confirmed_history")
+            db.execute("DELETE FROM input_timings")
+
+    def save_timings(self, identifier, values):
+        if identifier:
+            with self.database() as db:
+                db.execute("INSERT OR REPLACE INTO input_timings SELECT ?,? WHERE EXISTS (SELECT 1 FROM history WHERE id=?)", (identifier, json.dumps(values), identifier))
+
+    def timings(self, identifier):
+        with self.database() as db:
+            row = db.execute("SELECT data FROM input_timings WHERE history_id=?", (identifier,)).fetchone()
+            return json.loads(row[0]) if row else {}
 
     def corrections(self):
         with self.database() as db:
             db.row_factory = sqlite3.Row
             return [dict(row) for row in db.execute("SELECT * FROM corrections ORDER BY created DESC, rowid DESC")]
 
-    def confirm_correction(self, identifier, recognized, corrected):
+    def confirm_correction(self, identifier, recognized, corrected, selection=None):
         from doubao_input.personal_corrections import confirmation
         with self.database() as db:
             row = db.execute("SELECT original, COALESCE(confirmed_history.text, history.output) FROM history LEFT JOIN confirmed_history ON history.id=confirmed_history.history_id WHERE history.id=?", (identifier,)).fetchone()
             if row is None:
                 raise ValueError("This history entry is no longer available")
-            source, target, text, context = confirmation(*row, recognized, corrected)
+            source, target, text, context = confirmation(*row, recognized, corrected, selection)
             key = source.lower() + "\n" + target.lower()
             if not db.execute("SELECT 1 FROM corrections WHERE key=?", (key,)).fetchone() and db.execute("SELECT COUNT(*) FROM corrections").fetchone()[0] >= 200:
                 raise ValueError("Correction memory supports up to 200 entries")

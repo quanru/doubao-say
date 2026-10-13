@@ -16,12 +16,17 @@ enum PersonalCorrections {
         let expression = try? NSRegularExpression(pattern: left + NSRegularExpression.escapedPattern(for: term) + right, options: .caseInsensitive)
         return expression?.firstMatch(in: text, range: NSRange(location: 0, length: (text as NSString).length))?.range
     }
-    static func confirmation(original: String, output: String, recognized: String, corrected: String) throws -> (String, String, String, String) {
+    static func confirmation(original: String, output: String, recognized: String, corrected: String, selection: NSRange? = nil) throws -> (String, String, String, String) {
         let sources = try PersonalVocabulary.normalize(recognized), targets = try PersonalVocabulary.normalize(corrected)
         guard sources.count == 1, targets.count == 1, sources[0] != targets[0] else { throw PersonalDataStore.Failure.invalid }
         let source = sources[0], target = targets[0]
         guard match(source, in: original) != nil || match(source, in: output) != nil else { throw PersonalDataStore.Failure.invalid }
-        let range = match(source, in: output)
+        var range = match(source, in: output)
+        if let selection = selection {
+            guard selection.location >= 0, selection.length > 0, selection.location + selection.length <= (output as NSString).length,
+                  (output as NSString).substring(with: selection).caseInsensitiveCompare(source) == .orderedSame else { throw PersonalDataStore.Failure.invalid }
+            range = selection
+        }
         let text = range.map { (output as NSString).replacingCharacters(in: $0, with: target) } ?? output
         guard let occurrence = range.map({ NSRange(location: $0.location, length: (target as NSString).length) }) ?? match(target, in: text) else { throw PersonalDataStore.Failure.invalid }
         guard let indices = Range(occurrence, in: text) else { throw PersonalDataStore.Failure.invalid }

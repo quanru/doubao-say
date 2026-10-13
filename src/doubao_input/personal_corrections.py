@@ -11,7 +11,7 @@ def term_pattern(term):
     return re.compile(left + re.escape(term) + right, re.IGNORECASE)
 
 
-def confirmation(original, output, recognized, corrected):
+def confirmation(original, output, recognized, corrected, selection=None):
     source = normalize_words(recognized)
     target = normalize_words(corrected)
     if len(source) != 1 or len(target) != 1 or source[0] == target[0]:
@@ -21,8 +21,17 @@ def confirmation(original, output, recognized, corrected):
     if not pattern.search(original) and not pattern.search(output):
         raise ValueError("The recognized term must occur in this entry")
     occurrence = pattern.search(output)
-    text, count = pattern.subn(lambda _: target, output, count=1)
-    match = term_pattern(target).search(text, occurrence.start() if occurrence else 0)
+    if selection is not None:
+        start, end = selection
+        if not 0 <= start < end <= len(output) or output[start:end].casefold() != source.casefold():
+            raise ValueError("Selection no longer matches")
+        occurrence = re.search(re.escape(output[start:end]), output[start:end])
+        text, count = output[:start] + target + output[end:], 1
+        target_offset = start
+    else:
+        text, count = pattern.subn(lambda _: target, output, count=1)
+        target_offset = occurrence.start() if occurrence else 0
+    match = term_pattern(target).search(text, target_offset)
     if not count and not match:
         raise ValueError("The correction must match the output or confirm an existing correction")
     context = text[max(0, match.start() - 80):match.end() + 80] if match else text[:160]
