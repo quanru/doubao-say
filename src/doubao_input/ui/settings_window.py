@@ -500,6 +500,8 @@ class SettingsWindow:
             self._save_asr(key)
         except (ValueError, OSError) as error:
             self.asr_status.set_text(str(error))
+            self.status.set_text(tr(
+                "API key could not be saved. Try again.", "API Key 保存失败，请重试。"))
             return False
         self._asr_has_key = True
         self._updating = True
@@ -510,6 +512,7 @@ class SettingsWindow:
         finally:
             self._updating = False
         self.asr_status.set_text(tr("API key saved automatically.", "API Key 已自动保存。"))
+        self.status.set_text(tr("API key saved automatically.", "API Key 已自动保存。"))
         return True
 
     def flush_edits(self):
@@ -536,12 +539,14 @@ class SettingsWindow:
         finally:
             self._updating = False
         self.asr_status.set_text(tr("API key cleared.", "API Key 已清除。"))
+        self.status.set_text(tr("API key cleared.", "API Key 已清除。"))
 
     def _test_asr_clicked(self, *_):
         if self._asr_testing:
             return
-        if not self._save_asr_key_now() or not (
-                self._asr_has_key or self.asr_key.get_text().strip()):
+        if not self.flush_edits():
+            return
+        if not (self._asr_has_key or self.asr_key.get_text().strip()):
             self.asr_status.set_text(tr("Enter an API key first.", "请先填写 API Key。"))
             return
         self._asr_testing = True
