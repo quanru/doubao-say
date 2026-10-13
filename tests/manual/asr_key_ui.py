@@ -112,6 +112,11 @@ def main():
             assert window.window.get_visible()
             assert window.asr_key.get_text() == "synthetic-deepgram-replacement"
             assert DeepgramCredentialsStore.load().api_key == "synthetic-deepgram-original"
+            assert window.status.get_text() == tr(
+                "API key could not be saved. Try again.", "API Key 保存失败，请重试。")
+            window.asr_test_button.emit("clicked")
+            assert window.asr_status.get_text() == "Synthetic save failure"
+            assert not window._asr_testing and app._asr_probe is None
             capture("settings-save-failure")
         assert window.flush_edits()
         assert DeepgramCredentialsStore.load().api_key == "synthetic-deepgram-replacement"
