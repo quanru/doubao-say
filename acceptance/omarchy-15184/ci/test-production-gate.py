@@ -31,7 +31,9 @@ with tempfile.TemporaryDirectory() as d:
  assert calls[-1]['service_tier']=='default'
  # Confirm that any malformed/unknown usage keeps the full reservation.
  Response.read=lambda self,*a:b'{}'
+ ns['next_start']=0
  assert send({})==200
+ ns['next_start']=0
  assert send({})==429
  assert len(calls)==2
  server.shutdown();server.server_close();ns['money'].file.close()

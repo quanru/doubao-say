@@ -23,7 +23,7 @@ on:
 permissions:
   contents: read
 concurrency:
-  group: omarchy-15184-review
+  group: omarchy-15184-review-v2
   cancel-in-progress: false
 jobs:
   acceptance:

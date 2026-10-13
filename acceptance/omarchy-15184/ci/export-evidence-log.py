@@ -6,7 +6,7 @@ buf=io.BytesIO()
 with tarfile.open(fileobj=buf,mode='w:gz') as tar:
  for p in sorted(root.rglob('*')):
   if p.is_file():
-   assert p.suffix in {'.html','.png','.jpg','.jpeg','.webp','.json','.jsonl','.txt','.log','.diff'} or p.name in {'SHA256SUMS','ready','done','iso.sha256'},str(p)
+   assert p.suffix in {'.html','.png','.jpg','.jpeg','.webp','.json','.jsonl','.csv','.txt','.log','.diff'} or p.name in {'SHA256SUMS','ready','done','iso.sha256'},str(p)
    tar.add(p,arcname=str(p.relative_to(root)),recursive=False)
 data=buf.getvalue()
 assert len(data)<=20*1024*1024,'Evidence exceeds log transport cap; leave run logs for diagnosis'

@@ -21,13 +21,13 @@ if u.hostname not in ['127.0.0.1','localhost']:
  if not a.budget_micro or not a.ledger:raise SystemExit('Missing durable run budget')
  spec=importlib.util.spec_from_file_location('money',Path(__file__).with_name('money-ledger.py'));mod=importlib.util.module_from_spec(spec);spec.loader.exec_module(mod)
  money=mod.Ledger(a.ledger,a.budget_micro,1695744)
-lock=threading.Lock();counter=0;deadline=time.monotonic()+a.duration_seconds
+lock=threading.Lock();counter=0;next_start=0;deadline=time.monotonic()+a.duration_seconds
 class Gate(BaseHTTPRequestHandler):
  def log_message(self,*args):pass
  def reply(self,status,body):
   self.send_response(status);self.send_header('Content-Type','application/json');self.end_headers();self.wfile.write(json.dumps(body).encode())
  def do_POST(self):
-  global counter
+  global counter,next_start
   path=self.path.removeprefix('/v1')
   if path not in ['/chat/completions']:return self.reply(403,{'error':'unsupported endpoint'})
   try:
@@ -60,6 +60,9 @@ class Gate(BaseHTTPRequestHandler):
   with lock:
    if counter>=a.max_requests or time.monotonic()>=deadline:return self.reply(429,{'error':'hard request/time cap reached'})
    if money:
+    time.sleep(max(0,next_start-time.monotonic()))
+    next_start=time.monotonic()+20
+    if time.monotonic()>=deadline:return self.reply(429,{'error':'hard time cap reached'})
     reservation=money.reserve()
     if reservation is None:return self.reply(429,{'error':'hard monetary cap reached'})
    counter+=1;number=counter
