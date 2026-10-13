@@ -2,7 +2,7 @@
 
 ## ChatGPT polishing
 
-Use ChatGPT as a polishing provider alongside the existing API-based providers. Recognition and polishing remain separate, and original recognition text stays available for review.
+Linux now supports ChatGPT as a polishing provider alongside the existing API-based providers. Recognition and polishing remain separate, and original recognition text stays available for review.
 
 ## Mac input recovery
 
