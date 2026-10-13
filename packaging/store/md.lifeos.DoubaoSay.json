@@ -28,6 +28,9 @@
           "url": "https://github.com/wmww/gtk4-layer-shell/archive/536ff516ed68b9bb34afc4c07f942a54b2b4b03f.tar.gz",
           "sha256": "f4c4fd455f5605c7b93b305b6be28990f0f7170968fb2714bf362477f918c4bc"
         }
+      ],
+      "post-install": [
+        "install -Dm644 LICENSE /app/share/licenses/gtk4-layer-shell/LICENSE"
       ]
     },
     {
@@ -120,7 +123,8 @@
         "install -Dm755 packaging/store/host-tool.sh /app/bin/xprop",
         "install -Dm755 packaging/store/host-tool.sh /app/bin/wmctrl",
         "install -Dm755 packaging/store/host-tool.sh /app/bin/hyprctl",
-        "install -Dm755 packaging/store/host-tool.sh /app/bin/wtype"
+        "install -Dm755 packaging/store/host-tool.sh /app/bin/wtype",
+        "install -Dm644 LICENSE /app/share/licenses/doubao-say/LICENSE"
       ],
       "sources": [
         {

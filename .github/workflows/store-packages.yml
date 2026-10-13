@@ -50,7 +50,7 @@ jobs:
       - name: Install Flatpak builder and runtime
         run: |
           sudo apt-get update
-          sudo apt-get install -y flatpak flatpak-builder
+          sudo apt-get install -y flatpak flatpak-builder xvfb xdotool
           sudo sysctl -w kernel.apparmor_restrict_unprivileged_userns=0
           flatpak remote-add --user --if-not-exists flathub https://flathub.org/repo/flathub.flatpakrepo
           flatpak install --user --noninteractive flathub org.gnome.Sdk//49 org.gnome.Platform//49
@@ -68,6 +68,7 @@ jobs:
             test -x /app/bin/pw-record
             PYTHONPATH=/app/share/doubao-say python3 -c "import gi, websockets, evdev; gi.require_version(\"Gtk\", \"4.0\"); gi.require_version(\"WebKit\", \"6.0\"); from gi.repository import Gtk, WebKit"
           '
+          xvfb-run -a dbus-run-session -- python3 packaging/store/smoke-launch.py -- flatpak run --env=GDK_BACKEND=x11 md.lifeos.DoubaoSay --show
           flatpak info --user --show-permissions md.lifeos.DoubaoSay
           flatpak uninstall --user --noninteractive md.lifeos.DoubaoSay
       - uses: actions/upload-artifact@043fb46d1a93c77aae656e7c1c64a875d1fc6a0a
