@@ -158,6 +158,7 @@ class SetupActionsTest(unittest.TestCase):
             _asr_status=Mock(),
             _asr_test_button=Mock(),
             _actions=Mock(),
+            set_feedback=Mock(),
         )
         control._asr_key.get_text.return_value = "test-key"
         control._save_asr_key_now = lambda: ControlWindow._save_asr_key_now(control)
@@ -173,6 +174,7 @@ class SetupActionsTest(unittest.TestCase):
         self.assertFalse(control._asr_testing)
         self.assertEqual(
             control._asr_status.set_text.call_args.args[0], "API key accepted")
+        control.set_feedback.assert_called_with("API key accepted")
 
     def test_endpoint_test_has_adjacent_loading_and_success_feedback(self):
         view = SimpleNamespace(
