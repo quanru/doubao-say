@@ -233,6 +233,12 @@ class SpeechEvaluationPage:
             return False
         threading.Thread(target=worker, name='speech-comparison', daemon=True).start()
 
+    @staticmethod
+    def mode_title(mode):
+        return {'raw': tr('Original ASR', '原始识别'),
+                'hotwords': tr('With hotwords', '加入热词'),
+                'hotwords+polish': tr('Hotwords + polishing', '热词＋润色')}.get(mode, mode)
+
     def render_results(self):
         results = [result for row in self.workbench.samples for result in row.get('results', [])]
         if not results:
@@ -241,14 +247,14 @@ class SpeechEvaluationPage:
             report = self.workbench.report(results)
             lines = [tr('Summary (lower errors/loss is better). Failed or missing samples count as failures. Timing includes connection and recording playback, separate from daily input delay.', '汇总（字错率和丢失率越低越好）。失败或缺失样本按失败计分。耗时包含连接和录音回放，与日常输入等待时间分开。')]
             for mode, values in report['modes'].items():
-                lines.append(f'{mode}: ' + tr('Character error rate', '字错率') + f' {values["character_error_rate"]:.1%} · ' + tr('Failed', '失败') + f' {values["failed"]}/{values["samples"]}')
+                lines.append(self.mode_title(mode) + ': ' + tr('Character error rate', '字错率') + f' {values["character_error_rate"]:.1%} · ' + tr('Failed', '失败') + f' {values["failed"]}/{values["samples"]}')
                 for field, label in (('term_accuracy', tr('Target-term accuracy', '目标词准确率')), ('protected_term_loss_rate', tr('Protected-term loss', '受保护词丢失率'))):
                     if values[field] is not None:
                         lines.append(f'{label}: {values[field]:.1%}')
                 if values['latency_p50_ms'] is not None:
                     lines.append(f'P50 {values["latency_p50_ms"]:.0f} ms · P95 {values["latency_p95_ms"]:.0f} ms')
             for result in (self.row() or {}).get('results', []):
-                lines.append(result['mode'] + (' · ' + tr('Failed', '失败') if result.get('error') else '') + '\n' + result.get('text', ''))
+                lines.append(self.mode_title(result['mode']) + (' · ' + tr('Failed', '失败') if result.get('error') else '') + '\n' + result.get('text', ''))
             self.results.set_text('\n\n'.join(lines))
         except (ValueError, KeyError, TypeError):
             self.results.set_text(tr('Invalid results. Run comparison again.', '结果无效，请重新对比。'))

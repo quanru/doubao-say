@@ -125,7 +125,10 @@ GTK preview/cancel/confirm/forget controls, and retains synthetic screenshots.
 `macos/Tests/Settings/PersonalUICheck.swift` is a native fixture; compile it with all
 app sources except DoubaoSayApp.swift, wrap it in a unique
 `md.lifeos.doubao-say.update-verify.<uuid>` bundle, and run with a process timeout.
-PERSONAL_PAGE selects vocabulary, history, editor, cancel, confirmed or memory.
+PERSONAL_PAGE selects vocabulary, history, editor, cancel, confirmed, memory,
+selection, evaluation or evaluation-results. Selection verifies the native text
+selection callback and correction of the second occurrence; evaluation uses local
+synthetic PCM and results without microphone access or paid services.
 It activates the real sheet's Return/Escape shortcuts and checks persisted state.
 Live microphone/ASR quality is separate; use the opt-in
 [personal speech evaluation tool](../packaging/SPEECH_EVAL.md) with real recordings.

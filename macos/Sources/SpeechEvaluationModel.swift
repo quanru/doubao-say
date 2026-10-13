@@ -146,7 +146,8 @@ import Combine
                     let pcm = try Data(contentsOf: store.audio(snapshot[i].id))
                     for mode in ["raw", "hotwords"] {
                         try Task.checkCancellation()
-                        feedback = L("Comparing sample ", "正在对比第 ") + "\(i + 1)/\(snapshot.count) · " + mode
+                        let label = mode == "raw" ? L("Original ASR", "原始识别") : L("With hotwords", "加入热词")
+                        feedback = L("Comparing sample ", "正在对比第 ") + "\(i + 1)/\(snapshot.count) · " + label
                         let request = SpeechReplay(); replay = request
                         let row = try await request.recognize(pcm, key: key, words: mode == "raw" ? [] : words, mode: mode)
                         guard generation == token else { return }
