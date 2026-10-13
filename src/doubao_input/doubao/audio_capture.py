@@ -16,7 +16,7 @@ import logging
 import threading
 import os
 import select
-import shutil
+from doubao_input.doubao.host_tools import has_tool
 import subprocess
 from typing import Any
 
@@ -65,7 +65,7 @@ class AudioCapture:
 
         # The picker returns PipeWire node names on X11 and Wayland. Use the
         # matching backend; retain sounddevice when native capture is unavailable.
-        if (os.environ.get("WAYLAND_DISPLAY") or is_x11()) and shutil.which("pw-record"):
+        if (os.environ.get("WAYLAND_DISPLAY") or is_x11()) and has_tool("pw-record"):
             self._start_pipewire()
             return
 

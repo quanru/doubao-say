@@ -46,7 +46,7 @@ class DesktopTest(TestCase):
                         "pw-record", "pw-dump", *(('xdotool', 'xclip') if x11 else ('wl-copy',))) else None
                 with patch("gi.require_version", side_effect=require), \
                      patch.object(preflight.importlib, "import_module"), \
-                     patch.object(preflight.shutil, "which", side_effect=available):
+                     patch.object(preflight, "has_tool", side_effect=available):
                     results = preflight.check_system()
                     self.assertTrue(all(results.values()), results)
                     self.assertIn("GdkX11" if x11 else "Gtk4LayerShell", results)
@@ -63,7 +63,7 @@ class DesktopTest(TestCase):
         with patch.dict(os.environ, SESSIONS[0][0], clear=True), \
              patch("gi.require_version"), \
              patch.object(preflight.importlib, "import_module"), \
-             patch.object(preflight.shutil, "which", side_effect=lambda tool: None if tool == "xdotool" else tool):
+             patch.object(preflight, "has_tool", side_effect=lambda tool: None if tool == "xdotool" else tool):
             self.assertNotIn("xdotool", preflight.check_system())
             self.assertFalse(preflight.check_optional_tools()["xdotool"])
             with patch.object(preflight, "check_runtime", return_value={"required": True}), \
