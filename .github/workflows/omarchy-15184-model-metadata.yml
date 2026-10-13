@@ -1,0 +1,22 @@
+name: Omarchy 15184 model catalog check (no inference)
+on:
+  push:
+    branches: [acceptance/omarchy-15184-a1ead6b3]
+    paths: [acceptance/omarchy-15184/ci/.run-model-metadata]
+permissions:
+  contents: read
+jobs:
+  metadata:
+    if: github.event.repository.private == false
+    runs-on: ubuntu-24.04
+    timeout-minutes: 3
+    steps:
+      - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1
+        with:
+          persist-credentials: false
+      - name: Match non-credential model configuration to a public catalog
+        env:
+          CONFIG_MODEL_NAME: ${{ secrets.MIDSCENE_MODEL_NAME }}
+          CONFIG_MODEL_FAMILY: ${{ secrets.MIDSCENE_MODEL_FAMILY }}
+          CONFIG_MODEL_BASE_URL: ${{ secrets.MIDSCENE_MODEL_BASE_URL }}
+        run: python3 acceptance/omarchy-15184/ci/model-catalog-check.py
