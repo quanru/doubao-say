@@ -22,10 +22,11 @@ final class TranscriptionManager {
     private var session = UUID()
     private var target: InputTarget?
     private var updateSafeAfter: TimeInterval = 0
-    var canInstallUpdate: Bool { state.recordingState == .idle && !state.evaluationBusy && !primed && ProcessInfo.processInfo.systemUptime >= updateSafeAfter }
+    var canInstallUpdate: Bool { state.recordingState == .idle && !state.inputPending && !state.evaluationBusy && !primed && ProcessInfo.processInfo.systemUptime >= updateSafeAfter }
     private var finalGate = FinalResultGate()
     private var quietTimer: DispatchWorkItem?
     private var timeout: DispatchWorkItem?
+    private var retryTimeout: DispatchWorkItem?
     var canRecord: (() -> Bool)?
     var onLoginNeeded: (() -> Void)?
 
@@ -58,9 +59,9 @@ final class TranscriptionManager {
         hotkey.start()
     }
     func startRecording() {
-        defer { hotkey.setEscapeHandlingEnabled(state.recordingState != .idle || overlay.isVisible, recording: state.isRecording) }
+        defer { hotkey.setEscapeHandlingEnabled(state.recordingState != .idle || state.inputPending || overlay.isVisible, recording: state.isRecording) }
         if state.recordingState == .polishing { polisher.useOriginal(); return }
-        guard state.recordingState == .idle, !state.evaluationBusy, canRecord?() ?? true else { return }
+        guard state.recordingState == .idle, !state.inputPending, !state.evaluationBusy, canRecord?() ?? true else { return }
         settings = SettingsStore.shared.value
         delivery.cancel()
         let params = settings.provider == .doubao ? ASRParamsStore.load() : nil
@@ -220,25 +221,27 @@ final class TranscriptionManager {
         }
         let token = session
         hotkey.setEscapeHandlingEnabled(true)
+        state.inputPending = true
         updateSafeAfter = ProcessInfo.processInfo.systemUptime + 1.2
         delivery.deliver(text, target: captured, method: settings.inputMethod, sendEnter: enter) { [weak self] sent in
             timing.mark("delivery", at: ProcessInfo.processInfo.systemUptime)
             try? PersonalDataStore.shared.saveTimings(historyID, values: timing.values)
             try? PersonalDataStore.shared.status(historyID, sent ? "sent" : "failed")
             guard self?.session == token else { return }
+            self?.state.inputPending = false
             self?.hotkey.setEscapeHandlingEnabled(false)
             if !sent { self?.state.errorMessage = L("Target changed or input failed. Text kept in the app.", "目标已变化或输入失败，文字已保留在应用中。") }
         }
     }
     func finishWithEnter() {
-        guard !state.evaluationBusy else { return }
+        guard !state.evaluationBusy, !state.inputPending else { return }
         if state.recordingState == .polishing { sendEnter = true; polisher.useOriginal() }
         else if state.isRecording { sendEnter = true; stopRecording() }
         else if state.recordingState == .stopping { sendEnter = true }
         else { PasteHelper.sendShortcut(Shortcut(keyCode: 36, modifiers: 0)) }
     }
     func voiceTest() {
-        guard state.recordingState == .idle else { return }
+        guard state.recordingState == .idle, !state.inputPending else { return }
         testMode = true; startRecording()
         let token = session
         DispatchQueue.main.asyncAfter(deadline: .now() + 5) { [weak self] in
@@ -247,21 +250,26 @@ final class TranscriptionManager {
         if state.recordingState == .idle { testMode = false }
     }
     func retryLast() {
+        guard state.recordingState == .idle, !state.inputPending, !state.evaluationBusy, !state.lastTranscript.isEmpty else { return }
         updateSafeAfter = ProcessInfo.processInfo.systemUptime + 4.5
-        guard state.recordingState == .idle, !state.evaluationBusy, !state.lastTranscript.isEmpty else { return }
         let token = session, text = state.lastTranscript
+        state.inputPending = true
         hotkey.setEscapeHandlingEnabled(true)
         state.feedback = L("Choose a text field within 3 seconds. No Enter will be sent.", "请在三秒内点击目标输入框，本次不发送回车。")
-        DispatchQueue.main.asyncAfter(deadline: .now() + 3) { [weak self] in
+        let item = DispatchWorkItem { [weak self] in
             guard let self = self, self.session == token, self.state.recordingState == .idle else { return }
+            self.retryTimeout = nil
             let historyID = try? PersonalDataStore.shared.record(original: text, output: text, polished: false)
             self.delivery.deliver(text, target: InputTarget.capture(), method: SettingsStore.shared.value.inputMethod) { sent in
                 try? PersonalDataStore.shared.status(historyID, sent ? "sent" : "failed")
                 guard self.session == token else { return }
+                self.state.inputPending = false
                 self.hotkey.setEscapeHandlingEnabled(false)
                 self.state.feedback = sent ? L("Input attempted", "已发送输入操作") : L("Target unavailable; text kept", "目标不可用，文字已保留")
             }
         }
+        retryTimeout = item
+        DispatchQueue.main.asyncAfter(deadline: .now() + 3, execute: item)
     }
     private func configureAudioCallbacks() {
         let audioToken = session
@@ -290,7 +298,7 @@ final class TranscriptionManager {
         try audio.startCapture(deviceID: SettingsStore.shared.value.microphoneID)
     }
     private func prime() {
-        guard state.recordingState == .idle, !state.evaluationBusy, !primed, canRecord?() ?? true,
+        guard state.recordingState == .idle, !state.inputPending, !state.evaluationBusy, !primed, canRecord?() ?? true,
               AVCaptureDevice.authorizationStatus(for: .audio) == .authorized else { return }
         delivery.cancel(); session = UUID()
         target = InputTarget.capture(); primedAudio.removeAll(); primed = true
@@ -316,6 +324,7 @@ final class TranscriptionManager {
     }
     func cancel() {
         session = UUID(); timeout?.cancel(); timeout = nil; quietTimer?.cancel(); quietTimer = nil; finalGate = FinalResultGate()
+        retryTimeout?.cancel(); retryTimeout = nil; state.inputPending = false
         polisher.cancel(); primed = false; primedAudio.removeAll(); testMode = false; sendEnter = false
         delivery.cancel(); audio.stopCapture(); audio.onAudioData = nil; audio.onRMS = nil; audio.onError = nil
         client?.disconnect(); client = nil; target = nil

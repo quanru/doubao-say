@@ -437,8 +437,16 @@ class DoubaoInputApp(Gtk.Application):
             raise ValueError(tr("This installation is started by Omarchy. Disable plugin startup before using a standalone autostart installation.",
                                 "当前安装由 Omarchy 插件启动。请勿同时启用独立应用自启动。"))
         if self._busy() or self._triggers.busy:
-            raise ValueError(tr("Finish recording and release the trigger before saving", "请先结束录音并松开触发键，再保存设置"))
+            raise ValueError(tr("Finish the current operation and release the trigger before saving", "请先结束当前操作并松开触发键，再保存设置"))
         previous = self.settings
+        if previous.asr_provider != settings.asr_provider:
+            # A modal Settings window can open while onboarding's debounce is
+            # pending. Both drafts still belong to the provider being left.
+            for view in (self._control, self._settings_window):
+                if view and not view._flush_asr_key():
+                    raise ValueError(tr(
+                        "Save the current API key before switching services.",
+                        "请先保存当前 API Key，再切换识别服务。"))
 
         def apply_runtime(value, strict):
             self._triggers.configure(value, strict=strict)
@@ -476,6 +484,9 @@ class DoubaoInputApp(Gtk.Application):
         )
 
     def _configure_recognition_backend(self):
+        if self._asr_probe:
+            self._asr_probe.disconnect()
+            self._asr_probe = None
         provider = recognition_provider(self.settings.asr_provider)
         self._tm.configure_backend(
             provider.new_client(),
@@ -567,8 +578,17 @@ class DoubaoInputApp(Gtk.Application):
             self._voice_stop()
 
     def _send_enter(self):
-        self._delivery.submit_enter(focused_target())
+        self._delivery.submit_enter(focused_target(), changed=self._enter_changed)
         return GLib.SOURCE_REMOVE
+
+    def _enter_changed(self, status):
+        messages = {
+            "pending": tr("Sending Enter…", "正在发送回车…"),
+            "attempted": tr("Enter sent.", "已发送回车。"),
+            "cancelled": tr("Enter cancelled.", "已取消回车。"),
+        }
+        self._control.set_feedback(messages.get(status, tr(
+            "Enter not sent; check the target field.", "未发送回车，请检查目标输入框。")))
 
     def _empty_complete(self):
         if self._preview_testing:
@@ -782,7 +802,7 @@ class DoubaoInputApp(Gtk.Application):
             self._tm.handle_cancel()
 
     def _busy(self):
-        return (bool(getattr(self, "_personal_window", None) and self._personal_window.evaluation and self._personal_window.evaluation.active) or self.app_state.recording_state != RecordingState.IDLE or self._mic_test_running
+        return (bool(getattr(self, "_asr_probe", None)) or bool(getattr(self, "_personal_window", None) and self._personal_window.evaluation and self._personal_window.evaluation.active) or self.app_state.recording_state != RecordingState.IDLE or self._mic_test_running
                 or self._paste_pending or (self._triggers is not None and self._triggers.capturing)
                 or self._recovery_timer is not None
                 or bool(self._polisher and self._polisher.busy))
@@ -1121,14 +1141,12 @@ class DoubaoInputApp(Gtk.Application):
         if credentials is None:
             raise ValueError(tr("Enter an API key first.", "请先填写 API Key。"))
         credentials.validate()
-        if self._asr_probe:
-            self._asr_probe.disconnect()
         probe = self._asr_probe = provider.new_client()
         finished = False
-        def deliver(result, error):
+        def complete(result, error):
             nonlocal finished
             if finished or self._asr_probe is not probe:
-                return
+                return GLib.SOURCE_REMOVE
             finished = True
             probe.disconnect()
             self._asr_probe = None
@@ -1136,7 +1154,10 @@ class DoubaoInputApp(Gtk.Application):
                 self._sync_recognition_status()
                 if self._control:
                     self._control.refresh()
-            GLib.idle_add(completed, result, error)
+            completed(result, error)
+            return GLib.SOURCE_REMOVE
+        def deliver(result, error):
+            GLib.idle_add(complete, result, error)
         # A successful WebSocket handshake validates the provider credential.
         # No microphone data is needed for this settings test.
         probe.on_open = lambda: deliver(tr("API key accepted", "API Key 可用"), "")
@@ -1146,8 +1167,13 @@ class DoubaoInputApp(Gtk.Application):
         probe.on_error = lambda _error: deliver(None, tr(
             "Connection failed; check the network and service status",
             "连接失败，请检查网络和服务状态"))
-        probe.prepare()
-        probe.connect(credentials)
+        try:
+            probe.prepare()
+            probe.connect(credentials)
+        except Exception:
+            self._asr_probe = None
+            probe.disconnect()
+            raise
 
     def _cancel_login_attempt(self):
         self._login_attempt = None

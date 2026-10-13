@@ -44,9 +44,7 @@ final class PasteHelper {
                 DispatchQueue.main.asyncAfter(deadline: .now() + 0.05) { attempt() }
                 return
             }
-            guard let source = CGEventSource(stateID: .hidSystemState),
-                  let down = CGEvent(keyboardEventSource: source, virtualKey: 9, keyDown: true),
-                  let up = CGEvent(keyboardEventSource: source, virtualKey: 9, keyDown: false) else {
+            guard let (down, up) = Self.shortcutEvents(Shortcut(keyCode: 9, modifiers: 4)) else {
                 completion(false); return
             }
             if method == "direct" {
@@ -66,7 +64,6 @@ final class PasteHelper {
             pasteboard.clearContents()
             guard pasteboard.setString(text, forType: .string) else { completion(false); return }
             let changeCount = pasteboard.changeCount
-            down.flags = .maskCommand; up.flags = .maskCommand
             down.post(tap: .cghidEventTap); up.post(tap: .cghidEventTap)
             // Best effort: leave newer clipboard content untouched. Applications can
             // consume paste asynchronously; users can disable automatic paste.
@@ -92,14 +89,18 @@ final class PasteHelper {
         }
     }
     static func sendShortcut(_ shortcut: Shortcut) {
-        guard AXIsProcessTrusted(), let source = CGEventSource(stateID: .hidSystemState),
+        guard AXIsProcessTrusted(), let (down, up) = shortcutEvents(shortcut) else { return }
+        down.post(tap: .cghidEventTap); up.post(tap: .cghidEventTap)
+    }
+    static func shortcutEvents(_ shortcut: Shortcut) -> (CGEvent, CGEvent)? {
+        guard let source = CGEventSource(stateID: .hidSystemState),
               let down = CGEvent(keyboardEventSource: source, virtualKey: shortcut.keyCode, keyDown: true),
-              let up = CGEvent(keyboardEventSource: source, virtualKey: shortcut.keyCode, keyDown: false) else { return }
+              let up = CGEvent(keyboardEventSource: source, virtualKey: shortcut.keyCode, keyDown: false) else { return nil }
         let flags = HotkeyManager.flags(shortcut.modifiers)
         down.flags = flags; up.flags = flags
         down.setIntegerValueField(.eventSourceUserData, value: HotkeyManager.syntheticMarker)
         up.setIntegerValueField(.eventSourceUserData, value: HotkeyManager.syntheticMarker)
-        down.post(tap: .cghidEventTap); up.post(tap: .cghidEventTap)
+        return (down, up)
     }
     static func copyOnly(_ text: String) {
         guard !text.isEmpty else { return }

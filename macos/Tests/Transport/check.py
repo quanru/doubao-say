@@ -7,6 +7,7 @@ import struct
 import subprocess
 import sys
 import threading
+from http.server import BaseHTTPRequestHandler, ThreadingHTTPServer
 
 errors = []
 listener = socket.socket()
@@ -76,4 +77,24 @@ result = subprocess.run([sys.argv[1], f'ws://127.0.0.1:{port}/asr'], timeout=12)
 thread.join(timeout=10)
 if errors or thread.is_alive():
     raise SystemExit(f'FAIL: {errors or "fixture did not exit"}')
-raise SystemExit(result.returncode)
+if result.returncode:
+    raise SystemExit(result.returncode)
+
+for status in (401, 403, 500):
+    class Rejection(BaseHTTPRequestHandler):
+        def log_message(self, *_):
+            pass
+
+        def do_GET(self):
+            self.send_response(status)
+            self.send_header('Content-Length', '0')
+            self.end_headers()
+
+    server = ThreadingHTTPServer(('127.0.0.1', 0), Rejection)
+    worker = threading.Thread(target=server.serve_forever, daemon=True)
+    worker.start()
+    try:
+        subprocess.run([sys.argv[1], f'ws://127.0.0.1:{server.server_port}/asr',
+                        'auth' if status in (401, 403) else 'generic'], timeout=12, check=True)
+    finally:
+        server.shutdown(); server.server_close(); worker.join(timeout=2)

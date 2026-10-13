@@ -268,6 +268,9 @@ as HTML; images and URI lists retain their existing priority. This is best-effor
 restoration of one payload, not all original clipboard formats.
 A copy made by the user during delivery is never overwritten.
 Cancellation stops remaining input and cannot undo text already delivered.
+Standalone Enter does not change the previous dictation's history or word counts.
+On macOS, retries, new dictation and standalone Enter are disabled during a retry
+countdown or pending delivery. Use Escape or **Cancel input** to cancel it.
 Failed recognition can preserve partial text; failed paste preserves the result.
 The editable recent-text slot is memory-only. Completed dictation attempts are
 stored separately in a local 30-day history, with recognition original, final

@@ -12,6 +12,7 @@ from urllib import error, request
 
 from doubao_input.settings import config_dir, write_atomic
 from doubao_input.reasoning import reasoning_policy
+from doubao_input.polish_transport import RequestCancellation, open_request
 
 logger = logging.getLogger(__name__)
 
@@ -67,7 +68,7 @@ def chat_completions_url(base_url):
 
 class PolishClient:
     def polish(self, text, *, base_url, api_key, model, prompt, timeout=25,
-               on_progress=None):
+               on_progress=None, cancellation=None):
         body = {"model": model, "temperature": 0.2,
             "messages": [{"role": "system", "content": prompt},
                          {"role": "user", "content": text}],
@@ -80,7 +81,7 @@ class PolishClient:
                      "Content-Type": "application/json",
                      "Accept": "application/json"}, method="POST")
         try:
-            with request.urlopen(req, timeout=timeout) as response:
+            with open_request(req, timeout=timeout, cancellation=cancellation) as response:
                 if on_progress:
                     content = self._read_stream(response, on_progress)
                     raw = None
@@ -92,9 +93,12 @@ class PolishClient:
             if len(raw) > 1_000_000:
                 raise ValueError("Polishing response is too large")
             try:
-                content = json.loads(raw)["choices"][0]["message"]["content"].strip()
+                choice = json.loads(raw)["choices"][0]
+                content = choice["message"]["content"].strip()
             except (ValueError, KeyError, IndexError, TypeError, AttributeError) as exc:
                 raise ValueError("The endpoint returned an incompatible response") from exc
+            if choice.get("finish_reason") not in (None, "stop"):
+                raise ValueError("Polishing response ended before completion")
         if not content:
             raise ValueError("The endpoint returned empty text")
         return content
@@ -147,13 +151,12 @@ class PolishManager:
     def __init__(self, dispatch, client=None):
         self._dispatch = dispatch
         self._client = client or PolishClient()
-        # A speculative request cannot be interrupted while urllib is waiting
-        # for the server. Keep it off the final-delivery lane so resumed speech
-        # never leaves the request made on release queued behind stale work.
+        # Keep preview connection setup off the final-delivery lane as well.
         self._executor = ThreadPoolExecutor(max_workers=1, thread_name_prefix="doubao-polish-final")
         self._speculative_executor = ThreadPoolExecutor(
             max_workers=1, thread_name_prefix="doubao-polish-preview")
         self._token = Event()
+        self._cancellation = RequestCancellation()
         self._future = None
         self._deadline = None
         self._closed = False
@@ -164,6 +167,8 @@ class PolishManager:
         self.cancel()
         token = Event()
         self._token = token
+        cancellation = RequestCancellation()
+        self._cancellation = cancellation
         self.busy = True
         started = time.monotonic()
         executor = self._speculative_executor if speculative else self._executor
@@ -182,7 +187,7 @@ class PolishManager:
         future = executor.submit(self._client.polish, text,
             base_url=settings.polish_base_url, api_key=api_key,
             model=settings.polish_model, prompt=polish_prompt_for_text(text, settings),
-            timeout=timeout, on_progress=report if progress else None)
+            timeout=timeout, on_progress=report if progress else None, cancellation=cancellation)
         self._future = future
 
         def finished(future):
@@ -225,6 +230,7 @@ class PolishManager:
 
     def cancel(self):
         self._token.set()
+        self._cancellation.set()
         if self._deadline is not None:
             self._deadline.cancel()
         if self._future is not None:

@@ -56,7 +56,7 @@ def build_onboarding_fixture(mode):
         "asr_provider_name": "Doubao",
     }
     holder = {
-        "asr_key": False,
+        "asr_keys": {},
         "capture_sources": [],
         "login": None,
         "preview": False,
@@ -247,7 +247,7 @@ def build_onboarding_fixture(mode):
         )
         state.login_status = (
             LoginStatus.LOGGED_IN
-            if provider != "doubao" and holder["asr_key"]
+            if provider != "doubao" and holder["asr_keys"].get(provider)
             else LoginStatus.NOT_LOGGED_IN
         )
         GLib.idle_add(refresh)
@@ -255,7 +255,9 @@ def build_onboarding_fixture(mode):
     def save_asr(key):
         if not key.strip():
             raise ValueError("Enter an API key first.")
-        holder["asr_key"] = True
+        holder["asr_keys"][summary["asr_provider"]] = key.strip()
+        state.login_status = LoginStatus.LOGGED_IN
+        refresh()
 
     def test_asr(_key, done):
         def finish():
@@ -290,7 +292,7 @@ def build_onboarding_fixture(mode):
         test_polish=test_endpoint,
         apply_microphone=apply_microphone,
         apply_asr_provider=apply_asr_provider,
-        asr_has_key=lambda: holder["asr_key"],
+        asr_has_key=lambda: bool(holder["asr_keys"].get(summary["asr_provider"])),
         save_asr=save_asr,
         test_asr=test_asr,
     )
