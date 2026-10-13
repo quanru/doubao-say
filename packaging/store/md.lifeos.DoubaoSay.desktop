@@ -1,0 +1,10 @@
+[Desktop Entry]
+Type=Application
+Name=Doubao Say
+Name[zh_CN]=豆包说
+Comment=Speak with a configurable shortcut and insert the transcript
+Exec=doubao-say
+Icon=md.lifeos.DoubaoSay
+Terminal=false
+Categories=Utility;TextTools;AudioVideo;
+StartupNotify=false

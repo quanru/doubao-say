@@ -1,0 +1,133 @@
+{
+  "app-id": "md.lifeos.DoubaoSay",
+  "runtime": "org.gnome.Platform",
+  "runtime-version": "49",
+  "sdk": "org.gnome.Sdk",
+  "command": "doubao-say",
+  "finish-args": [
+    "--share=network",
+    "--share=ipc",
+    "--socket=wayland",
+    "--socket=fallback-x11",
+    "--device=all",
+    "--talk-name=org.freedesktop.Flatpak"
+  ],
+  "modules": [
+    {
+      "name": "gtk4-layer-shell",
+      "buildsystem": "meson",
+      "config-opts": [
+        "-Ddocs=false",
+        "-Dexamples=false",
+        "-Dtests=false",
+        "-Dvapi=false"
+      ],
+      "sources": [
+        {
+          "type": "archive",
+          "url": "https://github.com/wmww/gtk4-layer-shell/archive/536ff516ed68b9bb34afc4c07f942a54b2b4b03f.tar.gz",
+          "sha256": "f4c4fd455f5605c7b93b305b6be28990f0f7170968fb2714bf362477f918c4bc"
+        }
+      ]
+    },
+    {
+      "name": "python-pycparser",
+      "buildsystem": "simple",
+      "build-commands": [
+        "pip3 install --no-index --no-deps --no-build-isolation --prefix=/app ."
+      ],
+      "sources": [
+        {
+          "type": "archive",
+          "url": "https://files.pythonhosted.org/packages/1b/7d/92392ff7815c21062bea51aa7b87d45576f649f16458d78b7cf94b9ab2e6/pycparser-3.0.tar.gz",
+          "sha256": "600f49d217304a5902ac3c37e1281c9fe94e4d0489de643a9504c5cdfdfc6b29"
+        }
+      ]
+    },
+    {
+      "name": "python-cffi",
+      "buildsystem": "simple",
+      "build-commands": [
+        "pip3 install --no-index --no-deps --no-build-isolation --prefix=/app ."
+      ],
+      "sources": [
+        {
+          "type": "archive",
+          "url": "https://files.pythonhosted.org/packages/9e/ef/008a1939e372c06329a3fce4279c02f328488f3526744906eeec3da7ad5f/cffi-2.1.1.tar.gz",
+          "sha256": "dd31f52ea1086513bb9df30f8fcee9b8918323ae067a3d5b78bc826a000712be"
+        }
+      ]
+    },
+    {
+      "name": "python-sounddevice",
+      "buildsystem": "simple",
+      "build-commands": [
+        "pip3 install --no-index --no-deps --no-build-isolation --prefix=/app ."
+      ],
+      "sources": [
+        {
+          "type": "archive",
+          "url": "https://files.pythonhosted.org/packages/ec/db/0c890e2d9aab9ba284021efc02e1d3aebfecab1b611762d7434602209bcf/sounddevice-0.5.6.tar.gz",
+          "sha256": "8ec9fbfde2e32f020b167e348f3ab3bac6625a5f15af524d790108ac7147a410"
+        }
+      ]
+    },
+    {
+      "name": "python-websockets",
+      "buildsystem": "simple",
+      "build-commands": [
+        "pip3 install --no-index --no-deps --no-build-isolation --prefix=/app ."
+      ],
+      "sources": [
+        {
+          "type": "archive",
+          "url": "https://files.pythonhosted.org/packages/18/72/fba934cb3dff7a85d811820efffcd141ddd52b5a2a01637f64551373ff4d/websockets-17.1.tar.gz",
+          "sha256": "acfea4c20bf54384883ea33b1240fc1db4f52e190823a4e2b334bc3e8bfca96a"
+        }
+      ]
+    },
+    {
+      "name": "python-evdev",
+      "buildsystem": "simple",
+      "build-commands": [
+        "pip3 install --no-index --no-deps --no-build-isolation --prefix=/app ."
+      ],
+      "sources": [
+        {
+          "type": "archive",
+          "url": "https://files.pythonhosted.org/packages/2e/07/eb30593524303d1367f0dc00c1c66582c994dba412a47751e34bad9fa29b/evdev-2.0.0.tar.gz",
+          "sha256": "442fb3f4c8dfc9e61e901133c356220c02d663eca8f34722e0cecdd637eba504"
+        }
+      ]
+    },
+    {
+      "name": "doubao-say",
+      "buildsystem": "simple",
+      "build-commands": [
+        "mkdir -p /app/share/doubao-say /app/bin",
+        "cp -a src/doubao_input /app/share/doubao-say/",
+        "sed \"s|@PREFIX@|/app|g\" packaging/store/launch.sh > /app/bin/doubao-say",
+        "chmod 755 /app/bin/doubao-say",
+        "install -Dm644 packaging/store/md.lifeos.DoubaoSay.desktop /app/share/applications/md.lifeos.DoubaoSay.desktop",
+        "install -Dm644 packaging/store/md.lifeos.DoubaoSay.metainfo.xml /app/share/metainfo/md.lifeos.DoubaoSay.metainfo.xml",
+        "install -Dm644 src/doubao_input/resources/logo-128.png /app/share/icons/hicolor/128x128/apps/md.lifeos.DoubaoSay.png",
+        "install -Dm755 packaging/store/host-tool.sh /app/bin/pw-record",
+        "install -Dm755 packaging/store/host-tool.sh /app/bin/pw-dump",
+        "install -Dm755 packaging/store/host-tool.sh /app/bin/wl-copy",
+        "install -Dm755 packaging/store/host-tool.sh /app/bin/wl-paste",
+        "install -Dm755 packaging/store/host-tool.sh /app/bin/xdotool",
+        "install -Dm755 packaging/store/host-tool.sh /app/bin/xclip",
+        "install -Dm755 packaging/store/host-tool.sh /app/bin/xprop",
+        "install -Dm755 packaging/store/host-tool.sh /app/bin/wmctrl",
+        "install -Dm755 packaging/store/host-tool.sh /app/bin/hyprctl",
+        "install -Dm755 packaging/store/host-tool.sh /app/bin/wtype"
+      ],
+      "sources": [
+        {
+          "type": "dir",
+          "path": "source"
+        }
+      ]
+    }
+  ]
+}
