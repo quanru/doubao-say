@@ -238,7 +238,9 @@ class PersonalWindow:
             getattr(box, "set_margin_" + side)(20)
         current = item["confirmed"] or item["output"]
         sample_scroll = Gtk.ScrolledWindow(min_content_height=70, max_content_height=120)
-        sample = self.label(current); sample.set_selectable(True)
+        sample = Gtk.TextView(editable=False, wrap_mode=Gtk.WrapMode.WORD_CHAR)
+        sample.set_top_margin(10); sample.set_left_margin(10)
+        sample.get_buffer().set_text(current)
         sample_scroll.set_child(sample); box.append(sample_scroll)
         box.append(self.label(tr("Select the wrong word below to fill it in, then enter the correct spelling.", "选中错词即可带入，再填写正确写法。")))
         box.append(self.label(tr("Misrecognized word or phrase", "误识别的词或短语")))
@@ -285,8 +287,14 @@ class PersonalWindow:
                 if 0 < len(term) <= 80 and "\n" not in term:
                     source.set_text(term); selection[0] = (start, end); changed()
         source.connect("changed", source_changed); target.connect("changed", changed)
-        sample.connect("notify::cursor-position", selected)
-        sample.connect("notify::selection-bound", selected)
+        def buffer_selected(buffer, *_):
+            bounds = buffer.get_selection_bounds()
+            if len(bounds) == 2:
+                start, end = sorted(iterator.get_offset() for iterator in bounds)
+                term = current[start:end]
+                if 0 < len(term) <= 80 and "\n" not in term:
+                    source.set_text(term); selection[0] = (start, end); changed()
+        sample.get_buffer().connect("mark-set", buffer_selected)
         if selected_label:
             selected(selected_label)
         changed(); dialog.set_child(box)

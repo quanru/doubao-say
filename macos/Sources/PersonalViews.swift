@@ -217,6 +217,7 @@ struct InputHistoryView: View {
 }
 
 struct ConfirmCorrectionView: View {
+    @FocusState private var correctedFocus: Bool
     @ObservedObject var model: PersonalModel
     var body: some View {
         VStack(alignment: .leading, spacing: 12) {
@@ -224,13 +225,13 @@ struct ConfirmCorrectionView: View {
             if let item = model.correctionTarget {
                 Text(L("Select the wrong word below to fill it in, then enter the correct spelling.", "在下方选中错词即可带入，再填写正确写法。")).font(.caption)
                 CorrectionSelectionText(text: item.confirmed.isEmpty ? item.output : item.confirmed) { term, range in
-                    model.recognizedTerm = term; model.correctionSelection = range
+                    model.recognizedTerm = term; model.correctionSelection = range; correctedFocus = true
                 }.frame(height: 85)
             }
             Text(L("Misrecognized word or phrase", "误识别的词或短语"))
             TextField(L("For example: Midjourney", "例如：Midjourney"), text: $model.recognizedTerm)
             Text(L("Correct spelling", "正确写法"))
-            TextField(L("For example: Midscene", "例如：Midscene"), text: $model.correctedTerm)
+            TextField(L("For example: Midscene", "例如：Midscene"), text: $model.correctedTerm).focused($correctedFocus)
             if let preview = model.correctionPreview {
                 Text(L("After confirmation", "确认后的文字")).font(.headline)
                 ScrollView { Text(preview).textSelection(.enabled).frame(maxWidth: .infinity, alignment: .leading) }.frame(maxHeight: 120)
@@ -248,6 +249,7 @@ struct ConfirmCorrectionView: View {
                     .keyboardShortcut(.defaultAction).disabled(model.correctionPreview == nil)
             }
         }.textFieldStyle(.roundedBorder).padding(20).frame(width: 540)
+            .onAppear { correctedFocus = true }
     }
 }
 

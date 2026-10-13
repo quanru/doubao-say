@@ -130,8 +130,8 @@ with tempfile.TemporaryDirectory() as temp:
     repeated = "用 Midjourney 画图，用 Midjourney 写测试"
     store.record(repeated, repeated, status="sent"); window.refresh()
     row = store.history()[0]; window.edit_correction(row); drain()
-    sample = [widget for widget in widgets(window.correction_window) if isinstance(widget, Gtk.Label) and widget.get_text() == repeated][0]
-    start = repeated.rindex("Midjourney"); sample.select_region(start, start + 10); drain()
+    sample = [widget for widget in widgets(window.correction_window) if isinstance(widget, Gtk.TextView) and window.text(widget) == repeated][0]
+    start = repeated.rindex("Midjourney"); sample.get_buffer().select_range(sample.get_buffer().get_iter_at_offset(start), sample.get_buffer().get_iter_at_offset(start + 10)); drain()
     entries = [widget for widget in widgets(window.correction_window) if isinstance(widget, Gtk.Entry)]
     assert entries[0].get_text() == "Midjourney"
     entries[1].set_text("Midscene"); drain(); capture("selected-correction")
