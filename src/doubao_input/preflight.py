@@ -2,7 +2,7 @@
 import importlib
 import os
 from pathlib import Path
-import shutil
+from doubao_input.doubao.host_tools import has_tool
 
 from doubao_input.desktop import is_x11
 
@@ -38,7 +38,7 @@ def check_system():
             results[namespace] = False
     clipboard_tools = () if is_x11() else ("wl-copy",)
     for command in ("pw-record", "pw-dump", *clipboard_tools):
-        results[command] = shutil.which(command) is not None
+        results[command] = has_tool(command)
     return results
 
 
@@ -46,7 +46,7 @@ def check_optional_tools():
     """Report helpers that unlock optional desktop capabilities."""
     if not is_x11():
         return {}
-    return {command: shutil.which(command) is not None
+    return {command: has_tool(command)
             for command in ("xdotool", "xclip")}
 
 

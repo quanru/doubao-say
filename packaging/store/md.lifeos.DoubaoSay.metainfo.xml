@@ -1,0 +1,14 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<component type="desktop-application">
+  <id>md.lifeos.DoubaoSay</id>
+  <name>Doubao Say</name>
+  <summary>Voice input for Linux desktops</summary>
+  <metadata_license>CC0-1.0</metadata_license>
+  <project_license>MIT</project_license>
+  <description><p>Press a configurable shortcut, speak, and insert the transcript into another application. Recognition uses online services: Doubao web sign-in, the official Volcengine API, or Deepgram. API services require your own credentials.</p><p>The Flatpak edition uses host desktop helpers for microphone capture and clipboard integration, and requires permission to run host commands.</p></description>
+  <launchable type="desktop-id">md.lifeos.DoubaoSay.desktop</launchable>
+  <url type="homepage">https://doubao-say.lifeos.md/</url>
+  <url type="bugtracker">https://github.com/quanru/doubao-say/issues</url>
+  <developer id="md.lifeos"><name>Doubao Say contributors</name></developer>
+  <content_rating type="oars-1.1"/>
+</component>
