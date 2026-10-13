@@ -6,7 +6,11 @@ set -euo pipefail
 [[ $BUILDER_IMAGE == $(python3 -c 'import json;print(json.load(open("ci/pins.json"))["builder_image"])') ]] || exit 2
 test -c /dev/kvm
 mkdir -p work review-artifacts/versions review-artifacts/guest
-# Do not delete installed SDKs or touch a user's workstation to gain space.
+# These exact SDK directories belong to the newly allocated hosted CI runner.
+# Never run this outside the disposable hosted-runner guard above.
+if (( $(df --output=avail -B1 . | tail -1) < 42949672960 )); then
+  sudo rm -rf -- /usr/local/lib/android /usr/share/dotnet /opt/ghc
+fi
 (( $(df --output=avail -B1 . | tail -1) >= 42949672960 )) || { echo 'At least 40 GiB free disk required'; exit 2; }
 sudo chmod 0666 /dev/kvm
 sudo apt-get update -qq

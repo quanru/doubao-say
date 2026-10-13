@@ -35,6 +35,9 @@ if cmd=='bootstrap':
  save('initial',initial)
  run('omarchy-shell','idle','disable')
  subprocess.Popen(['foot','--app-id=org.omarchy.pr15184','sh','-c','cat > /tmp/pr15184/committed.txt'],stdout=subprocess.DEVNULL,stderr=subprocess.DEVNULL,start_new_session=True)
+elif cmd=='preflight-report':
+ for name in ['candidate-integrity','package-versions','initial']:
+  obj=json.loads((E/(name+'.json')).read_text());print(json.dumps({name:obj},ensure_ascii=False))
 elif cmd=='snapshot':
  obj=snap();save(sys.argv[2],obj);print(json.dumps(obj))
 elif cmd=='screenshot':
