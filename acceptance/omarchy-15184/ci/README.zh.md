@@ -36,6 +36,6 @@
 
 ## 当前验证与剩余阻塞
 
-已运行：`python3 ci/validate.py`、`python3 ci/test-local.py`。检查 Python/Bash/JS 语法、dispatch-only与无Pages、完整pins/lockfile、生成的真实harness脚本；用关闭的本地端口验证代理两次失败计数后第三次被拦截，没有模型请求。
+已运行：`python3 ci/validate.py`、`python3 ci/test-local.py`、`python3 ci/test-capture-analysis.py`。检查 Python/Bash/JS 语法、dispatch-only与无Pages、完整pins/lockfile、生成的真实harness脚本；用关闭的本地端口验证代理两次失败计数后第三次被拦截，没有模型请求。另用临时合成图片验证20组边界样本与超过500ms的失败分支；这些图片随测试删除，不是产品证据。
 
 未运行：ISO构建、KVM启动、包可用性、1:1 VNC显示、Midscene实际操作、真实provider token参数、Pinyin切换、GUI恢复和帧采集。guest不是1280×800/scale1会明确停止，避免错误ROI计时。限额代理/模型适配和完整UI流程仍需获准后的首跑验证。
