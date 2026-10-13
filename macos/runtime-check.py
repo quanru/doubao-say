@@ -29,10 +29,14 @@ for language in ['en', 'zh']:
         cases = [(f'recent-text-{length}', '--settings-smoke-test', 'result') for length in ['short', 'long']]
     if '--microphone-menu' in sys.argv[3:]:
         cases = [('microphone-menu', '--settings-smoke-test', 'general')]
+    if '--input-failure' in sys.argv[3:]:
+        cases = [('input-failure', '--smoke-test', '')]
     if '--settings' in sys.argv[3:]:
         cases += [(f'settings-{tab}', '--settings-smoke-test', tab) for tab in ['setup', 'recognition', 'polishing', 'shortcuts', 'general', 'result']]
     for label, argument, tab in cases:
         env = dict(os.environ, DOUBAO_SMOKE_IMAGE=str(output / f'{label}-{language}.png'), DOUBAO_SMOKE_TAB=tab)
+        if label == 'input-failure':
+            env['DOUBAO_SMOKE_INPUT_FAILURE'] = '1'
         if label == 'microphone-menu':
             env['DOUBAO_SMOKE_MICROPHONE_MENU'] = '1'
         if label == 'recent-text-long':

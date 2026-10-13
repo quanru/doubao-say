@@ -595,6 +595,7 @@ struct SettingsView: View {
             Text(L("Language changes take effect immediately. Recognition and polishing languages are configured separately.", "语言切换立即生效。识别和润色语言由各自配置决定。"))
             microphonePicker
             Picker(L("Input method", "输入方式"), selection: $model.draft.inputMethod) {
+                Text(L("Automatic (direct input when supported)", "自动选择（支持时直接输入）")).tag("auto")
                 Text(L("Clipboard (restores previous contents)", "剪贴板（恢复原内容）")).tag("clipboard")
                 Text(L("Direct accessibility input", "辅助功能直接输入")).tag("direct")
             }

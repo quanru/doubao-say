@@ -3,6 +3,19 @@ import AppKit
 @main
 struct AutoSaveCheck {
     @MainActor static func main() {
+        precondition(PasteHelper.useAccessibilityInput(method: "auto", selectedTextWritable: true))
+        precondition(!PasteHelper.useAccessibilityInput(method: "auto", selectedTextWritable: false))
+        precondition(!PasteHelper.useAccessibilityInput(method: "clipboard", selectedTextWritable: true),
+                     "Explicit clipboard selection must be respected even for writable fields")
+        precondition(PasteHelper.useAccessibilityInput(method: "direct", selectedTextWritable: false))
+        for method in ["auto", "clipboard", "direct"] {
+            var settings = MacSettings(); settings.inputMethod = method
+            try! settings.validate()
+            let decoded = try! JSONDecoder().decode(MacSettings.self, from: JSONEncoder().encode(settings))
+            precondition(decoded.inputMethod == method, "Existing input choices must survive settings round trips")
+        }
+        precondition(MacSettings().inputMethod == "auto")
+        print("PASS: capability-based automatic routing and explicit input choices; settings remain compatible")
         let hotkey = HotkeyManager()
         for shortcut in [Shortcut(keyCode: 9, modifiers: 4), Shortcut(keyCode: 49, modifiers: 3), Shortcut(keyCode: 58, modifiers: 0)] {
             var settings = MacSettings(); settings.shortcut = shortcut

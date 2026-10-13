@@ -32,3 +32,4 @@ xcrun swiftc -swift-version 5 -target "$(uname -m)-apple-macos13.0" \
     macos/Sources/TranscriptionManager.swift macos/Tests/Input/RetryCheck.swift \
     -o build/macos/tests/retry-check
 build/macos/tests/retry-check
+bash macos/Tests/Input/check-delivery.sh

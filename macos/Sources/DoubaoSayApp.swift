@@ -435,6 +435,11 @@ final class AppDelegate: NSObject, NSApplicationDelegate, NSMenuDelegate {
         let frontPID = NSWorkspace.shared.frontmostApplication?.processIdentifier
         state.recordingState = .recording
         state.transcriptionText = L("Midscene · macOS synthetic verification", "Midscene · macOS 合成验证")
+        if ProcessInfo.processInfo.environment["DOUBAO_SMOKE_INPUT_FAILURE"] == "1" {
+            state.recordingState = .idle
+            state.errorMessage = L("Synthetic input failure. Text kept.", "合成的输入失败，文字已保留。")
+            state.overlayStatus = L("Not entered · retry from menu", "未输入 · 文字已保留，可从菜单重试")
+        }
         overlay.showOverlay()
         DispatchQueue.main.asyncAfter(deadline: .now() + 1) {
             let focusPreserved = NSWorkspace.shared.frontmostApplication?.processIdentifier == frontPID

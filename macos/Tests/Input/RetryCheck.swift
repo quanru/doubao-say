@@ -6,22 +6,30 @@ enum RecognitionProvider { case doubao, volcengine, deepgram; var rawValue: Stri
 struct MacSettings { var provider: RecognitionProvider = .doubao; var polishEnabled = false; var inputMethod = "clipboard"; var microphoneID = "" }
 @MainActor final class SettingsStore { static let shared = SettingsStore(); var value = MacSettings() }
 enum SecretStore { static func load(_ key: String) -> String? { nil } }
-enum ASRParamsStore { static func load() -> Int? { nil }; static func clear() {} }
+enum ASRParamsStore { static var available = false; static func load() -> Int? { available ? 1 : nil }; static func clear() {} }
+enum AVCaptureDevice {
+    enum Status { case authorized, notDetermined }
+    static func authorizationStatus(for type: AVMediaType) -> Status { .authorized }
+    static func requestAccess(for type: AVMediaType, completionHandler: @escaping (Bool) -> Void) { completionHandler(true) }
+}
 func L(_ english: String, _ chinese: String) -> String { english }
 struct Shortcut { var keyCode: UInt16; var modifiers: Int }
-struct InputTarget { static func capture() -> InputTarget? { InputTarget() } }
+struct InputTarget { static var available = true; static func capture() -> InputTarget? { available ? InputTarget() : nil } }
 @MainActor final class PasteHelper {
+    var failureMessage: String? { Self.failImmediately ? "Synthetic target unavailable" : nil }
     static var events: [String] = []
     static var pending: ((Bool) -> Void)?
+    static var failImmediately = false
     func cancel() {}
     func deliver(_ text: String, target: InputTarget?, method: String, sendEnter: Bool = false, completion: @escaping (Bool) -> Void) {
         Self.events.append("paste"); Self.pending = completion
+        if Self.failImmediately { completion(false) }
     }
     static func sendShortcut(_ shortcut: Shortcut) { events.append("enter") }
 }
 final class AudioCaptureManager {
     var onAudioData: ((Data) -> Void)?; var onRMS: ((Double) -> Void)?; var onError: (() -> Void)?
-    func startCapture(deviceID: String) throws { fatalError("Audio must not be used") }
+    func startCapture(deviceID: String) throws {}
     func stopCapture() {}
 }
 @MainActor final class OverlayPanel { var isVisible = false; func showOverlay() { isVisible = true }; func hideOverlay() { isVisible = false } }
@@ -46,10 +54,12 @@ protocol ASRTransport: AnyObject {
     func sendAudio(_ data: Data); func finishSending(); func disconnect()
 }
 class DoubaoASRClient: ASRTransport {
+    static var latest: DoubaoASRClient?
+    init() { Self.latest = self }
     var onOpen: (() -> Void)?; var onResult: ((String) -> Void)?; var onFinish: (() -> Void)?
     var onAudioDrained: (() -> Void)?; var onError: (() -> Void)?; var onAuthError: (() -> Void)?
     func sendAudio(_ data: Data) {}; func finishSending() {}; func disconnect() {}
-    func connect(params: Int) { fatalError("Network must not be used") }
+    func connect(params: Int) { onOpen?() }
 }
 final class APIASRClient: DoubaoASRClient {
     init(provider: RecognitionProvider) {}
@@ -94,5 +104,39 @@ final class PersonalDataStore {
         wait()
         precondition(PasteHelper.events == ["paste"])
         print("PASS: retry single delivery, pending Enter suppression, cancellation and stale completion isolation; no real input")
+        ASRParamsStore.available = true; InputTarget.available = false; PasteHelper.failImmediately = true
+        let failureState = AppState(), failureOverlay = OverlayPanel(), failureHotkey = HotkeyManager()
+        let failureManager = TranscriptionManager(appState: failureState, overlayPanel: failureOverlay, hotkeyManager: failureHotkey)
+        failureManager.start(); failureHotkey.onHotkeyEvent?(.start)
+        RunLoop.current.run(until: Date().addingTimeInterval(0.1))
+        precondition(failureState.isRecording)
+        DoubaoASRClient.latest?.onResult?("synthetic recognized words")
+        RunLoop.current.run(until: Date().addingTimeInterval(0.1))
+        failureHotkey.onHotkeyEvent?(.stop)
+        RunLoop.current.run(until: Date().addingTimeInterval(0.1))
+        DoubaoASRClient.latest?.onFinish?()
+        RunLoop.current.run(until: Date().addingTimeInterval(0.1))
+        precondition(failureState.lastTranscript == "synthetic recognized words")
+        precondition(failureOverlay.isVisible && failureState.transcriptionText == failureState.lastTranscript,
+                     "Failed input after the stop shortcut must keep the recognized text visible")
+        precondition(failureState.errorMessage != nil && !failureState.inputPending)
+        InputTarget.available = true; PasteHelper.failImmediately = false
+        failureManager.retryLast(); wait(); PasteHelper.pending?(true)
+        precondition(!failureOverlay.isVisible && failureState.errorMessage == nil && !failureState.inputPending,
+                     "Successful retry must clear the retained failure overlay")
+        failureHotkey.onHotkeyEvent?(.start)
+        RunLoop.current.run(until: Date().addingTimeInterval(0.1))
+        DoubaoASRClient.latest?.onResult?("synthetic partial words")
+        RunLoop.current.run(until: Date().addingTimeInterval(0.1))
+        failureHotkey.onHotkeyEvent?(.stop)
+        RunLoop.current.run(until: Date().addingTimeInterval(0.1))
+        let attempts = PasteHelper.events.count
+        DoubaoASRClient.latest?.onError?()
+        RunLoop.current.run(until: Date().addingTimeInterval(0.1))
+        precondition(failureOverlay.isVisible && failureState.transcriptionText == "synthetic partial words"
+                     && failureState.lastTranscript == "synthetic partial words" && PasteHelper.events.count == attempts,
+                     "Recognition failure after stopping must retain incomplete text without pasting it")
+        failureManager.cancel()
+        print("PASS: start/stop shortcut with unavailable target retains text and shows visible delivery failure; no real input")
     }
 }
