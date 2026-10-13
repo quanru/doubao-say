@@ -68,6 +68,11 @@ elif cmd=='committed':
 elif cmd=='template':
  x,y,w,h=map(int,sys.argv[3:7]);assert 0<=x<1280 and 0<=y<800 and 4<=w<=256 and 4<=h<=100
  subprocess.run(['grim','-g',f'{x},{y} {w}x{h}',str(E/(sys.argv[2]+'.png'))],check=True)
+ subprocess.run(['grim','-g','0,0 1280x28',str(E/(sys.argv[2]+'-bar.png'))],check=True)
+elif cmd=='validate-templates':
+ a=(E/'active.png').read_bytes();b=(E/'inactive.png').read_bytes()
+ assert a[:8]==b[:8]==b'\x89PNG\r\n\x1a\n' and a[16:24]==b[16:24] and a!=b,'Active/inactive PNG templates identical or invalid; stop before timed trials'
+ save('template-validation',{'same_dimensions':True,'distinct_png_files':True,'method':'Early PNG identity guard; decoded pixel validation is performed by the host analyzer','requires_visual_review':True})
 elif cmd=='capture':
  # Harness grants only input-read permission inside the disposable VM.
  subprocess.Popen(['python3',str(R/'capture.py'),*sys.argv[2:]],stdout=subprocess.DEVNULL,stderr=open(E/'capture-error.log','a'),start_new_session=True)

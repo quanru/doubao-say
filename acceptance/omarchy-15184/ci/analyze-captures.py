@@ -3,7 +3,10 @@ import pathlib,json,csv,hashlib,sys
 from PIL import Image
 root=pathlib.Path('review-artifacts/guest');out=pathlib.Path('review-artifacts')
 def pixels(p):
- with Image.open(p) as im:return hashlib.sha256(im.convert('RGB').tobytes()).hexdigest()
+ with Image.open(p) as im:
+  if im.size==(1280,28):
+   x,y,w,h=json.loads((out/'roi.json').read_text())['box'];im=im.crop((x,y,x+w,y+h))
+  return hashlib.sha256(im.convert('RGB').tobytes()).hexdigest()
 results=[];rows=[]
 try:
  active=pixels(root/'active.png');inactive=pixels(root/'inactive.png')

@@ -22,10 +22,10 @@ try:
     sec,usec,kind,code,value=struct.unpack(fmt,data[off:off+size])
     if kind==1 and code==42:events.append({'ns':sec*1000000000+usec*1000,'code':code,'value':value})
   path=out/f'{len(frames):04}.png';a=time.monotonic_ns()
-  subprocess.run(['grim','-g',f'{x},{y} {w}x{h}',str(path)],check=True,timeout=2)
+  subprocess.run(['grim','-g','0,0 1280x28',str(path)],check=True,timeout=2)
   b=time.monotonic_ns();frames.append({'file':path.name,'lo_ns':a,'hi_ns':b,'sha256':hashlib.sha256(path.read_bytes()).hexdigest()})
   if len(frames)==1:(out/'ready').touch()
 finally:
  for fd in fds:os.close(fd)
- (out/'capture.json').write_text(json.dumps({'events':events,'frames':frames,'clock':'CLOCK_MONOTONIC','input_clock_precision_ns':1000,'presentation_limit':'grim capture brackets; pixel equality against stable templates'},indent=2))
+ (out/'capture.json').write_text(json.dumps({'events':events,'frames':frames,'frame_geometry':[0,0,1280,28],'label_roi':[x,y,w,h],'clock':'CLOCK_MONOTONIC','input_clock_precision_ns':1000,'presentation_limit':'grim capture brackets; pixel equality against stable templates'},indent=2))
  (out/'done').touch()

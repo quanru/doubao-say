@@ -24,15 +24,17 @@ try {
  if(stable().active!=='2')throw Error('Initial QMP Super+I did not select Pinyin');
  for(const k of ['n','i','h','a','o','spc','ret'])key(k);
  await sleep(700);guest('committed');guest('screenshot','success-composition');
- await agent.aiAssert('This is a real Omarchy desktop. The focused terminal visibly contains committed Chinese text (你好 or another Han-character Pinyin candidate), and the input-method indicator is visible in the top bar.');
- const roi=await agent.aiQuery('Return JSON {x:number,y:number,width:number,height:number} in screenshot pixels for a tight rectangle containing only the top-bar input-method text label. Exclude the clock, mouse cursor and other icons. Do not choose the terminal. Screen is 1280 by 800.');
- const box=['x','y','width','height'].map(k=>Math.round(roi[k]));
- if(box.some(v=>!Number.isFinite(v)) || box[2]<4 || box[2]>256 || box[3]<4 || box[3]>100)throw Error('Invalid indicator ROI');
- writeFileSync(resolve(out,'roi.json'),JSON.stringify({box,source:'Midscene localization; human review required'},null,2));
+ await agent.aiAssert('The focused terminal visibly contains committed Chinese text 你好, and the small text 拼 is visible in the desktop top-right bar.');
+ const located=await agent.aiLocate('The small input-method text 拼 in the desktop top-right bar, immediately left of the next icon. Locate the text itself.');
+ const center=located.center;
+ if(!center || center.some(v=>!Number.isFinite(v)) || center[0]<1000 || center[0]>1190 || center[1]<0 || center[1]>26)throw Error('Invalid native-pixel label localization');
+ const box=[Math.round(center[0])-18,0,36,26];
+ writeFileSync(resolve(out,'roi.json'),JSON.stringify({box,located,source:'Midscene aiLocate screenshot-pixel center; padded label ROI; raw whole-bar frames retained'},null,2));
  guest('template','active',...box.map(String));
  key('shift');await sleep(800);if(stable().active!=='1')throw Error('Shift did not switch to Latin');
- await agent.aiAssert('The top-bar input-method indicator now displays the Latin/direct-input state, different from the previous Chinese input state.');
+ await agent.aiAssert('The desktop top-right bar now displays the small text EN in place of the previous 拼 text.');
  guest('template','inactive',...box.map(String));
+ guest('validate-templates');
  for(let i=0;i<20;i++){
   guest('focus');await sleep(150+((i*137)%500));
   const trial=`switch${String(i).padStart(2,'0')}`;
@@ -56,7 +58,7 @@ try {
   await agent.aiAct('In the real Fcitx 5 Configuration window, remove only Pinyin from the current input-method list. Keep Keyboard - English (US). Click Apply to save. Do not restart Fcitx or the desktop shell.');
   await sleep(5000);const removed=stable();if(JSON.stringify(removed.info).includes('pinyin'))throw Error('Pinyin still registered after GUI removal');
   guest('screenshot',`success-config-remove-${round}`);
-  await agent.aiAssert('The real Fcitx configuration list has only Keyboard - English (US), without Pinyin. The keyboard/input-method text indicator in the Omarchy top bar is hidden, because only one keyboard layout and one input method remain. No stale EN, en or Chinese input-method label remains.');
+  let removedVisual=true;try{await agent.aiAssert('The left Current Input Method list has only Keyboard - English (US), without Pinyin. The desktop top-right bar has no EN or 拼 text.');}catch(error){removedVisual=false;results.push({trial:`config-remove-visual-${round}`,status:'VISUAL_ASSERTION_FAILED_REQUIRES_REVIEW',message:String(error)});process.exitCode=1;}
   await agent.aiAct('If Only Show Current Language is checked, uncheck it. Otherwise do nothing. Do not scroll or change input methods.');
   await agent.aiTap('Search Input Method text field above the right-hand Available Input Method list');
   key('ctrl','a');await sleep(150);
@@ -65,8 +67,8 @@ try {
   await agent.aiAct('The Available Input Method list is filtered by the search text pinyin. Select Pinyin in the right-hand list, click the LEFT-pointing arrow between the lists to add it to Current Input Method alongside Keyboard - English (US), then click Apply. Do not scroll, restart Fcitx or restart the shell.');
   await sleep(5000);const added=stable();if(!JSON.stringify(added.info).includes('pinyin'))throw Error('Pinyin missing after GUI addition');
   guest('screenshot',`success-config-add-${round}`);
-  await agent.aiAssert('Pinyin is visible in the real Fcitx input-method list, and the Omarchy top-bar input-method indicator is present and reflects the available methods.');
-  results.push({trial:`config-round-${round}`,status:'GUI_LIST_AND_VISUAL_CHECK_PASSED',shellUnchanged:true,observationWindowMs:5000});
+  let addedVisual=true;try{await agent.aiAssert('Pinyin appears in the left Current Input Method list alongside Keyboard - English (US), and the small EN text is visible in the desktop top-right bar, outside the configuration window.');}catch(error){addedVisual=false;results.push({trial:`config-add-visual-${round}`,status:'VISUAL_ASSERTION_FAILED_REQUIRES_REVIEW',message:String(error)});process.exitCode=1;}
+  results.push({trial:`config-round-${round}`,status:removedVisual&&addedVisual?'GUI_LIST_AND_VISUAL_CHECK_PASSED':'GUI_LIST_VERIFIED_VISUAL_REVIEW_REQUIRED',removedVisual,addedVisual,shellUnchanged:true,observationWindowMs:5000});
  }
  const final=stable();
  if(JSON.stringify(final.info)!==JSON.stringify(initial.info))throw Error('GUI method-list restoration differs from initial list');
