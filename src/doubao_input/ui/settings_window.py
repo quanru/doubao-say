@@ -458,14 +458,18 @@ class SettingsWindow:
             self._restore_controls()
             return
         self._sync_provider_details()
+        if not self._save_current():
+            return
         provider = recognition_provider(
             ASR_PROVIDERS[self.asr_provider.get_selected()])
-        if self._save_current():
-            self._asr_has_key = self._asr_has_key_func()
-        if provider.uses_api_key and not self._asr_has_key:
-            self.asr_status.set_text(tr(
-                "Enter an API key before using this recognition service.",
-                "使用当前语音识别服务前请填写 API Key。"))
+        self._asr_has_key = self._asr_has_key_func()
+        self.asr_key.set_placeholder_text(tr(
+            "Saved — leave blank to keep" if self._asr_has_key else "Enter speech API key",
+            "已保存，留空则保持不变" if self._asr_has_key else "填写语音 API Key"))
+        self.asr_status.set_text(tr(
+            "Enter an API key before using this recognition service.",
+            "使用当前语音识别服务前请填写 API Key。")
+            if provider.uses_api_key and not self._asr_has_key else "")
 
     def _sync_provider_details(self):
         provider = recognition_provider(

@@ -125,6 +125,10 @@ self-signed certificate with OpenSSL; only that TLS case skips if OpenSSL is abs
 `test_asr_key_persistence` and `test_app_edges` also cover pending credential
 drafts in onboarding and Settings, save failures, provider switches across both
 windows, and ownership of an in-flight API-key test. All keys are synthetic.
+Linux CI also runs `tests/manual/asr_key_ui.py` under isolated Xvfb and D-Bus
+sessions in English and Chinese. It exercises real GTK controls, temporary
+credential stores, cross-window saves and main-loop completion, retaining
+screenshots. Audio, keyboard injection, update checks and ASR transport are inert.
 
 ## Personal speech and correction checks
 

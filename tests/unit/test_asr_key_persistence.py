@@ -74,6 +74,18 @@ class ASRKeyPersistenceTest(TestCase):
         view._save_current.assert_not_called()
         self.assertEqual(self.provider, "volcengine")
 
+    def test_provider_switch_refreshes_placeholder_and_clears_old_result(self):
+        for saved in (False, True):
+            with self.subTest(saved=saved):
+                view = self.view()
+                if not saved:
+                    self.saved.pop("deepgram")
+                view._asr_provider_changed()
+                view.asr_key.set_placeholder_text.assert_called_with(
+                    "Saved — leave blank to keep" if saved else "Enter speech API key")
+                if saved:
+                    view.asr_status.set_text.assert_called_with("")
+
 
 class OnboardingKeyPersistenceTest(TestCase):
     def view(self):
