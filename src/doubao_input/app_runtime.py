@@ -414,4 +414,3 @@ class RuntimeMixin:
     def _sync_recognition_status(self):
         self.app_state.login_status = (LoginStatus.LOGGED_IN if self._recognition_ready()
                                        else LoginStatus.NOT_LOGGED_IN)
-

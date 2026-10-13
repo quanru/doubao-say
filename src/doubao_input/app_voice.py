@@ -519,4 +519,3 @@ class VoiceMixin:
             self._polisher.cancel()
             self._polish_mode = None
         self._preview_polish.reset()
-
