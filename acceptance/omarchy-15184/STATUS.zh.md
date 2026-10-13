@@ -1,6 +1,6 @@
-# 当前验收状态 · 2026-10-13 13:24 UTC
+# 当前验收状态 · 2026-10-13 13:34 UTC
 
-当前唯一验收运行：[38402519102](https://github.com/quanru/doubao-say/actions/runs/38402519102)，job 115313486621，harness a64b1c5095c0881e3c0bcefc1482c7f1ba848d84。完整ISO构建与启动阶段，尚未进入模型步骤。
+当前唯一验收运行：[38402519102](https://github.com/quanru/doubao-say/actions/runs/38402519102)，job 115313486621，harness a64b1c5095c0881e3c0bcefc1482c7f1ba848d84。完整ISO构建、真实VM启动和依赖安装已通过；正在执行真实桌面用例，最终结果及本轮调用账本尚未导出。Super+I仅用于初始化，正式20次计时全部是应用内左Shift。
 
 上一轮38397021675证据已恢复，原包SHA-256：b17a1742be5d3acc8e320a6fdc7a297428eef051ec2fe02d56f836e99ecf0062；26个原始文件校验通过。原始包见evidence/run-38397021675.tar.gz，内含Midscene原始HTML和真实截图。
 
