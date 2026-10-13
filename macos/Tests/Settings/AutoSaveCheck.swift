@@ -17,6 +17,31 @@ struct AutoSaveCheck {
         }
         print("PASS: synthetic paste bypasses configurable hotkeys; no event tap or posted key events")
         func wait(_ seconds: Double) { RunLoop.current.run(until: Date().addingTimeInterval(seconds)) }
+        let monitor = AudioDeviceMonitor { }
+        precondition(monitor.registeredSelectors.count == 2, "Device and default-input listeners must register")
+        let builtIn = AudioInputDevice(id: "synthetic-internal", name: "Internal", audioID: 1)
+        let usb = AudioInputDevice(id: "synthetic-usb", name: "USB", audioID: 2)
+        var devices = [builtIn]
+        var defaultID: String? = builtIn.id
+        let deviceState = AppState()
+        let deviceModel = SettingsModel(state: deviceState, microphoneInputs: { devices }, defaultMicrophoneID: { defaultID })
+        deviceModel.draft = MacSettings()
+        deviceState.microphoneChecked = true; deviceState.voiceChecked = true
+        devices.append(usb); deviceModel.refreshMicrophones()
+        precondition(deviceModel.microphones.count == 2 && deviceState.microphoneChecked,
+                     "Inserting an unrelated device must refresh the list without invalidating the active input")
+        defaultID = usb.id; deviceModel.refreshMicrophones()
+        precondition(deviceModel.draft.microphoneID.isEmpty && !deviceState.microphoneChecked && !deviceState.voiceChecked,
+                     "System-default changes must invalidate checks without changing the saved selection")
+        deviceModel.draft.microphoneID = usb.id
+        deviceState.microphoneChecked = true; deviceState.voiceChecked = true
+        devices = [builtIn]; defaultID = builtIn.id; deviceModel.refreshMicrophones()
+        precondition(deviceModel.microphones.count == 1 && deviceModel.draft.microphoneID == usb.id
+                     && !deviceState.microphoneChecked && !deviceState.voiceChecked,
+                     "Unplugging the selected device must preserve its UID and invalidate checks")
+        devices.append(usb); deviceModel.refreshMicrophones()
+        precondition(deviceModel.microphones.contains { $0.id == usb.id } && deviceModel.draft.microphoneID == usb.id)
+        print("PASS: hardware listeners registered; simulated insert/remove/default changes refresh inputs and preserve selection")
         let state = AppState()
         let model = SettingsModel(state: state)
         model.draft = MacSettings()
@@ -25,6 +50,17 @@ struct AutoSaveCheck {
         let defaults = UserDefaults(suiteName: suite)!
         defer { defaults.removePersistentDomain(forName: suite) }
         let store = SettingsStore(defaults: defaults)
+        deviceModel.apply = { settings, _, _ in try store.save(settings) }
+        precondition(deviceModel.selectMicrophone(builtIn.id) && store.value.microphoneID == builtIn.id)
+        precondition(deviceModel.selectMicrophone("") && store.value.microphoneID.isEmpty)
+        precondition(!deviceModel.selectMicrophone("missing-device") && store.value.microphoneID.isEmpty)
+        deviceState.recordingState = .recording
+        precondition(!deviceModel.selectMicrophone(usb.id) && store.value.microphoneID.isEmpty)
+        deviceState.recordingState = .idle
+        deviceModel.apply = { _, _, _ in throw MacSettings.SettingsError.invalid }
+        precondition(!deviceModel.selectMicrophone(usb.id) && deviceModel.draft.microphoneID.isEmpty && store.value.microphoneID.isEmpty,
+                     "Failed switches must preserve the saved and displayed selection")
+        print("PASS: microphone switches persist, recording blocks switching, missing devices and save failures preserve selection")
         var reject = false
         model.apply = { settings, recognition, polish in
             if reject { throw MacSettings.SettingsError.invalid }
@@ -74,6 +110,20 @@ struct AutoSaveCheck {
         let wizard = SettingsModel(state: wizardState)
         wizard.draft = MacSettings()
         wizard.apply = { settings, _, _ in try store.save(settings) }
+        wizard.selectSetupStep(3)
+        precondition(wizard.setupStep == 3 && !wizard.canAdvanceSetup, "Direct navigation must not bypass completion checks")
+        for step in [1, 2, 0, 3, 0] {
+            wizard.selectSetupStep(step)
+            precondition(wizard.setupStep == step, "Every setup step must be selectable")
+        }
+        wizard.selectSetupStep(-1); wizard.selectSetupStep(4)
+        precondition(wizard.setupStep == 0, "Invalid steps must be ignored")
+        wizard.testing = true; wizard.selectSetupStep(2)
+        precondition(wizard.setupStep == 0, "Testing must prevent navigation")
+        wizard.testing = false; wizardState.recordingState = .recording; wizard.selectSetupStep(2)
+        precondition(wizard.setupStep == 0, "Recording must prevent navigation")
+        wizardState.recordingState = .idle
+        print("PASS: direct step navigation, completion gates and active-test/recording protection")
         wizard.advanceSetup()
         precondition(wizard.setupStep == 0, "Login is required before microphone setup")
         wizardState.loginStatus = .loggedIn; wizard.doubaoSessionSaved = true

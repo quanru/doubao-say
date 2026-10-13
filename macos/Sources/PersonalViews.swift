@@ -1,11 +1,53 @@
 import SwiftUI
 
-struct PaddedTextEditor: View {
+struct PaddedTextEditor: NSViewRepresentable {
     @Binding var text: String
-    var body: some View {
-        TextEditor(text: $text).scrollContentBackground(.hidden).padding(10)
-            .background(Color(nsColor: .textBackgroundColor))
-            .overlay(RoundedRectangle(cornerRadius: 6).stroke(Color.secondary.opacity(0.25)))
+    func makeCoordinator() -> Coordinator { Coordinator(text: $text) }
+    func makeNSView(context: Context) -> NSScrollView {
+        let scroll = NSTextView.scrollableTextView()
+        let editor = scroll.documentView as! NSTextView
+        scroll.hasHorizontalScroller = false
+        scroll.borderType = .noBorder
+        scroll.wantsLayer = true
+        scroll.layer?.cornerRadius = 6
+        scroll.layer?.borderWidth = 1
+        scroll.layer?.masksToBounds = true
+        editor.isRichText = false; editor.allowsUndo = true
+        editor.font = .systemFont(ofSize: 13)
+        editor.textColor = .textColor; editor.backgroundColor = .textBackgroundColor
+        editor.textContainerInset = NSSize(width: 12, height: 12)
+        editor.textContainer?.lineFragmentPadding = 0
+        editor.isHorizontallyResizable = false
+        editor.textContainer?.widthTracksTextView = true
+        editor.autoresizingMask = [.width]
+        editor.isAutomaticQuoteSubstitutionEnabled = false
+        editor.isAutomaticDashSubstitutionEnabled = false
+        editor.string = text
+        editor.delegate = context.coordinator
+        editor.setAccessibilityLabel(L("Editable text", "可编辑文字"))
+        return scroll
+    }
+    func updateNSView(_ scroll: NSScrollView, context: Context) {
+        guard let editor = scroll.documentView as? NSTextView else { return }
+        context.coordinator.text = $text
+        scroll.layer?.borderColor = NSColor.separatorColor.cgColor
+        editor.isEditable = context.environment.isEnabled
+        guard editor.string != text else { return }
+        let selection = editor.selectedRange()
+        editor.string = text
+        let length = (text as NSString).length
+        let start = min(selection.location, length)
+        editor.setSelectedRange(NSRange(location: start, length: min(selection.length, length - start)))
+        scroll.contentView.scroll(to: .zero)
+        scroll.reflectScrolledClipView(scroll.contentView)
+    }
+    final class Coordinator: NSObject, NSTextViewDelegate {
+        var text: Binding<String>
+        init(text: Binding<String>) { self.text = text }
+        func textDidChange(_ notification: Notification) {
+            guard let editor = notification.object as? NSTextView else { return }
+            text.wrappedValue = editor.string
+        }
     }
 }
 

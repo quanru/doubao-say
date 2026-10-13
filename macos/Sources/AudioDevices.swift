@@ -7,6 +7,15 @@ struct AudioInputDevice: Identifiable {
     let audioID: AudioDeviceID
 }
 enum AudioDevices {
+    static func defaultInputUID() -> String? {
+        var address = AudioObjectPropertyAddress(mSelector: kAudioHardwarePropertyDefaultInputDevice,
+            mScope: kAudioObjectPropertyScopeGlobal, mElement: kAudioObjectPropertyElementMain)
+        var id = AudioDeviceID(0)
+        var size = UInt32(MemoryLayout<AudioDeviceID>.size)
+        guard AudioObjectGetPropertyData(AudioObjectID(kAudioObjectSystemObject), &address, 0, nil, &size, &id) == noErr,
+              id != kAudioObjectUnknown else { return nil }
+        return string(id, selector: kAudioDevicePropertyDeviceUID)
+    }
     static func inputs() -> [AudioInputDevice] {
         var address = AudioObjectPropertyAddress(mSelector: kAudioHardwarePropertyDevices, mScope: kAudioObjectPropertyScopeGlobal, mElement: kAudioObjectPropertyElementMain)
         var size: UInt32 = 0
@@ -27,5 +36,30 @@ enum AudioDevices {
         var size = UInt32(MemoryLayout<Unmanaged<CFString>?>.size)
         guard AudioObjectGetPropertyData(id, &address, 0, nil, &size, &value) == noErr else { return nil }
         return value?.takeUnretainedValue() as String?
+    }
+}
+
+/// Observe hardware changes without opening an input stream or requesting microphone access.
+final class AudioDeviceMonitor {
+    private let listener: AudioObjectPropertyListenerBlock
+    private(set) var registeredSelectors: [AudioObjectPropertySelector] = []
+    init(onChange: @escaping @MainActor () -> Void) {
+        listener = { _, _ in Task { @MainActor in onChange() } }
+        for selector in [kAudioHardwarePropertyDevices, kAudioHardwarePropertyDefaultInputDevice] {
+            var address = Self.address(selector)
+            if AudioObjectAddPropertyListenerBlock(AudioObjectID(kAudioObjectSystemObject), &address, .main, listener) == noErr {
+                registeredSelectors.append(selector)
+            }
+        }
+    }
+    deinit {
+        for selector in registeredSelectors {
+            var address = Self.address(selector)
+            AudioObjectRemovePropertyListenerBlock(AudioObjectID(kAudioObjectSystemObject), &address, .main, listener)
+        }
+    }
+    private static func address(_ selector: AudioObjectPropertySelector) -> AudioObjectPropertyAddress {
+        AudioObjectPropertyAddress(mSelector: selector, mScope: kAudioObjectPropertyScopeGlobal,
+                                  mElement: kAudioObjectPropertyElementMain)
     }
 }
