@@ -28,7 +28,7 @@ def main():
          patch("doubao_input.app.Overlay"), patch("doubao_input.app.AudioCapture"), \
          patch("doubao_input.app.EscapeGuard"), patch("doubao_input.app.UpdateChecker"), \
          patch("doubao_input.doubao.transcription.AudioCapture"), \
-         patch("doubao_input.app.EvdevPtt") as reader, \
+         patch("doubao_input.app.TriggerReader") as reader, \
          patch("doubao_input.app.Injector") as injector, \
          patch("doubao_input.ui.tray.Tray"), \
          patch("doubao_input.app.ParamsStore.has_saved", return_value=False), \
