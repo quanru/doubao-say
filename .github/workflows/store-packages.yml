@@ -26,7 +26,7 @@ jobs:
             test -x /usr/bin/doubao-say
             python3 -c "import doubao_input; from importlib.resources import files; assert files(doubao_input).joinpath(\"resources/logo.png\").is_file()"
             desktop-file-validate /usr/share/applications/md.lifeos.DoubaoSay.desktop
-            env -u PYTHONPATH python3 -c "import doubao_input; from doubao_input.settings import install_desktop; import tempfile, os; os.environ[\"XDG_DATA_HOME\"] = tempfile.mkdtemp(); path = install_desktop(portal=True); assert \"-m\" in path.read_text()"
+            env -u PYTHONPATH python3 -c "import doubao_input; from doubao_input.settings import install_desktop; import tempfile, os; os.environ[\"XDG_DATA_HOME\"] = tempfile.mkdtemp(); path = install_desktop(portal=True); assert path.parent.parent == __import__(\"pathlib\").Path(\"/usr/share\"); assert \"Exec=doubao-say\" in path.read_text(); assert \"NoDisplay=true\" not in path.read_text()"
             rpm -ql doubao-say | grep "/NOTICE$"
             rpm -V doubao-say
             dnf remove -y doubao-say
