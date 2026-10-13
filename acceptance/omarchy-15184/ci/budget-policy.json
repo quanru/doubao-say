@@ -7,7 +7,13 @@
   "context_token_ceiling": 262144,
   "output_token_ceiling": 4096,
   "request_reservation_micro": 1695744,
-  "allocations": [],
+  "allocations": [
+    {
+      "run_id": 38393779066,
+      "micro_cny": 10000000,
+      "purpose": "First actual Midscene run, attempt 1 only; 10 CNY permanently allocated against cumulative 100 CNY"
+    }
+  ],
   "note": "Each unique run ID, attempt 1 only, requires an allocation; all allocations count cumulatively <=100 CNY, no cross-run refunds. Official regular prices 3/15; conservative ceiling 6/30 also covers documented fast tier; send default tier. Input entire 256Ki token model ceiling, all output incl reasoning capped max_completion_tokens=4096.",
   "sources": [
     "https://docs.volcengine.com/docs/ark/model-pricing?lang=en&redirect=1",
