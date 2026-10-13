@@ -1,0 +1,17 @@
+{
+  "currency": "CNY",
+  "task_limit_micro": 100000000,
+  "model": "doubao-seed-2-1-turbo-260628",
+  "input_price_ceiling_per_million": 6,
+  "output_price_ceiling_per_million": 30,
+  "context_token_ceiling": 262144,
+  "output_token_ceiling": 4096,
+  "request_reservation_micro": 1695744,
+  "allocations": [],
+  "note": "Each unique run ID, attempt 1 only, requires an allocation; all allocations count cumulatively <=100 CNY, no cross-run refunds. Official regular prices 3/15; conservative ceiling 6/30 also covers documented fast tier; send default tier. Input entire 256Ki token model ceiling, all output incl reasoning capped max_completion_tokens=4096.",
+  "sources": [
+    "https://docs.volcengine.com/docs/ark/model-pricing?lang=en&redirect=1",
+    "https://docs.volcengine.com/docs/ark/chat-api?lang=zh",
+    "https://docs.volcengine.com/docs/ark/model-list?lang=zh"
+  ]
+}

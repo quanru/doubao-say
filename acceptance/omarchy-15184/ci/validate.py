@@ -10,11 +10,11 @@ for k in ['omarchy','base_tip','iso','pkgs','reference']:assert re.fullmatch('[a
 lock=json.loads((r/'ci/package-lock.json').read_text());assert lock['packages']['']['dependencies']['@midscene/computer']=='1.15.3'
 workflow=(r/'ci/workflow.yml').read_text()
 assert 'pages: write' not in workflow and 'deploy-midscene' not in workflow
-assert '\n  push:' not in workflow and '\n  pull_request:' not in workflow
+assert 'paths: [acceptance/omarchy-15184/ci/.run-acceptance]' in workflow and '\n  pull_request:' not in workflow
 assert 'max-parallel:' not in workflow
 assert "MIDSCENE_MODEL_STREAM_MODE: 'non-stream'" in workflow
 assert 'MIDSCENE_MODEL_API_KEY' not in (r/'ci/prepare-runner.sh').read_text()
 assert 'wtype' not in (r/'ci/ui.mjs').read_text()
 assert 'SetInputMethodGroupInfo' not in (r/'ci/guest.py').read_text()
 assert 'work/session-state' not in workflow
-print('PASS: Python/Bash/JS syntax, source pins, lockfile, dispatch-only trigger, no Pages, credential-stage separation, QMP-only switching, no controller list setters.')
+print('PASS: Python/Bash/JS syntax, source pins, lockfile, manual or exact-marker trigger, no Pages, credential-stage separation, QMP-only switching, no controller list setters.')
