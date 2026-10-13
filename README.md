@@ -91,6 +91,14 @@ the stars static.
 
 Turn on the **Voice polishing · Experimental** switch on the Trigger key page to configure an
 OpenAI-compatible Base URL, API key, model and separate Chinese/English prompts.
+In the Linux GTK client, the polishing service can also be set to **ChatGPT plan**.
+Use **Continue with ChatGPT** to authorize Doubao Say, choose an account-specific model,
+then enable polishing. Account selection, disconnect, model refresh and **Manage usage**
+are available in the same panel. Credentials stay in an owner-only local store;
+the existing API endpoint, key and model settings are preserved. This option powers
+text polishing, while speech recognition continues through the selected speech service.
+The five-second original-text fallback also applies to connection, quota and renewal failures.
+The independent macOS development preview does not yet include this connection option.
 Doubao Say selects a prompt from each transcript's dominant language. The bundled prompts remove
 filler words and false starts, improves punctuation and organization, preserves
 meaning, and can be edited or restored to its default.

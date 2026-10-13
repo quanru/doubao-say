@@ -1,4 +1,6 @@
 # Complete Python dependency set tested for the 1.4.0 release.
+PyJWT[crypto]==2.15.1
+cryptography==50.0.2
 websockets==17.1
 sounddevice==0.5.6
 evdev==2.0.0

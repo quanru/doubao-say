@@ -130,6 +130,31 @@ sessions in English and Chinese. It exercises real GTK controls, temporary
 credential stores, cross-window saves and main-loop completion, retaining
 screenshots. Audio, keyboard injection, update checks and ASR transport are inert.
 
+## ChatGPT plan connection checks
+
+`tests.unit.test_chatgpt` verifies the independent PKCE/OIDC connection, RSA
+identity validation, account storage, serialized token renewal, cancellation,
+and required final completion events. All credentials and network replies in
+these unit tests are synthetic.
+
+On Linux with the application's GTK dependencies and Pillow installed, run the
+bounded native settings fixture inside an owned Xvfb desktop and a private bus:
+
+```sh
+GTK_A11Y=none SIWC_UI_SCREENSHOTS=artifacts/verification/siwc/native \
+  SIWC_UI_LANGUAGE=en PYTHONPATH=src timeout --signal=TERM --kill-after=5s 35s \
+  dbus-run-session -- .venv/bin/python tests/manual/chatgpt_ui.py
+```
+
+Repeat with `SIWC_UI_LANGUAGE=zh` for Chinese. This fixture exercises real GTK
+controls with a synthetic connection: provider selection, account connection,
+model choice, enabling without an API key, preservation of existing API
+settings, and hiding/reopening the connection card. It does not verify live
+OAuth, actual plan inference, token expiry, audio capture or paste delivery.
+Live sign-in must use a separate app-owned account store; never copy credentials
+from Codex or another product. The independent macOS preview has no ChatGPT
+connection UI in this change.
+
 ## Personal speech and correction checks
 
 `tests.unit.test_personal_corrections` verifies explicit confirmation, immutable

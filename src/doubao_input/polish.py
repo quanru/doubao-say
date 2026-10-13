@@ -67,6 +67,10 @@ def chat_completions_url(base_url):
 
 
 class PolishClient:
+    def polish_chatgpt(self, text, **options):
+        from doubao_input.chatgpt import chatgpt_client
+        return chatgpt_client().polish(text, **options)
+
     def polish(self, text, *, base_url, api_key, model, prompt, timeout=25,
                on_progress=None, cancellation=None):
         body = {"model": model, "temperature": 0.2,
@@ -184,9 +188,12 @@ class PolishManager:
                 return False
             self._dispatch(deliver_progress)
 
-        future = executor.submit(self._client.polish, text,
+        using_chatgpt = getattr(settings, "polish_provider", "api") == "chatgpt"
+        operation = self._client.polish_chatgpt if using_chatgpt else self._client.polish
+        future = executor.submit(operation, text,
             base_url=settings.polish_base_url, api_key=api_key,
-            model=settings.polish_model, prompt=polish_prompt_for_text(text, settings),
+            model=settings.polish_chatgpt_model if using_chatgpt else settings.polish_model,
+            prompt=polish_prompt_for_text(text, settings),
             timeout=timeout, on_progress=report if progress else None, cancellation=cancellation)
         self._future = future
 
