@@ -114,17 +114,18 @@ def main():
         app._do_paste("Synthetic rehearsal result")
         assert app._setup_session.voice_ok and not app._delivery.busy
         injector.return_value.inject.assert_not_called()
-        app._target = "fake-target"
-        app._do_paste("Synthetic delivery result")
-        assert app._delivery.busy
         loop = GLib.MainLoop()
         statuses = []
         changed = app._delivery.changed
         def completed(status):
             changed(status)
-            statuses.append(status)
-            loop.quit()
+            if status != "pending":
+                statuses.append(status)
+                loop.quit()
         app._delivery.changed = completed
+        app._target = "fake-target"
+        app._do_paste("Synthetic delivery result")
+        assert app._delivery.busy
         timeout = GLib.timeout_add(2000, lambda: loop.quit() or False)
         loop.run()
         if statuses:

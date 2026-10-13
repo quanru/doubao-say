@@ -108,6 +108,7 @@ jobs:
           for language in en zh_CN; do
             ASR_UI_LANGUAGE="$language" timeout --signal=TERM --kill-after=5s 35s xvfb-run -a dbus-run-session -- .venv/bin/python tests/manual/asr_key_ui.py
           done
+          timeout --signal=TERM --kill-after=5s 35s xvfb-run -a dbus-run-session -- .venv/bin/python tests/manual/refactor_smoke.py
       - name: Upload synthetic GTK credential UI captures
         if: always()
         uses: actions/upload-artifact@043fb46d1a93c77aae656e7c1c64a875d1fc6a0a # v7.0.1
