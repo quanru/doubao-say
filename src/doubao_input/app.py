@@ -693,9 +693,8 @@ class DoubaoInputApp(Gtk.Application):
             try:
                 store.status(self._history_id, status)
                 latency = getattr(self, "_input_latency", None)
-                if latency:
-                    if status != "pending":
-                        latency.mark("delivery")
+                if latency and status != "pending":
+                    latency.mark("delivery")
                     store.save_timings(self._history_id, latency.values)
             except Exception:
                 logger.warning("Could not update local input history")

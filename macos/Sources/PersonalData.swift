@@ -152,10 +152,10 @@ final class PersonalDataStore {
         guard let text = String(data: data, encoding: .utf8) else { throw Failure.invalid }
         try database { _ = try query($0, "INSERT OR REPLACE INTO input_timings SELECT ?,? WHERE EXISTS (SELECT 1 FROM history WHERE id=?)", [id, text, id]) }
     }
-    func allTimings() throws -> [String: [String: Double]] {
+    func allTimings(limit: Int = 100) throws -> [String: [String: Double]] {
         try database { db in
             var result: [String: [String: Double]] = [:]
-            for row in try query(db, "SELECT history_id,data FROM input_timings") {
+            for row in try query(db, "SELECT history_id,data FROM input_timings JOIN history ON history_id=history.id ORDER BY history.created DESC,history.rowid DESC LIMIT ?", [limit]) {
                 result[row[0]] = (try? JSONSerialization.jsonObject(with: Data(row[1].utf8)) as? [String: Double]) ?? [:]
             }
             return result

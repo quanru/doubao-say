@@ -12,6 +12,8 @@ import SwiftUI
     var parent: NSWindow?
     var model: PersonalModel?
     var evaluation: SpeechEvaluationModel?
+    var sourceText = "用 Midjourney 编写自动化测试"
+    var expectedText = "用 Midscene 编写自动化测试"
     func applicationDidFinishLaunching(_ notification: Notification) {
         guard Bundle.main.bundleIdentifier?.hasPrefix("md.lifeos.doubao-say.update-verify.") == true else { exit(2) }
         NSApp.setActivationPolicy(.regular)
@@ -20,12 +22,14 @@ import SwiftUI
             try store.clearHistory()
             for memory in try store.corrections() { try store.forgetCorrection(memory.id) }
             try store.saveWords("Midscene\nVibelet")
-            let id = try store.record(original: "用 Midjourney 编写自动化测试", output: "用 Midjourney 编写自动化测试", polished: true, status: "sent")!
             let page = ProcessInfo.processInfo.environment["PERSONAL_PAGE"] ?? "history"
+            if page == "selection" { sourceText = "用 Midjourney 画图，用 Midjourney 写测试"; expectedText = "用 Midjourney 画图，用 Midscene 写测试" }
+            let id = try store.record(original: sourceText, output: sourceText, polished: true, status: "sent")!
             try store.saveTimings(id, values: ["asr": 320, "polish": 180, "delivery": 90, "total": 590])
             if page == "confirmed" || page == "memory" { try store.confirmCorrection(id, recognized: "Midjourney", corrected: "Midscene") }
             if page == "evaluation" || page == "evaluation-results" {
                 let state = AppState()
+                try SpeechSampleStore().save([])
                 let model = SpeechEvaluationModel(state: state); evaluation = model
                 model.add()
                 model.edit(\.reference, "用 Midscene 编写自动化测试")
@@ -42,14 +46,24 @@ import SwiftUI
                 window.title = "Speech evaluation verification"; window.center(); parent = window
                 window.contentView = NSHostingView(rootView: SpeechEvaluationView(state: state, model: model))
                 window.makeKeyAndOrderFront(nil)
-            } else if page == "editor" || page == "cancel" {
+            } else if page == "editor" || page == "cancel" || page == "selection" {
                 let model = PersonalModel(store: store); self.model = model
                 let window = NSWindow(contentRect: NSRect(x: 0, y: 0, width: 660, height: 540), styleMask: [.titled, .closable], backing: .buffered, defer: false)
                 window.title = "Personal learning verification"; window.center(); parent = window
                 window.contentView = NSHostingView(rootView: InputHistoryView(state: AppState(), model: model))
                 window.makeKeyAndOrderFront(nil)
                 DispatchQueue.main.asyncAfter(deadline: .now() + 0.2) {
-                    model.beginCorrection(model.history[0]); model.recognizedTerm = "Midjourney"; model.correctedTerm = "Midscene"
+                    if page == "selection" {
+                        guard let view = self.findTextView(window.contentView!, text: self.sourceText) else { print("FAIL: native selectable history"); exit(1) }
+                        view.setSelectedRange((self.sourceText as NSString).range(of: "Midjourney", options: .backwards))
+                        DispatchQueue.main.asyncAfter(deadline: .now() + 0.15) {
+                            model.beginCorrection(model.history[0])
+                            guard model.recognizedTerm == "Midjourney", model.correctionSelection != nil else { print("FAIL: selected term not carried"); exit(1) }
+                            model.correctedTerm = "Midscene"
+                        }
+                    } else {
+                        model.beginCorrection(model.history[0]); model.recognizedTerm = "Midjourney"; model.correctedTerm = "Midscene"
+                    }
                 }
             } else {
                 let window = SettingsWindow(state: AppState()); settings = window
@@ -74,6 +88,11 @@ import SwiftUI
             }
         } catch { print("FAIL: synthetic fixture setup"); exit(1) }
     }
+    func findTextView(_ root: NSView, text: String) -> NSTextView? {
+        if let view = root as? NSTextView, view.string == text { return view }
+        for child in root.subviews { if let found = findTextView(child, text: text) { return found } }
+        return nil
+    }
     func activateDefault(cancel: Bool) {
         guard let sheet = parent?.attachedSheet else { exit(1) }
         let code: UInt16 = cancel ? 53 : 36
@@ -88,8 +107,8 @@ import SwiftUI
                 let row = try PersonalDataStore.shared.history()[0]
                 guard self.parent?.attachedSheet == nil,
                       memories.count == (cancel ? 0 : 1),
-                      row.confirmed == (cancel ? "" : "用 Midscene 编写自动化测试"),
-                      row.output == "用 Midjourney 编写自动化测试" else { print("FAIL: native confirmation/cancel"); exit(1) }
+                      row.confirmed == (cancel ? "" : self.expectedText),
+                      row.output == self.sourceText else { print("FAIL: native confirmation/cancel"); exit(1) }
                 print("PASS: native \(cancel ? "cancel" : "confirm"), explicit memory, immutable ASR and output")
                 self.finish()
             } catch { exit(1) }

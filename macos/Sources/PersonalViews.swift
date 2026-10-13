@@ -36,7 +36,7 @@ final class PersonalModel: ObservableObject {
         loading = true; defer { loading = false }
         do {
             if saveTimer == nil { words = try store.words().joined(separator: "\n") }
-            timings = try store.allTimings()
+            timings = try store.allTimings(limit: limit)
             enabled = try store.enabled(); history = try store.history(limit: limit); corrections = try store.corrections()
             refreshHotwords()
         } catch { feedback = L("Could not read local vocabulary or history.", "无法读取本地词汇或历史。") }

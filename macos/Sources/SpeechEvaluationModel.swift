@@ -89,7 +89,8 @@ import Combine
         catch { feedback = L("Could not delete the local recording.", "无法删除本地录音。") }
     }
     func record() {
-        guard !busy, !recording, index != nil, state.recordingState == .idle, !state.evaluationBusy, canStart() else { return }
+        guard !busy, !recording, index != nil else { return }
+        guard state.recordingState == .idle, !state.evaluationBusy, canStart() else { feedback = L("Finish dictation or microphone checks first.", "请先结束日常听写或麦克风检查。"); return }
         guard AVCaptureDevice.authorizationStatus(for: .audio) == .authorized else {
             feedback = L("Allow microphone access in System Settings, then retry.", "请在系统设置中允许麦克风访问，再重试。")
             if AVCaptureDevice.authorizationStatus(for: .audio) == .notDetermined { AVCaptureDevice.requestAccess(for: .audio) { _ in } }; return
@@ -121,7 +122,8 @@ import Combine
     }
     var ready: Bool { !samples.isEmpty && samples.allSatisfy { $0.audioBytes > 0 && SpeechScoring.valid($0) } }
     func run() {
-        guard ready, !busy, !recording, state.recordingState == .idle, !state.evaluationBusy, canStart() else { return }
+        guard ready, !busy, !recording else { return }
+        guard state.recordingState == .idle, !state.evaluationBusy, canStart() else { feedback = L("Finish dictation or microphone checks first.", "请先结束日常听写或麦克风检查。"); return }
         guard let key = SecretStore.load("volcengine-api-key"), !key.isEmpty else { feedback = L("Configure an official Volcengine ASR key first.", "请先配置官方火山引擎 ASR Key。") ; return }
         let polishKey = includePolish ? SecretStore.load("polish-api-key") : nil
         guard !includePolish || !(polishKey ?? "").isEmpty else { feedback = L("Configure polishing credentials or turn off polishing comparison.", "请配置润色凭证，或关闭润色对比。") ; return }
