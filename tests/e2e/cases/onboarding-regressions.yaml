@@ -195,9 +195,9 @@ cases:
       - aiAssert: Open Doubao sign-in is hidden, and both Test API key and right-arrow Next are disabled while the API Key is empty.
       - aiAct: Enter synthetic-ci-key in the API Key field.
       - aiWaitFor:
-          prompt: The API Key field has a non-empty masked value and Test API key is enabled.
+          prompt: The API Key field is empty with the Saved — leave blank to keep placeholder, API key saved automatically is visible, and Test API key is enabled.
           options: { timeoutMs: 30000, checkIntervalMs: 1000 }
-      - aiAssert: The API Key is visibly saved as a masked non-empty value.
+      - aiAssert: The API key saved automatically message is visible and the entry no longer contains the typed key.
       - aiTap: Test API key button on the Recognition step
       - aiWaitFor:
           prompt: The result says API key accepted by synthetic endpoint and the page reports that the official API is ready.
@@ -219,6 +219,21 @@ cases:
       - computer.inputText:
           target: The empty masked text entry to the right of API Key, with placeholder Enter speech API key
           value: synthetic-deepgram-key
+      - aiTap: Test API key button below the API Key field
+      - aiWaitFor:
+          prompt: The API key is accepted by the synthetic endpoint and the speech API is ready.
+          options: { timeoutMs: 30000, checkIntervalMs: 1000 }
+      - aiTap: Recognition service dropdown currently showing Deepgram Nova-3 (English)
+      - aiTap: Volcengine API option in the opened dropdown
+      - aiWaitFor:
+          prompt: Volcengine is selected, the empty API Key entry says Enter speech API key, and Test API key is disabled.
+          options: { timeoutMs: 30000, checkIntervalMs: 1000 }
+      - aiAssert: The page says no API key is saved for this service and does not show the previous accepted result.
+      - aiTap: Recognition service dropdown currently showing Volcengine API
+      - aiTap: Deepgram Nova-3 (English) option in the opened dropdown
+      - aiWaitFor:
+          prompt: Deepgram is selected, the empty API Key entry says Saved — leave blank to keep, and Test API key is enabled.
+          options: { timeoutMs: 30000, checkIntervalMs: 1000 }
       - aiTap: Test API key button below the API Key field
       - aiWaitFor:
           prompt: The API key is accepted by the synthetic endpoint and the speech API is ready.

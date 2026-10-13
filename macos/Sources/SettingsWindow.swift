@@ -564,7 +564,7 @@ struct SettingsView: View {
             PaddedTextEditor(text: $state.lastTranscript)
             HStack {
                 Button(L("Copy", "复制")) { PasteHelper.copyOnly(state.lastTranscript) }.disabled(state.lastTranscript.isEmpty)
-                Button(L("Retry in 3 seconds", "三秒后重试")) { model.retry?() }.disabled(state.lastTranscript.isEmpty || state.recordingState != .idle)
+                Button(L("Retry in 3 seconds", "三秒后重试")) { model.retry?() }.disabled(state.lastTranscript.isEmpty || state.recordingState != .idle || state.inputPending || state.evaluationBusy)
                 Button(L("Clear", "清除")) { model.clear?() }
             }
         }.padding(16)

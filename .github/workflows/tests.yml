@@ -58,7 +58,7 @@ jobs:
         run: |
           python -m unittest -v \
             tests.unit.test_delivery tests.unit.test_gesture tests.unit.test_input_worker \
-            tests.unit.test_manual_safety tests.unit.test_plugin_launch tests.unit.test_polish \
+            tests.unit.test_manual_safety tests.unit.test_plugin_launch tests.unit.test_polish tests.unit.test_polish_transport \
             tests.unit.test_polish_preview tests.unit.test_reasoning tests.unit.test_settings \
             tests.unit.test_updates tests.unit.test_update_install tests.unit.test_personal tests.unit.test_personal_corrections tests.unit.test_speech_eval tests.contracts.test_version_check tests.unit.test_voice_motion
           python -m compileall -q src/doubao_input packaging

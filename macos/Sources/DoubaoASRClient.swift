@@ -122,7 +122,10 @@ final class DoubaoASRClient {
     }
     private func fail() {
         guard !closed else { return }
-        close(); onError?()
+        let status = (socket?.response as? HTTPURLResponse)?.statusCode
+        close()
+        if status == 401 || status == 403 { onAuthError?() }
+        else { onError?() }
     }
     private func pump() {
         guard connected, !closed, !sending, let socket = socket else { return }

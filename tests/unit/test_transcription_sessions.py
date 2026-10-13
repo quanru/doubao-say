@@ -143,7 +143,10 @@ class TranscriptionSessionTest(TestCase):
         self.assertTrue(manager.app_state.error_message)
 
     def test_audio_disconnect_resets_recording_and_releases_settings(self):
+        from doubao_input.diagnostics import DiagnosticTrace
         manager = self.manager()
+        trace = DiagnosticTrace()
+        manager.on_diagnostic = trace.add
         manager.app_state.recording_state = RecordingState.RECORDING
         manager._priming = False
         manager._audio_generation = 7
@@ -156,6 +159,18 @@ class TranscriptionSessionTest(TestCase):
         manager.audio_capture.stop.assert_called_once()
         self.assertEqual(manager.app_state.recording_state, RecordingState.IDLE)
         self.assertIn("Microphone disconnected", manager.app_state.error_message)
+        self.assertIn("audio_failed", [event["stage"] for event in trace.snapshot()])
+
+    def test_broken_diagnostics_cannot_prevent_audio_failure_cleanup(self):
+        manager = self.manager()
+        manager.app_state.recording_state = RecordingState.RECORDING
+        manager.app_state.transcription_text = "synthetic partial"
+        manager.on_recover = Mock()
+        manager.on_diagnostic = Mock(side_effect=ValueError("synthetic failure"))
+        manager._deliver_audio_error(manager._audio_generation, RuntimeError("device removed"))
+        manager.on_recover.assert_called_once_with("synthetic partial")
+        manager.audio_capture.stop.assert_called_once()
+        self.assertEqual(manager.app_state.recording_state, RecordingState.IDLE)
 
     def test_stale_audio_disconnect_cannot_reset_next_recording(self):
         manager = self.manager()

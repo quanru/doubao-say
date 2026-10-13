@@ -11,14 +11,16 @@ class Delivery:
         self.want_enter = False
         self._token = Event()
         self._closed = False
+        self._changed = changed
 
-    def _begin(self):
+    def _begin(self, changed=None):
         if self.busy or self._closed:
             return None
         self._token = Event()
         self.busy = True
         self.want_enter = False
-        self.changed("pending")
+        self._changed = changed if changed is not None else self.changed
+        self._changed("pending")
         return self._token
 
     def _current(self, token):
@@ -27,7 +29,7 @@ class Delivery:
     def _finish(self, token, status):
         if self._current(token):
             self.busy = self.want_enter = False
-            self.changed(status)
+            self._changed(status)
 
     def _run(self, token, work, completed):
         if not self._current(token):
@@ -62,8 +64,8 @@ class Delivery:
         self.schedule(delay_ms, lambda: self._run(token, paste, pasted))
         return True
 
-    def submit_enter(self, target):
-        token = self._begin()
+    def submit_enter(self, target, *, changed=None):
+        token = self._begin(changed)
         if token is None:
             return False
         self._run_enter(token, target)
@@ -88,7 +90,7 @@ class Delivery:
         was_busy = self.busy
         self.busy = self.want_enter = False
         if was_busy:
-            self.changed("cancelled")
+            self._changed("cancelled")
 
     def close(self, cleanup):
         if not self._closed:

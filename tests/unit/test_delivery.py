@@ -128,6 +128,23 @@ class DeliveryTest(TestCase):
         self.enter.assert_not_called()
         self.changed.assert_called_with("enter_skipped")
 
+    def test_enter_owns_status_callback_through_cancel_and_next_paste(self):
+        d = self.make()
+        callbacks = []
+        d.worker.submit = lambda work, done: callbacks.append(lambda: done(work()))
+        entered = Mock()
+        d.submit_enter("target", changed=entered)
+        d.cancel()
+        self.assertEqual([call.args[0] for call in entered.call_args_list], ["pending", "cancelled"])
+        self.changed.assert_not_called()
+        d.submit("new", "target")
+        callbacks.pop(0)()
+        self.assertTrue(d.busy)
+        self.queue.pop(0)()
+        callbacks.pop(0)()
+        self.changed.assert_called_with("attempted")
+        self.assertEqual(entered.call_count, 2)
+
     def test_close_rejects_new_work_and_invalidates_timers(self):
         d = self.make()
         d.worker = Mock()
