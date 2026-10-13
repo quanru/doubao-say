@@ -1,0 +1,16 @@
+{
+  "run": 38397021675,
+  "head": "a1ead6b37605d5f3b63a9ebba2f6a621d6a43b6c",
+  "result": "PARTIAL_NOT_ACCEPTED",
+  "switching": "NOT_EXECUTED: incorrect initial activation in harness; no latency samples",
+  "config_remove": "one genuine GUI removal observed; EN disappeared; unchanged shell/fcitx/indicator processes",
+  "config_add": "not completed: Midscene replanned 8 times scrolling through layouts",
+  "completed_rounds": 0,
+  "config_restore_byte_identical": true,
+  "model_requests": 15,
+  "prompt_tokens": 157185,
+  "completion_tokens": 2906,
+  "conservative_accounted_cny": 1.03029,
+  "invoice_verified": false,
+  "archive_sha256": "b17a1742be5d3acc8e320a6fdc7a297428eef051ec2fe02d56f836e99ecf0062"
+}
