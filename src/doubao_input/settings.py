@@ -418,6 +418,14 @@ def install_desktop(*, portal=False):
     data = Path(os.environ.get("XDG_DATA_HOME", Path.home() / ".local/share"))
     # GNOME GlobalShortcuts requires a valid reverse-DNS application ID.
     name = "md.lifeos.DoubaoSay.desktop" if portal else "doubao-say.desktop"
+    if portal:
+        # RPM/Flatpak already export a visible reverse-DNS launcher. A private
+        # NoDisplay entry would shadow it in GNOME's application grid.
+        for directory in os.environ.get("XDG_DATA_DIRS", "/usr/local/share:/usr/share").split(":"):
+            if directory:
+                packaged = Path(directory) / "applications" / name
+                if packaged.is_file():
+                    return packaged
     path = data / "applications" / name
     path.parent.mkdir(parents=True, exist_ok=True)
     path.write_text(desktop_entry() + ("NoDisplay=true\n" if portal else ""))

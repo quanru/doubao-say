@@ -14,6 +14,19 @@ from doubao_input.settings import (DEFAULT_POLISH_PROMPT_EN, DEFAULT_POLISH_PROM
 
 
 class SettingsTest(unittest.TestCase):
+    def test_portal_keeps_packaged_launcher_visible(self):
+        with tempfile.TemporaryDirectory() as root:
+            package = Path(root) / "system/applications/md.lifeos.DoubaoSay.desktop"
+            package.parent.mkdir(parents=True)
+            content = "[Desktop Entry]\nName=Doubao Say\nExec=doubao-say\n"
+            package.write_text(content)
+            private = Path(root) / "user"
+            with patch.dict("os.environ", {"XDG_DATA_HOME": str(private),
+                                             "XDG_DATA_DIRS": str(package.parent.parent)}):
+                self.assertEqual(install_desktop(portal=True), package)
+            self.assertEqual(package.read_text(), content)
+            self.assertFalse((private / "applications/md.lifeos.DoubaoSay.desktop").exists())
+
     def test_homophone_prompt_migration_preserves_user_edits(self):
         with tempfile.TemporaryDirectory() as root, patch.dict("os.environ", {"XDG_CONFIG_HOME": root}):
             path = Path(root) / "doubao-say/settings.json"

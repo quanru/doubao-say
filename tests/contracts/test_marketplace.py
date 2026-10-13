@@ -90,7 +90,7 @@ class MarketplaceTest(unittest.TestCase):
 
     def test_missing_modules_report_failure(self):
         with patch.dict("os.environ", {"WAYLAND_DISPLAY": "test"}), \
-             patch("doubao_input.preflight.shutil.which", return_value=None), \
+             patch("doubao_input.preflight.has_tool", return_value=None), \
              patch("doubao_input.preflight.importlib.import_module", side_effect=ImportError):
             results = check_runtime()
         self.assertFalse(any(results.values()))

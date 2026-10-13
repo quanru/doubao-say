@@ -14,7 +14,7 @@ class AudioCallbacksTest(unittest.TestCase):
                 capture, callback = AudioCapture(), Mock()
                 capture.device = "alsa_input.test-source"
                 with patch.dict(os.environ, {"DISPLAY": ":99", "XDG_SESSION_TYPE": "x11"}, clear=True), \
-                     patch("doubao_input.doubao.audio_capture.shutil.which", return_value="pw-record" if available else None), \
+                     patch("doubao_input.doubao.audio_capture.has_tool", return_value="pw-record" if available else None), \
                      patch("doubao_input.doubao.audio_capture.subprocess.Popen") as spawn, \
                      patch("doubao_input.doubao.audio_capture.threading.Thread"), \
                      patch("doubao_input.doubao.audio_capture._load_sounddevice") as sounddevice:
@@ -134,7 +134,7 @@ class AudioCallbacksTest(unittest.TestCase):
             samples = (b"\x00\x40\x00\xc0" * 2)
             capture._audio_callback(samples, 4, None, None)
         with patch.dict("os.environ", {"WAYLAND_DISPLAY": "test"}), \
-             patch("doubao_input.doubao.audio_capture.shutil.which", return_value="pw-record"), \
+             patch("doubao_input.doubao.audio_capture.has_tool", return_value="pw-record"), \
              patch.object(capture, "_start_pipewire", side_effect=emit_first_block):
             capture.start(audio, on_rms=override)
             override.assert_called_once_with(0.5)
@@ -146,7 +146,7 @@ class AudioCallbacksTest(unittest.TestCase):
     def test_pipewire_is_preferred_on_x11(self):
         capture = AudioCapture()
         with patch.dict("os.environ", {"DISPLAY": ":0"}, clear=True), \
-             patch("doubao_input.doubao.audio_capture.shutil.which",
+             patch("doubao_input.doubao.audio_capture.has_tool",
                    return_value="/usr/bin/pw-record"), \
              patch.object(capture, "_start_pipewire") as start_pipewire, \
              patch("doubao_input.doubao.audio_capture._load_sounddevice") as sounddevice:

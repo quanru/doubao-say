@@ -57,8 +57,10 @@ permissions:
   packages: read
 
 concurrency:
-  group: midscene-model-e2e-${{ github.workflow }}-${{ github.ref }}
-  cancel-in-progress: ${{ github.event_name == 'pull_request' }}
+  # These workflows use the same model credentials and token quota. Keep a
+  # running visual suite alive and queue the newest suite across branches.
+  group: midscene-model-e2e
+  cancel-in-progress: false
 
 jobs:
   omarchy-e2e:

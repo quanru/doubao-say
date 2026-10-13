@@ -143,6 +143,8 @@ test('assigns every product case to exactly one balanced shard', async () => {
 });
 
 test('keeps visual E2E interactions at task level with proven tap exceptions', async () => {
+  // Run 38241167120 located clipped recommendation text instead of the endpoint
+  // button. Reveal the button before the existing tap/result assertions.
   for (const file of [
     'onboarding.yaml',
     'onboarding-regressions.yaml',
@@ -164,6 +166,7 @@ test('keeps visual E2E interactions at task level with proven tap exceptions', a
             '- aiTap: The blue Simulate successful sign-in button in the CI-only modal, around 50% width and 43% screen height',
             '- aiTap: Check microphone · 3 seconds button on the Microphone step',
             '- aiTap: Right-arrow Next button in the fixed top navigation',
+            '- aiScroll:',
             '- aiScroll:',
             '- aiTap: Test endpoint button in the Voice polishing section',
             '- aiScroll:',
@@ -192,10 +195,12 @@ test('keeps visual E2E interactions at task level with proven tap exceptions', a
               '- aiScroll:',
               '- aiScroll:',
               '- computer.inputText: { target: The editable text field to the right of Model containing synthetic-model, value: ci-fail-model }',
+              '- aiScroll:',
               '- aiTap: Test endpoint button in the Voice polishing section',
               '- aiScroll:',
               '- aiScroll:',
               '- computer.inputText: { target: The editable text field to the right of Model containing ci-fail-model, value: ci-ok-model }',
+              '- aiScroll:',
               '- aiTap: Test failed — try again button in the Voice polishing section',
               '- aiScroll:',
               '- aiTap: Right-arrow Next button in the fixed top navigation',

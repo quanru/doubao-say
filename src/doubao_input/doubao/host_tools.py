@@ -10,6 +10,7 @@ from __future__ import annotations
 
 import os
 import shutil
+import subprocess
 
 _FLATPAK_MARKER = "/.flatpak-info"
 
@@ -33,4 +34,16 @@ def command_candidates(tool: str) -> list[list[str]]:
 
 
 def has_tool(tool: str) -> bool:
-    return bool(command_candidates(tool))
+    if not is_flatpak():
+        return shutil.which(tool) is not None
+    if not shutil.which("flatpak-spawn"):
+        return False
+    try:
+        result = subprocess.run(
+            ["flatpak-spawn", "--host", "sh", "-c", 'command -v "$1" >/dev/null',
+             "doubao-say-probe", tool],
+            stdout=subprocess.DEVNULL, stderr=subprocess.DEVNULL, timeout=2,
+        )
+        return result.returncode == 0
+    except (OSError, subprocess.TimeoutExpired):
+        return False
