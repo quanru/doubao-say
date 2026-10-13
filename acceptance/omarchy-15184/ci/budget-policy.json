@@ -12,6 +12,11 @@
       "run_id": "revoked-38393779066",
       "micro_cny": 10000000,
       "purpose": "Revoked before model step: exporter missing CSV allowlist. Keep 10 CNY conservatively allocated until run confirms zero model calls."
+    },
+    {
+      "run_id": 38394044222,
+      "micro_cny": 10000000,
+      "purpose": "Real Midscene acceptance with corrected exporter and 20-second request pacing; attempt 1 only"
     }
   ],
   "note": "Each unique run ID, attempt 1 only, requires an allocation; all allocations count cumulatively <=100 CNY, no cross-run refunds. Official regular prices 3/15; conservative ceiling 6/30 also covers documented fast tier; send default tier. Input entire 256Ki token model ceiling, all output incl reasoning capped max_completion_tokens=4096.",
