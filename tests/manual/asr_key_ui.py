@@ -1,5 +1,6 @@
 """Real GTK credential ownership checks; isolated config, synthetic keys only."""
 from contextlib import ExitStack
+from dataclasses import replace
 import os
 from pathlib import Path
 import tempfile
@@ -30,6 +31,7 @@ def drain(seconds=0.2):
 
 
 def capture(name):
+    drain()
     folder = os.environ.get("ASR_UI_SCREENSHOTS")
     if folder:
         from PIL import ImageGrab
@@ -57,11 +59,14 @@ def main():
         cleanup.callback(app._quit)
         app.register(None)
         assert not app.get_is_remote(), "Run in an isolated dbus-run-session"
-        set_language(os.environ.get("ASR_UI_LANGUAGE", "en"))
+        language = os.environ.get("ASR_UI_LANGUAGE", "en")
+        app.settings = replace(app.settings, language=language)
+        set_language(language)
         app._build()
         control = app._control
         cleanup.callback(control.destroy)
         control.show()
+        control.window.set_default_size(760, 980)
         drain()
 
         # Switch before the debounce fires, including the nested GTK refresh
@@ -85,6 +90,7 @@ def main():
 
         app._show_settings()
         window = app._settings_window
+        window.window.set_default_size(660, 980)
         cleanup.callback(window.window.destroy)
         drain()
         control._asr_key.set_text("synthetic-volcengine-replacement")
