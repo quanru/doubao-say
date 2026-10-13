@@ -10,7 +10,7 @@ import sys
 import threading
 
 
-def check(provider):
+def check(provider, raw=False):
     errors = []
     listener = socket.socket()
     listener.bind(('127.0.0.1', 0))
@@ -68,7 +68,10 @@ def check(provider):
                     assert opcode == 2 and data[:4] == bytes([0x11, 0x11, 0x11, 0])
                     body = json.loads(gzip.decompress(data[12:]))
                     assert body['audio']['rate'] == 16000 and body['request']['enable_punc'] is True
-                    assert json.loads(body['request']['corpus']['context']) == {'hotwords': [{'word': 'Midscene'}, {'word': 'Vibelet'}]}
+                    if raw:
+                        assert 'corpus' not in body['request']
+                    else:
+                        assert json.loads(body['request']['corpus']['context']) == {'hotwords': [{'word': 'Midscene'}, {'word': 'Vibelet'}]}
                     payload = gzip.compress(b'{}')
                     send(2, bytes([0x11, 0x91, 0x11, 0]) + struct.pack('!iI', 1, len(payload)) + payload)
                     opcode, data = receive()
@@ -91,7 +94,7 @@ def check(provider):
 
     thread = threading.Thread(target=serve, daemon=True)
     thread.start()
-    result = subprocess.run([sys.argv[1], f'ws://127.0.0.1:{port}/asr', provider], timeout=12)
+    result = subprocess.run([sys.argv[1], f'ws://127.0.0.1:{port}/asr', provider] + (['raw'] if raw else []), timeout=12)
     thread.join(timeout=10)
     if errors or thread.is_alive():
         raise SystemExit('FAIL: ' + repr(errors or ['fixture did not exit']))
@@ -101,3 +104,5 @@ def check(provider):
 
 for provider in ['volcengine', 'deepgram']:
     check(provider)
+
+check('volcengine', raw=True)

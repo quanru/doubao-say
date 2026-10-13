@@ -8,6 +8,15 @@
 
 - macOS: expose English, Simplified Chinese and system language selection in General settings with immediate switching and persistent preferences.
 
+## 1.7.0
+
+- Add native Mac/Linux personal speech evaluation with local recordings, reviewed references, same-audio ASR/hotword/polishing comparisons and protected-term scoring.
+- Carry selected words and exact occurrence positions into explicitly confirmed corrections.
+- Record stop-to-recognition, polishing and delivery timings; compute Mac evaluation statistics in the background.
+- Persist API-key drafts across onboarding/settings provider changes and verify credential ownership.
+- Cancel interrupted polishing HTTP/TLS requests, reject redirects and incomplete results, and recover the final request worker.
+- Keep recording, retry delivery, microphone checks, evaluations and updates mutually exclusive; mark synthetic Mac paste events.
+
 ## 1.6.0
 
 - Send a conservatively bounded personal hotword subset to official Volcengine streaming ASR on Mac and Linux, prioritize confirmed spellings, and show the exact preview.

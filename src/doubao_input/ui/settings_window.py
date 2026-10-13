@@ -449,15 +449,27 @@ class SettingsWindow:
     def _asr_provider_changed(self, *_):
         if self._updating:
             return
+        if self._asr_testing:
+            self._restore_controls()
+            return
+        # The application still owns the previous provider until _save_current.
+        # Flush its draft before changing the credential store used by callbacks.
+        if not self.flush_edits():
+            self._restore_controls()
+            return
         self._sync_provider_details()
+        if not self._save_current():
+            return
         provider = recognition_provider(
             ASR_PROVIDERS[self.asr_provider.get_selected()])
-        if self._save_current():
-            self._asr_has_key = self._asr_has_key_func()
-        if provider.uses_api_key and not self._asr_has_key:
-            self.asr_status.set_text(tr(
-                "Enter an API key before using this recognition service.",
-                "使用当前语音识别服务前请填写 API Key。"))
+        self._asr_has_key = self._asr_has_key_func()
+        self.asr_key.set_placeholder_text(tr(
+            "Saved — leave blank to keep" if self._asr_has_key else "Enter speech API key",
+            "已保存，留空则保持不变" if self._asr_has_key else "填写语音 API Key"))
+        self.asr_status.set_text(tr(
+            "Enter an API key before using this recognition service.",
+            "使用当前语音识别服务前请填写 API Key。")
+            if provider.uses_api_key and not self._asr_has_key else "")
 
     def _sync_provider_details(self):
         provider = recognition_provider(
@@ -490,6 +502,13 @@ class SettingsWindow:
             self.asr_status.set_text(str(error))
             return False
         self._asr_has_key = True
+        self._updating = True
+        try:
+            self.asr_key.set_text("")
+            self.asr_key.set_placeholder_text(tr(
+                "Saved — leave blank to keep", "已保存，留空则保持不变"))
+        finally:
+            self._updating = False
         self.asr_status.set_text(tr("API key saved automatically.", "API Key 已自动保存。"))
         return True
 
@@ -500,17 +519,7 @@ class SettingsWindow:
         return self._save_asr_key_now()
 
     def _flush_asr_key(self, *_):
-        if self._asr_save_source:
-            GLib.source_remove(self._asr_save_source)
-            self._asr_save_source = 0
-        if self._save_asr_key_now() and self.asr_key.get_text():
-            self._updating = True
-            try:
-                self.asr_key.set_text("")
-                self.asr_key.set_placeholder_text(tr(
-                    "Saved — leave blank to keep", "已保存，留空则保持不变"))
-            finally:
-                self._updating = False
+        return self.flush_edits()
 
     def _clear_asr_clicked(self, *_):
         try:
@@ -536,6 +545,7 @@ class SettingsWindow:
             self.asr_status.set_text(tr("Enter an API key first.", "请先填写 API Key。"))
             return
         self._asr_testing = True
+        self.asr_provider.set_sensitive(False)
         self.asr_test_button.set_sensitive(False)
         self.asr_test_button.set_label(tr("Testing…", "正在测试…"))
         self.asr_status.set_text(tr(
@@ -547,6 +557,7 @@ class SettingsWindow:
 
     def _asr_tested(self, result, error):
         self._asr_testing = False
+        self.asr_provider.set_sensitive(True)
         self.asr_test_button.set_sensitive(True)
         self.asr_test_button.set_label(tr("Test API key", "测试 API Key"))
         self.asr_status.set_text((tr("Test failed: ", "测试失败：") + error)
@@ -557,8 +568,8 @@ class SettingsWindow:
         for picker in (self.trigger_picker, *self.vibekey_pickers):
             picker.cancel()
         flush = getattr(self, "_flush_asr_key", None)
-        if flush:
-            flush()
+        if flush and not flush():
+            return True
         return not self._save_current()
 
     def show(self):

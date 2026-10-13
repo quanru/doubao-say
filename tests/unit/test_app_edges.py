@@ -3,6 +3,7 @@ from pathlib import Path
 import tempfile
 from unittest import TestCase
 from unittest.mock import Mock, patch
+from threading import Thread, get_ident
 
 from doubao_input.app import DoubaoInputApp
 from doubao_input.doubao.app_state import AppState, LoginStatus, RecordingState
@@ -13,6 +14,7 @@ from doubao_input.deepgram.credentials import DeepgramCredentialsStore
 from doubao_input.result import RecentResult
 from doubao_input.personal import PersonalStore
 from doubao_input.settings import Settings
+from doubao_input.inject.delivery import Delivery
 
 
 class AppLifecycleEdgesTest(TestCase):
@@ -148,6 +150,15 @@ class AppDeliveryEdgesTest(TestCase):
         self.assertEqual((normal.recent.text, normal.recent.status), ("partial", "partial"))
         normal._notify_recovery.assert_called_once()
 
+    def test_speech_evaluation_waits_for_prerolled_microphone(self):
+        app = SimpleNamespace(_busy=lambda: False,
+                              _audio_capture=SimpleNamespace(is_capturing=True))
+        self.assertFalse(DoubaoInputApp._can_evaluate_speech(app))
+        app._audio_capture.is_capturing = False
+        self.assertTrue(DoubaoInputApp._can_evaluate_speech(app))
+        app._busy = lambda: True
+        self.assertFalse(DoubaoInputApp._can_evaluate_speech(app))
+
     def test_cancel_input_clears_every_pending_owner(self):
         app = SimpleNamespace(_enter_after_paste=True, _triggers=Mock(), _setup_session=Mock(),
                               _recovery_timer=9, _delivery=Mock(), _polisher=Mock(),
@@ -176,18 +187,92 @@ class AppSetupEdgesTest(TestCase):
 
     def test_successful_official_key_probe_restores_readiness(self):
         completed = Mock()
+        main_thread = get_ident()
+        threads = []
         app = SimpleNamespace(_busy=lambda: False, _asr_probe=None,
-                              _sync_recognition_status=Mock(), _control=Mock())
+                              _sync_recognition_status=Mock(side_effect=lambda: threads.append(get_ident())),
+                              _control=Mock())
         app.settings = Settings(asr_provider="volcengine")
         with patch("doubao_input.doubao.volcengine_asr_client.VolcengineASRClient") as client_type, \
              patch("doubao_input.app.GLib.idle_add") as idle_add:
             probe = client_type.return_value
             DoubaoInputApp._test_asr_key(app, "test-key", completed)
-            probe.on_open()
+            worker = Thread(target=probe.on_open)
+            worker.start(); worker.join(timeout=2)
+            self.assertFalse(worker.is_alive())
+            app._sync_recognition_status.assert_not_called()
+            app._control.refresh.assert_not_called()
+            completed.assert_not_called()
+            callback, *args = idle_add.call_args.args
+            callback(*args)
+            callback(*args)
         probe.disconnect.assert_called_once_with()
         app._sync_recognition_status.assert_called_once_with()
         app._control.refresh.assert_called_once_with()
-        idle_add.assert_called_once_with(completed, "API key accepted", "")
+        self.assertEqual(threads, [main_thread])
+        completed.assert_called_once_with("API key accepted", "")
+
+    def test_old_key_probe_completion_cannot_update_new_provider(self):
+        app = SimpleNamespace(_busy=lambda: False, _asr_probe=None,
+                              _sync_recognition_status=Mock(), _control=Mock(),
+                              settings=Settings(asr_provider="volcengine"))
+        completed = Mock()
+        with patch("doubao_input.doubao.volcengine_asr_client.VolcengineASRClient"), \
+             patch("doubao_input.app.GLib.idle_add") as idle:
+            DoubaoInputApp._test_asr_key(app, "synthetic-key", completed)
+            app._asr_probe.on_open()
+            app._asr_probe = None
+            callback, *args = idle.call_args.args
+            callback(*args)
+        completed.assert_not_called()
+        app._control.refresh.assert_not_called()
+
+    def test_running_probe_blocks_second_window_without_cancelling_first(self):
+        probe = Mock()
+        app = SimpleNamespace(_asr_probe=probe)
+        app._busy = lambda: DoubaoInputApp._busy(app)
+        with self.assertRaises(ValueError):
+            DoubaoInputApp._test_asr_key(app, "synthetic-key", Mock())
+        self.assertIs(app._asr_probe, probe)
+        probe.disconnect.assert_not_called()
+
+    def test_probe_start_failure_releases_busy_state(self):
+        app = SimpleNamespace(_busy=lambda: False, _asr_probe=None,
+                              settings=Settings(asr_provider="volcengine"))
+        with patch("doubao_input.doubao.volcengine_asr_client.VolcengineASRClient") as client_type:
+            probe = client_type.return_value
+            probe.connect.side_effect = OSError("synthetic connection failure")
+            with self.assertRaises(OSError):
+                DoubaoInputApp._test_asr_key(app, "synthetic-key", Mock())
+        self.assertIsNone(app._asr_probe)
+        probe.disconnect.assert_called_once_with()
+
+    def test_provider_change_flushes_both_windows_before_changing_owner(self):
+        for saved in (False, True):
+            with self.subTest(saved=saved):
+                previous = Settings(asr_provider="volcengine")
+                app = SimpleNamespace(settings=previous, _busy=lambda: False,
+                                      _triggers=SimpleNamespace(busy=False),
+                                      _control=Mock(), _settings_window=Mock(),
+                                      _configure_recognition_backend=Mock(),
+                                      _sync_recognition_status=Mock(), _setup_session=Mock())
+                owners = []
+                def flush():
+                    owners.append(app.settings.asr_provider)
+                    return saved
+                app._control._flush_asr_key.side_effect = flush
+                app._settings_window._flush_asr_key.side_effect = flush
+                with patch("doubao_input.app.apply_preferences") as apply:
+                    if saved:
+                        DoubaoInputApp.apply_settings(app, Settings(asr_provider="deepgram"))
+                        self.assertEqual(owners, ["volcengine", "volcengine"])
+                        self.assertEqual(app.settings.asr_provider, "deepgram")
+                        apply.assert_called_once()
+                    else:
+                        with self.assertRaises(ValueError):
+                            DoubaoInputApp.apply_settings(app, Settings(asr_provider="deepgram"))
+                        self.assertIs(app.settings, previous)
+                        apply.assert_not_called()
 
     def test_deepgram_provider_builds_api_key_backend(self):
         app = SimpleNamespace(settings=Settings(asr_provider="deepgram"),
@@ -274,6 +359,25 @@ class AppSetupEdgesTest(TestCase):
 
 
 class PersonalHistoryDeliveryTest(TestCase):
+    def test_standalone_enter_preserves_failed_history_and_word_counts(self):
+        with tempfile.TemporaryDirectory() as temp:
+            store = PersonalStore(Path(temp) / "personal.sqlite3")
+            identifier = store.record("Synthetic synthetic", "Synthetic synthetic", True, "target_changed")
+            app = SimpleNamespace(_personal_store=store, _history_id=identifier,
+                                  recent=RecentResult(text="Synthetic synthetic", status="target_changed"),
+                                  _control=Mock(), _overlay=Mock())
+            app._enter_changed = lambda status: DoubaoInputApp._enter_changed(app, status)
+            app._delivery = Delivery(lambda ms, cb: cb(), lambda: "target", Mock(return_value=True),
+                                     Mock(return_value=True),
+                                     lambda status: DoubaoInputApp._delivery_changed(app, status),
+                                     SimpleNamespace(submit=lambda work, done: done(work())))
+            with patch("doubao_input.app.focused_target", return_value="target"):
+                DoubaoInputApp._send_enter(app)
+            self.assertEqual(store.history()[0]["status"], "target_changed")
+            self.assertEqual(app.recent.status, "target_changed")
+            self.assertEqual(store.candidates(), [])
+            app._control.set_result.assert_not_called()
+
     def test_delivery_attempt_records_once_then_updates_status_without_duplicate_rows(self):
         with tempfile.TemporaryDirectory() as temp:
             store = PersonalStore(Path(temp) / "personal.sqlite3")

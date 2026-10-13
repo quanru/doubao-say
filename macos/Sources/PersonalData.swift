@@ -87,9 +87,10 @@ final class PersonalDataStore {
         defer { sqlite3_close(db) }
         sqlite3_busy_timeout(db, 5000)
         guard sqlite3_exec(db, "PRAGMA secure_delete=ON; CREATE TABLE IF NOT EXISTS words (term TEXT PRIMARY KEY); CREATE TABLE IF NOT EXISTS history (id TEXT PRIMARY KEY, created REAL, original TEXT, output TEXT, polished INTEGER, status TEXT); CREATE INDEX IF NOT EXISTS history_created ON history(created); CREATE TABLE IF NOT EXISTS preferences (key TEXT PRIMARY KEY, value TEXT);", nil, nil, nil) == SQLITE_OK else { throw Failure.storage }
-        guard sqlite3_exec(db, "CREATE TABLE IF NOT EXISTS corrections (key TEXT PRIMARY KEY, recognized TEXT, corrected TEXT, context TEXT, created REAL); CREATE TABLE IF NOT EXISTS confirmed_history (history_id TEXT PRIMARY KEY, text TEXT);", nil, nil, nil) == SQLITE_OK else { throw Failure.storage }
+        guard sqlite3_exec(db, "CREATE TABLE IF NOT EXISTS input_timings (history_id TEXT PRIMARY KEY, data TEXT); CREATE TABLE IF NOT EXISTS corrections (key TEXT PRIMARY KEY, recognized TEXT, corrected TEXT, context TEXT, created REAL); CREATE TABLE IF NOT EXISTS confirmed_history (history_id TEXT PRIMARY KEY, text TEXT);", nil, nil, nil) == SQLITE_OK else { throw Failure.storage }
         _ = try query(db, "DELETE FROM history WHERE created < ?", [clock().timeIntervalSince1970 - 30 * 86400])
         _ = try query(db, "DELETE FROM confirmed_history WHERE history_id NOT IN (SELECT id FROM history)")
+        _ = try query(db, "DELETE FROM input_timings WHERE history_id NOT IN (SELECT id FROM history)")
         return try body(db)
     }
     private func query(_ db: OpaquePointer, _ sql: String, _ values: [Any] = []) throws -> [[String]] {
@@ -143,19 +144,40 @@ final class PersonalDataStore {
         } }
     }
     func clearHistory() throws { try database { db in
-        _ = try query(db, "DELETE FROM history"); _ = try query(db, "DELETE FROM confirmed_history")
+        _ = try query(db, "DELETE FROM input_timings"); _ = try query(db, "DELETE FROM history"); _ = try query(db, "DELETE FROM confirmed_history")
     } }
+    func saveTimings(_ id: String?, values: [String: Double]) throws {
+        guard let id = id else { return }
+        let data = try JSONSerialization.data(withJSONObject: values)
+        guard let text = String(data: data, encoding: .utf8) else { throw Failure.invalid }
+        try database { _ = try query($0, "INSERT OR REPLACE INTO input_timings SELECT ?,? WHERE EXISTS (SELECT 1 FROM history WHERE id=?)", [id, text, id]) }
+    }
+    func allTimings(limit: Int = 100) throws -> [String: [String: Double]] {
+        try database { db in
+            var result: [String: [String: Double]] = [:]
+            for row in try query(db, "SELECT history_id,data FROM input_timings JOIN history ON history_id=history.id ORDER BY history.created DESC,history.rowid DESC LIMIT ?", [limit]) {
+                result[row[0]] = (try? JSONSerialization.jsonObject(with: Data(row[1].utf8)) as? [String: Double]) ?? [:]
+            }
+            return result
+        }
+    }
+    func timings(_ id: String) throws -> [String: Double] {
+        try database { db in
+            guard let text = try query(db, "SELECT data FROM input_timings WHERE history_id=?", [id]).first?.first else { return [:] }
+            return (try JSONSerialization.jsonObject(with: Data(text.utf8)) as? [String: Double]) ?? [:]
+        }
+    }
     func corrections() throws -> [ConfirmedCorrection] {
         try database { try query($0, "SELECT key,recognized,corrected,context FROM corrections ORDER BY created DESC,rowid DESC").map {
             ConfirmedCorrection(id: $0[0], recognized: $0[1], corrected: $0[2], context: $0[3])
         } }
     }
-    @discardableResult func confirmCorrection(_ id: String, recognized: String, corrected: String) throws -> String {
+    @discardableResult func confirmCorrection(_ id: String, recognized: String, corrected: String, selection: NSRange? = nil) throws -> String {
         try database { db in
             _ = try query(db, "BEGIN IMMEDIATE")
             do {
                 guard let row = try query(db, "SELECT original,COALESCE(confirmed_history.text,history.output) FROM history LEFT JOIN confirmed_history ON history.id=confirmed_history.history_id WHERE history.id=?", [id]).first else { throw Failure.invalid }
-                let (source, target, text, context) = try PersonalCorrections.confirmation(original: row[0], output: row[1], recognized: recognized, corrected: corrected)
+                let (source, target, text, context) = try PersonalCorrections.confirmation(original: row[0], output: row[1], recognized: recognized, corrected: corrected, selection: selection)
                 let key = source.lowercased() + "\n" + target.lowercased()
                 let exists = try query(db, "SELECT 1 FROM corrections WHERE key=?", [key]).first != nil
                 let count = Int(try query(db, "SELECT COUNT(*) FROM corrections")[0][0]) ?? 0

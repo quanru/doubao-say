@@ -17,6 +17,7 @@ extension DoubaoASRClient: ASRTransport {}
 final class APIASRClient: ASRTransport {
     let provider: RecognitionProvider
     private let endpoint: URL?
+    private let hotwords: [String]?
     private let queue = DispatchQueue(label: "md.lifeos.doubao-say.api-asr")
     private var session: URLSession?
     private var socket: URLSessionWebSocketTask?
@@ -36,7 +37,7 @@ final class APIASRClient: ASRTransport {
     var onAudioDrained: (() -> Void)?
     var onError: (() -> Void)?
     var onAuthError: (() -> Void)?
-    init(provider: RecognitionProvider, endpoint: URL? = nil) { self.provider = provider; self.endpoint = endpoint }
+    init(provider: RecognitionProvider, endpoint: URL? = nil, hotwords: [String]? = nil) { self.provider = provider; self.endpoint = endpoint; self.hotwords = hotwords }
     func connect(apiKey: String) {
         let url = endpoint ?? URL(string: provider == .volcengine ? "wss://openspeech.bytedance.com/api/v3/sauc/bigmodel" : "wss://api.deepgram.com/v1/listen?model=nova-3&language=en-US&encoding=linear16&sample_rate=16000&channels=1&interim_results=true&punctuate=true&smart_format=true")!
         var request = URLRequest(url: url, timeoutInterval: 5)
@@ -57,7 +58,7 @@ final class APIASRClient: ASRTransport {
             self.queue.asyncAfter(deadline: .now() + 5, execute: deadline)
             if self.provider == .volcengine {
                 do {
-                    let frame = try SeedProtocol.initial(hotwords: (try? PersonalDataStore.shared.recognitionWords()) ?? [])
+                    let frame = try SeedProtocol.initial(hotwords: self.hotwords ?? (try? PersonalDataStore.shared.recognitionWords()) ?? [])
                     task.send(.data(frame)) { error in self.queue.async {
                         if error != nil { self.fail() } else { self.receive(acknowledgement: true) }
                     } }

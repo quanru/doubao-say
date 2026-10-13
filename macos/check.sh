@@ -25,3 +25,10 @@ xcrun swiftc -swift-version 5 -target "$(uname -m)-apple-macos13.0" \
 python3 macos/Tests/Network/api_check.py build/macos/tests/api-asr-check
 
 bash macos/Tests/Settings/check.sh
+
+xcrun swiftc -swift-version 5 -target "$(uname -m)-apple-macos13.0" \
+    -module-cache-path build/macos/module-cache \
+    macos/Sources/AppState.swift macos/Sources/InputLatency.swift macos/Sources/FinalResultGate.swift \
+    macos/Sources/TranscriptionManager.swift macos/Tests/Input/RetryCheck.swift \
+    -o build/macos/tests/retry-check
+build/macos/tests/retry-check
