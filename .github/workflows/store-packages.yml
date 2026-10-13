@@ -1,0 +1,82 @@
+name: Linux store packages
+on:
+  workflow_dispatch:
+  pull_request:
+    paths: ['packaging/**', 'src/**', '.github/workflows/store-packages.yml']
+permissions:
+  contents: read
+jobs:
+  rpm:
+    name: RPM / Fedora 44
+    runs-on: ubuntu-latest
+    timeout-minutes: 30
+    steps:
+      - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1
+        with:
+          persist-credentials: false
+      - name: Stage product source
+        run: python3 packaging/build-store.py rpm --output "$RUNNER_TEMP/rpm"
+      - name: Build, install and remove on Fedora
+        run: |
+          docker run --rm -v "$RUNNER_TEMP/rpm:/build" fedora:44 bash -euxc '
+            dnf install -y desktop-file-utils rpm-build python3-devel gtk4 webkitgtk6.0 python3-gobject python3-cairo python3-websockets python3-evdev pipewire-utils wl-clipboard
+            rpmbuild --define "_topdir /build" -bb /build/SPECS/doubao-say.spec
+            dnf install -y /build/RPMS/noarch/*.rpm
+            python3 -c "import gi, websockets, evdev; gi.require_version(\"Gtk\", \"4.0\"); gi.require_version(\"WebKit\", \"6.0\"); from gi.repository import Gtk, WebKit"
+            test -x /usr/bin/doubao-say
+            python3 -c "import doubao_input; from importlib.resources import files; assert files(doubao_input).joinpath(\"resources/logo.png\").is_file()"
+            desktop-file-validate /usr/share/applications/md.lifeos.DoubaoSay.desktop
+            env -u PYTHONPATH python3 -c "import doubao_input; from doubao_input.settings import install_desktop; import tempfile, os; os.environ[\"XDG_DATA_HOME\"] = tempfile.mkdtemp(); path = install_desktop(portal=True); assert path.parent.parent == __import__(\"pathlib\").Path(\"/usr/share\"); assert \"Exec=doubao-say\" in path.read_text(); assert \"NoDisplay=true\" not in path.read_text()"
+            rpm -ql doubao-say | grep "/NOTICE$"
+            rpm -V doubao-say
+            dnf remove -y doubao-say
+            test ! -e /usr/bin/doubao-say
+          '
+      - uses: actions/upload-artifact@043fb46d1a93c77aae656e7c1c64a875d1fc6a0a
+        with:
+          name: store-rpm
+          path: |
+            ${{ runner.temp }}/rpm/RPMS/noarch/*.rpm
+            ${{ runner.temp }}/rpm/SOURCE.json
+          if-no-files-found: error
+  flatpak:
+    name: Flatpak / GNOME 49
+    runs-on: ubuntu-latest
+    timeout-minutes: 60
+    steps:
+      - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1
+        with:
+          persist-credentials: false
+      - name: Install Flatpak builder and runtime
+        run: |
+          sudo apt-get update
+          sudo apt-get install -y flatpak flatpak-builder xvfb xdotool
+          sudo sysctl -w kernel.apparmor_restrict_unprivileged_userns=0
+          flatpak remote-add --user --if-not-exists flathub https://flathub.org/repo/flathub.flatpakrepo
+          flatpak install --user --noninteractive flathub org.gnome.Sdk//49 org.gnome.Platform//49
+      - name: Build bundle with pinned dependencies
+        run: |
+          version=$(python3 packaging/build-store.py flatpak --output "$RUNNER_TEMP/flatpak")
+          cd "$RUNNER_TEMP/flatpak"
+          flatpak-builder --user --force-clean --repo=repo build md.lifeos.DoubaoSay.json
+          flatpak build-bundle repo "doubao-say-${version}-linux-x86_64.flatpak" md.lifeos.DoubaoSay --runtime-repo=https://flathub.org/repo/flathub.flatpakrepo
+      - name: Install, inspect sandbox and remove bundle
+        run: |
+          flatpak install --user --noninteractive "$RUNNER_TEMP"/flatpak/*.flatpak
+          dbus-run-session -- flatpak run --command=sh md.lifeos.DoubaoSay -ec '
+            test -x /app/bin/doubao-say
+            test -x /app/bin/pw-record
+            test -s /app/share/licenses/doubao-say/NOTICE
+            PYTHONPATH=/app/share/doubao-say python3 -c "from doubao_input.doubao.host_tools import has_tool; assert not has_tool(\"doubao-say-missing-tool-ci\")"
+            PYTHONPATH=/app/share/doubao-say python3 -c "import gi, websockets, evdev; gi.require_version(\"Gtk\", \"4.0\"); gi.require_version(\"WebKit\", \"6.0\"); gi.require_version(\"Gtk4LayerShell\", \"1.0\"); from gi.repository import Gtk, WebKit, Gtk4LayerShell"
+          '
+          xvfb-run -a dbus-run-session -- python3 packaging/store/smoke-launch.py -- flatpak run --env=GDK_BACKEND=x11 md.lifeos.DoubaoSay
+          flatpak info --user --show-permissions md.lifeos.DoubaoSay
+          flatpak uninstall --user --noninteractive md.lifeos.DoubaoSay
+      - uses: actions/upload-artifact@043fb46d1a93c77aae656e7c1c64a875d1fc6a0a
+        with:
+          name: store-flatpak
+          path: |
+            ${{ runner.temp }}/flatpak/*.flatpak
+            ${{ runner.temp }}/flatpak/SOURCE.json
+          if-no-files-found: error

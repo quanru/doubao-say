@@ -94,6 +94,11 @@ cases:
       - aiScroll:
           options: { direction: down, scrollType: singleAction, distance: 500 }
       - computer.inputText: { target: The editable text field to the right of Model containing synthetic-model, value: ci-fail-model }
+      - aiScroll:
+          options: { direction: down, scrollType: singleAction, distance: 300 }
+      - aiWaitFor:
+          prompt: The entire Test endpoint button in Voice polishing is visible inside the scrolling panel, above the fixed Vocabulary & history button. The small model recommendation text is not the target.
+          options: { timeoutMs: 30000, checkIntervalMs: 1000 }
       - aiTap: Test endpoint button in the Voice polishing section
       - aiScroll:
           options: { direction: down, scrollType: singleAction, distance: 300 }
@@ -103,6 +108,11 @@ cases:
       - aiScroll:
           options: { direction: up, scrollType: singleAction, distance: 300 }
       - computer.inputText: { target: The editable text field to the right of Model containing ci-fail-model, value: ci-ok-model }
+      - aiScroll:
+          options: { direction: down, scrollType: singleAction, distance: 300 }
+      - aiWaitFor:
+          prompt: The entire Test failed — try again button is visible in Voice polishing, above the fixed Vocabulary & history button.
+          options: { timeoutMs: 30000, checkIntervalMs: 1000 }
       - aiTap: Test failed — try again button in the Voice polishing section
       - aiScroll:
           options: { direction: down, scrollType: singleAction, distance: 300 }
