@@ -1,8 +1,21 @@
-import Foundation
+import AppKit
 
 @main
 struct AutoSaveCheck {
     @MainActor static func main() {
+        let hotkey = HotkeyManager()
+        for shortcut in [Shortcut(keyCode: 9, modifiers: 4), Shortcut(keyCode: 49, modifiers: 3), Shortcut(keyCode: 58, modifiers: 0)] {
+            var settings = MacSettings(); settings.shortcut = shortcut
+            hotkey.configure(settings)
+            var actions = 0
+            hotkey.onHotkeyEvent = { _ in actions += 1 }
+            let (down, up) = PasteHelper.shortcutEvents(Shortcut(keyCode: 9, modifiers: 4))!
+            precondition(down.getIntegerValueField(.eventSourceUserData) == HotkeyManager.syntheticMarker)
+            precondition(up.getIntegerValueField(.eventSourceUserData) == HotkeyManager.syntheticMarker)
+            precondition(hotkey.handle(.keyDown, down) != nil && hotkey.handle(.keyUp, up) != nil)
+            precondition(actions == 0, "Synthetic paste must not trigger dictation")
+        }
+        print("PASS: synthetic paste bypasses configurable hotkeys; no event tap or posted key events")
         func wait(_ seconds: Double) { RunLoop.current.run(until: Date().addingTimeInterval(seconds)) }
         let state = AppState()
         let model = SettingsModel(state: state)

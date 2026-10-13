@@ -268,6 +268,9 @@ as HTML; images and URI lists retain their existing priority. This is best-effor
 restoration of one payload, not all original clipboard formats.
 A copy made by the user during delivery is never overwritten.
 Cancellation stops remaining input and cannot undo text already delivered.
+Standalone Enter does not change the previous dictation's history or word counts.
+On macOS, retries, new dictation and standalone Enter are disabled during a retry
+countdown or pending delivery. Use Escape or **Cancel input** to cancel it.
 Failed recognition can preserve partial text; failed paste preserves the result.
 The editable recent-text slot is memory-only. Completed dictation attempts are
 stored separately in a local 30-day history, with recognition original, final
@@ -278,8 +281,8 @@ up to 200 terms of 80 characters). Official Volcengine ASR sends a length-limite
 subset as session hotwords, prioritizing spellings you explicitly confirmed.
 The vocabulary page previews the actual subset. Doubao Web and other engines use
 this list only as context during AI polishing. This does not retrain the model.
-From an input-history entry, choose **Correct & remember…**, enter the recognized
-term and correct spelling, review the preview, then confirm. Only that explicit
+From an input-history entry, select the wrong term and choose **Correct & remember…**,
+or select it in the dialog to fill it in. Enter the correct spelling, review the preview, then confirm. Only that explicit
 action creates memory. Original recognition and polishing output are preserved.
 Future polishing receives relevant correction pairs and example contexts as
 reference data, never global replacements. You can forget pairs individually;
@@ -308,6 +311,13 @@ diagnostic preview/copy action. Input capture is paused during key assignment.
 Key recording accepts ordinary keyboard keys and modifier combinations. The left
 and right variants of Ctrl, Shift, Alt and Meta are treated as the same key.
 Automatic detection of every desktop shortcut conflict is not supported.
+
+The **Speech evaluation** page in Mac Settings and Linux Vocabulary & history
+records local samples and compares the same audio with raw ASR, hotwords, and
+optional polishing. References are only used for scoring. Comparison explicitly
+uploads audio to your paid official ASR; drafts save automatically and recordings
+remain until deleted. Input history also shows stop-to-ASR, polishing, input and
+total waiting times, separately from recording duration and replay timing.
 
 ## Privacy and limitations
 
@@ -512,7 +522,7 @@ validate package metadata and scan for secrets. The current whole-package branch
 coverage floor is 55%; desktop UI, WebKit and real-device paths remain included
 in the denominator.
 
-The current release version is **1.6.0**. A `v1.6.0` tag must match every embedded
+The current release version is **1.7.0**. A `v1.7.0` tag must match every embedded
 version before CI can publish. Tag releases rebuild both offline app and Omarchy
 plugin archives for Python 3.11–3.14 and attach SHA-256 checksums. A manually started
 release workflow builds artifacts for inspection but does not publish them. Real

@@ -126,5 +126,33 @@ with tempfile.TemporaryDirectory() as temp:
     assert "Midscene" in window.hotword_preview.get_text()
     click(window.memory_box, tr("Forget", "忘记"))
     assert store.corrections() == [] and store.history()[0]["confirmed"] == confirmed["confirmed"]
+    # Selecting the second occurrence must not change the first.
+    repeated = "用 Midjourney 画图，用 Midjourney 写测试"
+    store.record(repeated, repeated, status="sent"); window.refresh()
+    row = store.history()[0]; window.edit_correction(row); drain()
+    sample = [widget for widget in widgets(window.correction_window) if isinstance(widget, Gtk.TextView) and window.text(widget) == repeated][0]
+    start = repeated.rindex("Midjourney"); sample.get_buffer().select_range(sample.get_buffer().get_iter_at_offset(start), sample.get_buffer().get_iter_at_offset(start + 10)); drain()
+    entries = [widget for widget in widgets(window.correction_window) if isinstance(widget, Gtk.Entry)]
+    assert entries[0].get_text() == "Midjourney"
+    entries[1].set_text("Midscene"); drain(); capture("selected-correction")
+    click(window.correction_window, tr("Confirm & remember", "确认并记住"))
+    assert store.history()[0]["confirmed"] == "用 Midjourney 画图，用 Midscene 写测试"
+    # Evaluation renders real GTK controls; all audio/network are synthetic.
+    notebook.set_current_page(3); drain()
+    evaluation = window.evaluation
+    evaluation.add()
+    evaluation.reference.get_buffer().set_text("Use Midjourney for art")
+    evaluation.protected.get_buffer().set_text("Midjourney")
+    evaluation.workbench.record(evaluation.row(), b"\x00\x00" * 160)
+    evaluation.refresh(); drain(); capture("speech-evaluation")
+    assert evaluation.workbench.validated()[0]["protected_terms"] == ["Midjourney"]
+    row = evaluation.row()
+    row["results"] = [{"id": row["id"], "mode": "raw", "text": row["reference"], "latency_ms": 100}, {"id": row["id"], "mode": "hotwords", "text": "Use Midscene for art", "latency_ms": 120}]
+    evaluation.save(); evaluation.render_results(); drain()
+    adjustment = notebook.get_nth_page(3).get_vadjustment()
+    adjustment.set_value(adjustment.get_upper() - adjustment.get_page_size()); drain(); capture("speech-results")
+    assert "100.0%" in evaluation.results.get_text()
+    evaluation.reference.get_buffer().set_text("Changed reference")
+    assert "results" not in evaluation.row()
     window.close(); assert not window.window.get_visible()
     print("PASS: real GTK window, padded editors, debounce, recording toggle, history, counts-only AI, reviewed vocabulary, correction preview/cancel/confirm, immutable originals, hotword preview, forget and close flush")
