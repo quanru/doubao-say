@@ -17,3 +17,5 @@
 - https://github.com/gcc-mirror/gcc/blob/releases/gcc-16/libstdc%2B%2B-v3/src/c%2B%2B11/chrono.cc
 
 旧quick01的keydown下界503.975ms保持FAIL。不能靠新运行改写旧边界；500ms不变，不承诺有限帧率能消除任意接近阈值的全部不确定性。剩余误差必须以新运行逐个真实旧/新帧间隔计算，不能用平均帧率代替。
+
+旧常规组中 switch01, switch02, switch04, switch09, switch16 共5项同时满足keydown确定FAIL与keyup确定PASS。这5项完整按键口径的不确定包含起点语义本身，不能仅靠提高帧率消除；保持三种口径分别报告。短按组的3个剩余跨线样本则主要受47–59ms边界帧间隔影响。

@@ -1,4 +1,4 @@
-# 当前结果：真实补测与独立复核完成，500ms不能整体报通过
+# 上轮结果已保留；PNG最小改进后的新复验正在进行
 
 - [中文审阅结论](evidence/native-REVIEW.zh.md)；[完整审阅包（含原始Midscene HTML、截图与计时）](evidence/native-review.zip)；[费用累计表](evidence/cumulative-cost.json)。包19,749,062字节，SHA256 4ea09dae41175475aa50499bc75a6b88e9b6e798c3bc4d71861526862c4a8816。
 - [真实运行38498146309](https://github.com/quanru/doubao-say/actions/runs/38498146309)，harness b97daaa0fd82906f337e5cc04e591d316d393aa1，SDK固定0c6fa24dc085baf4c7df4fa513f9bcaeb28d5820。40次均完成，无丢帧；1568帧、49个进程快照、496个原始文件与1265个候选文件通过独立核验。
@@ -18,3 +18,5 @@
 复验前先做真实guest六个交错A/B区块、三轮生命周期与10000次steady_clock/CLOCK_MONOTONIC夹取校验；编码中位未改善25%或帧间隔未改善10%则在模型调用前停止。不改变500ms门槛、按键计划、产品代码或旧样本分类。0.002ms仅为数值转换余量，不是采样/物理呈现精度。新运行将固定上述完整commit；现有运行均已结束。累计分配80/100元，已记账4.472064元；新run ID确认后再单独分配最多10元。
 
 唯一新运行38503280111，harness 9d886a4ac44859a648f92319745d495f305b6e82，SDK bda9733b1c18942ef8efc24abb7c3a64814191bc。单独分配10元后累计90/100元；历史已记账4.472064元。预算仅授权该run attempt1。
+
+原始数据另证实：常规组switch01/02/04/09/16共5项同时为keydown确定FAIL、keyup确定PASS；其完整按键口径不确定包含80ms起点语义，不能只提高截图帧率来消除。短按剩余样本主要受边界gap影响，新复验保留三种端点分别报告。
