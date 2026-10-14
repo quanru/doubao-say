@@ -5,6 +5,7 @@ import AVFoundation
 enum RecognitionProvider { case doubao, volcengine, deepgram; var rawValue: String { "synthetic" } }
 struct MacSettings { var provider: RecognitionProvider = .doubao; var polishEnabled = false; var inputMethod = "clipboard"; var microphoneID = "" }
 @MainActor final class SettingsStore { static let shared = SettingsStore(); var value = MacSettings() }
+enum PolishPolicy { static func credential(settings: MacSettings, apiKey: @autoclosure () -> String?) -> String { apiKey() ?? "" } }
 enum SecretStore { static func load(_ key: String) -> String? { nil } }
 enum ASRParamsStore { static var available = false; static func load() -> Int? { available ? 1 : nil }; static func clear() {} }
 enum AVCaptureDevice {

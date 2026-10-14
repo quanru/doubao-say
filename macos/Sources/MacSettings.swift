@@ -40,6 +40,8 @@ struct MacSettings: Codable, Equatable {
     var reducedMotion = false
     var autostart = false
     var polishEnabled = false
+    var polishProvider = "api"
+    var polishChatGPTModel = ""
     var polishBaseURL = "https://api.openai.com/v1"
     var polishModel = "gpt-4o-mini"
     var polishPromptZH = PolishDefaults.chinese
@@ -53,7 +55,9 @@ struct MacSettings: Codable, Equatable {
     var dialPress = Shortcut(keyCode: 51, modifiers: 4)
 
     func validate() throws {
-        guard version == 1, (200...1500).contains(holdMilliseconds), (150...600).contains(doubleMilliseconds),
+        guard version == 1, ["api", "chatgpt"].contains(polishProvider), polishChatGPTModel.count <= 256,
+              !polishChatGPTModel.contains(where: { $0.isNewline || $0 == "\0" }),
+              (200...1500).contains(holdMilliseconds), (150...600).contains(doubleMilliseconds),
               ["auto", "clipboard", "direct"].contains(inputMethod), ["bars", "waves", "ripples", "basketball"].contains(waveformStyle),
               microphoneID.count <= 256, !microphoneID.contains("\0"),
               let url = URLComponents(string: polishBaseURL), ["http", "https"].contains(url.scheme ?? ""),

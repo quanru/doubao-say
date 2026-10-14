@@ -1,5 +1,23 @@
 # Native sidebar focus regression probe
 
+## ChatGPT connection controls
+
+`build-chatgpt-ui.sh` builds `ChatGPTUICheck.swift` against the actual settings
+components. `chatgpt_ui_check.py` captures disconnected, connected and quota
+states in English/Chinese, light/dark, in a unique signed test bundle. Build
+under the heavy resource gate and run the prebuilt probe under a runtime slot.
+Credentials and models are synthetic; the probe never connects to OpenAI,
+records audio or posts input to another application. It checks preservation of
+the existing API configuration. Real OAuth, expiry, model access and speech
+delivery require separate verification.
+
+The same fixture exercises the application-drawn model dropdown and account
+options. It uses in-process mouse and keyboard events addressed
+only to the fixture's own window. Checks cover selecting and autosaving a model,
+Arrow Down/Return, Escape without changing the choice, popup closure and retained
+API settings. Separate popup captures use only the owned menu window, never the
+user's desktop. Each process remains bounded to 15 seconds.
+
 `SidebarFocusCheck.swift` opens the real SettingsWindow with synthetic state in a
 SwiftUI application. It never signs in, records audio, saves credentials or
 posts events to another application. Its only key/mouse events go through its own

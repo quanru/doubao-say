@@ -3,6 +3,7 @@ from concurrent.futures import ThreadPoolExecutor
 import io
 import json
 from pathlib import Path
+from queue import Queue
 from tempfile import TemporaryDirectory
 import time
 from types import SimpleNamespace
@@ -11,9 +12,12 @@ from threading import Thread
 import unittest
 from unittest.mock import patch
 
-from doubao_input import chatgpt_auth as auth
+from doubao_input import chatgpt as connection, chatgpt_auth as auth
 from doubao_input.chatgpt import ChatGPTClient, completed_text
 from doubao_input.chatgpt_store import ChatGPTStore
+from doubao_input.i18n import set_language
+from doubao_input.polish import PolishClient, PolishManager
+from doubao_input.settings import Settings
 
 
 class ChatGPTTest(unittest.TestCase):
@@ -119,6 +123,57 @@ class ChatGPTTest(unittest.TestCase):
                 completed_text(io.BytesIO((text + terminal).encode()))
         complete = 'data: {"type":"response.completed","response":{"status":"completed"}}\n\n'
         self.assertEqual(completed_text(io.BytesIO((text + complete).encode())), "Synthetic 😊")
+
+    def test_real_quota_error_reaches_original_text_fallback_without_api_request(self):
+        partial = 'data: {"type":"response.output_text.delta","delta":"partial"}\n\n'
+        failure = {"code": "subscription_sharing_usage_limit_exceeded", "message": "private server detail"}
+        for language, expected in (("en", "usage limit reached"), ("zh_CN", "共享用量已达上限")):
+            set_language(language)
+            self.addCleanup(set_language, "en")
+            for event in ({"type": "error", "error": failure},
+                          {"type": "response.failed", "response": {"error": failure}},
+                          {"type": "error", **failure}):
+                payload = (partial + 'data: ' + json.dumps(event) + '\n\n').encode()
+                callbacks = Queue()
+                outcome = []
+                settings = Settings(polish_enabled=True, polish_provider="chatgpt",
+                                    polish_chatgpt_model="synthetic-fast")
+                client = PolishClient()
+                with patch.object(client, "polish") as api, patch.object(client, "polish_chatgpt",
+                        side_effect=lambda *_, **__: completed_text(io.BytesIO(payload))):
+                    manager = PolishManager(callbacks.put, client)
+                    try:
+                        manager.start("original transcript", settings, "", lambda text, error: outcome.append((text, error)))
+                        callbacks.get(timeout=2)()
+                        self.assertEqual(len(outcome), 1)
+                        self.assertIsNone(outcome[0][0])
+                        self.assertIn(expected, outcome[0][1])
+                        self.assertNotIn("private server detail", outcome[0][1])
+                        self.assertFalse(manager.busy)
+                        api.assert_not_called()
+                    finally:
+                        manager.close()
+
+    def test_quota_pauses_inference_until_explicit_retry_without_losing_connection(self):
+        with TemporaryDirectory() as directory:
+            client = self.fixture(directory)
+            with client.store.transaction() as data:
+                data["accounts"][0]["expires"] = time.time() + 3600
+            error = b'data: {"type":"error","code":"subscription_sharing_usage_limit_exceeded"}\n\n'
+            complete = (b'data: {"type":"response.output_text.delta","delta":"done"}\n\n'
+                        b'data: {"type":"response.completed"}\n\n')
+            with patch.object(connection, "open_request", side_effect=[io.BytesIO(error), io.BytesIO(complete)]) as network:
+                for _ in range(2):
+                    with self.assertRaises(auth.ChatGPTError) as limited:
+                        client.polish("synthetic", model="synthetic-fast", prompt="Correct text")
+                    self.assertEqual(limited.exception.code, "usage_limit_exceeded")
+                self.assertEqual(network.call_count, 1)
+                self.assertTrue(client.ready())
+                self.assertTrue(client.state()["usage_limited"])
+                client.resume_usage()
+                self.assertFalse(client.state()["usage_limited"])
+                self.assertEqual(client.polish("synthetic", model="synthetic-fast", prompt="Correct text"), "done")
+                self.assertEqual(network.call_count, 2)
 
     def test_store_rolls_back_failed_update_and_refuses_symlinks(self):
         with TemporaryDirectory() as directory:

@@ -9,6 +9,7 @@ import webbrowser
 
 from doubao_input import chatgpt_auth as auth
 from doubao_input.chatgpt_store import ChatGPTStore, active_account
+from doubao_input.i18n import tr
 from doubao_input.polish_transport import open_request, RequestCancellation
 
 
@@ -21,10 +22,12 @@ class ChatGPTClient:
         self._executor = ThreadPoolExecutor(max_workers=1, thread_name_prefix="chatgpt-renewal")
         self._requests = set()
         self._generation = 0
+        self._usage_limited = False
 
     def state(self, timeout=1):
         with self.store.transaction(timeout=timeout) as data:
             return {"active_id": data.get("active_id"), "signing_in": self._signing is not None,
+                    "usage_limited": self._usage_limited,
                     "accounts": [{"id": account["id"],
                                   "label": account.get("email") or account.get("name") or "ChatGPT",
                                   "connected": bool(account.get("subject") and account.get("access")),
@@ -42,6 +45,7 @@ class ChatGPTClient:
     def _invalidate(self):
         with self._lock:
             self._generation += 1
+            self._usage_limited = False
             for cancellation in self._requests:
                 cancellation.set()
 
@@ -188,11 +192,18 @@ class ChatGPTClient:
                 if isinstance(item, dict) and item.get("visibility") == "list"
                 and isinstance(item.get("slug"), str) and isinstance(item.get("display_name"), str)]
 
+    def resume_usage(self):
+        """An explicit user retry; the next inference still verifies its limit."""
+        with self._lock:
+            self._usage_limited = False
+
     def polish(self, text, *, model, prompt, timeout=5, on_progress=None, cancellation=None, **_):
         cancellation = cancellation or RequestCancellation()
         cancellation.check()
         started = time.monotonic()
         generation = self._generation
+        if self._usage_limited:
+            raise usage_limit_error()
         token = self.access(timeout=max(0.01, timeout - (time.monotonic() - started)))
         if generation != self._generation:
             raise auth.ChatGPTError("account_changed", "ChatGPT account changed")
@@ -217,6 +228,10 @@ class ChatGPTClient:
             return result
         except (OSError, ValueError) as exc:
             if isinstance(exc, auth.ChatGPTError):
+                if exc.code == "usage_limit_exceeded":
+                    with self._lock:
+                        if generation == self._generation:
+                            self._usage_limited = True
                 raise
             raise ValueError("ChatGPT polishing did not complete; using original text") from None
         finally:
@@ -227,6 +242,12 @@ class ChatGPTClient:
         self.cancel_sign_in()
         self._invalidate()
         self._executor.shutdown(wait=False, cancel_futures=False)
+
+
+def usage_limit_error():
+    return auth.ChatGPTError("usage_limit_exceeded", tr(
+        "ChatGPT plan usage limit reached. Open Manage usage, then retry when available; using original text.",
+        "ChatGPT 套餐共享用量已达上限，请查看“管理用量”，可用后再重试；本次使用原文。"))
 
 
 def completed_text(response, progress=None):
@@ -250,6 +271,9 @@ def completed_text(response, progress=None):
                 completed = True
                 break
             elif kind in {"response.failed", "response.incomplete", "error"}:
+                failure = event.get("error") or (event.get("response") or {}).get("error") or event
+                if isinstance(failure, dict) and failure.get("code") == "subscription_sharing_usage_limit_exceeded":
+                    raise usage_limit_error()
                 raise auth.ChatGPTError("inference_failed", "ChatGPT did not finish; check your plan usage")
     if not completed or not text.strip():
         raise auth.ChatGPTError("incomplete", "ChatGPT response ended before completion")

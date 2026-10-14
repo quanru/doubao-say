@@ -20,10 +20,12 @@ from doubao_input.ui.polish_settings import PolishSettings
 class Connection:
     connected = False
     active = "synthetic-one"
+    usage_limited = False
 
     def state(self):
         accounts = [{"id": self.active, "label": "demo@example.invalid", "connected": True, "sharing": True}]
-        return {"accounts": accounts if self.connected else [], "active_id": self.active if self.connected else None}
+        return {"accounts": accounts if self.connected else [], "active_id": self.active if self.connected else None,
+                "usage_limited": self.usage_limited}
 
     def ready(self):
         return self.connected
@@ -34,6 +36,9 @@ class Connection:
 
     def cancel_sign_in(self):
         pass
+
+    def resume_usage(self):
+        self.usage_limited = False
 
     def sign_out(self):
         self.connected = False
@@ -101,6 +106,15 @@ def main():
         assert saves[-1][0].polish_chatgpt_model == "synthetic-fast"
         assert saves[-1][1] is None
         capture("connected")
+        connection.usage_limited = True
+        box.chatgpt._run(lambda: None)
+        pump(0.8)
+        assert "Manage usage" in box.chatgpt.status.get_text() or "管理用量" in box.chatgpt.status.get_text()
+        assert box.chatgpt.ready(), "A quota limit must not discard a valid account connection"
+        capture("usage-limited")
+        box.chatgpt.retry_usage_button.emit("clicked")
+        pump(0.8)
+        assert not connection.usage_limited
         box.provider.set_active_id("api")
         pump()
         box.provider.set_active_id("chatgpt")
