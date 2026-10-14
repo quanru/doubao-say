@@ -12,16 +12,16 @@ jobs:
     runs-on: ubuntu-24.04
     timeout-minutes: 3
     steps:
-      - name: Validate identity and cancel superseded unallocated run
+      - name: Validate identity and cancel native run with capture cleanup defect
         env:
           GH_TOKEN: ${{ github.token }}
         run: |
-          gh api repos/quanru/doubao-say/actions/runs/38492454846 > /tmp/duplicate.json
+          gh api repos/quanru/doubao-say/actions/runs/38492688288 > /tmp/duplicate.json
           python3 - <<'PY'
           import json
           j=json.load(open('/tmp/duplicate.json'))
-          assert j['id']==38492454846 and j['head_sha']=='13f548c8056762ec14972b47baa5aaa8cf1388be'
+          assert j['id']==38492688288 and j['head_sha']=='a3bff9d5ed754a93dac9154be107490ee91ff204'
           assert j['head_branch']=='acceptance/omarchy-15184-a1ead6b3' and j['event']=='push'
           assert j['status'] in ['pending','queued','in_progress','waiting']
           PY
-          gh api --method POST repos/quanru/doubao-say/actions/runs/38492454846/cancel
+          gh api --method POST repos/quanru/doubao-say/actions/runs/38492688288/cancel

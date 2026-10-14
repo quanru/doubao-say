@@ -1,1 +1,1 @@
-Cancel superseded unallocated run 38492454846: native report build fix
+Cancel native run 38492688288: wrapper process leaves inherited capture pipes open; preserve diagnostic evidence, no performance pass
