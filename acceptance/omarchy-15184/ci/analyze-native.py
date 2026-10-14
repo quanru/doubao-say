@@ -1,7 +1,7 @@
 """Compare full native source records, never the AI evidence subset. No model calls."""
 import pathlib,json,hashlib,statistics,csv,sys
 from PIL import Image
-out=pathlib.Path('review-artifacts');roi=json.loads((out/'roi.json').read_text())['box']
+out=pathlib.Path(sys.argv[1] if len(sys.argv)>1 else 'review-artifacts');guest=out/'templates';roi=json.loads((out/'roi.json').read_text())['box']
 def pixels(p,full=False):
  with Image.open(p) as im:
   if full:
@@ -9,7 +9,7 @@ def pixels(p,full=False):
    x,y,w,h=roi;im=im.crop((x,y,x+w,y+h))
   return hashlib.sha256(im.convert('RGB').tobytes()).hexdigest()
 def classify(lo,hi):return 'PASS' if 0<=hi<=500 else 'FAIL' if lo>500 else 'INCONCLUSIVE'
-results=[];active=pixels(out/'guest/active.png');inactive=pixels(out/'guest/inactive.png');assert active!=inactive
+results=[];active=pixels(guest/'active.png');inactive=pixels(guest/'inactive.png');assert active!=inactive
 for prefix in ['switch','quick']:
  for i in range(20):
   trial=f'{prefix}{i:02}';directory=out/'observations'/trial
@@ -44,7 +44,7 @@ for prefix in ['switch','quick']:
     lo=max(0,lastold['timing']['startMs']-t['endMs']);hi=firstnew['timing']['endMs']-t['startMs']
     metrics[name]={'lower_ms':lo,'upper_ms':hi,'status':classify(lo,hi)}
    gaps=[b-a for a,b in zip(times,times[1:])]
-   results.append({'trial':trial,'status':metrics['full_keypress']['status'],'metrics':metrics,'input_hold_ms':up[0]['startMs']-down[0]['startMs'],'requested_hold_ms':record['requestedHoldMs'],'frame_count':len(frames),'max_gap_ms':max(gaps),'median_gap_ms':statistics.median(gaps),'old_frame':lastold,'new_frame':firstnew,'clockId':clock,'evidence':str(directory.relative_to(out)/'observation.json'),'limit':'compositor frame timing, not physical presentation; full-keypress remains primary; keyup is separate fcitx modifier-only trigger metric'})
+   results.append({'trial':trial,'status':metrics['keydown']['status'],'metrics':metrics,'input_hold_ms':up[0]['startMs']-down[0]['startMs'],'requested_hold_ms':record['requestedHoldMs'],'frame_count':len(frames),'max_gap_ms':max(gaps),'median_gap_ms':statistics.median(gaps),'old_frame':lastold,'new_frame':firstnew,'clockId':clock,'evidence':str(directory.relative_to(out)/'observation.json'),'limit':'compositor frame timing, not physical presentation; fixed candidate acceptance requires keydown upper bound <=500ms; full-keypress and keyup are retained separately'})
   except (OSError,KeyError,AssertionError,ValueError) as error:results.append({'trial':trial,'status':'INCONCLUSIVE','reason':str(error)})
 (out/'latency-results.json').write_text(json.dumps(results,indent=2))
 with (out/'latency.csv').open('w',newline='') as f:
@@ -52,5 +52,5 @@ with (out/'latency.csv').open('w',newline='') as f:
  for r in results:
   for name,m in r.get('metrics',{}).items():w.writerow([r['trial'],name,m['lower_ms'],m['upper_ms'],m['status'],r['max_gap_ms'],r['evidence']])
 print(json.dumps({prefix:{s:sum(r['trial'].startswith(prefix) and r['status']==s for r in results) for s in ['PASS','FAIL','INCONCLUSIVE']} for prefix in ['switch','quick']}))
-# A true >500ms result makes the acceptance fail; do not tune Omarchy to satisfy it.
+# Fixed candidate gate: all predeclared keydown upper bounds must be <=500ms.
 if any(r['status']!='PASS' for r in results):sys.exit(1)

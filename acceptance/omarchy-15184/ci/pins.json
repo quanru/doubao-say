@@ -1,10 +1,12 @@
 {
-  "omarchy": "a1ead6b37605d5f3b63a9ebba2f6a621d6a43b6c",
+  "omarchy": "a843315558d77a9f914ca1dc2b7d6c1b005ce239",
   "base_tip": "097c733fc6f24cd437028e0233910b7143fe83f7",
   "iso": "53b80d406cdcb56cd757562e0f31d2c13cb57f47",
   "pkgs": "eba2a95f2e9ef209e906a93e93db70b9a856b910",
   "reference": "3380f7b46076f7a1981368a05097d2a4e0377140",
   "midscene": "PR3196 source 1.13.3 + native timing",
   "builder_image": "ghcr.io/archlinux/archlinux@sha256:86092797e32aa19d3f45a831b2873cf557c21c5280e9d197ca7a43c8ea79bcd3",
-  "midscene_commit": "852410869c665bbb32f1017d51103fb768e01b07"
+  "midscene_commit": "852410869c665bbb32f1017d51103fb768e01b07",
+  "upstream_pr_head": "a1ead6b37605d5f3b63a9ebba2f6a621d6a43b6c",
+  "observed_quattro_tip": "84cfb93959f4fe0bbb71de71593b36647d2ba78d"
 }

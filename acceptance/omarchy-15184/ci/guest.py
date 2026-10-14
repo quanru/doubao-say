@@ -69,7 +69,9 @@ elif cmd=='snapshot':
 elif cmd=='screenshot':
  subprocess.run(['grim',str(E/(sys.argv[2]+'.png'))],check=True)
 elif cmd=='configtool':
- subprocess.Popen(['fcitx5-configtool'],stdout=subprocess.DEVNULL,stderr=subprocess.DEVNULL,start_new_session=True)
+ run('hyprctl','dispatch','hl.dsp.exec_cmd('+json.dumps('env QT_LINUX_ACCESSIBILITY_ALWAYS_ON=1 QT_ACCESSIBILITY=1 LC_ALL=C.UTF-8 fcitx5-configtool')+')')
+elif cmd=='configtool-target':
+ os.execv(sys.executable,[sys.executable,str(R/'configtool-accessibility.py'),*sys.argv[2:]])
 elif cmd=='focus':
  focus_target()
 elif cmd=='committed':
@@ -83,6 +85,19 @@ elif cmd=='validate-templates':
  a=(E/'active.png').read_bytes();b=(E/'inactive.png').read_bytes()
  assert a[:8]==b[:8]==b'\x89PNG\r\n\x1a\n' and a[16:24]==b[16:24] and a!=b,'Active/inactive PNG templates identical or invalid; stop before timed trials'
  save('template-validation',{'same_dimensions':True,'distinct_png_files':True,'method':'Early PNG identity guard; decoded pixel validation is performed by the host analyzer','requires_visual_review':True})
+elif cmd=='template-export':
+ import base64
+ print(json.dumps({name:base64.b64encode((E/(name+'.png')).read_bytes()).decode() for name in ['active','inactive']}))
+elif cmd=='resource-sample':
+ name=sys.argv[2];assert name.replace('-','').isalnum()
+ readers=[p for p in processes() if '/default/input-methods/indicator.py' in p['cmd']];assert len(readers)==1
+ pid=readers[0]['pid'];p=pathlib.Path('/proc',str(pid));hz=os.sysconf('SC_CLK_TCK')
+ def sample():
+  stat=(p/'stat').read_text().split();status=(p/'status').read_text().splitlines()
+  return {'monotonic_ns':time.monotonic_ns(),'cpu_ticks':int(stat[13])+int(stat[14]),'start_ticks':stat[21],'context_switches':{k:int(v.strip()) for k,v in (l.split(':',1) for l in status if 'ctxt_switches:' in l)}}
+ before=sample();time.sleep(5);after=sample();assert before['start_ticks']==after['start_ticks']
+ elapsed=(after['monotonic_ns']-before['monotonic_ns'])/1e9
+ result={'pid':pid,'seconds':elapsed,'cpu_percent':100*(after['cpu_ticks']-before['cpu_ticks'])/hz/elapsed,'before':before,'after':after,'limit':'Context switches are not a count of DBus polls or a battery measurement.'};save(name,result);print(json.dumps(result))
 elif cmd=='native-status':
  found=[]
  for p in pathlib.Path('/proc').glob('[0-9]*'):
@@ -123,15 +138,15 @@ elif cmd=='probe-mode':
  else:raise SystemExit('Observed shell did not become ready')
  save('probe-mode-'+tag,{'mode':mode,'pid':pid,'launch':'Hyprland hl.dsp.exec_cmd (canonical session)','time_ns':time.monotonic_ns(),'snapshot':snap()});print(json.dumps({'pid':pid,'mode':mode}))
 elif cmd=='probe-health':
- tag=sys.argv[2];assert tag in ['discovery','plain','passive','feedback','pixels']
- state=json.loads((E/('probe-mode-'+tag+'.json')).read_text());pid=state['pid']
+ tag=sys.argv[2];assert tag.replace('-','').isalnum()
+ state=json.loads((E/('probe-mode-'+tag+'.json')).read_text());pid=state['pid'];mode=state['mode']
  assert any(p['pid']==pid and p['comm'] in ['qs','quickshell'] for p in processes()),'Observed shell exited after IPC startup'
  d=E/('probe-'+tag);p=d/'events.jsonl';events=[json.loads(x) for x in p.read_text().splitlines() if x.startswith('{')] if p.exists() else []
  assert not [x for x in events if x['event']=='fatal'],'Observer fatal: '+str([x for x in events if x['event']=='fatal'])
- if tag in ['passive','feedback','pixels']:assert any(x['event']=='swap-end' and x['ok'] for x in events),'Observer has not captured a successful real EGL swap'
+ if mode in ['passive','feedback','pixels']:assert any(x['event']=='swap-end' and x['ok'] for x in events),'Observer has not captured a successful real EGL swap'
  monitors=json.loads(run('hyprctl','-j','monitors'));assert len(monitors)==1 and monitors[0]['reserved'][1]>=26,'Real top bar is not reserving its expected area'
  names=layer_names();assert 'omarchy-polkit' not in names,'Authentication overlay present; no input allowed'
- result={'pid':pid,'mode':tag,'healthy':True,'layer_names':names,'time_ns':time.monotonic_ns(),'processes':processes()};save('probe-health-'+tag+'-'+str(result['time_ns']),result);print(json.dumps(result))
+ result={'pid':pid,'mode':mode,'tag':tag,'healthy':True,'layer_names':names,'time_ns':time.monotonic_ns(),'processes':processes()};save('probe-health-'+tag+'-'+str(result['time_ns']),result);print(json.dumps(result))
 elif cmd=='probe-freeze':
  subprocess.run(['quickshell','kill','-p','/usr/share/omarchy/shell','--any-display'],check=False,stdout=subprocess.DEVNULL,stderr=subprocess.DEVNULL)
  for _ in range(100):

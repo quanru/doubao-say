@@ -52,8 +52,8 @@ jobs:
         run: bash ci/build-midscene.sh
       - name: Install locked Midscene dependencies
         run: npm --prefix ci ci --ignore-scripts
-      - name: Run fixed real ROI timing trials (no credentials, no inference)
-        timeout-minutes: 15
+      - name: Run both fixed 40-trial groups and real configtool (no inference)
+        timeout-minutes: 25
         run: bash ci/run-roi.sh
       - name: Restore and package evidence
         if: always()

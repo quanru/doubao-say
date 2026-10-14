@@ -1,0 +1,198 @@
+diff --git a/default/input-methods/indicator.py b/default/input-methods/indicator.py
+index 2eab70c..8d2a4b3 100644
+--- a/default/input-methods/indicator.py
++++ b/default/input-methods/indicator.py
+@@ -222,24 +222,30 @@ def watch(bus):
+   failed = False
+   present = True
+ 
++  def unavailable():
++    indicator.pending = ""
++    indicator.last = ""
++    return {"methods": [], "current": "", "name": "", "language": ""}
++
+   def refresh():
+     nonlocal previous, polling, failed
+-    try:
+-      state = indicator.refresh()
+-    except GLib.Error:
+-      failed = True
+-      indicator.pending = ""
+-      indicator.last = ""
+-      # Keep the configured cadence: a timed-out call is not a configuration
+-      # change, and a vanished service is followed by its bus name.
+-      state = {"methods": [], "current": "", "name": "", "language": ""}
++    if not present:
++      polling = False
++      failed = False
++      state = unavailable()
+     else:
+-      # A failed group count keeps the reading and the last cadence.
+       try:
+-        polling = indicator.switchable(state["methods"])
+-        failed = False
++        state = indicator.refresh()
+       except GLib.Error:
+         failed = True
++        state = unavailable()
++      else:
++        # A failed group count keeps the reading on the bar.
++        try:
++          polling = indicator.switchable(state["methods"])
++          failed = False
++        except GLib.Error:
++          failed = True
+     line = json.dumps(state, ensure_ascii=False)
+     if line != previous:
+       print(line, flush=True)
+@@ -248,23 +254,34 @@ def watch(bus):
+   # Only a pending click or a group with methods to switch between needs
+   # reading again on a timer; everything else waits for an event. A failed
+   # read of a running service is retried, since nothing else would correct it.
+-  def schedule():
++  def schedule(started=None):
+     nonlocal timer
+     if timer:
+       GLib.source_remove(timer)
+       timer = 0
+-    if indicator.pending:
+-      timer = GLib.timeout_add(50, poll)
++    if not present:
++      return
++    if failed:
++      interval = 2000
++    elif indicator.pending:
++      interval = 50
+     elif polling:
+-      timer = GLib.timeout_add(500, poll)
+-    elif failed and present:
+-      timer = GLib.timeout_add(2000, poll)
++      interval = 200
++    else:
++      return
++    # Leave room for querying and presenting the label within half a second.
++    # Count from the start of the read, not its completion. A slow read does
++    # not accumulate drift or replay missed polls; failed reads back off.
++    elapsed = (GLib.get_monotonic_time() - started) // 1000 if started is not None else 0
++    delay = interval if failed else interval - elapsed % interval
++    timer = GLib.timeout_add(delay, poll)
+ 
+   def poll():
+     nonlocal timer
+     timer = 0
++    started = GLib.get_monotonic_time()
+     refresh()
+-    schedule()
++    schedule(started)
+     return GLib.SOURCE_REMOVE
+ 
+   # A save arrives as several file events, and a restarting service as a
+@@ -285,6 +302,12 @@ def watch(bus):
+   def presence(running):
+     nonlocal present
+     present = running
++    # A new owner must not inherit a selection or metadata from the old one.
++    indicator.pending = ""
++    indicator.last = ""
++    indicator.entries = {}
++    if not running:
++      schedule()
+ 
+   def command(source, condition):
+     nonlocal buffer
+@@ -305,7 +328,7 @@ def watch(bus):
+     return GLib.SOURCE_CONTINUE
+ 
+   # Fcitx's controller has no current-method-changed signal, so a group with
+-  # more than one method is still read every 500 ms, over one kept-open bus
++  # more than one method is still read every 200 ms, over one kept-open bus
+   # connection. That follows per-application input contexts and trigger keys
+   # pressed inside applications.
+   GLib.io_add_watch(sys.stdin, GLib.IO_IN | GLib.IO_HUP, command)
+diff --git a/test/shell.d/input-indicator-test.sh b/test/shell.d/input-indicator-test.sh
+index bb58d28..74a6f73 100755
+--- a/test/shell.d/input-indicator-test.sh
++++ b/test/shell.d/input-indicator-test.sh
+@@ -158,6 +158,56 @@ with patch.object(indicator.GLib, "MainLoop", return_value=loop), patch.object(i
+   assert call.call_args.args[1] == "SetCurrentIM"
+ print("ok - a failed compositor query leaves the bar click reader alive for the next request")
+ 
++# Fixed start deadlines include successful read time, skip missed periods, and
++# keep only one timer. Failures and absent owners must not busy-poll.
++def deadline_case(read_us, should_fail=False):
++  timer_calls, removed, hooks, ticks = [], [], {}, [0]
++  live_reader = indicator.Indicator(None)
++  def read_state():
++    ticks[0] += read_us
++    if should_fail:
++      raise indicator.GLib.Error("stalled service")
++    return dict(state)
++  live_reader.refresh = read_state
++  def timeout_ms(delay, callback):
++    timer_calls.append((delay, callback))
++    return len(timer_calls)
++  def follow_bus(bus, changed, presence):
++    hooks.update(changed=changed, presence=presence)
++    return []
++  def check():
++    expected = 2000 if should_fail else 200 - (read_us // 1000) % 200
++    assert timer_calls[-1][0] == expected, timer_calls
++    live_reader.pending, live_reader.last, live_reader.entries = "pinyin", "pinyin", {"old": ()}
++    hooks["presence"](False)
++    assert removed == [1] and not live_reader.pending and not live_reader.last and not live_reader.entries
++    hooks["changed"]()
++    assert timer_calls[-1][0] == 200
++    before = ticks[0]
++    timer_calls[-1][1]()
++    assert ticks[0] == before, "absent owner was queried"
++    assert len(timer_calls) == 2, "absent owner scheduled polling"
++    hooks["presence"](True)
++    hooks["changed"]()
++    timer_calls[-1][1]()
++    assert ticks[0] > before, "replacement owner was not read"
++    assert len(timer_calls) == 4
++  loop = Mock()
++  loop.run.side_effect = check
++  with patch.object(indicator, "Indicator", return_value=live_reader), \
++       patch.object(indicator.GLib, "MainLoop", return_value=loop), \
++       patch.object(indicator.GLib, "io_add_watch"), \
++       patch.object(indicator.GLib, "timeout_add", side_effect=timeout_ms), \
++       patch.object(indicator.GLib, "source_remove", side_effect=removed.append), \
++       patch.object(indicator.GLib, "get_monotonic_time", side_effect=lambda: ticks[0]), \
++       patch.object(indicator, "follow", side_effect=follow_bus), patch("builtins.print"):
++    indicator.watch(None)
++for read_us in [50000, 450000]:
++  deadline_case(read_us)
++deadline_case(1000000, should_fail=True)
++print("ok - refresh cost is inside the polling deadline; missed periods are skipped; failures back off")
++print("ok - absent owners cancel polling and clear queued selection and metadata; replacements resume")
++
+ keyboards = [{"name": "physical", "layout": "us,dk", "active_layout_index": 0}]
+ with patch.object(indicator, "snapshot", side_effect=indicator.GLib.Error("no fcitx")), patch.object(indicator.subprocess, "run", side_effect=fake_process):
+   indicator.Indicator(None).select_next()
+@@ -249,13 +299,14 @@ def scenario():
+   # One method in one group: the startup read is all, until the profile changes.
+   def single_method_settled():
+     assert [line["methods"] for line in state_lines] == [["keyboard-us"]], state_lines
+-    assert 500 not in timers and 50 not in timers, timers
++    assert reads[0] == 1, f"single method was polled {reads[0]} times"
++    assert 50 not in timers, timers
+     live["methods"] = ["keyboard-us", "mozc"]
+     save()
+     step(0.6, after_save)
+   def after_save():
+     assert methods() == ["keyboard-us", "mozc"], state_lines
+-    assert 500 in timers, timers
++    assert any(1 <= delay <= 200 for delay in timers), timers
+     live["current"] = "mozc"
+     step(0.7, after_switch)
+   def after_switch():
+@@ -268,7 +319,7 @@ def scenario():
+     reads[0] = 0
+     step(2.0, polls_counted)
+   def polls_counted():
+-    assert reads[0] <= 5, f"{reads[0]} reads in 2 s"
++    assert 8 <= reads[0] <= 11, f"{reads[0]} reads in 2 s"
+     live["methods"], live["current"] = ["keyboard-us"], "keyboard-us"
+     save()
+     step(0.6, back_to_one)

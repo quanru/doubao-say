@@ -18,4 +18,6 @@ export NODE_OPTIONS="--dns-result-order=ipv4first --require=$PWD/ci/node_modules
 mkdir -p work/ui
 sleep 2
 
-(cd work/ui && node ../../ci/roi.mjs)
+(cd work/ui && OBSERVATION_MODE=plain node ../../ci/roi.mjs)
+(cd work/ui && OBSERVATION_MODE=pixels node ../../ci/roi.mjs)
+(cd work/ui && node ../../ci/configtool.mjs)

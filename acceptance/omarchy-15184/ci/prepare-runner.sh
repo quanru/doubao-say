@@ -23,15 +23,23 @@ for name in omarchy iso pkgs; do
   case "$name" in omarchy) repo=omarchy ;; iso) repo=omarchy-iso ;; pkgs) repo=omarchy-pkgs ;; esac
   git init -q "work/$name"
   git -C "work/$name" remote add origin "https://github.com/omacom/$repo.git"
-  git -C "work/$name" fetch --depth 1 origin "$sha"
+  if [[ $name == omarchy ]]; then
+    upstream=$(python3 -c 'import json;print(json.load(open("ci/pins.json"))["upstream_pr_head"])')
+    git -C work/omarchy fetch --depth 1 origin "$upstream"
+    git -C work/omarchy bundle verify "$PWD/ci/input-indicator-fix.bundle"
+    git -C work/omarchy fetch "$PWD/ci/input-indicator-fix.bundle" HEAD
+  else
+    git -C "work/$name" fetch --depth 1 origin "$sha"
+  fi
   git -C "work/$name" checkout -q --detach FETCH_HEAD
   [[ $(git -C "work/$name" rev-parse HEAD) == "$sha" ]] || exit 2
 done
 git ls-remote https://github.com/omacom/omarchy.git refs/pull/15184/head refs/heads/quattro > review-artifacts/versions/remote-refs.txt
-expected=$(python3 -c 'import json;print(json.load(open("ci/pins.json"))["omarchy"])')
+expected=$(python3 -c 'import json;print(json.load(open("ci/pins.json"))["upstream_pr_head"])')
 observed=$(awk '$2 == "refs/pull/15184/head" {print $1}' review-artifacts/versions/remote-refs.txt)
 [[ $observed == "$expected" ]] || { echo 'PR head moved; update and review pins before running'; exit 2; }
 cp ci/pins.json review-artifacts/versions/source-pins.json
+cp ci/input-indicator-fix.diff review-artifacts/versions/input-indicator-fix.diff
 # Pin the builder base rather than allowing upstream's mutable :latest.
 python3 - <<'PY'
 from pathlib import Path

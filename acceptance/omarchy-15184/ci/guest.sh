@@ -13,7 +13,7 @@ pathlib.Path('work/source-manifest.json').write_text(json.dumps(out))
 pathlib.Path('review-artifacts/versions/source-file-hashes.json').write_text(json.dumps(out,indent=2))
 PY
   ssh "${ssh_args[@]}" omarchy@127.0.0.1 'mkdir -p /tmp/pr15184/evidence'
-  scp -q -i "$key" -P 2222 -o StrictHostKeyChecking=no -o UserKnownHostsFile=/dev/null ci/guest.py ci/capture.py work/source-manifest.json omarchy@127.0.0.1:/tmp/pr15184/
+  scp -q -i "$key" -P 2222 -o StrictHostKeyChecking=no -o UserKnownHostsFile=/dev/null ci/guest.py ci/capture.py ci/configtool-accessibility.py work/source-manifest.json omarchy@127.0.0.1:/tmp/pr15184/
 fi
 # Send commands as positional, shell-quoted arguments; never print environment.
 printf -v args '%q ' "$@"
