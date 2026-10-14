@@ -13,7 +13,8 @@ workflow=(r/'ci/workflow.yml').read_text()
 assert 'pages: write' not in workflow and 'deploy-midscene' not in workflow
 assert 'paths: [acceptance/omarchy-15184/ci/.run-acceptance]' in workflow and '\n  pull_request:' not in workflow
 assert 'max-parallel:' not in workflow
-assert "MIDSCENE_MODEL_STREAM_MODE: 'non-stream'" in workflow
+assert 'secrets.MIDSCENE_MODEL' not in workflow and 'run-roi.sh' in workflow
+subprocess.run(['node','--check','ci/roi.mjs'],check=True)
 assert 'MIDSCENE_MODEL_API_KEY' not in (r/'ci/prepare-runner.sh').read_text()
 assert 'wtype' not in (r/'ci/ui.mjs').read_text()
 assert 'SetInputMethodGroupInfo' not in (r/'ci/guest.py').read_text()

@@ -52,17 +52,9 @@ jobs:
         run: bash ci/build-midscene.sh
       - name: Install locked Midscene dependencies
         run: npm --prefix ci ci --ignore-scripts
-      - name: Run focused real desktop cases
-        timeout-minutes: 60
-        env:
-          MIDSCENE_MODEL_API_KEY: ${{ secrets.MIDSCENE_MODEL_API_KEY }}
-          MIDSCENE_MODEL_NAME: ${{ secrets.MIDSCENE_MODEL_NAME }}
-          MIDSCENE_MODEL_BASE_URL: ${{ secrets.MIDSCENE_MODEL_BASE_URL }}
-          MIDSCENE_MODEL_FAMILY: ${{ secrets.MIDSCENE_MODEL_FAMILY }}
-          MIDSCENE_MODEL_STREAM_MODE: 'non-stream'
-          MIDSCENE_MODEL_RETRY_COUNT: '0'
-          MIDSCENE_REPLANNING_CYCLE_LIMIT: '8'
-        run: bash ci/run-ui.sh
+      - name: Run fixed real ROI timing trials (no credentials, no inference)
+        timeout-minutes: 15
+        run: bash ci/run-roi.sh
       - name: Restore and package evidence
         if: always()
         run: bash ci/finalize.sh

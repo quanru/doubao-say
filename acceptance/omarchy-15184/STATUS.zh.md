@@ -18,3 +18,5 @@
 - Midscene PR3196仍Draft，源码与本轮所测一致；未向Omarchy上游评论或合并。未修改500ms阈值、Omarchy轮询或用户日用系统。
 
 历史：[前一轮原生审阅](evidence/native-REVIEW.zh.md) / [前一轮完整包](evidence/native-review.zip) / [首次原生失效诊断](evidence/run-38492688288-DIAGNOSTIC.zh.md) / [瓶颈与本地基准](evidence/capture-diagnosis/DIAGNOSIS.zh.md)。全部原始档案保留。
+
+2026-10-14：按用户继续授权实现独立 RegionObservation（Midscene c59498befd69b23bf88fa31b3283c63c3c47c937），启动一次无模型 ROI 对照：固定六个 3 秒全屏/顶栏块，ROI 中位帧间隔须低于同机全屏及历史 30.255190ms 的 80%，否则停止；通过后固定 20×80ms 与 20×5ms QMP Shift，不挑样本。新工作流不注入任何模型 secret，不启动模型代理，不分配/消耗最后 10 元；历史累计保守计费 4.815786 元、累计分配 90 元仍保留。PR15184 head 重新确认不变 a1ead6b37605d5f3b63a9ebba2f6a621d6a43b6c；quattro 当前已前进至 9f49906d22419c45931b92a8816ec852e232c6d6，历史比较基线仍固定 097c733fc6f24cd437028e0233910b7143fe83f7。此刻仅本地回归通过，真实 ROI 验证未完成，不报验收通过。

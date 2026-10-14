@@ -39,4 +39,4 @@ sha256sum work/native-capture/midscene-wayland-capture > review-artifacts/versio
 node ci/native-smoke.mjs
 
 bash ci/guest.sh clock-check > review-artifacts/versions/guest-clock-check.json
-python3 ci/capture-ab.py
+python3 ci/capture-roi-ab.py
