@@ -5,6 +5,7 @@ r=Path('.')
 for p in [*(r/'ci').glob('*.py'),*(r/'scripts').glob('*.py')]:ast.parse(p.read_text())
 for p in (r/'ci').glob('*.sh'):subprocess.run(['bash','-n',str(p)],check=True)
 subprocess.run(['node','--check','ci/ui.mjs'],check=True)
+subprocess.run(['node','--check','ci/native-smoke.mjs'],check=True)
 pins=json.loads((r/'ci/pins.json').read_text())
 for k in ['omarchy','base_tip','iso','pkgs','reference']:assert re.fullmatch('[a-f0-9]{40}',pins[k])
 lock=json.loads((r/'ci/package-lock.json').read_text());assert lock['packages']['']['dependencies']['@midscene/computer']=='1.15.3'

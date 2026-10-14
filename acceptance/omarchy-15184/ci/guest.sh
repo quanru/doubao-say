@@ -17,4 +17,4 @@ PY
 fi
 # Send commands as positional, shell-quoted arguments; never print environment.
 printf -v args '%q ' "$@"
-ssh "${ssh_args[@]}" omarchy@127.0.0.1 "export XDG_RUNTIME_DIR=/run/user/1000; export DBUS_SESSION_BUS_ADDRESS=unix:path=/run/user/1000/bus; export HYPRLAND_INSTANCE_SIGNATURE=\$(ls -t /run/user/1000/hypr | head -1); export WAYLAND_DISPLAY=\$(find /run/user/1000 -maxdepth 1 -name 'wayland-*' ! -name '*.lock' -printf '%f\\n' | head -1); export OMARCHY_PATH=/usr/share/omarchy; export PATH=/usr/share/omarchy/bin:\$PATH; python3 /tmp/pr15184/guest.py $args"
+exec ssh "${ssh_args[@]}" omarchy@127.0.0.1 "export XDG_RUNTIME_DIR=/run/user/1000; export DBUS_SESSION_BUS_ADDRESS=unix:path=/run/user/1000/bus; export HYPRLAND_INSTANCE_SIGNATURE=\$(ls -t /run/user/1000/hypr | head -1); export WAYLAND_DISPLAY=\$(find /run/user/1000 -maxdepth 1 -name 'wayland-*' ! -name '*.lock' -printf '%f\\n' | head -1); export OMARCHY_PATH=/usr/share/omarchy; export PATH=/usr/share/omarchy/bin:\$PATH; python3 /tmp/pr15184/guest.py $args"

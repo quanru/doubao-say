@@ -34,3 +34,5 @@ pathlib.Path('review-artifacts/versions/native-preflight.json').write_text(json.
 PY
 printf '%s\n' "$sha" > review-artifacts/versions/midscene-commit.txt
 sha256sum work/native-capture/midscene-wayland-capture > review-artifacts/versions/native-helper-sha256.txt
+
+node ci/native-smoke.mjs

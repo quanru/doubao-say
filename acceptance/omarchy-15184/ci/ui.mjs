@@ -42,7 +42,7 @@ try {
   guest('input-start',trial);
   let ready=false;for(let j=0;j<40;j++){try{guest('ready',trial);ready=true;break;}catch{await sleep(50);}}
   if(!ready)throw Error('Guest input reader did not become ready');
-  const observer=await agent.startObserving({captureMode:'source',maxFrames:300,watchdogMs:10000});
+  const observer=await agent.startObserving({captureMode:'source',maxFrames:1000,watchdogMs:10000});
   await sleep(200);
   const holdMs=i<20?80:5;
   execFileSync('python3',[resolve(root,'scripts/qmp-key.py'),state[1],'shift','--hold-ms',String(holdMs),'--disposable-vm'],{timeout:10000});
@@ -54,6 +54,9 @@ try {
   const dest=resolve(out,'observations',trial);mkdirSync(resolve(dest,'images'),{recursive:true});
   for(const frame of record.frames){const file=basename(frame.path);copyFileSync(frame.path,resolve(dest,'images',file));frame.path=`images/${file}`;}
   writeFileSync(resolve(dest,'observation.json'),JSON.stringify({...record,requestedHoldMs:holdMs},null,2));
+  let capturePids;for(let j=0;j<20;j++){capturePids=JSON.parse(guest('native-status')).capture_pids;if(!capturePids.length)break;await sleep(50);}
+  writeFileSync(resolve(dest,'cleanup.json'),JSON.stringify({remainingCapturePids:capturePids},null,2));
+  if(capturePids.length)throw Error('Native capture producer remained after observation stop');
   if(i===0 || i===20){try{await observation.aiAssert('The input-method text in the top-right desktop bar changes from EN to 拼 during this recorded window.');}catch(error){results.push({trial:`${trial}-visual`,status:'VISUAL_ASSERTION_FAILED_REQUIRES_REVIEW',message:String(error)});process.exitCode=1;}}
   await observation.dispose();
   const s=stable();const expected=i%2===0?'2':'1';
@@ -78,9 +81,10 @@ try {
   let removedVisual=true;try{await agent.aiAssert('The left Current Input Method list has only Keyboard - English (US), without Pinyin. The desktop top-right bar has no EN or 拼 text.');}catch(error){removedVisual=false;results.push({trial:`config-remove-visual-${round}`,status:'VISUAL_ASSERTION_FAILED_REQUIRES_REVIEW',message:String(error)});process.exitCode=1;}
   if(await agent.aiBoolean('Is the Only Show Current Language checkbox visibly present and checked in the Input Method tab?')) await agent.aiTap('Only Show Current Language checkbox');
   await agent.aiTap('Search Input Method text field above the right-hand Available Input Method list');
-  key('ctrl','a');await sleep(150);
-  for(const k of ['p','i','n','y','i','n']){key(k);await sleep(120);}
+  key('ctrl','a','--hold-ms','15');await sleep(150);
+  for(const k of ['p','i','n','y','i','n']){key(k,'--hold-ms','15');await sleep(120);}
   await sleep(500);guest('screenshot',`search-pinyin-${round}`);
+  await agent.aiAssert('The Available Input Method search field contains exactly pinyin, and a selectable Pinyin row is visible in the right list.');
   await agent.aiTap('Pinyin row in the right Available Input Method list');
   await agent.aiTap('LEFT-pointing arrow between the two lists, to add Pinyin');
   await agent.aiTap('Apply button at the bottom of the configuration window');

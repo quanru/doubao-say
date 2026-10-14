@@ -73,7 +73,15 @@ elif cmd=='validate-templates':
  a=(E/'active.png').read_bytes();b=(E/'inactive.png').read_bytes()
  assert a[:8]==b[:8]==b'\x89PNG\r\n\x1a\n' and a[16:24]==b[16:24] and a!=b,'Active/inactive PNG templates identical or invalid; stop before timed trials'
  save('template-validation',{'same_dimensions':True,'distinct_png_files':True,'method':'Early PNG identity guard; decoded pixel validation is performed by the host analyzer','requires_visual_review':True})
+elif cmd=='native-status':
+ found=[]
+ for p in pathlib.Path('/proc').glob('[0-9]*'):
+  try:
+   if (p/'exe').resolve()==R/'midscene-wayland-capture':found.append(int(p.name))
+  except OSError:pass
+ print(json.dumps({'capture_pids':found}))
 elif cmd=='native-source':
+ fd=os.open(E/'native-capture-errors.log',os.O_WRONLY|os.O_CREAT|os.O_APPEND,0o600);os.dup2(fd,2);os.close(fd)
  os.execv(str(R/'midscene-wayland-capture'),[str(R/'midscene-wayland-capture'),'--verify-monotonic'])
 elif cmd=='input-start':
  subprocess.Popen(['python3',str(R/'input-events.py'),sys.argv[2]],stdout=subprocess.DEVNULL,stderr=open(E/'input-error.log','a'),start_new_session=True)
