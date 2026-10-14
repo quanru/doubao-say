@@ -51,7 +51,8 @@ try:
     for token,x in swaps.items():
      assert x['pixelSaved'],'GL evidence unavailable'
      h=rgb(r/mode/f'pixel-{token}.png')
-     if h in native_hashes:matched+=1
+     assert h in native_hashes,'GL pixels do not match compositor label states'
+     matched+=1
      # Startup paints may predate the measured input state; keep but do not interpret them.
      reads.append((int(x['readEndNs'])-int(x['readStartNs']))/1e6)
     assert matched>=4,'GL pixels do not match genuine compositor label states'

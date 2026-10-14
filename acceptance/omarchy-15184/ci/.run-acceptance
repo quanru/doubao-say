@@ -1,1 +1,1 @@
-One bounded no-model presentation semantics/perturbation preflight then 20 normal + 20 short presses; SDK 852410869c665bbb32f1017d51103fb768e01b07; no percentage stop gate.
+Bounded no-model rerun for diagnosed Ubuntu FORTIFY fgets return-check compile failure in 38514460373. Same SDK 852410869c665bbb32f1017d51103fb768e01b07; semantics then 20 normal + 20 short; all observed pixels must match; no performance-percentage gate.
