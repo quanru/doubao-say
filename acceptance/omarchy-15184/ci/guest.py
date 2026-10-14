@@ -105,9 +105,10 @@ elif cmd=='probe-mode':
  if mode in ['passive','feedback','pixels']:
   env['LD_PRELOAD']=str(R/'presentation-probe.so');env['MIDSCENE_PRESENT_DIR']=str(d);env['MIDSCENE_PRESENT_MODE']=mode
  # Match Omarchy's own restart path: inherit the compositor's canonical session.
- launch=d/'launch.sh';pidfile=d/'pid'
+ launch=R/('probe-'+tag+'-launch.sh');pidfile=R/('probe-'+tag+'-pid')
  command=['env',*[k+'='+v for k,v in env.items()],'quickshell','-n','-p','/usr/share/omarchy/shell']
  launch.write_text('#!/bin/bash\nset -eu\nunset LD_PRELOAD WAYLAND_DEBUG MIDSCENE_PRESENT_DIR MIDSCENE_PRESENT_MODE\nprintf "%s\\n" "$$" > '+shlex.quote(str(pidfile))+'\nexec '+shlex.join(command)+' > /dev/null 2> '+shlex.quote(str(d/'stderr.log'))+'\n');launch.chmod(0o700)
+ (d/'launch-command.txt').write_text(launch.read_text())
  run('hyprctl','dispatch','hl.dsp.exec_cmd('+json.dumps(shlex.quote(str(launch)))+')')
  for _ in range(100):
   if pidfile.exists():break
