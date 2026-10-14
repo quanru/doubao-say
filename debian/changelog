@@ -1,3 +1,10 @@
+doubao-say (1.8.0-1) noble; urgency=medium
+
+  * Add ChatGPT polishing and its JWT verification dependencies.
+  * Improve input recovery, settings and microphone handling on macOS.
+
+ -- doubao-say contributors <code-dream@qq.com>  Wed, 14 Oct 2026 08:00:00 +0800
+
 doubao-say (1.7.0-1) noble; urgency=medium
 
   * Add personal speech evaluation, selected corrections and input timings.

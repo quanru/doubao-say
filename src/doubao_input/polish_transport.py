@@ -96,7 +96,7 @@ class _NoRedirect(request.HTTPRedirectHandler):
 
 
 @contextmanager
-def open_request(req, *, timeout, cancellation=None):
+def open_request(req, *, timeout, cancellation=None, on_error=None):
     cancellation = cancellation or RequestCancellation()
     cancellation.check()
 
@@ -123,7 +123,11 @@ def open_request(req, *, timeout, cancellation=None):
             yield response
             cancellation.check()
     except error.HTTPError as exc:
-        exc.close()
+        try:
+            if on_error is not None:
+                on_error(exc)
+        finally:
+            exc.close()
         raise
     finally:
         deadline.cancel()

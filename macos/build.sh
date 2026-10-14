@@ -26,7 +26,7 @@ version = re.search(r'^version = "([^"]+)"', pathlib.Path('pyproject.toml').read
 info = dict(CFBundleIdentifier='md.lifeos.doubao-say.macos', CFBundleName='Doubao Say',
     CFBundleDisplayName='Doubao Say', CFBundleExecutable='DoubaoSay', CFBundlePackageType='APPL',
     CFBundleShortVersionString=version, CFBundleVersion='1', LSMinimumSystemVersion='13.0',
-    LSUIElement=True, NSHighResolutionCapable=True, CFBundleIconFile='AppIcon',
+    LSUIElement=False, NSHighResolutionCapable=True, CFBundleIconFile='AppIcon',
     NSMicrophoneUsageDescription='Doubao Say uses your microphone to transcribe speech with Doubao.')
 pathlib.Path(sys.argv[1], 'Contents/Info.plist').write_bytes(plistlib.dumps(info))
 PY

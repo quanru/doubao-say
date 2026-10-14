@@ -6,6 +6,7 @@ from gi.repository import GLib, Gtk, Pango
 from doubao_input.i18n import tr
 from doubao_input.settings import DEFAULT_POLISH_PROMPT_EN, DEFAULT_POLISH_PROMPT_ZH
 from doubao_input.reasoning import reasoning_policy
+from doubao_input.ui.chatgpt_settings import ChatGPTSettings
 
 
 class PolishSettings(Gtk.Box):
@@ -29,6 +30,15 @@ class PolishSettings(Gtk.Box):
         self.status = Gtk.Label(xalign=0, wrap=True)
         self.append(self.status)
 
+        self.provider = Gtk.ComboBoxText()
+        self.provider.append("api", tr("API key", "API Key"))
+        self.provider.append("chatgpt", tr("ChatGPT plan", "ChatGPT 套餐"))
+        self.provider.set_active_id(settings.polish_provider)
+        self.append(self._row(tr("Polishing service", "润色服务"), self.provider))
+        self.chatgpt = ChatGPTSettings(settings.polish_chatgpt_model, self._queue_save)
+        self.chatgpt.set_visible(settings.polish_provider == "chatgpt")
+        self.append(self.chatgpt)
+
         self.details = Gtk.Box(orientation=Gtk.Orientation.VERTICAL, spacing=10)
         self.append(self.details)
         self.details.append(Gtk.Label(xalign=0, wrap=True, label=tr(
@@ -43,8 +53,9 @@ class PolishSettings(Gtk.Box):
         self.api_key.set_invisible_char("•")
         self.api_key.set_placeholder_text(tr("Saved — leave blank to keep" if has_key else "Required when enabled",
                                              "已保存，留空则保持不变" if has_key else "启用时必填"))
-        self.details.append(self._row("Base URL", self.base_url))
-        self.details.append(self._row("Model", self.model))
+        self.api_rows = [self._row("Base URL", self.base_url), self._row("Model", self.model)]
+        for row in self.api_rows:
+            self.details.append(row)
         self.latency_guidance = Gtk.Label(xalign=0, wrap=True, label=tr(
             "Choose a small, fast model and turn thinking off, even for Flash/Lite models. Try DeepSeek Flash (deepseek-flash) or Gemini 2.5 Flash-Lite (gemini-2.5-flash-lite) on their official endpoints; thinking-off is requested automatically. Large reasoning models may exceed the 5-second limit and fall back to your original text.",
             "优先选择小型、低延迟模型，并关闭思考，Flash/Lite 模型也不例外。建议使用 DeepSeek Flash（deepseek-flash）或 Gemini 2.5 Flash-Lite（gemini-2.5-flash-lite）的官方接口，应用会自动请求关闭思考。大型推理模型可能超过五秒上限，导致回退原文。"))
@@ -56,7 +67,9 @@ class PolishSettings(Gtk.Box):
         self.base_url.connect("changed", self._update_reasoning_notice)
         self.model.connect("changed", self._update_reasoning_notice)
         self._update_reasoning_notice()
-        self.details.append(self._row("API Key", self.api_key))
+        key_row = self._row("API Key", self.api_key)
+        self.api_rows.append(key_row)
+        self.details.append(key_row)
         self.details.append(Gtk.Label(xalign=0, wrap=True, label=tr(
             "The API key is stored separately with owner-only permissions and excluded from diagnostics.",
             "API Key 使用仅限当前用户读取的独立文件保存，不会出现在诊断信息中。")))
@@ -107,6 +120,23 @@ class PolishSettings(Gtk.Box):
         self.prompt_zh.get_buffer().connect("changed", self._queue_save)
         self.prompt_en.get_buffer().connect("changed", self._queue_save)
         self.connect("unmap", self._flush)
+        self.provider.connect("changed", self._provider_changed)
+        self._provider_changed(save=False)
+
+    def _provider_changed(self, *_, save=True):
+        using_chatgpt = self.provider.get_active_id() == "chatgpt"
+        self.chatgpt.set_visible(using_chatgpt)
+        for row in self.api_rows:
+            row.set_visible(not using_chatgpt)
+        self.latency_guidance.set_visible(not using_chatgpt)
+        self.reasoning_notice.set_visible(not using_chatgpt)
+        if save:
+            self._queue_save()
+
+    def _ready(self):
+        if self.provider.get_active_id() == "chatgpt":
+            return self.chatgpt.ready()
+        return bool(self._has_key or self.api_key.get_text().strip())
 
     def _row(self, title, widget):
         row = Gtk.Box(spacing=12)
@@ -129,6 +159,7 @@ class PolishSettings(Gtk.Box):
         prompt_en = en_buffer.get_text(en_buffer.get_start_iter(),
                                        en_buffer.get_end_iter(), True)
         settings = replace(self._settings, polish_enabled=self.enabled.get_active(),
+            polish_provider=self.provider.get_active_id(), polish_chatgpt_model=self.chatgpt.model,
             polish_base_url=self.base_url.get_text().strip(),
             polish_model=self.model.get_text().strip(),
             polish_prompt_zh=prompt_zh, polish_prompt_en=prompt_en)
@@ -148,9 +179,9 @@ class PolishSettings(Gtk.Box):
             return
         enabled = self.enabled.get_active()
         self.details.set_visible(enabled)
-        if enabled and not self._has_key:
-            self.status.set_text(tr("Enter an API key to enable voice polishing.",
-                                    "请输入 API Key 以启用语音润色。"))
+        if enabled and not self._ready():
+            self.status.set_text(tr("Connect the selected service and choose a model to enable polishing.",
+                                    "请连接已选服务并选择模型，以启用润色。"))
             return
         if self._save_now():
             self.status.set_text(tr("Voice polishing enabled." if enabled else "Voice polishing disabled.",
@@ -179,9 +210,9 @@ class PolishSettings(Gtk.Box):
     def _save_now(self):
         if self._changing:
             return True
-        if self.enabled.get_active() and not (self._has_key or self.api_key.get_text().strip()):
-            self.status.set_text(tr("Enter an API key to enable voice polishing.",
-                                    "请输入 API Key 以启用语音润色。"))
+        if self.enabled.get_active() and not self._ready():
+            self.status.set_text(tr("Connect the selected service and choose a model to enable polishing.",
+                                    "请连接已选服务并选择模型，以启用润色。"))
             return False
         try:
             settings, key = self._values()

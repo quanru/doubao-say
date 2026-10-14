@@ -21,11 +21,11 @@ class AppLifecycleEdgesTest(TestCase):
     def test_update_before_settings_are_opened_downloads_and_launches(self):
         with tempfile.TemporaryDirectory() as root, patch(
                 "doubao_input.app.GLib.unix_signal_add"), patch(
-                "doubao_input.app.prepare_update", return_value=Path(root)), patch(
-                "doubao_input.app.launch_update") as launch, patch(
+                "doubao_input.app_runtime.prepare_update", return_value=Path(root)), patch(
+                "doubao_input.app_runtime.launch_update") as launch, patch(
                 "doubao_input.app.GLib.idle_add",
                 side_effect=lambda callback, *args: callback(*args)), patch(
-                "doubao_input.app.Thread") as thread:
+                "doubao_input.app_runtime.Thread") as thread:
             app = DoubaoInputApp()
             self.assertIsNone(app._settings_window)
             app._control = Mock()
@@ -262,7 +262,7 @@ class AppSetupEdgesTest(TestCase):
                     return saved
                 app._control._flush_asr_key.side_effect = flush
                 app._settings_window._flush_asr_key.side_effect = flush
-                with patch("doubao_input.app.apply_preferences") as apply:
+                with patch("doubao_input.app_runtime.apply_preferences") as apply:
                     if saved:
                         DoubaoInputApp.apply_settings(app, Settings(asr_provider="deepgram"))
                         self.assertEqual(owners, ["volcengine", "volcengine"])
@@ -371,7 +371,7 @@ class PersonalHistoryDeliveryTest(TestCase):
                                      Mock(return_value=True),
                                      lambda status: DoubaoInputApp._delivery_changed(app, status),
                                      SimpleNamespace(submit=lambda work, done: done(work())))
-            with patch("doubao_input.app.focused_target", return_value="target"):
+            with patch("doubao_input.app_voice.focused_target", return_value="target"):
                 DoubaoInputApp._send_enter(app)
             self.assertEqual(store.history()[0]["status"], "target_changed")
             self.assertEqual(app.recent.status, "target_changed")

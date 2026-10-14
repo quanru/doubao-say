@@ -27,7 +27,7 @@ final class AppDelegate: NSObject, NSApplicationDelegate, NSMenuDelegate {
     private let state = AppState.shared
 
     func applicationDidFinishLaunching(_ notification: Notification) {
-        NSApp.setActivationPolicy(.accessory)
+        NSApp.setActivationPolicy(.regular)
         overlay = OverlayPanel(appState: state)
         if CommandLine.arguments.contains("--smoke-test") { smokeTest(); return }
         if CommandLine.arguments.contains("--settings-smoke-test") { settingsSmokeTest(); return }
@@ -83,8 +83,14 @@ final class AppDelegate: NSObject, NSApplicationDelegate, NSMenuDelegate {
                 ? L("Update completed: ", "更新完成：") + current
                 : L("The update did not complete. You are still using the previous version; the updater log is kept beside the staged app.", "上次更新未完成，仍在使用旧版本；更新日志保存在待安装应用旁。")
             settingsWindow.model.selectedTab = "updates"; settingsWindow.show()
-        } else if !SettingsStore.shared.value.onboardingComplete { settingsWindow.show() }
+        } else { showInitialSettings() }
     }
+    private func showInitialSettings() { settingsWindow.show() }
+    func applicationShouldHandleReopen(_ sender: NSApplication, hasVisibleWindows flag: Bool) -> Bool {
+        settingsWindow?.show()
+        return true
+    }
+    func applicationShouldTerminateAfterLastWindowClosed(_ sender: NSApplication) -> Bool { false }
     func applicationWillTerminate(_ notification: Notification) {
         personalCleanup?.invalidate()
         transcription?.cancel(); hotkey?.stop(); web?.destroyWebView(); settingsWindow?.close(); updates.cancel(); updateInstaller.cancel(); receiver.stop()
@@ -101,8 +107,13 @@ final class AppDelegate: NSObject, NSApplicationDelegate, NSMenuDelegate {
         if let error = state.errorMessage { add(error, nil).isEnabled = false }
         menu.addItem(.separator())
         add(L("Settings…", "设置…"), #selector(showSettings), ",")
+        let input = add(L("Input device", "输入设备"), nil)
+        input.submenu = microphoneMenu(devices: AudioDevices.inputs(), selected: SettingsStore.shared.value.microphoneID,
+            canSwitch: transcription.canInstallUpdate && !settingsWindow.model.setupBusy)
         add(SettingsStore.shared.value.provider.name, nil).isEnabled = false
-        if SettingsStore.shared.value.provider == .doubao { add(L("Sign in to Doubao…", "登录豆包…"), #selector(showLogin)) }
+        if SettingsStore.shared.value.provider == .doubao && state.loginStatus != .loggedIn {
+            add(L("Sign in to Doubao…", "登录豆包…"), #selector(showLogin))
+        }
         if state.loginStatus == .loggedIn { add(L("Sign out", "退出登录"), #selector(logout)) }
         add(L("Copy last result", "复制最近结果"), #selector(copyLast)).isEnabled = !state.lastTranscript.isEmpty
         add(L("Retry input in 3 seconds", "三秒后重试输入"), #selector(retryLast)).isEnabled = !state.lastTranscript.isEmpty && state.recordingState == .idle && !state.inputPending && !state.evaluationBusy
@@ -127,6 +138,31 @@ final class AppDelegate: NSObject, NSApplicationDelegate, NSMenuDelegate {
         language.submenu = submenu
         menu.addItem(.separator())
         add(L("Quit Doubao Say", "退出豆包说"), #selector(quit), "q")
+    }
+    private func microphoneMenu(devices: [AudioInputDevice], selected: String, canSwitch: Bool) -> NSMenu {
+        let menu = NSMenu(); menu.autoenablesItems = false
+        func add(_ name: String, _ id: String, available: Bool = true) {
+            let item = NSMenuItem(title: name, action: #selector(selectMicrophone(_:)), keyEquivalent: "")
+            item.target = self; item.representedObject = id
+            item.state = selected == id ? .on : .off
+            item.isEnabled = canSwitch && available
+            menu.addItem(item)
+        }
+        add(L("System default", "系统默认"), "")
+        if !devices.isEmpty { menu.addItem(.separator()) }
+        for device in devices { add(device.name, device.id) }
+        if !selected.isEmpty && !devices.contains(where: { $0.id == selected }) {
+            add(L("Saved device unavailable", "已保存的设备不可用"), selected, available: false)
+        }
+        return menu
+    }
+    @objc private func selectMicrophone(_ sender: NSMenuItem) {
+        guard transcription.canInstallUpdate, let id = sender.representedObject as? String else { return }
+        if !settingsWindow.model.selectMicrophone(id) {
+            settingsWindow.model.feedback = L("Could not switch input device. Check the device and unsaved settings.", "未能切换输入设备，请检查设备和未保存设置。")
+            settingsWindow.show(refresh: false)
+        }
+        rebuildMenu()
     }
     @objc private func showLogin() { web.showLoginWindow() }
     private func saveLogin() {
@@ -310,8 +346,28 @@ final class AppDelegate: NSObject, NSApplicationDelegate, NSMenuDelegate {
 
     private var smokeHoldSeconds: Double { min(max(Double(ProcessInfo.processInfo.environment["DOUBAO_SMOKE_HOLD_SECONDS"] ?? "2") ?? 2, 2), 120) }
     private func settingsSmokeTest() {
+        if let appearance = ProcessInfo.processInfo.environment["DOUBAO_SMOKE_APPEARANCE"] {
+            NSApp.appearance = NSAppearance(named: appearance == "dark" ? .darkAqua : .aqua)
+        }
         settingsWindow = SettingsWindow(state: state)
+        if ProcessInfo.processInfo.environment["DOUBAO_SMOKE_MICROPHONE_MENU"] == "1" {
+            let devices = [AudioInputDevice(id: "synthetic-internal", name: "Internal", audioID: 1),
+                           AudioInputDevice(id: "synthetic-usb", name: "USB", audioID: 2)]
+            let menu = microphoneMenu(devices: devices, selected: "synthetic-usb", canSwitch: true)
+            precondition(menu.items.filter { $0.state == .on }.count == 1)
+            precondition(menu.items.last?.state == .on && menu.items.last?.isEnabled == true)
+            let disconnected = microphoneMenu(devices: [], selected: "synthetic-usb", canSwitch: true)
+            precondition(disconnected.items.last?.state == .on && disconnected.items.last?.isEnabled == false)
+            let busy = microphoneMenu(devices: devices, selected: "", canSwitch: false)
+            precondition(busy.items.allSatisfy { !$0.isEnabled })
+            print("PASS: microphone menu checkmarks, unavailable device and busy-state protection; synthetic devices only")
+        }
         state.lastTranscript = L("Synthetic recent text. No network or microphone used.", "合成的最近文字，未使用网络或麦克风。")
+        if ProcessInfo.processInfo.environment["DOUBAO_SMOKE_RECENT_LONG"] == "1" {
+            state.lastTranscript = L("ÁÉÎÖÜ — First line: synthetic text.", "第一行：合成文字，检查顶部是否完整。")
+                + "\n" + (1...100).map { L("Synthetic line ", "合成第 ") + String($0) }.joined(separator: "\n")
+        }
+        state.updateVersion = ProcessInfo.processInfo.environment["DOUBAO_SMOKE_UPDATE_VERSION"] ?? ""
         settingsWindow.model.selectedTab = ProcessInfo.processInfo.environment["DOUBAO_SMOKE_TAB"] ?? "setup"
         settingsWindow.model.draft.polishEnabled = true
         settingsWindow.model.setupStep = min(max(Int(ProcessInfo.processInfo.environment["DOUBAO_SMOKE_SETUP_STEP"] ?? "0") ?? 0, 0), 3)
@@ -319,8 +375,25 @@ final class AppDelegate: NSObject, NSApplicationDelegate, NSMenuDelegate {
             state.loginStatus = .loggedIn
             settingsWindow.model.doubaoSessionSaved = true
         }
-        settingsWindow.show(refresh: false)
+        if ProcessInfo.processInfo.environment["DOUBAO_SMOKE_SETUP_COMPLETE"] == "1" {
+            state.loginStatus = .loggedIn; settingsWindow.model.doubaoSessionSaved = true
+            state.microphoneChecked = true; state.voiceChecked = true
+            settingsWindow.model.shortcutAvailable = true
+            settingsWindow.model.shortcutReady = { true }
+        }
+        if ProcessInfo.processInfo.environment["DOUBAO_SMOKE_LAUNCH_CHECK"] == "1" {
+            showInitialSettings()
+            precondition(settingsWindow.isVisible, "Launch must show settings")
+            settingsWindow.hide()
+            precondition(!settingsWindow.isVisible)
+            _ = applicationShouldHandleReopen(NSApp, hasVisibleWindows: false)
+            precondition(settingsWindow.isVisible, "Reopening must restore settings")
+            precondition(NSApp.activationPolicy() == .regular, "App must appear in the Dock")
+            precondition(!applicationShouldTerminateAfterLastWindowClosed(NSApp))
+            print("PASS: launch shows settings, reopen restores settings, Dock visible, close keeps dictation running")
+        } else { settingsWindow.show(refresh: false) }
         DispatchQueue.main.asyncAfter(deadline: .now() + 1) {
+            if ProcessInfo.processInfo.environment["DOUBAO_SMOKE_RECENT_LONG"] == "1" { self.settingsWindow.inspectRecentText() }
             if let path = ProcessInfo.processInfo.environment["DOUBAO_SMOKE_IMAGE"] { self.settingsWindow.captureImage(to: path) }
             print("PASS: native settings window rendered; synthetic state only")
             DispatchQueue.main.asyncAfter(deadline: .now() + self.smokeHoldSeconds) { self.settingsWindow.close(); NSApp.terminate(nil) }
@@ -362,6 +435,11 @@ final class AppDelegate: NSObject, NSApplicationDelegate, NSMenuDelegate {
         let frontPID = NSWorkspace.shared.frontmostApplication?.processIdentifier
         state.recordingState = .recording
         state.transcriptionText = L("Midscene · macOS synthetic verification", "Midscene · macOS 合成验证")
+        if ProcessInfo.processInfo.environment["DOUBAO_SMOKE_INPUT_FAILURE"] == "1" {
+            state.recordingState = .idle
+            state.errorMessage = L("Synthetic input failure. Text kept.", "合成的输入失败，文字已保留。")
+            state.overlayStatus = L("Not entered · retry from menu", "未输入 · 文字已保留，可从菜单重试")
+        }
         overlay.showOverlay()
         DispatchQueue.main.asyncAfter(deadline: .now() + 1) {
             let focusPreserved = NSWorkspace.shared.frontmostApplication?.processIdentifier == frontPID

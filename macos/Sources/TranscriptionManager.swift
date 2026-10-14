@@ -120,14 +120,14 @@ final class TranscriptionManager {
             Task { @MainActor in
                 guard let self = self, self.session == token, self.client != nil else { return }
                 let partial = self.rawText
-                self.showFailure(L("Recognition failed. Check your connection and retry.", "识别失败，请检查连接后重试。"), status: L("Recognition failed", "识别失败"))
+                self.showFailure(L("Recognition failed. Check your connection and retry.", "识别失败，请检查连接后重试。"), status: L("Recognition failed · not entered", "识别失败 · 未输入"), keptText: partial)
                 if !partial.isEmpty { self.state.lastTranscript = partial; self.state.feedback = L("Incomplete recognition — not pasted", "识别未完成，未粘贴") }
             }
         }
         transport.onAuthError = { [weak self] in
             Task { @MainActor in
                 guard let self = self, self.session == token, self.client != nil else { return }
-                self.showFailure(L("Session expired. Sign in again.", "登录已过期，请重新登录。"), status: L("Sign in required", "请重新登录"))
+                self.showFailure(L("Session expired. Sign in again.", "登录已过期，请重新登录。"), status: L("Sign in required", "请重新登录"), keptText: self.rawText)
                 if self.settings.provider == .doubao { ASRParamsStore.clear() }
                 self.state.loginStatus = .notLoggedIn
             }
@@ -154,10 +154,9 @@ final class TranscriptionManager {
         scheduleTimeout(seconds: 8, token: session) { [weak self] in
             guard let self = self else { return }
             let partial = self.rawText, testing = self.testMode
-            self.cancel()
-            if testing { self.state.previewText = partial }
-            else if !partial.isEmpty { self.state.lastTranscript = partial }
-            self.state.errorMessage = L("Recognition timed out. Partial text kept; review it before input.", "识别超时，已保留部分文字，请检查后再输入。")
+            let message = L("Recognition timed out. Partial text kept; review it before input.", "识别超时，已保留部分文字，请检查后再输入。")
+            if testing { self.cancel(); self.state.previewText = partial; self.state.errorMessage = message }
+            else { self.showFailure(message, status: L("Recognition timed out · not entered", "识别超时 · 未输入"), keptText: partial) }
         }
     }
     private func armQuietCompletion(token: UUID) {
@@ -217,6 +216,7 @@ final class TranscriptionManager {
         } else { state.feedback = L("Original text", "原文") }
         if historyFailed { state.feedback += L(" Local history could not be saved.", " 本地历史保存失败。") }
         guard UserDefaults.standard.object(forKey: "autoPaste") as? Bool ?? true else {
+            retainVisibleText(text, status: L("Automatic paste off · text kept", "自动粘贴已关闭 · 文字已保留"))
             try? PersonalDataStore.shared.saveTimings(historyID, values: timing.values); return
         }
         let token = session
@@ -230,8 +230,24 @@ final class TranscriptionManager {
             guard self?.session == token else { return }
             self?.state.inputPending = false
             self?.hotkey.setEscapeHandlingEnabled(false)
-            if !sent { self?.state.errorMessage = L("Target changed or input failed. Text kept in the app.", "目标已变化或输入失败，文字已保留在应用中。") }
+            if !sent { self?.showInputFailure(text) }
+            else if let self = self, let notice = self.delivery.failureMessage {
+                self.state.feedback = notice
+                self.retainVisibleText(text, status: notice)
+            }
         }
+    }
+    private func showInputFailure(_ text: String) {
+        let message = L("Target changed or input failed. Focus an editable field and choose Retry input in 3 seconds from the menu. Text is kept in Recent text.", "目标已变化或输入失败。请点击可编辑的输入框，再从菜单选择「三秒后重试输入」。文字已保留在「最近文字」。")
+        state.errorMessage = delivery.failureMessage.map { $0 + " " + message } ?? message
+        state.feedback = L("Not entered — text kept", "未输入，文字已保留")
+        retainVisibleText(text, status: delivery.failureMessage ?? L("Not entered · retry from menu", "未输入 · 文字已保留，可从菜单重试"))
+    }
+    private func retainVisibleText(_ text: String, status: String) {
+        state.transcriptionText = text
+        state.overlayStatus = status
+        overlay.showOverlay()
+        hotkey.setEscapeHandlingEnabled(true)
     }
     func finishWithEnter() {
         guard !state.evaluationBusy, !state.inputPending else { return }
@@ -266,6 +282,10 @@ final class TranscriptionManager {
                 self.state.inputPending = false
                 self.hotkey.setEscapeHandlingEnabled(false)
                 self.state.feedback = sent ? L("Input attempted", "已发送输入操作") : L("Target unavailable; text kept", "目标不可用，文字已保留")
+                if sent {
+                    self.state.errorMessage = nil; self.state.transcriptionText = ""; self.state.overlayStatus = ""
+                    self.overlay.hideOverlay()
+                } else { self.showInputFailure(text) }
             }
         }
         retryTimeout = item
@@ -277,7 +297,7 @@ final class TranscriptionManager {
             Task { @MainActor in
                 guard let self = self, self.session == audioToken else { return }
                 let partial = self.rawText
-                self.showFailure(L("Audio input changed or disconnected. Check the selected microphone; nothing pasted.", "音频输入变化或断开，请检查所选麦克风；未粘贴文字。"))
+                self.showFailure(L("Audio input changed or disconnected. Check the selected microphone; nothing pasted.", "音频输入变化或断开，请检查所选麦克风；未粘贴文字。"), keptText: partial)
                 if !partial.isEmpty { self.state.lastTranscript = partial }
             }
         }
@@ -314,13 +334,16 @@ final class TranscriptionManager {
         guard primed else { return }
         primed = false; primedAudio.removeAll(); audio.stopCapture(); audio.onAudioData = nil; audio.onRMS = nil; audio.onError = nil; target = nil
     }
-    private func showFailure(_ message: String, status: String = L("Microphone unavailable", "麦克风不可用")) {
+    private func showFailure(_ message: String, status: String = L("Microphone unavailable", "麦克风不可用"), keptText: String = "") {
         cancel()
         state.errorMessage = message
         state.overlayStatus = status
         overlay.showOverlay()
         hotkey.setEscapeHandlingEnabled(true)
-        scheduleTimeout(seconds: 6, token: session) { [weak self] in self?.cancel() }
+        if !keptText.isEmpty {
+            state.lastTranscript = keptText
+            retainVisibleText(keptText, status: status)
+        } else { scheduleTimeout(seconds: 6, token: session) { [weak self] in self?.cancel() } }
     }
     func cancel() {
         session = UUID(); timeout?.cancel(); timeout = nil; quietTimer?.cancel(); quietTimer = nil; finalGate = FinalResultGate()

@@ -105,6 +105,45 @@
       ]
     },
     {
+      "name": "python-pyjwt",
+      "buildsystem": "simple",
+      "build-commands": [
+        "pip3 install --no-index --no-deps --prefix=/app *.whl"
+      ],
+      "sources": [
+        {
+          "type": "file",
+          "url": "https://files.pythonhosted.org/packages/50/ca/44de4e75f8aadc457f0634be3b542815078ded46dca30efb960edeecad6e/pyjwt-2.15.1-py3-none-any.whl",
+          "sha256": "42d59d631f7768a1028a64c7ff581a9bf7519804daf91fc5b6c56e30eec5e193"
+        }
+      ]
+    },
+    {
+      "name": "python-cryptography",
+      "buildsystem": "simple",
+      "build-commands": [
+        "pip3 install --no-index --no-deps --prefix=/app *.whl"
+      ],
+      "sources": [
+        {
+          "type": "file",
+          "url": "https://files.pythonhosted.org/packages/71/37/6202e488cc1eb625ea110c292c6bda92823176e023f427d8d5660ce8d632/cryptography-50.0.2-cp311-abi3-manylinux_2_34_aarch64.whl",
+          "sha256": "87e9ce85beb6b328ba370cc6e6aea483c92617b4c95b1d33a49297eb662bfb04",
+          "only-arches": [
+            "aarch64"
+          ]
+        },
+        {
+          "type": "file",
+          "url": "https://files.pythonhosted.org/packages/d3/69/2c833a049475e0a3444e94c7d0aca0aa51d166374a449b09e92ac98138de/cryptography-50.0.2-cp311-abi3-manylinux_2_34_x86_64.whl",
+          "sha256": "9dab55f57c74c3cad24c323bacbbd04be4705ba6eb0d92e920b1fc4837ed5079",
+          "only-arches": [
+            "x86_64"
+          ]
+        }
+      ]
+    },
+    {
       "name": "doubao-say",
       "buildsystem": "simple",
       "build-commands": [

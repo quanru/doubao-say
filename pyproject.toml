@@ -4,7 +4,7 @@ build-backend = "setuptools.build_meta"
 
 [project]
 name = "doubao-say"
-version = "1.7.0"
+version = "1.8.0"
 description = "Global push-to-hold voice input for Linux/Wayland, backed by Doubao ASR"
 readme = "README.md"
 requires-python = ">=3.11"
@@ -19,6 +19,7 @@ classifiers = [
     "Topic :: Utilities",
 ]
 dependencies = [
+    "PyJWT[crypto]>=2.10,<3",
     "websockets>=12",
     "sounddevice>=0.4.6",
     "evdev>=1.4",

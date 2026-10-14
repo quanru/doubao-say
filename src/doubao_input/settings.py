@@ -235,6 +235,8 @@ class Settings:
     reduced_motion: bool = False
     waveform_style: str = "bars"
     polish_enabled: bool = False
+    polish_provider: str = "api"
+    polish_chatgpt_model: str = ""
     polish_base_url: str = "https://api.openai.com/v1"
     polish_model: str = "gpt-4o-mini"
     polish_prompt_zh: str = DEFAULT_POLISH_PROMPT_ZH
@@ -256,6 +258,11 @@ class Settings:
             raise ValueError("Invalid preference type")
         if type(self.polish_enabled) is not bool:
             raise ValueError(tr("Invalid polishing setting", "无效的润色设置"))
+        if self.polish_provider not in ("api", "chatgpt"):
+            raise ValueError(tr("Invalid polishing provider", "无效的润色服务"))
+        if (not isinstance(self.polish_chatgpt_model, str) or len(self.polish_chatgpt_model) > 256
+                or any(c in self.polish_chatgpt_model for c in "\n\r\x00")):
+            raise ValueError(tr("Invalid ChatGPT model", "无效的 ChatGPT 模型"))
         try:
             endpoint = urlsplit(self.polish_base_url)
         except (TypeError, ValueError) as exc:

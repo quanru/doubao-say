@@ -17,11 +17,13 @@ class PolishSettingsPersistenceTest(unittest.TestCase):
             _has_key=False, _testing=False, _save=Mock(), _test=Mock(),
             enabled=Mock(), details=Mock(), api_key=Mock(), status=Mock(),
             test_status=Mock(), _set_testing=Mock(), _set_test_result=Mock(),
+            provider=Mock(), chatgpt=Mock(),
         )
+        view.provider.get_active_id.return_value = 'api'
         view.enabled.get_active.return_value = True
         view.api_key.get_text.return_value = "synthetic-key"
         view._values = Mock(return_value=(Settings(polish_enabled=True), "synthetic-key"))
-        for name in ("_save_now", "_flush", "_run_save", "_toggled", "_test_clicked"):
+        for name in ("_ready", "_save_now", "_flush", "_run_save", "_toggled", "_test_clicked"):
             setattr(view, name, MethodType(getattr(PolishSettings, name), view))
         return view
 

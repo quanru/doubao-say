@@ -55,8 +55,9 @@ struct OverlayView: View {
                         }
                         .accessibilityHidden(true)
                     centeredText(statusText, color: OverlayAppearance.foreground)
+                        .help(appState.errorMessage ?? statusText)
                 }
-                centeredText(appState.errorMessage ?? String(appState.transcriptionText.suffix(600)),
+                centeredText(appState.transcriptionText.isEmpty ? (appState.errorMessage ?? "") : String(appState.transcriptionText.suffix(600)),
                              color: appState.errorMessage == nil ? OverlayAppearance.foreground : OverlayAppearance.red)
                 if polishing, let started = appState.polishStartedAt, timeline.date.timeIntervalSince(started) >= 3 {
                     Text(L("Press shortcut again to use original", "再次按快捷键使用原文"))
