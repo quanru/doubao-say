@@ -10,6 +10,11 @@ git -C work/midscene checkout -q --detach FETCH_HEAD
 [[ $(git -C work/midscene rev-parse HEAD) == "$sha" ]] || exit 2
 corepack enable
 (cd work/midscene && pnpm install --frozen-lockfile --ignore-scripts && pnpm exec nx build @midscene/computer && pnpm exec nx build @midscene/report)
+# GUI-only follow-up preserves the existing 80 timing trials; no new timing claims.
+if [[ ${ACCEPTANCE_SUITE:-timing-and-gui} == gui ]]; then
+  printf '%s\n' "$sha" > review-artifacts/versions/midscene-commit.txt
+  exit 0
+fi
 sudo apt-get install -y --no-install-recommends libwayland-dev libpng-dev
 sh work/midscene/packages/computer/native/wayland/build.sh work/native-capture
 g++ -std=c++17 -O2 -Wall -Wextra -Werror ci/clock-check.cpp -o work/clock-check

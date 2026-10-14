@@ -27,14 +27,18 @@ for p in out.rglob('*'):
   if re.search(r'(?:sk-(?:proj-)?[A-Za-z0-9_-]{24,}|-----BEGIN (?:OPENSSH|RSA|EC) PRIVATE KEY-----|Bearer [A-Za-z0-9_.-]{24,})',s):
    shutil.rmtree(out);out.mkdir();(out/'REDACTION-BLOCK.txt').write_text('Artifact export blocked by credential-pattern scan. No evidence published.');raise SystemExit(1)
 PY
-python3 ci/analyze-native.py review-artifacts/plain || status=1
-python3 ci/analyze-native.py || status=1
+if [[ ${ACCEPTANCE_SUITE:-timing-and-gui} == gui ]]; then
+  python3 ci/verify-gui-operations.py || status=1
+else
+  python3 ci/analyze-native.py review-artifacts/plain || status=1
+  python3 ci/analyze-native.py || status=1
+fi
 python3 - <<'PY'
 from pathlib import Path
 import hashlib,json,html
 r=Path('review-artifacts');files=[p for p in r.rglob('*') if p.is_file()]
 (r/'SHA256SUMS').write_text(''.join(hashlib.sha256(p.read_bytes()).hexdigest()+'  '+str(p.relative_to(r))+'\n' for p in sorted(files)))
-ui=(r/'ui-results.json').read_text() if (r/'ui-results.json').exists() else 'UI 未执行'
+ui=(r/'ui-results.json').read_text() if (r/'ui-results.json').exists() else (r/'gui-results.json').read_text() if (r/'gui-results.json').exists() else 'UI 未执行'
 lat=(r/'latency-results.json').read_text() if (r/'latency-results.json').exists() else '计时未执行'
 (r/'REVIEW.html').write_text('<!doctype html><meta charset="utf-8"><title>待审阅 Omarchy 验收</title><h1>自动采集结果，待逐帧审阅</h1><p>不确定/缺少样本不能判通过。关闭 Pages；附件可见性取决于仓库。</p><h2>真实 UI</h2><pre>'+html.escape(ui)+'</pre><h2>计时区间</h2><pre>'+html.escape(lat)+'</pre>')
 PY

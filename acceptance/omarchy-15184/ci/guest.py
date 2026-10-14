@@ -74,6 +74,8 @@ elif cmd=='configtool-target':
  os.execv(sys.executable,[sys.executable,str(R/'configtool-accessibility.py'),*sys.argv[2:]])
 elif cmd=='focus':
  focus_target()
+elif cmd=='committed-text':
+ print((R/'committed.txt').read_text())
 elif cmd=='committed':
  s=(R/'committed.txt').read_text();assert any('\u4e00'<=c<='\u9fff' for c in s),'No actual committed Han text'
  save('composition',{'committed':s});print(s)

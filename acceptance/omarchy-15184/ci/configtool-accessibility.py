@@ -35,11 +35,9 @@ name=lambda n:n['name'].replace('&','').strip()
 if selector in ['current-pinyin','available-pinyin']:
  candidates=[n for n in visible if name(n)=='Pinyin' and n['role'] in ['list item','table cell','tree item'] and ((n['rect'][0]+n['rect'][2]/2<mid)==(selector=='current-pinyin'))]
 elif selector in ['add','remove']:
- candidates=[n for n in visible if name(n)==selector.title() and n['role'] in ['push button','push button menu']]
- # Group Add/Remove are on the top row; the IM buttons are below them.
- if candidates:
-  bottom=max(n['rect'][1] for n in candidates);candidates=[n for n in candidates if n['rect'][1]==bottom]
-elif selector=='apply':candidates=[n for n in visible if name(n)=='Apply' and n['role']=='push button']
+ candidates=[n for n in visible if name(n)==selector.title() and n.get('description')==selector.title() and n['role'] in ['button','push button','push button menu']]
+ # Exact tooltips distinguish IM Add/Remove from Add Group/Delete Group.
+elif selector=='apply':candidates=[n for n in visible if name(n)=='Apply' and n['role'] in ['button','push button']]
 elif selector=='language':candidates=[n for n in visible if name(n)=='Only Show Current Language' and n['role']=='check box']
 elif selector=='search':candidates=[n for n in visible if n['role'] in ['text','entry'] and n['rect'][0]>=mid]
 elif selector=='dump':print(json.dumps({'nodes':len(nodes)}));raise SystemExit()
@@ -54,4 +52,6 @@ assert len(clients)==1,('Expected one actual configtool window',len(clients))
 window=clients[0];assert abs(w-window['size'][0])<=8 and abs(h-window['size'][1])<=8,('Accessibility/compositor size mismatch',frames[0]['rect'],window['size'])
 cx,cy=window['at'][0]+cx-x,window['at'][1]+cy-y
 assert 0<=cx<1280 and 28<=cy<800,('UI target off screen',n)
-print(json.dumps({'selector':selector,'x':cx,'y':cy,'node':n,'frame':frames[0],'window':{k:window.get(k) for k in ['class','at','size','pid']}}))
+result={'selector':selector,'x':cx,'y':cy,'node':n,'frame':frames[0],'window':{k:window.get(k) for k in ['class','at','size','pid']}}
+(out/(tag+'-target.json')).write_text(json.dumps(result,ensure_ascii=False,indent=2))
+print(json.dumps(result))
