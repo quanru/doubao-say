@@ -1,1 +1,1 @@
-Bounded no-model rerun for diagnosed Ubuntu FORTIFY fgets return-check compile failure in 38514460373. Same SDK 852410869c665bbb32f1017d51103fb768e01b07; semantics then 20 normal + 20 short; all observed pixels must match; no performance-percentage gate.
+Bounded no-model rerun for diagnosed preflight trial ID mismatch in 38516700133: input-events.py accepts alphanumeric only. Same SDK 852410869c665bbb32f1017d51103fb768e01b07; no new permissions; semantics then fixed 40 presses.
