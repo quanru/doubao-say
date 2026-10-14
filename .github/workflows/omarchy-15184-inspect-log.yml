@@ -1,0 +1,35 @@
+name: Inspect native acceptance progress (no inference)
+on:
+  push:
+    branches: [acceptance/omarchy-15184-a1ead6b3]
+    paths: [acceptance/omarchy-15184/ci/.inspect-native-log]
+permissions:
+  actions: read
+  contents: read
+jobs:
+  inspect:
+    if: github.event.repository.private == false
+    runs-on: ubuntu-24.04
+    timeout-minutes: 3
+    steps:
+      - name: Read fixed run progress from already redacted Actions logs
+        env:
+          GH_TOKEN: ${{ github.token }}
+        run: |
+          gh api repos/quanru/doubao-say/actions/runs/38492688288 > /tmp/run.json
+          python3 - <<'PY'
+          import json
+          r=json.load(open('/tmp/run.json'))
+          assert r['id']==38492688288 and r['head_sha']=='a3bff9d5ed754a93dac9154be107490ee91ff204'
+          print('Run status:',r['status'],r['conclusion'])
+          PY
+          gh api --allow-escape-sequences repos/quanru/doubao-say/actions/jobs/115621357086/logs > /tmp/job.log
+          python3 - <<'PY'
+          import pathlib,re
+          s=pathlib.Path('/tmp/job.log').read_text(errors='replace')
+          print('Available log bytes:',len(s))
+          for line in s.splitlines()[-70:]:
+              if len(line)>500 or re.search(r'authorization|api.?key|Bearer|secret|token|PR15184_EVIDENCE_DATA',line,re.I):
+                  print('[long or sensitive-category line omitted]')
+              else: print(line)
+          PY
