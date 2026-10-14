@@ -9,7 +9,7 @@ with tarfile.open(fileobj=buf,mode='w:gz') as tar:
    assert p.suffix in {'.html','.png','.jpg','.jpeg','.webp','.json','.jsonl','.csv','.txt','.log','.diff'} or p.name in {'SHA256SUMS','ready','done','stop','iso.sha256'},str(p)
    tar.add(p,arcname=str(p.relative_to(root)),recursive=False)
 data=buf.getvalue()
-assert len(data)<=20*1024*1024,'Evidence exceeds log transport cap; leave run logs for diagnosis'
+assert len(data)<=50*1024*1024,'Evidence exceeds log transport cap; leave run logs for diagnosis'
 print('PR15184_EVIDENCE_BEGIN '+str(len(data))+' '+hashlib.sha256(data).hexdigest(),flush=True)
 s=base64.b64encode(data).decode()
 for i in range(0,len(s),32000): print('PR15184_EVIDENCE_DATA '+s[i:i+32000],flush=True)

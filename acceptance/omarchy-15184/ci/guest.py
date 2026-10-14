@@ -80,9 +80,13 @@ elif cmd=='native-status':
    if (p/'exe').resolve()==R/'midscene-wayland-capture':found.append(int(p.name))
   except OSError:pass
  print(json.dumps({'capture_pids':found}))
+elif cmd=='clock-check':
+ os.execv(str(R/'clock-check'),[str(R/'clock-check')])
 elif cmd=='native-source':
  fd=os.open(E/'native-capture-errors.log',os.O_WRONLY|os.O_CREAT|os.O_APPEND,0o600);os.dup2(fd,2);os.close(fd)
- os.execv(str(R/'midscene-wayland-capture'),[str(R/'midscene-wayland-capture'),'--verify-monotonic'])
+ filter_mode=sys.argv[2] if len(sys.argv)>2 else 'none'
+ assert filter_mode in ['none','adaptive']
+ os.execv(str(R/'midscene-wayland-capture'),[str(R/'midscene-wayland-capture'),'--verify-monotonic','--trace','--png-filter',filter_mode])
 elif cmd=='input-start':
  subprocess.Popen(['python3',str(R/'input-events.py'),sys.argv[2]],stdout=subprocess.DEVNULL,stderr=open(E/'input-error.log','a'),start_new_session=True)
 elif cmd=='input-end':

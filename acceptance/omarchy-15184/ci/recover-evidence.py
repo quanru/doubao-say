@@ -4,7 +4,7 @@ begin=re.search(r'PR15184_EVIDENCE_BEGIN (\d+) ([a-f0-9]{64})',s)
 assert begin and 'PR15184_EVIDENCE_END' in s
 parts=re.findall(r'PR15184_EVIDENCE_DATA ([A-Za-z0-9+/=]+)',s)
 data=base64.b64decode(''.join(parts),validate=True)
-assert len(data)==int(begin[1]) and len(data)<=20*1024*1024
+assert len(data)==int(begin[1]) and len(data)<=50*1024*1024
 assert hashlib.sha256(data).hexdigest()==begin[2]
 out=pathlib.Path('acceptance/omarchy-15184/evidence');out.mkdir(exist_ok=True)
 (out/'run-38498146309.tar.gz').write_bytes(data)

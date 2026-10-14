@@ -12,8 +12,9 @@ corepack enable
 (cd work/midscene && pnpm install --frozen-lockfile --ignore-scripts && pnpm exec nx build @midscene/computer && pnpm exec nx build @midscene/report)
 sudo apt-get install -y --no-install-recommends libwayland-dev libpng-dev
 sh work/midscene/packages/computer/native/wayland/build.sh work/native-capture
+g++ -std=c++17 -O2 -Wall -Wextra -Werror ci/clock-check.cpp -o work/clock-check
 mapfile -t state < work/session-state
-scp -q -i "${state[0]}" -P 2222 -o StrictHostKeyChecking=no -o UserKnownHostsFile=/dev/null work/native-capture/midscene-wayland-capture ci/input-events.py omarchy@127.0.0.1:/tmp/pr15184/
+scp -q -i "${state[0]}" -P 2222 -o StrictHostKeyChecking=no -o UserKnownHostsFile=/dev/null work/native-capture/midscene-wayland-capture ci/input-events.py work/clock-check omarchy@127.0.0.1:/tmp/pr15184/
 # Exercise genuine guest capture before model credentials enter the job.
 set +e
 timeout 2 bash ci/guest.sh native-source > work/native-preflight.jsonl
@@ -36,3 +37,6 @@ printf '%s\n' "$sha" > review-artifacts/versions/midscene-commit.txt
 sha256sum work/native-capture/midscene-wayland-capture > review-artifacts/versions/native-helper-sha256.txt
 
 node ci/native-smoke.mjs
+
+bash ci/guest.sh clock-check > review-artifacts/versions/guest-clock-check.json
+python3 ci/capture-ab.py
