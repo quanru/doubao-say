@@ -103,13 +103,20 @@ final class SettingsModel: ObservableObject {
     var isDoubaoSignedIn: Bool {
         SettingsStore.shared.value.provider == .doubao ? state.loginStatus == .loggedIn : doubaoSessionSaved
     }
+    var effectiveMicrophone: AudioInputDevice? {
+        AudioDevices.resolve(preferred: draft.microphoneID, inputs: microphones, defaultUID: currentDefaultMicrophoneID)
+    }
+    var microphoneStatus: String {
+        guard let device = effectiveMicrophone else { return L("No microphone available", "没有可用的麦克风") }
+        if !draft.microphoneID.isEmpty && device.id != draft.microphoneID {
+            return L("Saved microphone disconnected. Using: ", "所选麦克风已断开，自动使用：") + device.name
+        }
+        return L("Using: ", "当前使用：") + device.name
+    }
     func refreshMicrophones() {
-        let previous = draft.microphoneID.isEmpty ? currentDefaultMicrophoneID : draft.microphoneID
-        let previousDevice = microphones.first { $0.id == previous }
+        let previous = effectiveMicrophone
         microphones = microphoneInputs(); currentDefaultMicrophoneID = defaultMicrophoneID()
-        let current = draft.microphoneID.isEmpty ? currentDefaultMicrophoneID : draft.microphoneID
-        let currentDevice = microphones.first { $0.id == current }
-        if previous != current || previousDevice?.audioID != currentDevice?.audioID {
+        if previous != effectiveMicrophone {
             state.microphoneChecked = false; state.voiceChecked = false
         }
     }
@@ -472,7 +479,7 @@ struct SettingsView: View {
                 HStack { Text(model.draft.shortcut.label); Button(L("Choose shortcut", "选择快捷键")) { model.chooseShortcut() } }.disabled(model.setupBusy)
                 Label(model.shortcutAvailable ? L("Shortcut ready", "快捷键已就绪") : L("Shortcut permission required", "请启用快捷键权限"), systemImage: model.shortcutAvailable ? "checkmark.circle.fill" : "circle")
                     .foregroundColor(model.shortcutAvailable ? .green : .secondary)
-                Text(L("Tap to start or stop; hold to talk. Esc cancels recording.", "短按开始或结束，长按说话；Esc 取消录音。"))
+                Text(L("Tap to start; hold to talk. During voice input, any key stops and inputs text.", "短按开始，长按说话；语音输入期间，任意按键都结束并上屏。"))
             }.formStyle(.grouped).padding(8)
         default:
             Form {
@@ -553,8 +560,8 @@ struct SettingsView: View {
         ScrollView {
             VStack(alignment: .leading, spacing: 14) {
                 HStack { Text(L("Dictation: ", "听写：") + model.draft.shortcut.label); Button(L("Choose shortcut", "选择快捷键")) { model.chooseShortcut() } }
-                Text(L("Tap to toggle; hold to talk. Double-tap finishes and sends Enter, or sends Enter while idle.", "短按切换录音，长按说话。双击结束并发送回车，空闲时双击发送回车。"))
-                Toggle(L("Double-tap sends Enter", "双击发送回车"), isOn: $model.draft.doubleEnter)
+                Text(L("Tap to start; hold to talk. Any key finishes voice input without its original action. Double-tap sends Enter while idle.", "短按开始录音，长按说话。语音输入期间任意按键都结束上屏，不执行原按键动作；空闲时双击发送回车。"))
+                Toggle(L("Double-tap sends Enter when idle", "空闲时双击发送回车"), isOn: $model.draft.doubleEnter)
                 Stepper(L("Hold threshold: ", "长按阈值：") + "\(model.draft.holdMilliseconds) ms", value: $model.draft.holdMilliseconds, in: 200...1500, step: 50)
                 Stepper(L("Double-tap interval: ", "双击间隔：") + "\(model.draft.doubleMilliseconds) ms", value: $model.draft.doubleMilliseconds, in: 150...600, step: 50)
                 Divider()
@@ -579,12 +586,18 @@ struct SettingsView: View {
         HStack { Text(title + ": " + value); Spacer(); Button(L("Choose", "选择")) { model.chooseShortcut(destination) } }
     }
     private var microphonePicker: some View {
-        Picker(L("Microphone", "麦克风"), selection: $model.draft.microphoneID) {
-            Text(L("System default", "系统默认")).tag("")
-            ForEach(model.microphones) { Text($0.name).tag($0.id) }
-            if !model.draft.microphoneID.isEmpty && !model.microphones.contains(where: { $0.id == model.draft.microphoneID }) {
-                Text(L("Saved device unavailable", "已保存的设备不可用")).tag(model.draft.microphoneID)
-            }
+        VStack(alignment: .leading, spacing: 4) {
+            Picker(L("Microphone", "麦克风"), selection: Binding(
+                get: { model.draft.microphoneID },
+                set: { _ = model.selectMicrophone($0) }
+            )) {
+                Text(L("System default", "系统默认")).tag("")
+                ForEach(model.microphones) { Text($0.name).tag($0.id) }
+                if !model.draft.microphoneID.isEmpty && !model.microphones.contains(where: { $0.id == model.draft.microphoneID }) {
+                    Text(L("Saved device disconnected · automatic fallback", "所选设备已断开 · 自动回退")).tag(model.draft.microphoneID)
+                }
+            }.disabled(model.setupBusy || state.evaluationBusy || state.inputPending)
+            Text(model.microphoneStatus).font(.caption).foregroundColor(.secondary)
         }
     }
     private var general: some View {
@@ -596,7 +609,7 @@ struct SettingsView: View {
             microphonePicker
             Picker(L("Input method", "输入方式"), selection: $model.draft.inputMethod) {
                 Text(L("Automatic (direct input when supported)", "自动选择（支持时直接输入）")).tag("auto")
-                Text(L("Clipboard (restores previous contents)", "剪贴板（恢复原内容）")).tag("clipboard")
+                Text(L("Clipboard (keeps dictated text)", "剪贴板（保留识别文字）")).tag("clipboard")
                 Text(L("Direct accessibility input", "辅助功能直接输入")).tag("direct")
             }
             Text(L("Direct input needs an editable accessibility field. If unavailable, text stays in the app.", "直接输入需要可编辑的辅助功能输入框，不可用时文字保留在应用中。"))
@@ -611,7 +624,7 @@ struct SettingsView: View {
                 }
             Button(L("Copy diagnostics", "复制诊断信息")) {
                 let settings = SettingsStore.shared.value
-                PasteHelper.copyOnly("Doubao Say macOS\nVersion: \(Bundle.main.infoDictionary?["CFBundleShortVersionString"] as? String ?? "development")\nSystem: \(ProcessInfo.processInfo.operatingSystemVersionString)\nProvider: \(settings.provider.rawValue)\nShortcut: \(settings.shortcut.label)\nPolishing: \(settings.polishEnabled)\nInput: \(settings.inputMethod)\nMicrophone check: \(state.microphoneChecked)\nVoice check: \(state.voiceChecked)")
+                PasteHelper.copyOnly("Doubao Say macOS\nVersion: \(Bundle.main.infoDictionary?["CFBundleShortVersionString"] as? String ?? "development")\nSystem: \(ProcessInfo.processInfo.operatingSystemVersionString)\nProvider: \(settings.provider.rawValue)\nShortcut: \(settings.shortcut.label)\nPolishing: \(settings.polishEnabled)\nInput: \(settings.inputMethod)\nDelivery: \(state.inputDiagnostic)\nMicrophone check: \(state.microphoneChecked)\nVoice check: \(state.voiceChecked)")
                 model.feedback = L("Diagnostics copied without credentials, device IDs or transcripts.", "已复制诊断信息，不含凭证、设备标识或转写。")
             }
         }.formStyle(.grouped).padding(8)
@@ -645,15 +658,19 @@ final class SettingsWindow: NSObject, NSWindowDelegate {
     }
     func show(refresh: Bool = true) {
         if refresh { model.refresh() }
+        ApplicationPresence.willShow(window)
         if window.isMiniaturized { window.deminiaturize(nil) }
         NSApp.activate(ignoringOtherApps: true)
         window.makeKeyAndOrderFront(nil)
         window.makeFirstResponder(nil)
     }
-    func windowWillClose(_ notification: Notification) { model.closeEditor() }
+    func windowWillClose(_ notification: Notification) {
+        model.closeEditor()
+        ApplicationPresence.didHide(window)
+    }
     var isVisible: Bool { window.isVisible }
     func close() { model.stopTests(); window.close() }
-    func hide() { window.orderOut(nil) }
+    func hide() { window.orderOut(nil); ApplicationPresence.didHide(window) }
     func updateTitle() { window.title = "Doubao Say · " + L("Settings", "设置") }
     func captureImage(to path: String) {
         WindowCapture.request(window)

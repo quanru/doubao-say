@@ -10,9 +10,19 @@ class AudioCaptureManager {
     private var callback: ((Data) -> Void)?
     private var isCapturing = false
     private var captureGeneration = UUID()
-    private var startedAt: TimeInterval = 0
-    private var startupRecoveryAvailable = true
+    private var preferredDeviceID = ""
+    private(set) var activeDevice: AudioInputDevice?
+    private var deviceMonitor: AudioDeviceMonitor?
+    private var recoveryWork: DispatchWorkItem?
+    private var recoveryAttempts = 0
     private var configurationObserver: NSObjectProtocol?
+    private let inputDevices: () -> [AudioInputDevice]
+    private let defaultInputUID: () -> String?
+    init(inputDevices: @escaping () -> [AudioInputDevice] = AudioDevices.inputs,
+         defaultInputUID: @escaping () -> String? = AudioDevices.defaultInputUID) {
+        self.inputDevices = inputDevices
+        self.defaultInputUID = defaultInputUID
+    }
     var onError: (() -> Void)?
     private var rmsCallback: ((Double) -> Void)?
     var onRMS: ((Double) -> Void)? {
@@ -27,25 +37,35 @@ class AudioCaptureManager {
     }
 
     func startCapture(deviceID: String = "") throws {
-        try beginCapture(deviceID: deviceID, allowStartupRecovery: true)
-    }
-    private func beginCapture(deviceID: String, allowStartupRecovery: Bool) throws {
         guard !isCapturing else { return }
+        preferredDeviceID = deviceID
+        recoveryAttempts = 0
+        try beginCapture()
+        isCapturing = true
+        deviceMonitor = AudioDeviceMonitor { [weak self] in self?.hardwareChanged() }
+    }
+
+    private func resolvedDevice() -> AudioInputDevice? {
+        AudioDevices.resolve(preferred: preferredDeviceID, inputs: inputDevices(),
+                             defaultUID: defaultInputUID())
+    }
+
+    private func beginCapture() throws {
+        guard let device = resolvedDevice() else {
+            throw NSError(domain: "AudioCapture", code: -3,
+                          userInfo: [NSLocalizedDescriptionKey: "No audio input available"])
+        }
         let token = UUID()
         lock.lock(); captureGeneration = token; lock.unlock()
-        startupRecoveryAvailable = allowStartupRecovery
-        startedAt = ProcessInfo.processInfo.systemUptime
-
         let engine = AVAudioEngine()
         let inputNode = engine.inputNode
-        if !deviceID.isEmpty {
-            guard let device = AudioDevices.inputs().first(where: { $0.id == deviceID }), let unit = inputNode.audioUnit else {
-                throw NSError(domain: "AudioCapture", code: -3)
-            }
-            var id = device.audioID
-            guard AudioUnitSetProperty(unit, kAudioOutputUnitProperty_CurrentDevice, kAudioUnitScope_Global, 0, &id, UInt32(MemoryLayout.size(ofValue: id))) == noErr else {
-                throw NSError(domain: "AudioCapture", code: -4)
-            }
+        // Explicitly resolve even System default: a running engine does not reliably
+        // rebind when the default changes to a device with the same audio format.
+        guard let unit = inputNode.audioUnit else { throw NSError(domain: "AudioCapture", code: -4) }
+        var id = device.audioID
+        guard AudioUnitSetProperty(unit, kAudioOutputUnitProperty_CurrentDevice, kAudioUnitScope_Global, 0,
+                                   &id, UInt32(MemoryLayout.size(ofValue: id))) == noErr else {
+            throw NSError(domain: "AudioCapture", code: -4)
         }
         let inputFormat = inputNode.outputFormat(forBus: 0)
 
@@ -66,9 +86,17 @@ class AudioCaptureManager {
             throw NSError(domain: "AudioCapture", code: -2,
                           userInfo: [NSLocalizedDescriptionKey: "Cannot create audio format converter"])
         }
+        var reportedInput = false
         inputNode.installTap(onBus: 0, bufferSize: 4096, format: inputFormat) {
             [weak self] buffer, _ in
             guard let self = self, self.isCurrent(token) else { return }
+            if !reportedInput && buffer.frameLength > 0 {
+                reportedInput = true
+                DispatchQueue.main.async { [weak self] in
+                    guard let self, self.isCapturing, self.isCurrent(token) else { return }
+                    self.recoveryAttempts = 0
+                }
+            }
             self.processAudioBuffer(buffer, converter: conv, token: token, onAudioData: self.onAudioData)
         }
 
@@ -80,35 +108,63 @@ class AudioCaptureManager {
         }
 
         self.audioEngine = engine
-        self.isCapturing = true
+        self.activeDevice = device
         configurationObserver = NotificationCenter.default.addObserver(forName: .AVAudioEngineConfigurationChange, object: engine, queue: nil) { [weak self, weak engine] _ in
             // Never tear down an engine on the notification's internal audio queue.
             DispatchQueue.main.async {
-                guard let self = self, let engine = engine, self.isCurrent(token), self.isCapturing else { return }
+                guard let self, let engine, self.isCurrent(token), self.isCapturing else { return }
                 let format = engine.inputNode.outputFormat(forBus: 0)
-                let deviceAvailable = deviceID.isEmpty || AudioDevices.inputs().contains { $0.id == deviceID }
-                let formatMatches = format.sampleRate == inputFormat.sampleRate && format.channelCount == inputFormat.channelCount
-                if deviceAvailable && engine.isRunning && formatMatches { return }
-                if deviceAvailable && self.startupRecoveryAvailable && ProcessInfo.processInfo.systemUptime - self.startedAt <= 2 {
-                    self.stopCapture()
-                    do { try self.beginCapture(deviceID: deviceID, allowStartupRecovery: false) }
-                    catch { self.onError?() }
-                } else { self.onError?() }
+                if self.resolvedDevice() == self.activeDevice && engine.isRunning &&
+                    format.sampleRate == inputFormat.sampleRate && format.channelCount == inputFormat.channelCount { return }
+                self.scheduleRecovery()
             }
         }
+    }
+
+    func hardwareChanged() {
+        guard isCapturing, resolvedDevice() != activeDevice || audioEngine?.isRunning != true else { return }
+        scheduleRecovery()
+    }
+
+    private func scheduleRecovery() {
+        guard isCapturing, recoveryWork == nil else { return }
+        // Coalesce CoreAudio's device/default/configuration notifications. Retain the
+        // callbacks and ASR session while replacing only the microphone stream.
+        if recoveryAttempts >= 4 {
+            stopCapture()
+            onError?()
+            return
+        }
+        stopEngine()
+        let token = captureGeneration
+        let work = DispatchWorkItem { [weak self] in
+            guard let self, self.isCapturing, self.isCurrent(token) else { return }
+            self.recoveryWork = nil
+            self.recoveryAttempts += 1
+            do { try self.beginCapture() }
+            catch { self.scheduleRecovery() }
+        }
+        recoveryWork = work
+        DispatchQueue.main.asyncAfter(deadline: .now() + 0.25, execute: work)
     }
     private func isCurrent(_ token: UUID) -> Bool {
         lock.lock(); defer { lock.unlock() }; return captureGeneration == token
     }
 
     func stopCapture() {
+        isCapturing = false
+        recoveryWork?.cancel(); recoveryWork = nil
+        deviceMonitor = nil
+        stopEngine()
+    }
+
+    private func stopEngine() {
         lock.lock(); captureGeneration = UUID(); lock.unlock()
-        guard isCapturing else { return }
         if let observer = configurationObserver { NotificationCenter.default.removeObserver(observer); configurationObserver = nil }
         audioEngine?.inputNode.removeTap(onBus: 0)
         audioEngine?.stop()
         audioEngine = nil
-        isCapturing = false
+        activeDevice = nil
     }
 
     // MARK: - Audio Processing

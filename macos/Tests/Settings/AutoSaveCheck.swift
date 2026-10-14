@@ -52,8 +52,16 @@ struct AutoSaveCheck {
         precondition(deviceModel.microphones.count == 1 && deviceModel.draft.microphoneID == usb.id
                      && !deviceState.microphoneChecked && !deviceState.voiceChecked,
                      "Unplugging the selected device must preserve its UID and invalidate checks")
+        precondition(deviceModel.effectiveMicrophone == builtIn,
+                     "Disconnected preference must fall back to the available input")
         devices.append(usb); deviceModel.refreshMicrophones()
+        precondition(deviceModel.effectiveMicrophone == usb, "Reconnected preferred input must recover")
         precondition(deviceModel.microphones.contains { $0.id == usb.id } && deviceModel.draft.microphoneID == usb.id)
+        precondition(AudioDevices.resolve(preferred: "", inputs: [builtIn, usb], defaultUID: usb.id) == usb)
+        precondition(AudioDevices.resolve(preferred: usb.id, inputs: [builtIn, usb], defaultUID: builtIn.id) == usb)
+        precondition(AudioDevices.resolve(preferred: usb.id, inputs: [builtIn], defaultUID: usb.id) == builtIn,
+                     "A stale system default during unplug must still select an available input")
+        precondition(AudioDevices.resolve(preferred: usb.id, inputs: [], defaultUID: usb.id) == nil)
         print("PASS: hardware listeners registered; simulated insert/remove/default changes refresh inputs and preserve selection")
         let state = AppState()
         let model = SettingsModel(state: state)

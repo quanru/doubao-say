@@ -64,6 +64,11 @@ relevant scenario when fixing a covered user-visible flow.
 
 ## Review and release
 
+Use English for all GitHub-facing content in this repository: issue and pull
+request titles, descriptions and comments, commit messages, release titles and
+release notes. Keep explicitly localized UI strings and documentation in their
+specified languages. Conversation with the maintainer may remain in Chinese.
+
 Use small conventional commits (`fix(login): ...`, `test(packaging): ...`). Explain
 the user-visible problem, approach, tests and remaining limitations in a PR.
 Run `make check` and the relevant manual acceptance before proposing a release.

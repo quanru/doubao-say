@@ -21,6 +21,7 @@ class AppState: ObservableObject {
 
     @Published var evaluationBusy = false
     @Published var inputPending = false
+    @Published var inputDiagnostic = "No input attempt"
     @Published var updateVersion = ""
     @Published var updateStatus = ""
     @Published var updateBusy = false

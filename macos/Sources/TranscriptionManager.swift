@@ -8,6 +8,7 @@ final class TranscriptionManager {
     private let hotkey: HotkeyManager
     private let audio = AudioCaptureManager()
     private let delivery = PasteHelper()
+    private let targetCapture = InputTargetCapture()
     private var client: ASRTransport?
     private let polisher = PolishCoordinator()
     private var polishAvailable = false
@@ -59,22 +60,24 @@ final class TranscriptionManager {
         hotkey.start()
     }
     func startRecording() {
-        defer { hotkey.setEscapeHandlingEnabled(state.recordingState != .idle || state.inputPending || overlay.isVisible, recording: state.isRecording) }
+        defer { hotkey.setEscapeHandlingEnabled(state.recordingState != .idle || state.inputPending || overlay.isVisible, recording: state.isRecording,
+                                               interceptKeys: state.recordingState != .idle || state.inputPending) }
         if state.recordingState == .polishing { polisher.useOriginal(); return }
         guard state.recordingState == .idle, !state.inputPending, !state.evaluationBusy, canRecord?() ?? true else { return }
         settings = SettingsStore.shared.value
         delivery.cancel()
+        if !primed { captureTarget() }
         let params = settings.provider == .doubao ? ASRParamsStore.load() : nil
         let apiKey = settings.provider == .doubao ? nil : SecretStore.load(settings.provider.rawValue + "-api-key")
-        guard params != nil || !(apiKey ?? "").isEmpty else { discardPrime(); onLoginNeeded?(); return }
+        guard params != nil || !(apiKey ?? "").isEmpty else { discardPrime(); clearTarget(); onLoginNeeded?(); return }
         guard AVCaptureDevice.authorizationStatus(for: .audio) == .authorized else {
+            discardPrime(); clearTarget()
             state.errorMessage = L("Enable microphone access in System Settings.", "请在系统设置中允许麦克风访问。")
             if AVCaptureDevice.authorizationStatus(for: .audio) == .notDetermined {
                 AVCaptureDevice.requestAccess(for: .audio) { _ in }
             }
             return
         }
-        if !primed { target = testMode ? nil : InputTarget.capture() }
         session = UUID()
         let token = session
         let transport: ASRTransport = settings.provider == .doubao ? DoubaoASRClient() : APIASRClient(provider: settings.provider)
@@ -202,6 +205,7 @@ final class TranscriptionManager {
         latency.mark("polish", at: ProcessInfo.processInfo.systemUptime)
         var timing = latency
         let captured = target
+        let captureDiagnostic = targetCapture.diagnostic
         let enter = sendEnter
         let original = rawText
         var historyID: String?
@@ -220,14 +224,15 @@ final class TranscriptionManager {
             try? PersonalDataStore.shared.saveTimings(historyID, values: timing.values); return
         }
         let token = session
-        hotkey.setEscapeHandlingEnabled(true)
+        hotkey.setEscapeHandlingEnabled(true, interceptKeys: true)
         state.inputPending = true
         updateSafeAfter = ProcessInfo.processInfo.systemUptime + 1.2
         delivery.deliver(text, target: captured, method: settings.inputMethod, sendEnter: enter) { [weak self] sent in
             timing.mark("delivery", at: ProcessInfo.processInfo.systemUptime)
             try? PersonalDataStore.shared.saveTimings(historyID, values: timing.values)
-            try? PersonalDataStore.shared.status(historyID, sent ? "sent" : "failed")
+            try? PersonalDataStore.shared.status(historyID, sent ? (self?.delivery.usedClipboard == true ? "attempted" : "sent") : "failed")
             guard self?.session == token else { return }
+            self?.state.inputDiagnostic = captureDiagnostic + "; " + (self?.delivery.diagnostic ?? "No input attempt")
             self?.state.inputPending = false
             self?.hotkey.setEscapeHandlingEnabled(false)
             if !sent { self?.showInputFailure(text) }
@@ -277,8 +282,9 @@ final class TranscriptionManager {
             self.retryTimeout = nil
             let historyID = try? PersonalDataStore.shared.record(original: text, output: text, polished: false)
             self.delivery.deliver(text, target: InputTarget.capture(), method: SettingsStore.shared.value.inputMethod) { sent in
-                try? PersonalDataStore.shared.status(historyID, sent ? "sent" : "failed")
+                try? PersonalDataStore.shared.status(historyID, sent ? (self.delivery.usedClipboard ? "attempted" : "sent") : "failed")
                 guard self.session == token else { return }
+                self.state.inputDiagnostic = self.delivery.diagnostic
                 self.state.inputPending = false
                 self.hotkey.setEscapeHandlingEnabled(false)
                 self.state.feedback = sent ? L("Input attempted", "已发送输入操作") : L("Target unavailable; text kept", "目标不可用，文字已保留")
@@ -321,7 +327,7 @@ final class TranscriptionManager {
         guard state.recordingState == .idle, !state.inputPending, !state.evaluationBusy, !primed, canRecord?() ?? true,
               AVCaptureDevice.authorizationStatus(for: .audio) == .authorized else { return }
         delivery.cancel(); session = UUID()
-        target = InputTarget.capture(); primedAudio.removeAll(); primed = true
+        captureTarget(); primedAudio.removeAll(); primed = true
         audio.onAudioData = { [weak self] data in
             Task { @MainActor in
                 guard let self = self, self.primed, self.primedAudio.count + data.count <= 96_000 else { return }
@@ -332,7 +338,14 @@ final class TranscriptionManager {
     }
     private func discardPrime() {
         guard primed else { return }
-        primed = false; primedAudio.removeAll(); audio.stopCapture(); audio.onAudioData = nil; audio.onRMS = nil; audio.onError = nil; target = nil
+        clearTarget()
+        primed = false; primedAudio.removeAll(); audio.stopCapture(); audio.onAudioData = nil; audio.onRMS = nil; audio.onError = nil
+    }
+    private func clearTarget() { targetCapture.cancel(); target = nil }
+    private func captureTarget() {
+        target = nil
+        guard !testMode else { targetCapture.cancel(); return }
+        targetCapture.begin { [weak self] in self?.target = $0 }
     }
     private func showFailure(_ message: String, status: String = L("Microphone unavailable", "麦克风不可用"), keptText: String = "") {
         cancel()
@@ -346,17 +359,18 @@ final class TranscriptionManager {
         } else { scheduleTimeout(seconds: 6, token: session) { [weak self] in self?.cancel() } }
     }
     func cancel() {
+        clearTarget()
         session = UUID(); timeout?.cancel(); timeout = nil; quietTimer?.cancel(); quietTimer = nil; finalGate = FinalResultGate()
         retryTimeout?.cancel(); retryTimeout = nil; state.inputPending = false
         polisher.cancel(); primed = false; primedAudio.removeAll(); testMode = false; sendEnter = false
         delivery.cancel(); audio.stopCapture(); audio.onAudioData = nil; audio.onRMS = nil; audio.onError = nil
-        client?.disconnect(); client = nil; target = nil
+        client?.disconnect(); client = nil
         setState(.idle); overlay.hideOverlay(); state.transcriptionText = ""; state.overlayStatus = ""; state.rms = 0
     }
     private func setState(_ value: RecordingState) {
         if value == .polishing { state.polishStartedAt = Date() }
         else { state.polishStartedAt = nil }
         state.recordingState = value
-        hotkey.setEscapeHandlingEnabled(value != .idle, recording: value == .starting || value == .recording)
+        hotkey.setEscapeHandlingEnabled(value != .idle, recording: value == .starting || value == .recording, interceptKeys: value != .idle)
     }
 }

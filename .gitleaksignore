@@ -1,0 +1,30 @@
+# Verified false positives in a historical generated SHA-256 file manifest.
+# Each exception is pinned to one commit, path, rule, and line; future changes
+# and directory scans remain covered. Do not replace these with path-wide rules.
+67747d8ec311fae178823b1c16de6b64ae5f0899:acceptance/omarchy-15184/evidence/roi-review/versions/source-file-hashes.json:discord-api-token:228
+67747d8ec311fae178823b1c16de6b64ae5f0899:acceptance/omarchy-15184/evidence/roi-review/versions/source-file-hashes.json:generic-api-key:1077
+67747d8ec311fae178823b1c16de6b64ae5f0899:acceptance/omarchy-15184/evidence/roi-review/versions/source-file-hashes.json:generic-api-key:1082
+67747d8ec311fae178823b1c16de6b64ae5f0899:acceptance/omarchy-15184/evidence/roi-review/versions/source-file-hashes.json:generic-api-key:1112
+67747d8ec311fae178823b1c16de6b64ae5f0899:acceptance/omarchy-15184/evidence/roi-review/versions/source-file-hashes.json:generic-api-key:1253
+67747d8ec311fae178823b1c16de6b64ae5f0899:acceptance/omarchy-15184/evidence/roi-review/versions/source-file-hashes.json:generic-api-key:1256
+67747d8ec311fae178823b1c16de6b64ae5f0899:acceptance/omarchy-15184/evidence/roi-review/versions/source-file-hashes.json:generic-api-key:1258
+67747d8ec311fae178823b1c16de6b64ae5f0899:acceptance/omarchy-15184/evidence/roi-review/versions/source-file-hashes.json:generic-api-key:1259
+67747d8ec311fae178823b1c16de6b64ae5f0899:acceptance/omarchy-15184/evidence/roi-review/versions/source-file-hashes.json:generic-api-key:1260
+67747d8ec311fae178823b1c16de6b64ae5f0899:acceptance/omarchy-15184/evidence/roi-review/versions/source-file-hashes.json:generic-api-key:1261
+67747d8ec311fae178823b1c16de6b64ae5f0899:acceptance/omarchy-15184/evidence/roi-review/versions/source-file-hashes.json:generic-api-key:1263
+67747d8ec311fae178823b1c16de6b64ae5f0899:acceptance/omarchy-15184/evidence/roi-review/versions/source-file-hashes.json:generic-api-key:1264
+67747d8ec311fae178823b1c16de6b64ae5f0899:acceptance/omarchy-15184/evidence/roi-review/versions/source-file-hashes.json:generic-api-key:211
+67747d8ec311fae178823b1c16de6b64ae5f0899:acceptance/omarchy-15184/evidence/roi-review/versions/source-file-hashes.json:generic-api-key:223
+67747d8ec311fae178823b1c16de6b64ae5f0899:acceptance/omarchy-15184/evidence/roi-review/versions/source-file-hashes.json:generic-api-key:253
+67747d8ec311fae178823b1c16de6b64ae5f0899:acceptance/omarchy-15184/evidence/roi-review/versions/source-file-hashes.json:generic-api-key:256
+67747d8ec311fae178823b1c16de6b64ae5f0899:acceptance/omarchy-15184/evidence/roi-review/versions/source-file-hashes.json:generic-api-key:261
+67747d8ec311fae178823b1c16de6b64ae5f0899:acceptance/omarchy-15184/evidence/roi-review/versions/source-file-hashes.json:generic-api-key:267
+67747d8ec311fae178823b1c16de6b64ae5f0899:acceptance/omarchy-15184/evidence/roi-review/versions/source-file-hashes.json:generic-api-key:281
+67747d8ec311fae178823b1c16de6b64ae5f0899:acceptance/omarchy-15184/evidence/roi-review/versions/source-file-hashes.json:generic-api-key:358
+67747d8ec311fae178823b1c16de6b64ae5f0899:acceptance/omarchy-15184/evidence/roi-review/versions/source-file-hashes.json:generic-api-key:398
+67747d8ec311fae178823b1c16de6b64ae5f0899:acceptance/omarchy-15184/evidence/roi-review/versions/source-file-hashes.json:generic-api-key:513
+67747d8ec311fae178823b1c16de6b64ae5f0899:acceptance/omarchy-15184/evidence/roi-review/versions/source-file-hashes.json:generic-api-key:621
+67747d8ec311fae178823b1c16de6b64ae5f0899:acceptance/omarchy-15184/evidence/roi-review/versions/source-file-hashes.json:generic-api-key:686
+67747d8ec311fae178823b1c16de6b64ae5f0899:acceptance/omarchy-15184/evidence/roi-review/versions/source-file-hashes.json:generic-api-key:809
+67747d8ec311fae178823b1c16de6b64ae5f0899:acceptance/omarchy-15184/evidence/roi-review/versions/source-file-hashes.json:generic-api-key:848
+67747d8ec311fae178823b1c16de6b64ae5f0899:acceptance/omarchy-15184/evidence/roi-review/versions/source-file-hashes.json:generic-api-key:98

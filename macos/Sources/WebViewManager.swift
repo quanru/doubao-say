@@ -2,7 +2,7 @@ import AppKit
 import WebKit
 
 @MainActor
-final class WebViewManager: NSObject, WKScriptMessageHandler, WKNavigationDelegate, WKUIDelegate {
+final class WebViewManager: NSObject, WKScriptMessageHandler, WKNavigationDelegate, WKUIDelegate, NSWindowDelegate {
     private let appState: AppState
     private var webView: WKWebView?
     private var window: NSWindow?
@@ -31,19 +31,26 @@ final class WebViewManager: NSObject, WKScriptMessageHandler, WKNavigationDelega
             let panel = NSWindow(contentRect: NSRect(x: 0, y: 0, width: 1000, height: 720),
                 styleMask: [.titled, .closable, .resizable], backing: .buffered, defer: false)
             panel.title = L("Doubao Say — Sign in", "豆包说 — 登录")
-            panel.isReleasedWhenClosed = false; panel.contentView = view
+            panel.isReleasedWhenClosed = false; panel.contentView = view; panel.delegate = self
             window = panel; webView = view
             view.load(URLRequest(url: URL(string: "https://www.doubao.com/chat")!))
         }
+        if let window { ApplicationPresence.willShow(window) }
         window?.center(); window?.makeKeyAndOrderFront(nil)
         NSApp.activate(ignoringOtherApps: true)
     }
-    func hideLoginWindow() { window?.orderOut(nil) }
+    func windowWillClose(_ notification: Notification) {
+        if let window { ApplicationPresence.didHide(window) }
+    }
+    func hideLoginWindow() {
+        window?.orderOut(nil)
+        if let window { ApplicationPresence.didHide(window) }
+    }
     func destroyWebView() {
         webView?.stopLoading()
         webView?.configuration.userContentController.removeScriptMessageHandler(forName: "asrHandler")
         webView?.navigationDelegate = nil; webView?.uiDelegate = nil
-        window?.orderOut(nil); window?.contentView = nil
+        hideLoginWindow(); window?.contentView = nil
         window = nil; webView = nil
     }
     func extractASRParams() async -> DoubaoASRParams? {
