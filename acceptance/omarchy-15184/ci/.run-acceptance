@@ -1,1 +1,1 @@
-Bounded diagnosed RTLD_LOCAL provider-resolution fix after 38518973233. Local old-exit90/fixed-exit0 loader and GL fallback tests, full driver/guest contracts pass. Health before any mode inputs. SDK852410869c665bbb32f1017d51103fb768e01b07 unchanged.
+Canonical compositor-session launch after diagnosed SSH polkit contamination; RTLD_LOCAL provider fix; health/focus guards before and after inputs; comprehensive unit contracts and loader reproduction pass. Prior active38521186461 confirmed cancelled. SDK852410869c665bbb32f1017d51103fb768e01b07 unchanged, zero model.

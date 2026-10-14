@@ -1,4 +1,4 @@
-import sys,subprocess,pathlib,json,hashlib,os,shutil,time
+import sys,subprocess,pathlib,json,hashlib,os,shutil,time,shlex
 R=pathlib.Path('/tmp/pr15184');E=R/'evidence';E.mkdir(exist_ok=True)
 def run(*args):return subprocess.check_output(args,text=True).strip()
 def save(name,obj): (E/(name+'.json')).write_text(json.dumps(obj,ensure_ascii=False,indent=2))
@@ -19,7 +19,17 @@ def target_window():
  save('test-windows',[{k:c.get(k) for k in ['address','class','initialClass','title','pid']} for c in matches])
  assert len(matches)==1,'Expected one real test terminal window'
  return matches[0]
+def layer_names():
+ data=json.loads(run('hyprctl','-j','layers'));names=[]
+ def visit(x):
+  if isinstance(x,dict):
+   if 'namespace' in x:names.append(x['namespace'])
+   for value in x.values():visit(value)
+  elif isinstance(x,list):
+   for value in x:visit(value)
+ visit(data);return names
 def focus_target():
+ assert 'omarchy-polkit' not in layer_names(),'Authentication overlay has exclusive keyboard focus; no credentials will be entered'
  c=target_window();address=c['address']
  p=subprocess.run(['hyprctl','dispatch','hl.dsp.focus({ window = "address:'+address+'" })'],text=True,capture_output=True)
  if p.returncode:run('hyprctl','dispatch','focuswindow','address:'+address)
@@ -88,20 +98,29 @@ elif cmd=='probe-mode':
   time.sleep(.05)
  else:raise SystemExit('Old shell did not stop')
  d=E/('probe-'+tag);d.mkdir(exist_ok=True)
- env=dict(os.environ);env['QT_QPA_PLATFORM']='wayland';env['QS_DISABLE_FILE_WATCHER']='1';env['QS_NO_RELOAD_POPUP']='1'
+ env={};env['QT_QPA_PLATFORM']='wayland';env['QS_DISABLE_FILE_WATCHER']='1';env['QS_NO_RELOAD_POPUP']='1'
  env['OMARCHY_STARTUP_BACKGROUND']=str((pathlib.Path.home()/'.local/state/omarchy/current/background').resolve())
  env.pop('LD_PRELOAD',None);env.pop('WAYLAND_DEBUG',None)
  if mode in ['discovery','feedback']:env['WAYLAND_DEBUG']='client'
  if mode in ['passive','feedback','pixels']:
   env['LD_PRELOAD']=str(R/'presentation-probe.so');env['MIDSCENE_PRESENT_DIR']=str(d);env['MIDSCENE_PRESENT_MODE']=mode
- child=subprocess.Popen(['quickshell','-n','-p','/usr/share/omarchy/shell'],env=env,stdout=subprocess.DEVNULL,stderr=open(d/'stderr.log','w'),start_new_session=True)
+ # Match Omarchy's own restart path: inherit the compositor's canonical session.
+ launch=d/'launch.sh';pidfile=d/'pid'
+ command=['env',*[k+'='+v for k,v in env.items()],'quickshell','-n','-p','/usr/share/omarchy/shell']
+ launch.write_text('#!/bin/bash\nset -eu\nunset LD_PRELOAD WAYLAND_DEBUG MIDSCENE_PRESENT_DIR MIDSCENE_PRESENT_MODE\nprintf "%s\\n" "$$" > '+shlex.quote(str(pidfile))+'\nexec '+shlex.join(command)+' > /dev/null 2> '+shlex.quote(str(d/'stderr.log'))+'\n');launch.chmod(0o700)
+ run('hyprctl','dispatch','hl.dsp.exec_cmd('+json.dumps(shlex.quote(str(launch)))+')')
  for _ in range(100):
-  if child.poll() is not None:raise SystemExit('Observed shell exited')
+  if pidfile.exists():break
+  time.sleep(.05)
+ else:raise SystemExit('Compositor did not start observed shell')
+ pid=int(pidfile.read_text())
+ for _ in range(100):
+  if not pathlib.Path('/proc',str(pid)).exists():raise SystemExit('Observed shell exited')
   try:
    run('omarchy-shell','shell','ping');break
   except subprocess.CalledProcessError:time.sleep(.1)
  else:raise SystemExit('Observed shell did not become ready')
- save('probe-mode-'+tag,{'mode':mode,'pid':child.pid,'time_ns':time.monotonic_ns(),'snapshot':snap()});print(json.dumps({'pid':child.pid,'mode':mode}))
+ save('probe-mode-'+tag,{'mode':mode,'pid':pid,'launch':'Hyprland hl.dsp.exec_cmd (canonical session)','time_ns':time.monotonic_ns(),'snapshot':snap()});print(json.dumps({'pid':pid,'mode':mode}))
 elif cmd=='probe-health':
  tag=sys.argv[2];assert tag in ['discovery','plain','passive','feedback','pixels']
  state=json.loads((E/('probe-mode-'+tag+'.json')).read_text());pid=state['pid']
@@ -110,7 +129,8 @@ elif cmd=='probe-health':
  assert not [x for x in events if x['event']=='fatal'],'Observer fatal: '+str([x for x in events if x['event']=='fatal'])
  if tag in ['passive','feedback','pixels']:assert any(x['event']=='swap-end' and x['ok'] for x in events),'Observer has not captured a successful real EGL swap'
  monitors=json.loads(run('hyprctl','-j','monitors'));assert len(monitors)==1 and monitors[0]['reserved'][1]>=26,'Real top bar is not reserving its expected area'
- print(json.dumps({'pid':pid,'mode':tag,'healthy':True}))
+ names=layer_names();assert 'omarchy-polkit' not in names,'Authentication overlay present; no input allowed'
+ result={'pid':pid,'mode':tag,'healthy':True,'layer_names':names,'time_ns':time.monotonic_ns(),'processes':processes()};save('probe-health-'+tag+'-'+str(result['time_ns']),result);print(json.dumps(result))
 elif cmd=='probe-freeze':
  subprocess.run(['quickshell','kill','-p','/usr/share/omarchy/shell','--any-display'],check=False,stdout=subprocess.DEVNULL,stderr=subprocess.DEVNULL)
  for _ in range(100):

@@ -14,12 +14,13 @@ for(const mode of modes){
  guest('probe-mode',mode,mode);await sleep(1000);guest('probe-health',mode);console.log(`Real shell/probe healthy: ${mode}`);guest('focus');
  if(JSON.parse(guest('snapshot',`preflight-${mode}-initial`)).active!=='2'){key('meta_l','i');await sleep(700);}
  for(let i=0;i<4;i++){
-  const name=`probe${mode}${i}`;guest('input-start',name);let ready=false;for(let j=0;j<50;j++){try{guest('ready',name);ready=true;break;}catch{await sleep(30);}}if(!ready)throw Error('Input baseline missing');
+  const name=`probe${mode}${i}`;guest('focus');guest('probe-health',mode);guest('input-start',name);let ready=false;for(let j=0;j<50;j++){try{guest('ready',name);ready=true;break;}catch{await sleep(30);}}if(!ready)throw Error('Input baseline missing');
   const s=RegionObservation.start({command:'bash',args:[resolve(root,'ci/guest.sh'),'native-region'],geometry,maxFrames:1000});
   let input;try{for(let j=0;j<150&&!s.frames().length;j++)await sleep(20);if(!s.frames().length)throw Error('No source baseline');await sleep(200);key('shift','--hold-ms','80');await sleep(1000);input=JSON.parse(guest('input-end',name));}finally{await s.stop();}
   const d=resolve(out,'presentation-preflight',mode,String(i));mkdirSync(d,{recursive:true});
   const frames=s.frames().map((f,j)=>{const path=`${j}.png`;writeFileSync(resolve(d,path),f.png);return {frameId:f.frameId,timing:f.timing,geometry:f.geometry,path};});
   writeFileSync(resolve(d,'record.json'),JSON.stringify({input,frames},null,2));
+  guest('probe-health',mode);
   let pids;for(let j=0;j<30;j++){pids=JSON.parse(guest('native-status')).capture_pids;if(!pids.length)break;await sleep(50);}if(pids.length)throw Error('Native producer leaked');
  }
  guest('screenshot',`success-probe-${mode}`);

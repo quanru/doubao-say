@@ -13,3 +13,5 @@ wp_presentation由观测库新增请求，不能写成Qt原本已有反馈。启
 Qt平台插件的RTLD_LOCAL作用域可能使RTLD_NEXT找不到Wayland EGL/EGL provider；探针仅用RTLD_NOLOAD查找已加载的已知soname，不提升作用域、不额外加载渲染provider。本地动态加载单元先复现旧探针exit90，再验证修复及eglGetProcAddress回退。每种模式输入前检查真实shell进程、成功EGL swap、无fatal、顶栏reserved区域；不能以IPC刚启动代替绘制健康。
 
 提交前开销从wrapper入口计起，包含符号查找和swap-begin日志I/O；真正调用原始eglSwapBuffers前的时间保存在swap-end.beforeSwapNs，swap-begin.beforeLogNs仅是日志前时间。
+
+观察shell必须通过Hyprland的hl.dsp.exec_cmd启动，与仓库omarchy-restart-shell的真实会话路径一致，不能直接从SSH subprocess启动（已在失败轮次看到NetworkManager认证浮层）。启动脚本只显式覆盖观察器变量；不复制SSH会话环境、不输入凭据。输入前后读取真实compositor layers，出现omarchy-polkit独占键盘层即拒绝。所有失败证据保留。

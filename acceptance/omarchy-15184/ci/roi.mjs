@@ -59,6 +59,7 @@ try{
    frames:frames.map((f,j)=>{const path=`images/${String(j).padStart(4,'0')}.png`;writeFileSync(resolve(dest,path),f.png);return {frameId:f.frameId,timing:f.timing,geometry:f.geometry,path};})};
   writeFileSync(resolve(dest,'observation.json'),JSON.stringify(record,null,2));
   writeFileSync(resolve(dest,'cleanup.json'),JSON.stringify(await cleanup(),null,2));
+  guest('probe-health','pixels');
   const s=stable(),expected=i%2===0?'2':'1';if(s.active!==expected)throw Error(`${trial}: wrong input state`);
   guest('screenshot',`success-${trial}`);
   await agent.recordToReport(`${trial}: QMP Shift ${holdMs}ms；ROI 原始记录 observations/${trial}/observation.json`,{content:'全屏截图在计时窗口结束后采集；不能用此截图推断 500ms。'});
