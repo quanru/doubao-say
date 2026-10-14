@@ -1,0 +1,148 @@
+{
+  "status": "不能整体通过：完整按键口径0次失败、7次无法判定；keydown口径1次确定失败",
+  "configuration_passed": false,
+  "timing": {
+    "switch": {
+      "full_keypress": {
+        "PASS": 16,
+        "FAIL": 0,
+        "INCONCLUSIVE": 4
+      },
+      "keydown": {
+        "PASS": 16,
+        "FAIL": 1,
+        "INCONCLUSIVE": 3
+      },
+      "keyup": {
+        "PASS": 20,
+        "FAIL": 0,
+        "INCONCLUSIVE": 0
+      }
+    },
+    "quick": {
+      "full_keypress": {
+        "PASS": 17,
+        "FAIL": 0,
+        "INCONCLUSIVE": 3
+      },
+      "keydown": {
+        "PASS": 17,
+        "FAIL": 0,
+        "INCONCLUSIVE": 3
+      },
+      "keyup": {
+        "PASS": 17,
+        "FAIL": 0,
+        "INCONCLUSIVE": 3
+      }
+    }
+  },
+  "quality": {
+    "switch": {
+      "median_hold_ms": 79.78149999998277,
+      "median_interval_width_ms": 125.42341349998605,
+      "median_frame_gap_ms": 31.17137774999719,
+      "max_frame_gap_ms": 52.660014000022784
+    },
+    "quick": {
+      "median_hold_ms": 4.646000000007916,
+      "median_interval_width_ms": 49.250679499993566,
+      "median_frame_gap_ms": 31.183439249973162,
+      "max_frame_gap_ms": 59.95385300001362
+    }
+  },
+  "request_ready_envelope_counts": {
+    "switch": {
+      "full_keypress": {
+        "PASS": 15,
+        "FAIL": 0,
+        "INCONCLUSIVE": 5
+      },
+      "keydown": {
+        "PASS": 15,
+        "FAIL": 1,
+        "INCONCLUSIVE": 4
+      },
+      "keyup": {
+        "PASS": 19,
+        "FAIL": 0,
+        "INCONCLUSIVE": 1
+      }
+    },
+    "quick": {
+      "full_keypress": {
+        "PASS": 17,
+        "FAIL": 0,
+        "INCONCLUSIVE": 3
+      },
+      "keydown": {
+        "PASS": 17,
+        "FAIL": 0,
+        "INCONCLUSIVE": 3
+      },
+      "keyup": {
+        "PASS": 17,
+        "FAIL": 0,
+        "INCONCLUSIVE": 3
+      }
+    }
+  },
+  "ab": {
+    "blocks": [
+      {
+        "block": 0,
+        "filter": "adaptive",
+        "frames": 65,
+        "median_gap_ms": 42.48472600000969,
+        "max_gap_ms": 46.571406999981264,
+        "median_encode_ms": 20.025205
+      },
+      {
+        "block": 1,
+        "filter": "none",
+        "frames": 91,
+        "median_gap_ms": 30.25519000001077,
+        "max_gap_ms": 33.715345999982674,
+        "median_encode_ms": 7.72235
+      },
+      {
+        "block": 2,
+        "filter": "none",
+        "frames": 90,
+        "median_gap_ms": 30.436008999997284,
+        "max_gap_ms": 32.532995000015944,
+        "median_encode_ms": 7.7516680000000004
+      },
+      {
+        "block": 3,
+        "filter": "adaptive",
+        "frames": 62,
+        "median_gap_ms": 42.429778999998234,
+        "max_gap_ms": 45.618158999976,
+        "median_encode_ms": 20.018123
+      },
+      {
+        "block": 4,
+        "filter": "adaptive",
+        "frames": 64,
+        "median_gap_ms": 42.29133199999342,
+        "max_gap_ms": 45.62615799999912,
+        "median_encode_ms": 20.016071500000002
+      },
+      {
+        "block": 5,
+        "filter": "none",
+        "frames": 88,
+        "median_gap_ms": 30.088821999990614,
+        "max_gap_ms": 32.64736600001925,
+        "median_encode_ms": 7.7220315
+      }
+    ],
+    "default_filter": "none",
+    "median_gap_ratio": 0.7130649914535739,
+    "median_encode_ratio": 0.38576793638444523,
+    "limit": "Observed A/B medians, not a universal latency or sampling guarantee"
+  },
+  "verified_frames": 2110,
+  "total_cost_cny": 4.815786
+}

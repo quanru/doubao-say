@@ -185,8 +185,36 @@
       ],
       "prompt_tokens": 101755,
       "completion_tokens": 2262
+    },
+    {
+      "run_directory": "run-38503280111",
+      "reserved_request_count": 17,
+      "settled_requests": 17,
+      "unsettled_worst_case_requests": 0,
+      "conservative_accounted_micro_cny": 343722,
+      "upstream_statuses": [
+        200,
+        200,
+        200,
+        200,
+        200,
+        200,
+        200,
+        200,
+        200,
+        200,
+        200,
+        200,
+        200,
+        200,
+        200,
+        200,
+        200
+      ],
+      "prompt_tokens": 52397,
+      "completion_tokens": 978
     }
   ],
-  "total_conservative_micro_cny": 4472064,
+  "total_conservative_micro_cny": 4815786,
   "missing_ledgers": 0
 }
