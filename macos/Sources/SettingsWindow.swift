@@ -658,15 +658,19 @@ final class SettingsWindow: NSObject, NSWindowDelegate {
     }
     func show(refresh: Bool = true) {
         if refresh { model.refresh() }
+        ApplicationPresence.willShow(window)
         if window.isMiniaturized { window.deminiaturize(nil) }
         NSApp.activate(ignoringOtherApps: true)
         window.makeKeyAndOrderFront(nil)
         window.makeFirstResponder(nil)
     }
-    func windowWillClose(_ notification: Notification) { model.closeEditor() }
+    func windowWillClose(_ notification: Notification) {
+        model.closeEditor()
+        ApplicationPresence.didHide(window)
+    }
     var isVisible: Bool { window.isVisible }
     func close() { model.stopTests(); window.close() }
-    func hide() { window.orderOut(nil) }
+    func hide() { window.orderOut(nil); ApplicationPresence.didHide(window) }
     func updateTitle() { window.title = "Doubao Say · " + L("Settings", "设置") }
     func captureImage(to path: String) {
         WindowCapture.request(window)

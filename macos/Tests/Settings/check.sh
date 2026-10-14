@@ -15,3 +15,8 @@ xcrun swiftc -swift-version 5 -target "$(uname -m)-apple-macos13.0" \
     -module-cache-path build/macos/module-cache \
     macos/Sources/AudioDevices.swift macos/Sources/AudioCaptureManager.swift \
     macos/Tests/Live/MicrophoneRouteCheck.swift -o build/macos/tests/microphone-route-check
+
+# Compile the opt-in application-presence check without opening windows in CI.
+xcrun swiftc -swift-version 5 -target "$(uname -m)-apple-macos13.0" \
+    -module-cache-path build/macos/module-cache \
+    "${sources[@]}" macos/Tests/Settings/WindowPresenceCheck.swift -o build/macos/tests/window-presence-check

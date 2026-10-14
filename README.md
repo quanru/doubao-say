@@ -2,6 +2,10 @@
 
 > **macOS development preview:** A native Swift menu-bar client supports Doubao web sign-in, official Volcengine and Deepgram recognition, optional polishing, configurable shortcuts, microphone selection and input recovery. See the [Mac build and usage guide](macos/README.zh-CN.md) (Chinese). No Developer ID signed or notarized Mac release is available yet.
 
+On macOS, closing the last settings or sign-in window keeps dictation available
+from the menu bar while removing the app from the Dock and Cmd+Tab. Opening a
+window restores both entries; minimized windows keep their Dock entry.
+
 [Website](https://doubao-say.lifeos.md/) · [简体中文](README.zh-CN.md)
 
 ![Doubao Say voice input running on Omarchy Linux](images/readme-en.jpeg)
