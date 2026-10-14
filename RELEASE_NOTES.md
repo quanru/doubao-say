@@ -1,21 +1,21 @@
-# Doubao Say 1.7.0
+# Doubao Say 1.8.0
 
-## Personal speech evaluation
+## ChatGPT polishing
 
-Mac and Linux now provide an in-app speech evaluation page. Record locally, review what you actually said, then compare the same recording with raw official ASR, personal hotwords and optional polishing. Review character errors, target terms, protected-term loss, failed samples and replay timings. Starting comparison explicitly uploads recordings to your configured paid official ASR. Reference text is only used for scoring and never becomes vocabulary or enters recognition requests. Drafts save automatically; recordings remain until deleted.
+Linux now supports ChatGPT as a polishing provider alongside the existing API-based providers. Recognition and polishing remain separate, and original recognition text stays available for review.
 
-## Selected corrections and input timings
+## Mac input recovery
 
-Select a wrong term to fill the correction form, review the exact occurrence replacement and confirm before it becomes memory. Original recognition and polishing output remain available. Future polishing uses confirmed corrections as contextual references. Input history shows recognition, remaining polishing, delivery and total waiting time after recording stops. Mac computes evaluation statistics in the background and reads timings in batches.
+Automatic input chooses direct accessibility insertion when the focused field supports it, otherwise clipboard paste. All applications follow the same capability-based rules. Explicit clipboard and direct-input choices remain available; existing preferences are retained. Failed delivery keeps text visible with a specific reason and supports retry. Shortcut release checks include Fn. If text was entered but Enter could not be sent, the message distinguishes those outcomes to avoid duplicate retries.
 
-## Input reliability
+## Settings and devices
 
-API-key drafts survive saves and provider changes across onboarding and settings. Polishing requests support cancellation during connection, TLS and response reads, reject redirects and incomplete output, and free the final request worker after timeout. Recording, retry delivery, microphone checks, evaluation and updates are coordinated. Mac synthetic paste shortcuts carry an event marker to prevent feedback into voice triggers.
+Opening the Mac app shows settings. Setup steps can be selected independently, successful checks show green ticks, and signed-in Doubao sessions hide the login action. Microphone lists refresh on device and default-input changes, with quick switching from the menu bar. Update availability appears beside the settings sidebar entry. Recent-text editing includes internal padding to keep the first line visible.
 
 ## Downloads and verification
 
-Developer ID signed, Apple-notarized Mac DMGs are available for Apple Silicon and Intel. Linux app/plugin archives support Python 3.11–3.14. Settings, login data, vocabulary and history are retained. SHA256SUMS covers all packages; update.json is the public update source.
+Developer ID signed, Apple-notarized DMGs are provided for Apple Silicon and Intel. Linux app and plugin archives support Python 3.11–3.14. SHA256SUMS and update.json cover the release packages.
 
-Automated verification uses synthetic credentials, recordings and loopback network services. It covers protocol framing, selected corrections, scoring, credential persistence, cancellation, input state transitions and native interfaces. Actual personal-accent accuracy, competitor parity, physical microphones, cross-application input and Intel hardware behavior have not been established by these checks.
+Automated checks cover input recovery, capability routing, shortcut-release timing, settings persistence, device-change handling and network protocol behavior. A real cmux 0.65.1 receiver accepted three synthetic text samples exactly once without changing the clipboard. That check did not establish physical-hotkey behavior, microphone/ASR accuracy, other applications or Intel hardware behavior.
 
-[Full changes](https://github.com/quanru/doubao-say/compare/v1.6.0...v1.7.0)
+[Full changes](https://github.com/quanru/doubao-say/compare/v1.7.0...v1.8.0)

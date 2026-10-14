@@ -10,7 +10,7 @@ from doubao_input.desktop import is_x11
 def check_runtime():
     # pw-record is required by check_system() and provides native capture.
     # sounddevice is only an optional PortAudio fallback.
-    return {**check_system(), **_check_modules(("evdev", "websockets"))}
+    return {**check_system(), **_check_modules(("evdev", "websockets", "jwt", "cryptography"))}
 
 
 def _check_modules(modules):

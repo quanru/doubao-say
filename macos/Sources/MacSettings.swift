@@ -34,7 +34,7 @@ struct MacSettings: Codable, Equatable {
     var holdMilliseconds = 350
     var doubleMilliseconds = 300
     var doubleEnter = true
-    var inputMethod = "clipboard"
+    var inputMethod = "auto"
     var microphoneID = ""
     var waveformStyle = "bars"
     var reducedMotion = false
@@ -54,7 +54,7 @@ struct MacSettings: Codable, Equatable {
 
     func validate() throws {
         guard version == 1, (200...1500).contains(holdMilliseconds), (150...600).contains(doubleMilliseconds),
-              ["clipboard", "direct"].contains(inputMethod), ["bars", "waves", "ripples", "basketball"].contains(waveformStyle),
+              ["auto", "clipboard", "direct"].contains(inputMethod), ["bars", "waves", "ripples", "basketball"].contains(waveformStyle),
               microphoneID.count <= 256, !microphoneID.contains("\0"),
               let url = URLComponents(string: polishBaseURL), ["http", "https"].contains(url.scheme ?? ""),
               !(url.host ?? "").isEmpty, url.user == nil, url.password == nil, url.query == nil, url.fragment == nil, polishBaseURL.count <= 2048,

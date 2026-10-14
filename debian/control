@@ -16,6 +16,8 @@ Depends:
  python3-cairo,
  python3-websockets,
  python3-evdev,
+ python3-jwt,
+ python3-cryptography,
  gir1.2-gtk-4.0,
  gir1.2-webkit-6.0,
  libgtk-4-1,

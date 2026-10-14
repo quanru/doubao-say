@@ -45,11 +45,11 @@ def main():
     with tempfile.TemporaryDirectory(prefix="doubao-asr-ui-") as directory, \
          ExitStack() as cleanup, \
          patch.dict(os.environ, {"XDG_CONFIG_HOME": directory + "/config", "XDG_DATA_HOME": directory + "/data"}), \
-         patch("doubao_input.app.Overlay"), patch("doubao_input.app.AudioCapture"), \
-         patch("doubao_input.app.EscapeGuard"), patch("doubao_input.app.UpdateChecker"), \
+         patch("doubao_input.app_runtime.Overlay"), patch("doubao_input.app_runtime.AudioCapture"), \
+         patch("doubao_input.app_runtime.EscapeGuard"), patch("doubao_input.app_runtime.UpdateChecker"), \
          patch("doubao_input.doubao.transcription.AudioCapture"), \
-         patch("doubao_input.app.TriggerReader") as reader, \
-         patch("doubao_input.app.Injector"), patch("doubao_input.ui.tray.Tray"), \
+         patch("doubao_input.app_runtime.TriggerReader") as reader, \
+         patch("doubao_input.app_runtime.Injector"), patch("doubao_input.ui.tray.Tray"), \
          patch("doubao_input.app.ParamsStore.has_saved", return_value=False), \
          patch("doubao_input.ui.control_window.microphones", return_value=[]), \
          patch("doubao_input.ui.settings_window.microphones", return_value=[]):

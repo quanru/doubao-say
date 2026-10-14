@@ -13,6 +13,8 @@ Requires:       python3-gobject
 Requires:       python3-cairo
 Requires:       python3-websockets
 Requires:       python3-evdev
+Requires:       python3-jwt
+Requires:       python3-cryptography
 Requires:       gtk4
 Requires:       webkitgtk6.0
 Requires:       pipewire-utils

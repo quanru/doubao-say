@@ -132,7 +132,7 @@ def main():
         subprocess.run([sys.executable, "-m", "venv", "--system-site-packages", str(runtime)], check=True)
     subprocess.run([str(runtime / "bin/python"), "-m", "pip", "install", "--no-index",
                     "--find-links", str(root / "wheels"), "-r", str(root / "runtime-requirements.txt")], check=True)
-    subprocess.run([str(runtime / "bin/python"), "-c", "import evdev, websockets, sounddevice, gi, cairo"], check=True)
+    subprocess.run([str(runtime / "bin/python"), "-c", "import evdev, websockets, sounddevice, gi, cairo, jwt, cryptography"], check=True)
     previous_desktop = launcher_file.read_bytes() if launcher_file.exists() else None
     if target.exists():
         previous = target / ".desktop-before-install"

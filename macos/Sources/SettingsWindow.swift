@@ -26,7 +26,7 @@ final class SettingsModel: ObservableObject {
     @Published var shortcutAvailable = false
     @Published var capturing = false { didSet { if !capturing { resumeAutosave() } } }
     @Published var testing = false { didSet { if !testing { resumeAutosave() } } }
-    @Published var microphones = AudioDevices.inputs()
+    @Published var microphones: [AudioInputDevice] = []
     @Published var asrKeySaved = false
     @Published var doubaoSessionSaved = false
     @Published var polishKeySaved = false
@@ -63,8 +63,16 @@ final class SettingsModel: ObservableObject {
     private var recordingObserver: AnyCancellable?
     private var savedRecognitionKey = ""
     private var savedPolishKey = ""
-    init(state: AppState) {
+    private let microphoneInputs: () -> [AudioInputDevice]
+    private let defaultMicrophoneID: () -> String?
+    private var currentDefaultMicrophoneID: String?
+    private var deviceMonitor: AudioDeviceMonitor?
+    init(state: AppState, microphoneInputs: @escaping () -> [AudioInputDevice] = AudioDevices.inputs,
+         defaultMicrophoneID: @escaping () -> String? = AudioDevices.defaultInputUID) {
         self.state = state
+        self.microphoneInputs = microphoneInputs; self.defaultMicrophoneID = defaultMicrophoneID
+        microphones = microphoneInputs(); currentDefaultMicrophoneID = defaultMicrophoneID()
+        deviceMonitor = AudioDeviceMonitor { [weak self] in self?.refreshMicrophones() }
         recordingObserver = state.$recordingState.dropFirst().sink { [weak self] value in
             guard value == .idle else { return }
             // Published emits before the stored state changes.
@@ -95,12 +103,22 @@ final class SettingsModel: ObservableObject {
     var isDoubaoSignedIn: Bool {
         SettingsStore.shared.value.provider == .doubao ? state.loginStatus == .loggedIn : doubaoSessionSaved
     }
+    func refreshMicrophones() {
+        let previous = draft.microphoneID.isEmpty ? currentDefaultMicrophoneID : draft.microphoneID
+        let previousDevice = microphones.first { $0.id == previous }
+        microphones = microphoneInputs(); currentDefaultMicrophoneID = defaultMicrophoneID()
+        let current = draft.microphoneID.isEmpty ? currentDefaultMicrophoneID : draft.microphoneID
+        let currentDevice = microphones.first { $0.id == current }
+        if previous != current || previousDevice?.audioID != currentDevice?.audioID {
+            state.microphoneChecked = false; state.voiceChecked = false
+        }
+    }
     func refresh() {
         guard !testing, !capturing, !hasPendingAutosave else { return }
         suppressAutosave = true
         defer { suppressAutosave = false }
         draft = SettingsStore.shared.value
-        microphones = AudioDevices.inputs()
+        refreshMicrophones()
         doubaoSessionSaved = ASRParamsStore.hasSavedParams
         asrKeySaved = draft.provider == .doubao ? doubaoSessionSaved : SecretStore.load(draft.provider.rawValue + "-api-key") != nil
         polishKeySaved = SecretStore.load("polish-api-key") != nil
@@ -143,6 +161,22 @@ final class SettingsModel: ObservableObject {
         }
     }
     var canAdvanceSetup: Bool { !setupBusy && (0...setupStep).allSatisfy { setupComplete($0) } }
+    func selectSetupStep(_ step: Int) {
+        guard (0..<4).contains(step), step != setupStep, !setupBusy, saveIfNeeded() else { return }
+        setupStep = step; feedback = ""
+    }
+    @discardableResult func selectMicrophone(_ id: String) -> Bool {
+        guard !setupBusy, !state.evaluationBusy, !state.inputPending,
+              id.isEmpty || microphoneInputs().contains(where: { $0.id == id }), saveIfNeeded() else { return false }
+        guard draft.microphoneID != id else { return true }
+        let previous = draft.microphoneID
+        draft.microphoneID = id
+        guard save() else {
+            suppressAutosave = true; draft.microphoneID = previous; suppressAutosave = false
+            hasPendingAutosave = false; feedback = saveStatus; return false
+        }
+        return true
+    }
     func advanceSetup() {
         guard saveIfNeeded(), canAdvanceSetup, setupStep < 3 else { return }
         setupStep += 1; feedback = ""
@@ -290,13 +324,22 @@ struct SettingsView: View {
                             model.clearNavigationFocus?()
                         }
                     } label: {
-                        Label(page.1, systemImage: page.2)
+                        HStack {
+                            Label(page.1, systemImage: page.2)
+                            Spacer(minLength: 4)
+                            if page.0 == "updates" && !state.updateVersion.isEmpty {
+                                Circle().fill(Color(nsColor: .systemRed)).frame(width: 8, height: 8)
+                                    .accessibilityHidden(true)
+                            }
+                        }
                             .font(.system(size: 13, weight: model.selectedTab == page.0 ? .semibold : .regular))
                             .frame(maxWidth: .infinity, alignment: .leading).padding(10)
                             .foregroundColor(model.selectedTab == page.0 ? .accentColor : .primary)
                             .background(RoundedRectangle(cornerRadius: 7).fill(model.selectedTab == page.0 ? Color.accentColor.opacity(0.12) : .clear))
                             .contentShape(RoundedRectangle(cornerRadius: 7))
                     }.buttonStyle(.plain).focused($sidebarFocus, equals: page.0)
+                        .accessibilityLabel(page.0 == "updates" && !state.updateVersion.isEmpty
+                            ? page.1 + L(", update available: ", "，有可用更新：") + state.updateVersion : page.1)
                 }
                 Spacer()
                 Text(L("Settings", "设置")).font(.caption).foregroundColor(.secondary).padding(12)
@@ -376,10 +419,16 @@ struct SettingsView: View {
         VStack(alignment: .leading, spacing: 16) {
             HStack(spacing: 12) {
                 ForEach(0..<4) { index in
-                    HStack(spacing: 6) {
-                        Image(systemName: index < model.setupStep && model.setupComplete(index) ? "checkmark.circle.fill" : "\(index + 1).circle\(index == model.setupStep ? ".fill" : "")")
-                        Text(setupTitles[index]).font(.system(size: 12, weight: index == model.setupStep ? .semibold : .regular))
-                    }.foregroundColor(index == model.setupStep ? .accentColor : .secondary)
+                    Button { model.selectSetupStep(index) } label: {
+                        HStack(spacing: 6) {
+                            Image(systemName: model.setupComplete(index) ? "checkmark.circle.fill" : "\(index + 1).circle\(index == model.setupStep ? ".fill" : "")")
+                            Text(setupTitles[index]).font(.system(size: 12, weight: index == model.setupStep ? .semibold : .regular))
+                        }.foregroundColor(model.setupComplete(index) ? .green : (index == model.setupStep ? .accentColor : .secondary))
+                            .padding(.vertical, 8).padding(.horizontal, 4).contentShape(Rectangle())
+                    }.buttonStyle(.plain).disabled(model.setupBusy)
+                        .accessibilityLabel(setupTitles[index])
+                        .accessibilityValue((model.setupComplete(index) ? L("Completed", "已完成") : L("Pending", "待完成"))
+                            + (index == model.setupStep ? L(", current step", "，当前步骤") : ""))
                     if index < 3 { Image(systemName: "chevron.right").font(.caption).foregroundColor(.secondary) }
                 }
             }.padding(.horizontal, 16)
@@ -412,6 +461,7 @@ struct SettingsView: View {
                 microphonePicker
                 Button(L("Check microphone · 3 seconds", "检查麦克风 · 三秒")) { model.checkMicrophone() }.disabled(model.setupBusy)
                 Label(state.microphoneChecked ? L("Microphone checked", "麦克风检查通过") : L("Microphone check pending", "请先检查麦克风"), systemImage: state.microphoneChecked ? "checkmark.circle.fill" : "circle")
+                    .foregroundColor(state.microphoneChecked ? .green : .secondary)
                 ProgressView(value: min(state.rms * 10, 1))
                 Text(L("This check stays on your Mac and sends no audio to a recognition service.", "此步骤仅在本机检查，不向识别服务发送音频。"))
             }.formStyle(.grouped).padding(8)
@@ -421,6 +471,7 @@ struct SettingsView: View {
                 Button(L("Enable global shortcut", "启用全局快捷键")) { model.enableShortcut?() }
                 HStack { Text(model.draft.shortcut.label); Button(L("Choose shortcut", "选择快捷键")) { model.chooseShortcut() } }.disabled(model.setupBusy)
                 Label(model.shortcutAvailable ? L("Shortcut ready", "快捷键已就绪") : L("Shortcut permission required", "请启用快捷键权限"), systemImage: model.shortcutAvailable ? "checkmark.circle.fill" : "circle")
+                    .foregroundColor(model.shortcutAvailable ? .green : .secondary)
                 Text(L("Tap to start or stop; hold to talk. Esc cancels recording.", "短按开始或结束，长按说话；Esc 取消录音。"))
             }.formStyle(.grouped).padding(8)
         default:
@@ -433,6 +484,7 @@ struct SettingsView: View {
                 Text(L("This test sends audio to your selected service and never pastes text.", "此步骤会把音频发送至所选识别服务，不会粘贴文字。"))
                 Text(state.previewText).textSelection(.enabled).lineLimit(6)
                 Label(state.voiceChecked ? L("Voice test passed", "语音试说通过") : L("Voice test pending", "请先完成语音试说"), systemImage: state.voiceChecked ? "checkmark.circle.fill" : "circle")
+                    .foregroundColor(state.voiceChecked ? .green : .secondary)
             }.formStyle(.grouped).padding(8)
         }
     }
@@ -449,6 +501,9 @@ struct SettingsView: View {
                     Button(L("Test API key", "测试 API Key")) { model.testRecognition() }
                     Button(L("Clear saved key", "清除已存 Key")) { model.clearKey(model.draft.provider.rawValue + "-api-key") }
                 }.disabled(model.testing || state.recordingState != .idle)
+                Label(model.setupComplete(0) ? L("Recognition service ready", "识别服务已就绪") : L("Recognition check pending", "请先检查识别服务"),
+                      systemImage: model.setupComplete(0) ? "checkmark.circle.fill" : "circle")
+                    .foregroundColor(model.setupComplete(0) ? .green : .secondary)
                 Text(model.draft.provider == .volcengine ? L("One API Key; resource volc.seedasr.sauc.duration is built in. No App ID required.", "只需一个 API Key，已内置 volc.seedasr.sauc.duration，无需 App ID。") : L("Nova-3, US English, punctuation and smart formatting.", "Nova-3，美式英语，启用标点和智能格式化。"))
                 Text(L("Audio is sent to the selected service; usage is billed to your provider account.", "音频发送至所选服务，用量由服务商向你的账号计费。"))
             }
@@ -464,7 +519,9 @@ struct SettingsView: View {
             Text(model.isDoubaoSignedIn
                  ? L("Your login session is saved securely. You can now test voice recognition.", "登录会话已安全保存，可以开始语音识别测试。")
                  : L("Sign in through the Doubao window to connect your account.", "请通过豆包登录窗口连接账号。"))
-            Button(model.isDoubaoSignedIn ? L("Sign in again", "重新登录") : L("Sign in to Doubao", "登录豆包")) { model.signIn?() }
+            if !model.isDoubaoSignedIn {
+                Button(L("Sign in to Doubao", "登录豆包")) { model.signIn?() }
+            }
         }
     }
     private var polishing: some View {
@@ -538,6 +595,7 @@ struct SettingsView: View {
             Text(L("Language changes take effect immediately. Recognition and polishing languages are configured separately.", "语言切换立即生效。识别和润色语言由各自配置决定。"))
             microphonePicker
             Picker(L("Input method", "输入方式"), selection: $model.draft.inputMethod) {
+                Text(L("Automatic (direct input when supported)", "自动选择（支持时直接输入）")).tag("auto")
                 Text(L("Clipboard (restores previous contents)", "剪贴板（恢复原内容）")).tag("clipboard")
                 Text(L("Direct accessibility input", "辅助功能直接输入")).tag("direct")
             }
@@ -587,16 +645,42 @@ final class SettingsWindow: NSObject, NSWindowDelegate {
     }
     func show(refresh: Bool = true) {
         if refresh { model.refresh() }
+        if window.isMiniaturized { window.deminiaturize(nil) }
         NSApp.activate(ignoringOtherApps: true)
         window.makeKeyAndOrderFront(nil)
         window.makeFirstResponder(nil)
     }
     func windowWillClose(_ notification: Notification) { model.closeEditor() }
+    var isVisible: Bool { window.isVisible }
     func close() { model.stopTests(); window.close() }
     func hide() { window.orderOut(nil) }
     func updateTitle() { window.title = "Doubao Say · " + L("Settings", "设置") }
     func captureImage(to path: String) {
         WindowCapture.request(window)
+    }
+    func inspectRecentText() {
+        func find(_ view: NSView) -> NSTextView? {
+            if let text = view as? NSTextView { return text }
+            return view.subviews.compactMap(find).first
+        }
+        guard let root = window.contentView, let text = find(root), let scroll = text.enclosingScrollView else {
+            print("FAIL: recent-text editor unavailable"); return
+        }
+        text.scrollRangeToVisible(NSRange(location: (text.string as NSString).length, length: 0))
+        text.scrollRangeToVisible(NSRange(location: 0, length: 0))
+        scroll.contentView.scroll(to: .zero); scroll.reflectScrolledClipView(scroll.contentView)
+        print("RECENT_TEXT_INSET: \(text.textContainerInset.height); scroll-top: \(scroll.contentView.bounds.minY)")
+        if ProcessInfo.processInfo.environment["DOUBAO_SMOKE_EXPECT_TEXT_PADDING"] == "1" {
+            precondition(text.textContainerInset.height >= 10, "The first line needs padding inside the text container")
+            precondition(scroll.contentView.bounds.minY == 0, "Returning to the top must show the first line")
+            let original = text.string
+            window.makeFirstResponder(text)
+            text.insertText("✓ ", replacementRange: NSRange(location: 0, length: 0))
+            precondition(model.state.lastTranscript == "✓ " + original, "Edits must update the transcript binding")
+            text.setSelectedRange(NSRange(location: 0, length: 2)); text.deleteBackward(nil)
+            precondition(model.state.lastTranscript == original, "Deleting must preserve the rest of the transcript")
+            print("PASS: recent-text internal padding, scroll-to-top and editing binding")
+        }
     }
 }
 
