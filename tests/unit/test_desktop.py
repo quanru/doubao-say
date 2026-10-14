@@ -57,6 +57,8 @@ class DesktopTest(TestCase):
                     self.assertTrue(all(optional.values()))
                     self.assertNotIn("evdev", results)
                     self.assertIn("evdev", preflight.check_runtime())
+                    self.assertIn("jwt", preflight.check_runtime())
+                    self.assertIn("cryptography", preflight.check_runtime())
                     self.assertNotIn("sounddevice", preflight.check_runtime())
 
     def test_missing_x11_tool_is_optional_and_reported(self):
