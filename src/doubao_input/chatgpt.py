@@ -220,7 +220,8 @@ class ChatGPTClient:
                 raise auth.ChatGPTError("account_changed", "ChatGPT account changed")
             self._requests.add(cancellation)
         try:
-            with open_request(req, timeout=remaining, cancellation=cancellation) as response:
+            with open_request(req, timeout=remaining, cancellation=cancellation,
+                              on_error=classify_usage_error) as response:
                 result = completed_text(response, on_progress)
             cancellation.check()
             if generation != self._generation:
@@ -248,6 +249,20 @@ def usage_limit_error():
     return auth.ChatGPTError("usage_limit_exceeded", tr(
         "ChatGPT plan usage limit reached. Open Manage usage, then retry when available; using original text.",
         "ChatGPT 套餐共享用量已达上限，请查看“管理用量”，可用后再重试；本次使用原文。"))
+
+
+def classify_usage_error(response):
+    """Inspect a bounded HTTP error body before the transport closes it."""
+    try:
+        raw = response.read(64_001)
+        if len(raw) > 64_000:
+            return
+        data = json.loads(raw)
+    except (OSError, ValueError):
+        return
+    failure = (data.get("error") or data) if isinstance(data, dict) else None
+    if isinstance(failure, dict) and failure.get("code") == "subscription_sharing_usage_limit_exceeded":
+        raise usage_limit_error()
 
 
 def completed_text(response, progress=None):

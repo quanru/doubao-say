@@ -17,6 +17,9 @@ only to the fixture's own window. Checks cover selecting and autosaving a model,
 Arrow Down/Return, Escape without changing the choice, popup closure and retained
 API settings. Separate popup captures use only the owned menu window, never the
 user's desktop. Each process remains bounded to 15 seconds.
+The empty-catalog case checks that a successfully loaded empty model list clears
+and autosaves the stale selection, blocking inference before credential access.
+The loading case preserves the selection until a catalog succeeds.
 
 `SidebarFocusCheck.swift` opens the real SettingsWindow with synthetic state in a
 SwiftUI application. It never signs in, records audio, saves credentials or

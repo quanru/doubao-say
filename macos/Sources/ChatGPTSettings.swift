@@ -6,6 +6,7 @@ final class ChatGPTConnectionModel: ObservableObject {
     static let shared = ChatGPTConnectionModel()
     @Published var snapshot = ChatGPTSnapshot()
     @Published var models: [ChatGPTModel] = []
+    @Published var catalogLoaded = false
     @Published var busy = false
     @Published var message = ""
     private let service: ChatGPTService
@@ -27,7 +28,7 @@ final class ChatGPTConnectionModel: ObservableObject {
     deinit { if let observer = observer { NotificationCenter.default.removeObserver(observer) } }
     func refresh() { perform { } }
     func signIn(newAccount: Bool = false) { perform { try await self.service.signIn(newAccount: newAccount) } }
-    func select(_ id: String) { guard !busy else { return }; models = []; perform { try await self.service.select(id) } }
+    func select(_ id: String) { guard !busy else { return }; catalogLoaded = false; models = []; perform { try await self.service.select(id) } }
     func signOut() {
         perform {
             let revoked = try await self.service.signOut()
@@ -38,7 +39,7 @@ final class ChatGPTConnectionModel: ObservableObject {
     func cancelSignIn() { Task { await service.cancelSignIn() }; job?.cancel() }
     private func perform(_ operation: @escaping () async throws -> Void) {
         guard !busy else { return }
-        busy = true; message = ""
+        busy = true; message = ""; catalogLoaded = false
         job = Task {
             defer { busy = false; job = nil }
             do {
@@ -46,6 +47,7 @@ final class ChatGPTConnectionModel: ObservableObject {
                 snapshot = try await service.state()
                 models = snapshot.active?.sharing == true ? try await service.models() : []
                 try Task.checkCancellation()
+                catalogLoaded = snapshot.active?.sharing == true
             } catch {
                 if let state = try? await service.state() { snapshot = state }
                 if snapshot.active?.sharing != true { models = [] }
@@ -105,14 +107,17 @@ struct ChatGPTSettingsView: View {
                     .font(.caption).foregroundColor(.secondary)
             }.frame(maxWidth: .infinity, alignment: .leading).padding(8)
         } label: { Label(L("ChatGPT plan", "ChatGPT 套餐"), systemImage: "person.crop.circle") }
-        .onAppear { previousAccount = connection.snapshot.activeID }
+        .onAppear { previousAccount = connection.snapshot.activeID; validateModel() }
         .onChange(of: connection.snapshot.activeID) { active in
             if let previous = previousAccount, previous != active { model = "" }
             previousAccount = active
         }
-        .onChange(of: connection.models) { catalog in
-            if !catalog.isEmpty, !catalog.contains(where: { $0.id == model }) { model = "" }
-        }
+        .onChange(of: connection.models) { _ in validateModel() }
+        .onChange(of: connection.catalogLoaded) { _ in validateModel() }
+    }
+    private func validateModel() {
+        guard connection.catalogLoaded, connection.snapshot.active?.sharing == true else { return }
+        if !connection.models.contains(where: { $0.id == model }) { model = "" }
     }
     private var status: String {
         if connection.snapshot.usageLimited { return ChatGPTError.quota.localizedDescription }

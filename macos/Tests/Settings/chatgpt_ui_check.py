@@ -20,7 +20,7 @@ subprocess.run(["ditto", str(binary), str(executable)], check=True)
     "CFBundlePackageType": "APPL", "LSMinimumSystemVersion": "13.0", "LSUIElement": True,
 }))
 subprocess.run(["codesign", "--force", "--sign", "-", str(bundle)], check=True)
-modes = os.environ.get("SIWC_UI_MODES", "disconnected,connected,quota,model-menu,model-select,model-keyboard,model-cancel,account-menu").split(",")
+modes = os.environ.get("SIWC_UI_MODES", "disconnected,connected,quota,model-menu,model-select,model-keyboard,model-cancel,account-menu,empty-models,models-loading").split(",")
 for language in ["en", "zh"]:
     for mode in modes:
         for theme in ["light", "dark"]:

@@ -153,6 +153,9 @@ settings, and hiding/reopening the connection card. It also checks a connected
 account's quota message and explicit usage retry; a quota error must retain the
 account connection. It does not verify live OAuth, actual plan inference, token
 expiry, audio capture or paste delivery.
+Unit regressions also exercise bounded HTTP error bodies: an exact plan quota
+code pauses inference until explicit retry, while ordinary HTTP throttling,
+malformed errors and oversized bodies leave the connection available.
 Live sign-in must use a separate app-owned account store; never copy credentials
 from Codex or another product.
 

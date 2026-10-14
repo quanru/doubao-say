@@ -9,6 +9,7 @@ import time
 from types import SimpleNamespace
 from http.server import BaseHTTPRequestHandler, HTTPServer
 from threading import Thread
+from urllib.error import HTTPError
 import unittest
 from unittest.mock import patch
 
@@ -174,6 +175,47 @@ class ChatGPTTest(unittest.TestCase):
                 self.assertFalse(client.state()["usage_limited"])
                 self.assertEqual(client.polish("synthetic", model="synthetic-fast", prompt="Correct text"), "done")
                 self.assertEqual(network.call_count, 2)
+
+    def test_http_usage_limit_pauses_until_retry_and_closes_error_body(self):
+        with TemporaryDirectory() as directory:
+            client = self.fixture(directory)
+            with client.store.transaction() as data:
+                data["accounts"][0]["expires"] = time.time() + 3600
+            body = io.BytesIO(json.dumps({"error": {"code": "subscription_sharing_usage_limit_exceeded"}}).encode())
+            failure = HTTPError("https://example.invalid", 429, "Synthetic limit", {}, body)
+            complete = io.BytesIO(b'data: {"type":"response.output_text.delta","delta":"done"}\n\n'
+                                 b'data: {"type":"response.completed"}\n\n')
+            opener = SimpleNamespace(open=unittest.mock.Mock(side_effect=[failure, complete]))
+            with patch("doubao_input.polish_transport.request.build_opener", return_value=opener):
+                for _ in range(2):
+                    with self.assertRaises(auth.ChatGPTError) as limited:
+                        client.polish("synthetic", model="synthetic-fast", prompt="Correct text")
+                    self.assertEqual(limited.exception.code, "usage_limit_exceeded")
+                self.assertTrue(body.closed)
+                self.assertTrue(client.ready())
+                self.assertTrue(client.state()["usage_limited"])
+                self.assertEqual(opener.open.call_count, 1)
+                client.resume_usage()
+                self.assertEqual(client.polish("synthetic", model="synthetic-fast", prompt="Correct text"), "done")
+                self.assertEqual(opener.open.call_count, 2)
+
+    def test_other_http_errors_and_oversized_bodies_do_not_pause_plan_usage(self):
+        for payload in ({"error": {"code": "rate_limit_exceeded"}},
+                        {"error": {"code": "subscription_sharing_usage_limit_exceeded", "message": "x" * 70_000}},
+                        ["malformed error"]):
+            with self.subTest(payload_type=type(payload).__name__), TemporaryDirectory() as directory:
+                client = self.fixture(directory)
+                with client.store.transaction() as data:
+                    data["accounts"][0]["expires"] = time.time() + 3600
+                body = io.BytesIO(json.dumps(payload).encode())
+                failure = HTTPError("https://example.invalid", 429, "Synthetic error", {}, body)
+                opener = SimpleNamespace(open=unittest.mock.Mock(side_effect=failure))
+                with patch("doubao_input.polish_transport.request.build_opener", return_value=opener):
+                    with self.assertRaises(ValueError):
+                        client.polish("synthetic", model="synthetic-fast", prompt="Correct text")
+                self.assertTrue(body.closed)
+                self.assertTrue(client.ready())
+                self.assertFalse(client.state()["usage_limited"])
 
     def test_store_rolls_back_failed_update_and_refuses_symlinks(self):
         with TemporaryDirectory() as directory:

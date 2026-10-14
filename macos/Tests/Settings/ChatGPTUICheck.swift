@@ -36,7 +36,9 @@ final class ChatGPTUIDelegate: NSObject, NSApplicationDelegate {
                 ChatGPTAccountView(id: "synthetic", label: "demo@example.invalid", connected: true, sharing: true)
             ], usageLimited: mode == "quota")
             connection.models = [ChatGPTModel(id: "synthetic-fast", label: "Synthetic Fast"), ChatGPTModel(id: "synthetic-standard", label: "Synthetic Standard")]
+            connection.catalogLoaded = true
             settings.draft.polishChatGPTModel = "synthetic-fast"
+            if ["empty-models", "models-loading"].contains(mode) { connection.catalogLoaded = false; connection.models = [] }
         }
         self.settings = settings; self.connection = connection
         let window = NSWindow(contentRect: NSRect(x: 0, y: 0, width: 690, height: 740),
@@ -45,6 +47,9 @@ final class ChatGPTUIDelegate: NSObject, NSApplicationDelegate {
         window.contentView = NSHostingView(rootView: PolishingSettingsView(model: settings, connection: connection))
         self.window = window; window.center(); window.makeKeyAndOrderFront(nil)
         NSApp.activate(ignoringOtherApps: true)
+        if mode == "empty-models" {
+            DispatchQueue.main.asyncAfter(deadline: .now() + 0.3) { connection.catalogLoaded = true }
+        }
         DispatchQueue.main.asyncAfter(deadline: .now() + 1.3) {
             if ["model-menu", "model-select", "model-keyboard", "model-cancel", "account-menu"].contains(mode) {
                 self.openMenu(mode, window: window, deadline: Date().addingTimeInterval(3))
@@ -119,6 +124,19 @@ final class ChatGPTUIDelegate: NSObject, NSApplicationDelegate {
         guard let settings = settings else { exit(1) }
         precondition(settings.draft.polishProvider == "chatgpt")
         precondition(settings.draft.polishBaseURL == "https://example.invalid/v1" && settings.draft.polishModel == "legacy-api-model")
+        let mode = ProcessInfo.processInfo.environment["SIWC_UI_CASE"] ?? "disconnected"
+        if mode == "empty-models" {
+            precondition(connection?.catalogLoaded == true && settings.draft.polishChatGPTModel.isEmpty && savedModel == "")
+            let client = PolishClient()
+            var blocked = false
+            client.completion = { text, error in blocked = text == nil && error == ChatGPTError.model.localizedDescription }
+            client.start(text: "synthetic", settings: settings.draft, apiKey: "", personalize: false)
+            precondition(blocked)
+            print("PASS_INTERACTION:empty-models"); fflush(stdout)
+        } else if mode == "models-loading" {
+            precondition(connection?.catalogLoaded == false && settings.draft.polishChatGPTModel == "synthetic-fast" && savedModel == "synthetic-fast")
+            print("PASS_INTERACTION:models-loading"); fflush(stdout)
+        }
         print("CAPTURE_WINDOW:\(window.windowNumber)"); fflush(stdout)
         DispatchQueue.main.asyncAfter(deadline: .now() + 1.0) { window.close(); NSApp.terminate(nil) }
     }
