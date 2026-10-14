@@ -1,0 +1,23 @@
+[
+  {
+    "iteration": 0,
+    "clockId": "linux-monotonic:ac8a6a54-6d3d-4ced-95da-2acc654699b8",
+    "frameId": "2949-1",
+    "stopVerifiedMs": 240.5449819999999,
+    "remainingCapturePids": []
+  },
+  {
+    "iteration": 1,
+    "clockId": "linux-monotonic:ac8a6a54-6d3d-4ced-95da-2acc654699b8",
+    "frameId": "2988-1",
+    "stopVerifiedMs": 253.8854289999997,
+    "remainingCapturePids": []
+  },
+  {
+    "iteration": 2,
+    "clockId": "linux-monotonic:ac8a6a54-6d3d-4ced-95da-2acc654699b8",
+    "frameId": "3024-1",
+    "stopVerifiedMs": 251.55864900000006,
+    "remainingCapturePids": []
+  }
+]

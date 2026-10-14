@@ -1,0 +1,4 @@
+{
+  "config_byte_identical": true,
+  "service_restarted_only_during_cleanup": true
+}

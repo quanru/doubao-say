@@ -1,0 +1,111 @@
+{
+  "verified_manifest_files": 32,
+  "verified_ab_frames_metadata": 611,
+  "retained_png_count": 6,
+  "all_six_label_pixels_identical": true,
+  "candidate_files_verified": 1265,
+  "native_lifecycles": 3,
+  "all_ab_cleanup_zero": true,
+  "same_processes_before_restore": true,
+  "restored_byte_identically": true,
+  "clock_samples": 10000,
+  "max_numeric_center_error_ns": "0",
+  "full_median_ms": "31.329652",
+  "roi_median_ms": "25.865528",
+  "reduction_vs_same_guest_percent": "17.44074271875091367117643056",
+  "reduction_vs_prior_percent": "14.50879006213479406343176163",
+  "performance_gate": "FAILED_PREDECLARED_20_PERCENT",
+  "timing_trials_executed": 0,
+  "model_calls": 0,
+  "blocks": [
+    {
+      "block": 0,
+      "mode": "native-source",
+      "frames": 87,
+      "median_gap_ms": "31.693112",
+      "max_gap_ms": "34.521075",
+      "median_components_ms": {
+        "source_to_ready_ms": 7.257582,
+        "encode_ms": 8.305013,
+        "output_ms": 0.527318,
+        "next_request_ms": 0.164328,
+        "next_request_to_source_ms": 15.189233999999999
+      }
+    },
+    {
+      "block": 1,
+      "mode": "native-region",
+      "frames": 110,
+      "median_gap_ms": "26.414550",
+      "max_gap_ms": "27.881742",
+      "median_components_ms": {
+        "source_to_ready_ms": 1.2854135,
+        "encode_ms": 0.565361,
+        "output_ms": 0.073906,
+        "next_request_ms": 0.030838,
+        "next_request_to_source_ms": 24.44003
+      }
+    },
+    {
+      "block": 2,
+      "mode": "native-region",
+      "frames": 121,
+      "median_gap_ms": "25.2091555",
+      "max_gap_ms": "27.684195",
+      "median_components_ms": {
+        "source_to_ready_ms": 1.255935,
+        "encode_ms": 0.563384,
+        "output_ms": 0.069968,
+        "next_request_ms": 0.0293975,
+        "next_request_to_source_ms": 23.38398
+      }
+    },
+    {
+      "block": 3,
+      "mode": "native-source",
+      "frames": 87,
+      "median_gap_ms": "31.318088",
+      "max_gap_ms": "44.495063",
+      "median_components_ms": {
+        "source_to_ready_ms": 7.10578,
+        "encode_ms": 8.276937,
+        "output_ms": 1.025903,
+        "next_request_ms": 0.260147,
+        "next_request_to_source_ms": 14.607212
+      }
+    },
+    {
+      "block": 4,
+      "mode": "native-source",
+      "frames": 88,
+      "median_gap_ms": "31.329652",
+      "max_gap_ms": "34.857753",
+      "median_components_ms": {
+        "source_to_ready_ms": 7.150629,
+        "encode_ms": 8.2725915,
+        "output_ms": 0.523116,
+        "next_request_ms": 0.177944,
+        "next_request_to_source_ms": 14.907629
+      }
+    },
+    {
+      "block": 5,
+      "mode": "native-region",
+      "frames": 118,
+      "median_gap_ms": "25.865528",
+      "max_gap_ms": "27.929099",
+      "median_components_ms": {
+        "source_to_ready_ms": 1.2520545,
+        "encode_ms": 0.5552615,
+        "output_ms": 0.070381,
+        "next_request_ms": 0.030098,
+        "next_request_to_source_ms": 23.924108
+      }
+    }
+  ],
+  "limits": [
+    "A/B keeps metadata for every delivered frame but PNG only for the first frame of each block. These are idle performance windows, not input latency trials.",
+    "RegionObservation SDK real guest lifecycle and Agent HTML steps were gated off; unit-tested interface not claimed fully exercised in guest.",
+    "Source event is not physical presentation; contiguous delivered IDs do not prove every compositor frame captured."
+  ]
+}

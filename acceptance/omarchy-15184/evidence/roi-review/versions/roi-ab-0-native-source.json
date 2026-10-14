@@ -1,0 +1,2351 @@
+[
+  {
+    "version": 1,
+    "frameId": "3075-1",
+    "width": 1280,
+    "height": 800,
+    "timing": {
+      "clockId": "linux-monotonic:ac8a6a54-6d3d-4ced-95da-2acc654699b8",
+      "kind": "compositor-frame",
+      "startMs": 130125.566505,
+      "endMs": 130125.568505
+    },
+    "captureStartNs": "130110369620",
+    "readyNs": "130133207540",
+    "pngEncodedNs": "130141850522",
+    "geometry": {
+      "scope": "output",
+      "outputIndex": 0,
+      "x": 0,
+      "y": 0,
+      "width": 1280,
+      "height": 800,
+      "scale": 1,
+      "outputWidth": 1280,
+      "outputHeight": 800,
+      "transform": 0
+    }
+  },
+  {
+    "version": 1,
+    "frameId": "3075-2",
+    "width": 1280,
+    "height": 800,
+    "timing": {
+      "clockId": "linux-monotonic:ac8a6a54-6d3d-4ced-95da-2acc654699b8",
+      "kind": "compositor-frame",
+      "startMs": 130160.312646,
+      "endMs": 130160.314646
+    },
+    "captureStartNs": "130142986304",
+    "readyNs": "130168746932",
+    "pngEncodedNs": "130176991397",
+    "geometry": {
+      "scope": "output",
+      "outputIndex": 0,
+      "x": 0,
+      "y": 0,
+      "width": 1280,
+      "height": 800,
+      "scale": 1,
+      "outputWidth": 1280,
+      "outputHeight": 800,
+      "transform": 0
+    }
+  },
+  {
+    "version": 1,
+    "frameId": "3075-3",
+    "width": 1280,
+    "height": 800,
+    "timing": {
+      "clockId": "linux-monotonic:ac8a6a54-6d3d-4ced-95da-2acc654699b8",
+      "kind": "compositor-frame",
+      "startMs": 130194.31771,
+      "endMs": 130194.31971
+    },
+    "captureStartNs": "130178576103",
+    "readyNs": "130201969364",
+    "pngEncodedNs": "130210356023",
+    "geometry": {
+      "scope": "output",
+      "outputIndex": 0,
+      "x": 0,
+      "y": 0,
+      "width": 1280,
+      "height": 800,
+      "scale": 1,
+      "outputWidth": 1280,
+      "outputHeight": 800,
+      "transform": 0
+    }
+  },
+  {
+    "version": 1,
+    "frameId": "3075-4",
+    "width": 1280,
+    "height": 800,
+    "timing": {
+      "clockId": "linux-monotonic:ac8a6a54-6d3d-4ced-95da-2acc654699b8",
+      "kind": "compositor-frame",
+      "startMs": 130226.184839,
+      "endMs": 130226.186839
+    },
+    "captureStartNs": "130210987556",
+    "readyNs": "130233745848",
+    "pngEncodedNs": "130241750562",
+    "geometry": {
+      "scope": "output",
+      "outputIndex": 0,
+      "x": 0,
+      "y": 0,
+      "width": 1280,
+      "height": 800,
+      "scale": 1,
+      "outputWidth": 1280,
+      "outputHeight": 800,
+      "transform": 0
+    }
+  },
+  {
+    "version": 1,
+    "frameId": "3075-5",
+    "width": 1280,
+    "height": 800,
+    "timing": {
+      "clockId": "linux-monotonic:ac8a6a54-6d3d-4ced-95da-2acc654699b8",
+      "kind": "compositor-frame",
+      "startMs": 130257.893071,
+      "endMs": 130257.895071
+    },
+    "captureStartNs": "130242471504",
+    "readyNs": "130265847585",
+    "pngEncodedNs": "130274083004",
+    "geometry": {
+      "scope": "output",
+      "outputIndex": 0,
+      "x": 0,
+      "y": 0,
+      "width": 1280,
+      "height": 800,
+      "scale": 1,
+      "outputWidth": 1280,
+      "outputHeight": 800,
+      "transform": 0
+    }
+  },
+  {
+    "version": 1,
+    "frameId": "3075-6",
+    "width": 1280,
+    "height": 800,
+    "timing": {
+      "clockId": "linux-monotonic:ac8a6a54-6d3d-4ced-95da-2acc654699b8",
+      "kind": "compositor-frame",
+      "startMs": 130291.379954,
+      "endMs": 130291.381954
+    },
+    "captureStartNs": "130274721454",
+    "readyNs": "130300283498",
+    "pngEncodedNs": "130309037523",
+    "geometry": {
+      "scope": "output",
+      "outputIndex": 0,
+      "x": 0,
+      "y": 0,
+      "width": 1280,
+      "height": 800,
+      "scale": 1,
+      "outputWidth": 1280,
+      "outputHeight": 800,
+      "transform": 0
+    }
+  },
+  {
+    "version": 1,
+    "frameId": "3075-7",
+    "width": 1280,
+    "height": 800,
+    "timing": {
+      "clockId": "linux-monotonic:ac8a6a54-6d3d-4ced-95da-2acc654699b8",
+      "kind": "compositor-frame",
+      "startMs": 130325.155915,
+      "endMs": 130325.157915
+    },
+    "captureStartNs": "130309796744",
+    "readyNs": "130331940960",
+    "pngEncodedNs": "130340256771",
+    "geometry": {
+      "scope": "output",
+      "outputIndex": 0,
+      "x": 0,
+      "y": 0,
+      "width": 1280,
+      "height": 800,
+      "scale": 1,
+      "outputWidth": 1280,
+      "outputHeight": 800,
+      "transform": 0
+    }
+  },
+  {
+    "version": 1,
+    "frameId": "3075-8",
+    "width": 1280,
+    "height": 800,
+    "timing": {
+      "clockId": "linux-monotonic:ac8a6a54-6d3d-4ced-95da-2acc654699b8",
+      "kind": "compositor-frame",
+      "startMs": 130356.208459,
+      "endMs": 130356.210459
+    },
+    "captureStartNs": "130340856525",
+    "readyNs": "130363772820",
+    "pngEncodedNs": "130372141437",
+    "geometry": {
+      "scope": "output",
+      "outputIndex": 0,
+      "x": 0,
+      "y": 0,
+      "width": 1280,
+      "height": 800,
+      "scale": 1,
+      "outputWidth": 1280,
+      "outputHeight": 800,
+      "transform": 0
+    }
+  },
+  {
+    "version": 1,
+    "frameId": "3075-9",
+    "width": 1280,
+    "height": 800,
+    "timing": {
+      "clockId": "linux-monotonic:ac8a6a54-6d3d-4ced-95da-2acc654699b8",
+      "kind": "compositor-frame",
+      "startMs": 130387.333677,
+      "endMs": 130387.335677
+    },
+    "captureStartNs": "130372819316",
+    "readyNs": "130394156641",
+    "pngEncodedNs": "130402419403",
+    "geometry": {
+      "scope": "output",
+      "outputIndex": 0,
+      "x": 0,
+      "y": 0,
+      "width": 1280,
+      "height": 800,
+      "scale": 1,
+      "outputWidth": 1280,
+      "outputHeight": 800,
+      "transform": 0
+    }
+  },
+  {
+    "version": 1,
+    "frameId": "3075-10",
+    "width": 1280,
+    "height": 800,
+    "timing": {
+      "clockId": "linux-monotonic:ac8a6a54-6d3d-4ced-95da-2acc654699b8",
+      "kind": "compositor-frame",
+      "startMs": 130419.124844,
+      "endMs": 130419.126844
+    },
+    "captureStartNs": "130403180668",
+    "readyNs": "130426081024",
+    "pngEncodedNs": "130434340247",
+    "geometry": {
+      "scope": "output",
+      "outputIndex": 0,
+      "x": 0,
+      "y": 0,
+      "width": 1280,
+      "height": 800,
+      "scale": 1,
+      "outputWidth": 1280,
+      "outputHeight": 800,
+      "transform": 0
+    }
+  },
+  {
+    "version": 1,
+    "frameId": "3075-11",
+    "width": 1280,
+    "height": 800,
+    "timing": {
+      "clockId": "linux-monotonic:ac8a6a54-6d3d-4ced-95da-2acc654699b8",
+      "kind": "compositor-frame",
+      "startMs": 130449.812257,
+      "endMs": 130449.814257
+    },
+    "captureStartNs": "130434990387",
+    "readyNs": "130456745759",
+    "pngEncodedNs": "130464809657",
+    "geometry": {
+      "scope": "output",
+      "outputIndex": 0,
+      "x": 0,
+      "y": 0,
+      "width": 1280,
+      "height": 800,
+      "scale": 1,
+      "outputWidth": 1280,
+      "outputHeight": 800,
+      "transform": 0
+    }
+  },
+  {
+    "version": 1,
+    "frameId": "3075-12",
+    "width": 1280,
+    "height": 800,
+    "timing": {
+      "clockId": "linux-monotonic:ac8a6a54-6d3d-4ced-95da-2acc654699b8",
+      "kind": "compositor-frame",
+      "startMs": 130481.201167,
+      "endMs": 130481.203167
+    },
+    "captureStartNs": "130465605796",
+    "readyNs": "130488073481",
+    "pngEncodedNs": "130496264810",
+    "geometry": {
+      "scope": "output",
+      "outputIndex": 0,
+      "x": 0,
+      "y": 0,
+      "width": 1280,
+      "height": 800,
+      "scale": 1,
+      "outputWidth": 1280,
+      "outputHeight": 800,
+      "transform": 0
+    }
+  },
+  {
+    "version": 1,
+    "frameId": "3075-13",
+    "width": 1280,
+    "height": 800,
+    "timing": {
+      "clockId": "linux-monotonic:ac8a6a54-6d3d-4ced-95da-2acc654699b8",
+      "kind": "compositor-frame",
+      "startMs": 130512.224458,
+      "endMs": 130512.226458
+    },
+    "captureStartNs": "130496985964",
+    "readyNs": "130519851467",
+    "pngEncodedNs": "130528285358",
+    "geometry": {
+      "scope": "output",
+      "outputIndex": 0,
+      "x": 0,
+      "y": 0,
+      "width": 1280,
+      "height": 800,
+      "scale": 1,
+      "outputWidth": 1280,
+      "outputHeight": 800,
+      "transform": 0
+    }
+  },
+  {
+    "version": 1,
+    "frameId": "3075-14",
+    "width": 1280,
+    "height": 800,
+    "timing": {
+      "clockId": "linux-monotonic:ac8a6a54-6d3d-4ced-95da-2acc654699b8",
+      "kind": "compositor-frame",
+      "startMs": 130544.059627,
+      "endMs": 130544.061627
+    },
+    "captureStartNs": "130529079544",
+    "readyNs": "130551344192",
+    "pngEncodedNs": "130559625344",
+    "geometry": {
+      "scope": "output",
+      "outputIndex": 0,
+      "x": 0,
+      "y": 0,
+      "width": 1280,
+      "height": 800,
+      "scale": 1,
+      "outputWidth": 1280,
+      "outputHeight": 800,
+      "transform": 0
+    }
+  },
+  {
+    "version": 1,
+    "frameId": "3075-15",
+    "width": 1280,
+    "height": 800,
+    "timing": {
+      "clockId": "linux-monotonic:ac8a6a54-6d3d-4ced-95da-2acc654699b8",
+      "kind": "compositor-frame",
+      "startMs": 130576.194471,
+      "endMs": 130576.196471
+    },
+    "captureStartNs": "130560403375",
+    "readyNs": "130585730063",
+    "pngEncodedNs": "130594098481",
+    "geometry": {
+      "scope": "output",
+      "outputIndex": 0,
+      "x": 0,
+      "y": 0,
+      "width": 1280,
+      "height": 800,
+      "scale": 1,
+      "outputWidth": 1280,
+      "outputHeight": 800,
+      "transform": 0
+    }
+  },
+  {
+    "version": 1,
+    "frameId": "3075-16",
+    "width": 1280,
+    "height": 800,
+    "timing": {
+      "clockId": "linux-monotonic:ac8a6a54-6d3d-4ced-95da-2acc654699b8",
+      "kind": "compositor-frame",
+      "startMs": 130610.162858,
+      "endMs": 130610.164858
+    },
+    "captureStartNs": "130594718060",
+    "readyNs": "130617134500",
+    "pngEncodedNs": "130625206634",
+    "geometry": {
+      "scope": "output",
+      "outputIndex": 0,
+      "x": 0,
+      "y": 0,
+      "width": 1280,
+      "height": 800,
+      "scale": 1,
+      "outputWidth": 1280,
+      "outputHeight": 800,
+      "transform": 0
+    }
+  },
+  {
+    "version": 1,
+    "frameId": "3075-17",
+    "width": 1280,
+    "height": 800,
+    "timing": {
+      "clockId": "linux-monotonic:ac8a6a54-6d3d-4ced-95da-2acc654699b8",
+      "kind": "compositor-frame",
+      "startMs": 130641.07469,
+      "endMs": 130641.07669
+    },
+    "captureStartNs": "130625837756",
+    "readyNs": "130648595638",
+    "pngEncodedNs": "130656782523",
+    "geometry": {
+      "scope": "output",
+      "outputIndex": 0,
+      "x": 0,
+      "y": 0,
+      "width": 1280,
+      "height": 800,
+      "scale": 1,
+      "outputWidth": 1280,
+      "outputHeight": 800,
+      "transform": 0
+    }
+  },
+  {
+    "version": 1,
+    "frameId": "3075-18",
+    "width": 1280,
+    "height": 800,
+    "timing": {
+      "clockId": "linux-monotonic:ac8a6a54-6d3d-4ced-95da-2acc654699b8",
+      "kind": "compositor-frame",
+      "startMs": 130672.604422,
+      "endMs": 130672.606422
+    },
+    "captureStartNs": "130657425237",
+    "readyNs": "130678920953",
+    "pngEncodedNs": "130687061288",
+    "geometry": {
+      "scope": "output",
+      "outputIndex": 0,
+      "x": 0,
+      "y": 0,
+      "width": 1280,
+      "height": 800,
+      "scale": 1,
+      "outputWidth": 1280,
+      "outputHeight": 800,
+      "transform": 0
+    }
+  },
+  {
+    "version": 1,
+    "frameId": "3075-19",
+    "width": 1280,
+    "height": 800,
+    "timing": {
+      "clockId": "linux-monotonic:ac8a6a54-6d3d-4ced-95da-2acc654699b8",
+      "kind": "compositor-frame",
+      "startMs": 130702.321543,
+      "endMs": 130702.323543
+    },
+    "captureStartNs": "130687766136",
+    "readyNs": "130709994599",
+    "pngEncodedNs": "130718354136",
+    "geometry": {
+      "scope": "output",
+      "outputIndex": 0,
+      "x": 0,
+      "y": 0,
+      "width": 1280,
+      "height": 800,
+      "scale": 1,
+      "outputWidth": 1280,
+      "outputHeight": 800,
+      "transform": 0
+    }
+  },
+  {
+    "version": 1,
+    "frameId": "3075-20",
+    "width": 1280,
+    "height": 800,
+    "timing": {
+      "clockId": "linux-monotonic:ac8a6a54-6d3d-4ced-95da-2acc654699b8",
+      "kind": "compositor-frame",
+      "startMs": 130733.423067,
+      "endMs": 130733.425067
+    },
+    "captureStartNs": "130718998671",
+    "readyNs": "130741191700",
+    "pngEncodedNs": "130749495212",
+    "geometry": {
+      "scope": "output",
+      "outputIndex": 0,
+      "x": 0,
+      "y": 0,
+      "width": 1280,
+      "height": 800,
+      "scale": 1,
+      "outputWidth": 1280,
+      "outputHeight": 800,
+      "transform": 0
+    }
+  },
+  {
+    "version": 1,
+    "frameId": "3075-21",
+    "width": 1280,
+    "height": 800,
+    "timing": {
+      "clockId": "linux-monotonic:ac8a6a54-6d3d-4ced-95da-2acc654699b8",
+      "kind": "compositor-frame",
+      "startMs": 130765.344713,
+      "endMs": 130765.346713
+    },
+    "captureStartNs": "130750309578",
+    "readyNs": "130772600608",
+    "pngEncodedNs": "130780796370",
+    "geometry": {
+      "scope": "output",
+      "outputIndex": 0,
+      "x": 0,
+      "y": 0,
+      "width": 1280,
+      "height": 800,
+      "scale": 1,
+      "outputWidth": 1280,
+      "outputHeight": 800,
+      "transform": 0
+    }
+  },
+  {
+    "version": 1,
+    "frameId": "3075-22",
+    "width": 1280,
+    "height": 800,
+    "timing": {
+      "clockId": "linux-monotonic:ac8a6a54-6d3d-4ced-95da-2acc654699b8",
+      "kind": "compositor-frame",
+      "startMs": 130797.429004,
+      "endMs": 130797.431004
+    },
+    "captureStartNs": "130781662610",
+    "readyNs": "130804349035",
+    "pngEncodedNs": "130812499021",
+    "geometry": {
+      "scope": "output",
+      "outputIndex": 0,
+      "x": 0,
+      "y": 0,
+      "width": 1280,
+      "height": 800,
+      "scale": 1,
+      "outputWidth": 1280,
+      "outputHeight": 800,
+      "transform": 0
+    }
+  },
+  {
+    "version": 1,
+    "frameId": "3075-23",
+    "width": 1280,
+    "height": 800,
+    "timing": {
+      "clockId": "linux-monotonic:ac8a6a54-6d3d-4ced-95da-2acc654699b8",
+      "kind": "compositor-frame",
+      "startMs": 130827.918695,
+      "endMs": 130827.920695
+    },
+    "captureStartNs": "130813302269",
+    "readyNs": "130835602789",
+    "pngEncodedNs": "130843850516",
+    "geometry": {
+      "scope": "output",
+      "outputIndex": 0,
+      "x": 0,
+      "y": 0,
+      "width": 1280,
+      "height": 800,
+      "scale": 1,
+      "outputWidth": 1280,
+      "outputHeight": 800,
+      "transform": 0
+    }
+  },
+  {
+    "version": 1,
+    "frameId": "3075-24",
+    "width": 1280,
+    "height": 800,
+    "timing": {
+      "clockId": "linux-monotonic:ac8a6a54-6d3d-4ced-95da-2acc654699b8",
+      "kind": "compositor-frame",
+      "startMs": 130860.254481,
+      "endMs": 130860.256481
+    },
+    "captureStartNs": "130844526120",
+    "readyNs": "130867387392",
+    "pngEncodedNs": "130875892466",
+    "geometry": {
+      "scope": "output",
+      "outputIndex": 0,
+      "x": 0,
+      "y": 0,
+      "width": 1280,
+      "height": 800,
+      "scale": 1,
+      "outputWidth": 1280,
+      "outputHeight": 800,
+      "transform": 0
+    }
+  },
+  {
+    "version": 1,
+    "frameId": "3075-25",
+    "width": 1280,
+    "height": 800,
+    "timing": {
+      "clockId": "linux-monotonic:ac8a6a54-6d3d-4ced-95da-2acc654699b8",
+      "kind": "compositor-frame",
+      "startMs": 130891.818154,
+      "endMs": 130891.820154
+    },
+    "captureStartNs": "130876618602",
+    "readyNs": "130899228711",
+    "pngEncodedNs": "130907444406",
+    "geometry": {
+      "scope": "output",
+      "outputIndex": 0,
+      "x": 0,
+      "y": 0,
+      "width": 1280,
+      "height": 800,
+      "scale": 1,
+      "outputWidth": 1280,
+      "outputHeight": 800,
+      "transform": 0
+    }
+  },
+  {
+    "version": 1,
+    "frameId": "3075-26",
+    "width": 1280,
+    "height": 800,
+    "timing": {
+      "clockId": "linux-monotonic:ac8a6a54-6d3d-4ced-95da-2acc654699b8",
+      "kind": "compositor-frame",
+      "startMs": 130923.084046,
+      "endMs": 130923.086046
+    },
+    "captureStartNs": "130908213102",
+    "readyNs": "130931081712",
+    "pngEncodedNs": "130939406866",
+    "geometry": {
+      "scope": "output",
+      "outputIndex": 0,
+      "x": 0,
+      "y": 0,
+      "width": 1280,
+      "height": 800,
+      "scale": 1,
+      "outputWidth": 1280,
+      "outputHeight": 800,
+      "transform": 0
+    }
+  },
+  {
+    "version": 1,
+    "frameId": "3075-27",
+    "width": 1280,
+    "height": 800,
+    "timing": {
+      "clockId": "linux-monotonic:ac8a6a54-6d3d-4ced-95da-2acc654699b8",
+      "kind": "compositor-frame",
+      "startMs": 130954.988649,
+      "endMs": 130954.990649
+    },
+    "captureStartNs": "130940251149",
+    "readyNs": "130961875351",
+    "pngEncodedNs": "130970859635",
+    "geometry": {
+      "scope": "output",
+      "outputIndex": 0,
+      "x": 0,
+      "y": 0,
+      "width": 1280,
+      "height": 800,
+      "scale": 1,
+      "outputWidth": 1280,
+      "outputHeight": 800,
+      "transform": 0
+    }
+  },
+  {
+    "version": 1,
+    "frameId": "3075-28",
+    "width": 1280,
+    "height": 800,
+    "timing": {
+      "clockId": "linux-monotonic:ac8a6a54-6d3d-4ced-95da-2acc654699b8",
+      "kind": "compositor-frame",
+      "startMs": 130988.05092,
+      "endMs": 130988.05292
+    },
+    "captureStartNs": "130972217579",
+    "readyNs": "130994947455",
+    "pngEncodedNs": "131003296613",
+    "geometry": {
+      "scope": "output",
+      "outputIndex": 0,
+      "x": 0,
+      "y": 0,
+      "width": 1280,
+      "height": 800,
+      "scale": 1,
+      "outputWidth": 1280,
+      "outputHeight": 800,
+      "transform": 0
+    }
+  },
+  {
+    "version": 1,
+    "frameId": "3075-29",
+    "width": 1280,
+    "height": 800,
+    "timing": {
+      "clockId": "linux-monotonic:ac8a6a54-6d3d-4ced-95da-2acc654699b8",
+      "kind": "compositor-frame",
+      "startMs": 131019.860482,
+      "endMs": 131019.862482
+    },
+    "captureStartNs": "131004613677",
+    "readyNs": "131027736456",
+    "pngEncodedNs": "131036118941",
+    "geometry": {
+      "scope": "output",
+      "outputIndex": 0,
+      "x": 0,
+      "y": 0,
+      "width": 1280,
+      "height": 800,
+      "scale": 1,
+      "outputWidth": 1280,
+      "outputHeight": 800,
+      "transform": 0
+    }
+  },
+  {
+    "version": 1,
+    "frameId": "3075-30",
+    "width": 1280,
+    "height": 800,
+    "timing": {
+      "clockId": "linux-monotonic:ac8a6a54-6d3d-4ced-95da-2acc654699b8",
+      "kind": "compositor-frame",
+      "startMs": 131051.954061,
+      "endMs": 131051.956061
+    },
+    "captureStartNs": "131037541884",
+    "readyNs": "131058943761",
+    "pngEncodedNs": "131067224506",
+    "geometry": {
+      "scope": "output",
+      "outputIndex": 0,
+      "x": 0,
+      "y": 0,
+      "width": 1280,
+      "height": 800,
+      "scale": 1,
+      "outputWidth": 1280,
+      "outputHeight": 800,
+      "transform": 0
+    }
+  },
+  {
+    "version": 1,
+    "frameId": "3075-31",
+    "width": 1280,
+    "height": 800,
+    "timing": {
+      "clockId": "linux-monotonic:ac8a6a54-6d3d-4ced-95da-2acc654699b8",
+      "kind": "compositor-frame",
+      "startMs": 131082.588402,
+      "endMs": 131082.590402
+    },
+    "captureStartNs": "131067888365",
+    "readyNs": "131089808263",
+    "pngEncodedNs": "131098194234",
+    "geometry": {
+      "scope": "output",
+      "outputIndex": 0,
+      "x": 0,
+      "y": 0,
+      "width": 1280,
+      "height": 800,
+      "scale": 1,
+      "outputWidth": 1280,
+      "outputHeight": 800,
+      "transform": 0
+    }
+  },
+  {
+    "version": 1,
+    "frameId": "3075-32",
+    "width": 1280,
+    "height": 800,
+    "timing": {
+      "clockId": "linux-monotonic:ac8a6a54-6d3d-4ced-95da-2acc654699b8",
+      "kind": "compositor-frame",
+      "startMs": 131113.036437,
+      "endMs": 131113.038437
+    },
+    "captureStartNs": "131098804918",
+    "readyNs": "131119368835",
+    "pngEncodedNs": "131127646323",
+    "geometry": {
+      "scope": "output",
+      "outputIndex": 0,
+      "x": 0,
+      "y": 0,
+      "width": 1280,
+      "height": 800,
+      "scale": 1,
+      "outputWidth": 1280,
+      "outputHeight": 800,
+      "transform": 0
+    }
+  },
+  {
+    "version": 1,
+    "frameId": "3075-33",
+    "width": 1280,
+    "height": 800,
+    "timing": {
+      "clockId": "linux-monotonic:ac8a6a54-6d3d-4ced-95da-2acc654699b8",
+      "kind": "compositor-frame",
+      "startMs": 131143.248822,
+      "endMs": 131143.250822
+    },
+    "captureStartNs": "131128362370",
+    "readyNs": "131150146278",
+    "pngEncodedNs": "131158422063",
+    "geometry": {
+      "scope": "output",
+      "outputIndex": 0,
+      "x": 0,
+      "y": 0,
+      "width": 1280,
+      "height": 800,
+      "scale": 1,
+      "outputWidth": 1280,
+      "outputHeight": 800,
+      "transform": 0
+    }
+  },
+  {
+    "version": 1,
+    "frameId": "3075-34",
+    "width": 1280,
+    "height": 800,
+    "timing": {
+      "clockId": "linux-monotonic:ac8a6a54-6d3d-4ced-95da-2acc654699b8",
+      "kind": "compositor-frame",
+      "startMs": 131174.042405,
+      "endMs": 131174.044405
+    },
+    "captureStartNs": "131159300683",
+    "readyNs": "131181272620",
+    "pngEncodedNs": "131189581425",
+    "geometry": {
+      "scope": "output",
+      "outputIndex": 0,
+      "x": 0,
+      "y": 0,
+      "width": 1280,
+      "height": 800,
+      "scale": 1,
+      "outputWidth": 1280,
+      "outputHeight": 800,
+      "transform": 0
+    }
+  },
+  {
+    "version": 1,
+    "frameId": "3075-35",
+    "width": 1280,
+    "height": 800,
+    "timing": {
+      "clockId": "linux-monotonic:ac8a6a54-6d3d-4ced-95da-2acc654699b8",
+      "kind": "compositor-frame",
+      "startMs": 131205.086085,
+      "endMs": 131205.088085
+    },
+    "captureStartNs": "131190379051",
+    "readyNs": "131212851483",
+    "pngEncodedNs": "131221296135",
+    "geometry": {
+      "scope": "output",
+      "outputIndex": 0,
+      "x": 0,
+      "y": 0,
+      "width": 1280,
+      "height": 800,
+      "scale": 1,
+      "outputWidth": 1280,
+      "outputHeight": 800,
+      "transform": 0
+    }
+  },
+  {
+    "version": 1,
+    "frameId": "3075-36",
+    "width": 1280,
+    "height": 800,
+    "timing": {
+      "clockId": "linux-monotonic:ac8a6a54-6d3d-4ced-95da-2acc654699b8",
+      "kind": "compositor-frame",
+      "startMs": 131236.862249,
+      "endMs": 131236.864249
+    },
+    "captureStartNs": "131222124658",
+    "readyNs": "131244303502",
+    "pngEncodedNs": "131252614724",
+    "geometry": {
+      "scope": "output",
+      "outputIndex": 0,
+      "x": 0,
+      "y": 0,
+      "width": 1280,
+      "height": 800,
+      "scale": 1,
+      "outputWidth": 1280,
+      "outputHeight": 800,
+      "transform": 0
+    }
+  },
+  {
+    "version": 1,
+    "frameId": "3075-37",
+    "width": 1280,
+    "height": 800,
+    "timing": {
+      "clockId": "linux-monotonic:ac8a6a54-6d3d-4ced-95da-2acc654699b8",
+      "kind": "compositor-frame",
+      "startMs": 131269.068861,
+      "endMs": 131269.070861
+    },
+    "captureStartNs": "131253296882",
+    "readyNs": "131276327443",
+    "pngEncodedNs": "131284692844",
+    "geometry": {
+      "scope": "output",
+      "outputIndex": 0,
+      "x": 0,
+      "y": 0,
+      "width": 1280,
+      "height": 800,
+      "scale": 1,
+      "outputWidth": 1280,
+      "outputHeight": 800,
+      "transform": 0
+    }
+  },
+  {
+    "version": 1,
+    "frameId": "3075-38",
+    "width": 1280,
+    "height": 800,
+    "timing": {
+      "clockId": "linux-monotonic:ac8a6a54-6d3d-4ced-95da-2acc654699b8",
+      "kind": "compositor-frame",
+      "startMs": 131299.798372,
+      "endMs": 131299.800372
+    },
+    "captureStartNs": "131285385400",
+    "readyNs": "131307665796",
+    "pngEncodedNs": "131315997270",
+    "geometry": {
+      "scope": "output",
+      "outputIndex": 0,
+      "x": 0,
+      "y": 0,
+      "width": 1280,
+      "height": 800,
+      "scale": 1,
+      "outputWidth": 1280,
+      "outputHeight": 800,
+      "transform": 0
+    }
+  },
+  {
+    "version": 1,
+    "frameId": "3075-39",
+    "width": 1280,
+    "height": 800,
+    "timing": {
+      "clockId": "linux-monotonic:ac8a6a54-6d3d-4ced-95da-2acc654699b8",
+      "kind": "compositor-frame",
+      "startMs": 131331.369299,
+      "endMs": 131331.371299
+    },
+    "captureStartNs": "131316765364",
+    "readyNs": "131338381581",
+    "pngEncodedNs": "131346613590",
+    "geometry": {
+      "scope": "output",
+      "outputIndex": 0,
+      "x": 0,
+      "y": 0,
+      "width": 1280,
+      "height": 800,
+      "scale": 1,
+      "outputWidth": 1280,
+      "outputHeight": 800,
+      "transform": 0
+    }
+  },
+  {
+    "version": 1,
+    "frameId": "3075-40",
+    "width": 1280,
+    "height": 800,
+    "timing": {
+      "clockId": "linux-monotonic:ac8a6a54-6d3d-4ced-95da-2acc654699b8",
+      "kind": "compositor-frame",
+      "startMs": 131362.232275,
+      "endMs": 131362.234275
+    },
+    "captureStartNs": "131347409444",
+    "readyNs": "131369218819",
+    "pngEncodedNs": "131377541958",
+    "geometry": {
+      "scope": "output",
+      "outputIndex": 0,
+      "x": 0,
+      "y": 0,
+      "width": 1280,
+      "height": 800,
+      "scale": 1,
+      "outputWidth": 1280,
+      "outputHeight": 800,
+      "transform": 0
+    }
+  },
+  {
+    "version": 1,
+    "frameId": "3075-41",
+    "width": 1280,
+    "height": 800,
+    "timing": {
+      "clockId": "linux-monotonic:ac8a6a54-6d3d-4ced-95da-2acc654699b8",
+      "kind": "compositor-frame",
+      "startMs": 131393.233119,
+      "endMs": 131393.235119
+    },
+    "captureStartNs": "131378207270",
+    "readyNs": "131400649577",
+    "pngEncodedNs": "131409037507",
+    "geometry": {
+      "scope": "output",
+      "outputIndex": 0,
+      "x": 0,
+      "y": 0,
+      "width": 1280,
+      "height": 800,
+      "scale": 1,
+      "outputWidth": 1280,
+      "outputHeight": 800,
+      "transform": 0
+    }
+  },
+  {
+    "version": 1,
+    "frameId": "3075-42",
+    "width": 1280,
+    "height": 800,
+    "timing": {
+      "clockId": "linux-monotonic:ac8a6a54-6d3d-4ced-95da-2acc654699b8",
+      "kind": "compositor-frame",
+      "startMs": 131424.690591,
+      "endMs": 131424.692591
+    },
+    "captureStartNs": "131409759217",
+    "readyNs": "131431846228",
+    "pngEncodedNs": "131440067661",
+    "geometry": {
+      "scope": "output",
+      "outputIndex": 0,
+      "x": 0,
+      "y": 0,
+      "width": 1280,
+      "height": 800,
+      "scale": 1,
+      "outputWidth": 1280,
+      "outputHeight": 800,
+      "transform": 0
+    }
+  },
+  {
+    "version": 1,
+    "frameId": "3075-43",
+    "width": 1280,
+    "height": 800,
+    "timing": {
+      "clockId": "linux-monotonic:ac8a6a54-6d3d-4ced-95da-2acc654699b8",
+      "kind": "compositor-frame",
+      "startMs": 131457.207774,
+      "endMs": 131457.209774
+    },
+    "captureStartNs": "131440742264",
+    "readyNs": "131464049808",
+    "pngEncodedNs": "131472366267",
+    "geometry": {
+      "scope": "output",
+      "outputIndex": 0,
+      "x": 0,
+      "y": 0,
+      "width": 1280,
+      "height": 800,
+      "scale": 1,
+      "outputWidth": 1280,
+      "outputHeight": 800,
+      "transform": 0
+    }
+  },
+  {
+    "version": 1,
+    "frameId": "3075-44",
+    "width": 1280,
+    "height": 800,
+    "timing": {
+      "clockId": "linux-monotonic:ac8a6a54-6d3d-4ced-95da-2acc654699b8",
+      "kind": "compositor-frame",
+      "startMs": 131488.46553,
+      "endMs": 131488.46753
+    },
+    "captureStartNs": "131473029965",
+    "readyNs": "131495370527",
+    "pngEncodedNs": "131503746834",
+    "geometry": {
+      "scope": "output",
+      "outputIndex": 0,
+      "x": 0,
+      "y": 0,
+      "width": 1280,
+      "height": 800,
+      "scale": 1,
+      "outputWidth": 1280,
+      "outputHeight": 800,
+      "transform": 0
+    }
+  },
+  {
+    "version": 1,
+    "frameId": "3075-45",
+    "width": 1280,
+    "height": 800,
+    "timing": {
+      "clockId": "linux-monotonic:ac8a6a54-6d3d-4ced-95da-2acc654699b8",
+      "kind": "compositor-frame",
+      "startMs": 131520.51003,
+      "endMs": 131520.51203
+    },
+    "captureStartNs": "131504441292",
+    "readyNs": "131528154131",
+    "pngEncodedNs": "131536426320",
+    "geometry": {
+      "scope": "output",
+      "outputIndex": 0,
+      "x": 0,
+      "y": 0,
+      "width": 1280,
+      "height": 800,
+      "scale": 1,
+      "outputWidth": 1280,
+      "outputHeight": 800,
+      "transform": 0
+    }
+  },
+  {
+    "version": 1,
+    "frameId": "3075-46",
+    "width": 1280,
+    "height": 800,
+    "timing": {
+      "clockId": "linux-monotonic:ac8a6a54-6d3d-4ced-95da-2acc654699b8",
+      "kind": "compositor-frame",
+      "startMs": 131551.932772,
+      "endMs": 131551.934772
+    },
+    "captureStartNs": "131537235682",
+    "readyNs": "131558767930",
+    "pngEncodedNs": "131567178302",
+    "geometry": {
+      "scope": "output",
+      "outputIndex": 0,
+      "x": 0,
+      "y": 0,
+      "width": 1280,
+      "height": 800,
+      "scale": 1,
+      "outputWidth": 1280,
+      "outputHeight": 800,
+      "transform": 0
+    }
+  },
+  {
+    "version": 1,
+    "frameId": "3075-47",
+    "width": 1280,
+    "height": 800,
+    "timing": {
+      "clockId": "linux-monotonic:ac8a6a54-6d3d-4ced-95da-2acc654699b8",
+      "kind": "compositor-frame",
+      "startMs": 131582.304707,
+      "endMs": 131582.306707
+    },
+    "captureStartNs": "131567830740",
+    "readyNs": "131588845152",
+    "pngEncodedNs": "131597121791",
+    "geometry": {
+      "scope": "output",
+      "outputIndex": 0,
+      "x": 0,
+      "y": 0,
+      "width": 1280,
+      "height": 800,
+      "scale": 1,
+      "outputWidth": 1280,
+      "outputHeight": 800,
+      "transform": 0
+    }
+  },
+  {
+    "version": 1,
+    "frameId": "3075-48",
+    "width": 1280,
+    "height": 800,
+    "timing": {
+      "clockId": "linux-monotonic:ac8a6a54-6d3d-4ced-95da-2acc654699b8",
+      "kind": "compositor-frame",
+      "startMs": 131611.945016,
+      "endMs": 131611.947016
+    },
+    "captureStartNs": "131597774812",
+    "readyNs": "131618628290",
+    "pngEncodedNs": "131626889423",
+    "geometry": {
+      "scope": "output",
+      "outputIndex": 0,
+      "x": 0,
+      "y": 0,
+      "width": 1280,
+      "height": 800,
+      "scale": 1,
+      "outputWidth": 1280,
+      "outputHeight": 800,
+      "transform": 0
+    }
+  },
+  {
+    "version": 1,
+    "frameId": "3075-49",
+    "width": 1280,
+    "height": 800,
+    "timing": {
+      "clockId": "linux-monotonic:ac8a6a54-6d3d-4ced-95da-2acc654699b8",
+      "kind": "compositor-frame",
+      "startMs": 131644.720523,
+      "endMs": 131644.722523
+    },
+    "captureStartNs": "131627578585",
+    "readyNs": "131651609180",
+    "pngEncodedNs": "131659781719",
+    "geometry": {
+      "scope": "output",
+      "outputIndex": 0,
+      "x": 0,
+      "y": 0,
+      "width": 1280,
+      "height": 800,
+      "scale": 1,
+      "outputWidth": 1280,
+      "outputHeight": 800,
+      "transform": 0
+    }
+  },
+  {
+    "version": 1,
+    "frameId": "3075-50",
+    "width": 1280,
+    "height": 800,
+    "timing": {
+      "clockId": "linux-monotonic:ac8a6a54-6d3d-4ced-95da-2acc654699b8",
+      "kind": "compositor-frame",
+      "startMs": 131676.498393,
+      "endMs": 131676.500393
+    },
+    "captureStartNs": "131660523083",
+    "readyNs": "131683638530",
+    "pngEncodedNs": "131692052640",
+    "geometry": {
+      "scope": "output",
+      "outputIndex": 0,
+      "x": 0,
+      "y": 0,
+      "width": 1280,
+      "height": 800,
+      "scale": 1,
+      "outputWidth": 1280,
+      "outputHeight": 800,
+      "transform": 0
+    }
+  },
+  {
+    "version": 1,
+    "frameId": "3075-51",
+    "width": 1280,
+    "height": 800,
+    "timing": {
+      "clockId": "linux-monotonic:ac8a6a54-6d3d-4ced-95da-2acc654699b8",
+      "kind": "compositor-frame",
+      "startMs": 131708.907262,
+      "endMs": 131708.909262
+    },
+    "captureStartNs": "131692749477",
+    "readyNs": "131716475290",
+    "pngEncodedNs": "131725269253",
+    "geometry": {
+      "scope": "output",
+      "outputIndex": 0,
+      "x": 0,
+      "y": 0,
+      "width": 1280,
+      "height": 800,
+      "scale": 1,
+      "outputWidth": 1280,
+      "outputHeight": 800,
+      "transform": 0
+    }
+  },
+  {
+    "version": 1,
+    "frameId": "3075-52",
+    "width": 1280,
+    "height": 800,
+    "timing": {
+      "clockId": "linux-monotonic:ac8a6a54-6d3d-4ced-95da-2acc654699b8",
+      "kind": "compositor-frame",
+      "startMs": 131741.795064,
+      "endMs": 131741.797064
+    },
+    "captureStartNs": "131725879457",
+    "readyNs": "131748858459",
+    "pngEncodedNs": "131757122278",
+    "geometry": {
+      "scope": "output",
+      "outputIndex": 0,
+      "x": 0,
+      "y": 0,
+      "width": 1280,
+      "height": 800,
+      "scale": 1,
+      "outputWidth": 1280,
+      "outputHeight": 800,
+      "transform": 0
+    }
+  },
+  {
+    "version": 1,
+    "frameId": "3075-53",
+    "width": 1280,
+    "height": 800,
+    "timing": {
+      "clockId": "linux-monotonic:ac8a6a54-6d3d-4ced-95da-2acc654699b8",
+      "kind": "compositor-frame",
+      "startMs": 131773.488382,
+      "endMs": 131773.490382
+    },
+    "captureStartNs": "131757717438",
+    "readyNs": "131781353196",
+    "pngEncodedNs": "131789608313",
+    "geometry": {
+      "scope": "output",
+      "outputIndex": 0,
+      "x": 0,
+      "y": 0,
+      "width": 1280,
+      "height": 800,
+      "scale": 1,
+      "outputWidth": 1280,
+      "outputHeight": 800,
+      "transform": 0
+    }
+  },
+  {
+    "version": 1,
+    "frameId": "3075-54",
+    "width": 1280,
+    "height": 800,
+    "timing": {
+      "clockId": "linux-monotonic:ac8a6a54-6d3d-4ced-95da-2acc654699b8",
+      "kind": "compositor-frame",
+      "startMs": 131806.050173,
+      "endMs": 131806.052173
+    },
+    "captureStartNs": "131790425805",
+    "readyNs": "131812857485",
+    "pngEncodedNs": "131821197705",
+    "geometry": {
+      "scope": "output",
+      "outputIndex": 0,
+      "x": 0,
+      "y": 0,
+      "width": 1280,
+      "height": 800,
+      "scale": 1,
+      "outputWidth": 1280,
+      "outputHeight": 800,
+      "transform": 0
+    }
+  },
+  {
+    "version": 1,
+    "frameId": "3075-55",
+    "width": 1280,
+    "height": 800,
+    "timing": {
+      "clockId": "linux-monotonic:ac8a6a54-6d3d-4ced-95da-2acc654699b8",
+      "kind": "compositor-frame",
+      "startMs": 131837.132493,
+      "endMs": 131837.134493
+    },
+    "captureStartNs": "131821843629",
+    "readyNs": "131844962031",
+    "pngEncodedNs": "131853250799",
+    "geometry": {
+      "scope": "output",
+      "outputIndex": 0,
+      "x": 0,
+      "y": 0,
+      "width": 1280,
+      "height": 800,
+      "scale": 1,
+      "outputWidth": 1280,
+      "outputHeight": 800,
+      "transform": 0
+    }
+  },
+  {
+    "version": 1,
+    "frameId": "3075-56",
+    "width": 1280,
+    "height": 800,
+    "timing": {
+      "clockId": "linux-monotonic:ac8a6a54-6d3d-4ced-95da-2acc654699b8",
+      "kind": "compositor-frame",
+      "startMs": 131868.832535,
+      "endMs": 131868.834535
+    },
+    "captureStartNs": "131853874231",
+    "readyNs": "131876029867",
+    "pngEncodedNs": "131884439514",
+    "geometry": {
+      "scope": "output",
+      "outputIndex": 0,
+      "x": 0,
+      "y": 0,
+      "width": 1280,
+      "height": 800,
+      "scale": 1,
+      "outputWidth": 1280,
+      "outputHeight": 800,
+      "transform": 0
+    }
+  },
+  {
+    "version": 1,
+    "frameId": "3075-57",
+    "width": 1280,
+    "height": 800,
+    "timing": {
+      "clockId": "linux-monotonic:ac8a6a54-6d3d-4ced-95da-2acc654699b8",
+      "kind": "compositor-frame",
+      "startMs": 131900.386773,
+      "endMs": 131900.388773
+    },
+    "captureStartNs": "131885038992",
+    "readyNs": "131908183473",
+    "pngEncodedNs": "131916594388",
+    "geometry": {
+      "scope": "output",
+      "outputIndex": 0,
+      "x": 0,
+      "y": 0,
+      "width": 1280,
+      "height": 800,
+      "scale": 1,
+      "outputWidth": 1280,
+      "outputHeight": 800,
+      "transform": 0
+    }
+  },
+  {
+    "version": 1,
+    "frameId": "3075-58",
+    "width": 1280,
+    "height": 800,
+    "timing": {
+      "clockId": "linux-monotonic:ac8a6a54-6d3d-4ced-95da-2acc654699b8",
+      "kind": "compositor-frame",
+      "startMs": 131932.535413,
+      "endMs": 131932.537413
+    },
+    "captureStartNs": "131917282744",
+    "readyNs": "131939500401",
+    "pngEncodedNs": "131947942288",
+    "geometry": {
+      "scope": "output",
+      "outputIndex": 0,
+      "x": 0,
+      "y": 0,
+      "width": 1280,
+      "height": 800,
+      "scale": 1,
+      "outputWidth": 1280,
+      "outputHeight": 800,
+      "transform": 0
+    }
+  },
+  {
+    "version": 1,
+    "frameId": "3075-59",
+    "width": 1280,
+    "height": 800,
+    "timing": {
+      "clockId": "linux-monotonic:ac8a6a54-6d3d-4ced-95da-2acc654699b8",
+      "kind": "compositor-frame",
+      "startMs": 131963.26083,
+      "endMs": 131963.26283
+    },
+    "captureStartNs": "131948651353",
+    "readyNs": "131969896312",
+    "pngEncodedNs": "131978124448",
+    "geometry": {
+      "scope": "output",
+      "outputIndex": 0,
+      "x": 0,
+      "y": 0,
+      "width": 1280,
+      "height": 800,
+      "scale": 1,
+      "outputWidth": 1280,
+      "outputHeight": 800,
+      "transform": 0
+    }
+  },
+  {
+    "version": 1,
+    "frameId": "3075-60",
+    "width": 1280,
+    "height": 800,
+    "timing": {
+      "clockId": "linux-monotonic:ac8a6a54-6d3d-4ced-95da-2acc654699b8",
+      "kind": "compositor-frame",
+      "startMs": 131993.599018,
+      "endMs": 131993.601018
+    },
+    "captureStartNs": "131978810867",
+    "readyNs": "132000393723",
+    "pngEncodedNs": "132008828329",
+    "geometry": {
+      "scope": "output",
+      "outputIndex": 0,
+      "x": 0,
+      "y": 0,
+      "width": 1280,
+      "height": 800,
+      "scale": 1,
+      "outputWidth": 1280,
+      "outputHeight": 800,
+      "transform": 0
+    }
+  },
+  {
+    "version": 1,
+    "frameId": "3075-61",
+    "width": 1280,
+    "height": 800,
+    "timing": {
+      "clockId": "linux-monotonic:ac8a6a54-6d3d-4ced-95da-2acc654699b8",
+      "kind": "compositor-frame",
+      "startMs": 132024.076301,
+      "endMs": 132024.078301
+    },
+    "captureStartNs": "132009547932",
+    "readyNs": "132031209789",
+    "pngEncodedNs": "132039421318",
+    "geometry": {
+      "scope": "output",
+      "outputIndex": 0,
+      "x": 0,
+      "y": 0,
+      "width": 1280,
+      "height": 800,
+      "scale": 1,
+      "outputWidth": 1280,
+      "outputHeight": 800,
+      "transform": 0
+    }
+  },
+  {
+    "version": 1,
+    "frameId": "3075-62",
+    "width": 1280,
+    "height": 800,
+    "timing": {
+      "clockId": "linux-monotonic:ac8a6a54-6d3d-4ced-95da-2acc654699b8",
+      "kind": "compositor-frame",
+      "startMs": 132054.518273,
+      "endMs": 132054.520273
+    },
+    "captureStartNs": "132040102210",
+    "readyNs": "132060996235",
+    "pngEncodedNs": "132069202961",
+    "geometry": {
+      "scope": "output",
+      "outputIndex": 0,
+      "x": 0,
+      "y": 0,
+      "width": 1280,
+      "height": 800,
+      "scale": 1,
+      "outputWidth": 1280,
+      "outputHeight": 800,
+      "transform": 0
+    }
+  },
+  {
+    "version": 1,
+    "frameId": "3075-63",
+    "width": 1280,
+    "height": 800,
+    "timing": {
+      "clockId": "linux-monotonic:ac8a6a54-6d3d-4ced-95da-2acc654699b8",
+      "kind": "compositor-frame",
+      "startMs": 132084.138621,
+      "endMs": 132084.140621
+    },
+    "captureStartNs": "132069736937",
+    "readyNs": "132090956940",
+    "pngEncodedNs": "132099215680",
+    "geometry": {
+      "scope": "output",
+      "outputIndex": 0,
+      "x": 0,
+      "y": 0,
+      "width": 1280,
+      "height": 800,
+      "scale": 1,
+      "outputWidth": 1280,
+      "outputHeight": 800,
+      "transform": 0
+    }
+  },
+  {
+    "version": 1,
+    "frameId": "3075-64",
+    "width": 1280,
+    "height": 800,
+    "timing": {
+      "clockId": "linux-monotonic:ac8a6a54-6d3d-4ced-95da-2acc654699b8",
+      "kind": "compositor-frame",
+      "startMs": 132115.083923,
+      "endMs": 132115.085923
+    },
+    "captureStartNs": "132099912985",
+    "readyNs": "132122094623",
+    "pngEncodedNs": "132130300308",
+    "geometry": {
+      "scope": "output",
+      "outputIndex": 0,
+      "x": 0,
+      "y": 0,
+      "width": 1280,
+      "height": 800,
+      "scale": 1,
+      "outputWidth": 1280,
+      "outputHeight": 800,
+      "transform": 0
+    }
+  },
+  {
+    "version": 1,
+    "frameId": "3075-65",
+    "width": 1280,
+    "height": 800,
+    "timing": {
+      "clockId": "linux-monotonic:ac8a6a54-6d3d-4ced-95da-2acc654699b8",
+      "kind": "compositor-frame",
+      "startMs": 132145.840774,
+      "endMs": 132145.842774
+    },
+    "captureStartNs": "132131214982",
+    "readyNs": "132154349262",
+    "pngEncodedNs": "132162489039",
+    "geometry": {
+      "scope": "output",
+      "outputIndex": 0,
+      "x": 0,
+      "y": 0,
+      "width": 1280,
+      "height": 800,
+      "scale": 1,
+      "outputWidth": 1280,
+      "outputHeight": 800,
+      "transform": 0
+    }
+  },
+  {
+    "version": 1,
+    "frameId": "3075-66",
+    "width": 1280,
+    "height": 800,
+    "timing": {
+      "clockId": "linux-monotonic:ac8a6a54-6d3d-4ced-95da-2acc654699b8",
+      "kind": "compositor-frame",
+      "startMs": 132177.620495,
+      "endMs": 132177.622495
+    },
+    "captureStartNs": "132163258182",
+    "readyNs": "132184461083",
+    "pngEncodedNs": "132192609294",
+    "geometry": {
+      "scope": "output",
+      "outputIndex": 0,
+      "x": 0,
+      "y": 0,
+      "width": 1280,
+      "height": 800,
+      "scale": 1,
+      "outputWidth": 1280,
+      "outputHeight": 800,
+      "transform": 0
+    }
+  },
+  {
+    "version": 1,
+    "frameId": "3075-67",
+    "width": 1280,
+    "height": 800,
+    "timing": {
+      "clockId": "linux-monotonic:ac8a6a54-6d3d-4ced-95da-2acc654699b8",
+      "kind": "compositor-frame",
+      "startMs": 132209.153412,
+      "endMs": 132209.155412
+    },
+    "captureStartNs": "132193256599",
+    "readyNs": "132217136444",
+    "pngEncodedNs": "132225456824",
+    "geometry": {
+      "scope": "output",
+      "outputIndex": 0,
+      "x": 0,
+      "y": 0,
+      "width": 1280,
+      "height": 800,
+      "scale": 1,
+      "outputWidth": 1280,
+      "outputHeight": 800,
+      "transform": 0
+    }
+  },
+  {
+    "version": 1,
+    "frameId": "3075-68",
+    "width": 1280,
+    "height": 800,
+    "timing": {
+      "clockId": "linux-monotonic:ac8a6a54-6d3d-4ced-95da-2acc654699b8",
+      "kind": "compositor-frame",
+      "startMs": 132241.668073,
+      "endMs": 132241.670073
+    },
+    "captureStartNs": "132226745523",
+    "readyNs": "132249872705",
+    "pngEncodedNs": "132258183187",
+    "geometry": {
+      "scope": "output",
+      "outputIndex": 0,
+      "x": 0,
+      "y": 0,
+      "width": 1280,
+      "height": 800,
+      "scale": 1,
+      "outputWidth": 1280,
+      "outputHeight": 800,
+      "transform": 0
+    }
+  },
+  {
+    "version": 1,
+    "frameId": "3075-69",
+    "width": 1280,
+    "height": 800,
+    "timing": {
+      "clockId": "linux-monotonic:ac8a6a54-6d3d-4ced-95da-2acc654699b8",
+      "kind": "compositor-frame",
+      "startMs": 132273.93348,
+      "endMs": 132273.93548
+    },
+    "captureStartNs": "132258883880",
+    "readyNs": "132281198930",
+    "pngEncodedNs": "132289562103",
+    "geometry": {
+      "scope": "output",
+      "outputIndex": 0,
+      "x": 0,
+      "y": 0,
+      "width": 1280,
+      "height": 800,
+      "scale": 1,
+      "outputWidth": 1280,
+      "outputHeight": 800,
+      "transform": 0
+    }
+  },
+  {
+    "version": 1,
+    "frameId": "3075-70",
+    "width": 1280,
+    "height": 800,
+    "timing": {
+      "clockId": "linux-monotonic:ac8a6a54-6d3d-4ced-95da-2acc654699b8",
+      "kind": "compositor-frame",
+      "startMs": 132305.099421,
+      "endMs": 132305.101421
+    },
+    "captureStartNs": "132290757799",
+    "readyNs": "132313968898",
+    "pngEncodedNs": "132322219148",
+    "geometry": {
+      "scope": "output",
+      "outputIndex": 0,
+      "x": 0,
+      "y": 0,
+      "width": 1280,
+      "height": 800,
+      "scale": 1,
+      "outputWidth": 1280,
+      "outputHeight": 800,
+      "transform": 0
+    }
+  },
+  {
+    "version": 1,
+    "frameId": "3075-71",
+    "width": 1280,
+    "height": 800,
+    "timing": {
+      "clockId": "linux-monotonic:ac8a6a54-6d3d-4ced-95da-2acc654699b8",
+      "kind": "compositor-frame",
+      "startMs": 132337.697292,
+      "endMs": 132337.699292
+    },
+    "captureStartNs": "132322873049",
+    "readyNs": "132344281918",
+    "pngEncodedNs": "132352613943",
+    "geometry": {
+      "scope": "output",
+      "outputIndex": 0,
+      "x": 0,
+      "y": 0,
+      "width": 1280,
+      "height": 800,
+      "scale": 1,
+      "outputWidth": 1280,
+      "outputHeight": 800,
+      "transform": 0
+    }
+  },
+  {
+    "version": 1,
+    "frameId": "3075-72",
+    "width": 1280,
+    "height": 800,
+    "timing": {
+      "clockId": "linux-monotonic:ac8a6a54-6d3d-4ced-95da-2acc654699b8",
+      "kind": "compositor-frame",
+      "startMs": 132368.3255,
+      "endMs": 132368.3275
+    },
+    "captureStartNs": "132353288270",
+    "readyNs": "132375242236",
+    "pngEncodedNs": "132383603358",
+    "geometry": {
+      "scope": "output",
+      "outputIndex": 0,
+      "x": 0,
+      "y": 0,
+      "width": 1280,
+      "height": 800,
+      "scale": 1,
+      "outputWidth": 1280,
+      "outputHeight": 800,
+      "transform": 0
+    }
+  },
+  {
+    "version": 1,
+    "frameId": "3075-73",
+    "width": 1280,
+    "height": 800,
+    "timing": {
+      "clockId": "linux-monotonic:ac8a6a54-6d3d-4ced-95da-2acc654699b8",
+      "kind": "compositor-frame",
+      "startMs": 132399.507696,
+      "endMs": 132399.509696
+    },
+    "captureStartNs": "132384286934",
+    "readyNs": "132407159834",
+    "pngEncodedNs": "132415414802",
+    "geometry": {
+      "scope": "output",
+      "outputIndex": 0,
+      "x": 0,
+      "y": 0,
+      "width": 1280,
+      "height": 800,
+      "scale": 1,
+      "outputWidth": 1280,
+      "outputHeight": 800,
+      "transform": 0
+    }
+  },
+  {
+    "version": 1,
+    "frameId": "3075-74",
+    "width": 1280,
+    "height": 800,
+    "timing": {
+      "clockId": "linux-monotonic:ac8a6a54-6d3d-4ced-95da-2acc654699b8",
+      "kind": "compositor-frame",
+      "startMs": 132432.216553,
+      "endMs": 132432.218553
+    },
+    "captureStartNs": "132416073033",
+    "readyNs": "132439508384",
+    "pngEncodedNs": "132447841672",
+    "geometry": {
+      "scope": "output",
+      "outputIndex": 0,
+      "x": 0,
+      "y": 0,
+      "width": 1280,
+      "height": 800,
+      "scale": 1,
+      "outputWidth": 1280,
+      "outputHeight": 800,
+      "transform": 0
+    }
+  },
+  {
+    "version": 1,
+    "frameId": "3075-75",
+    "width": 1280,
+    "height": 800,
+    "timing": {
+      "clockId": "linux-monotonic:ac8a6a54-6d3d-4ced-95da-2acc654699b8",
+      "kind": "compositor-frame",
+      "startMs": 132464.985036,
+      "endMs": 132464.987036
+    },
+    "captureStartNs": "132448552742",
+    "readyNs": "132473056106",
+    "pngEncodedNs": "132481345976",
+    "geometry": {
+      "scope": "output",
+      "outputIndex": 0,
+      "x": 0,
+      "y": 0,
+      "width": 1280,
+      "height": 800,
+      "scale": 1,
+      "outputWidth": 1280,
+      "outputHeight": 800,
+      "transform": 0
+    }
+  },
+  {
+    "version": 1,
+    "frameId": "3075-76",
+    "width": 1280,
+    "height": 800,
+    "timing": {
+      "clockId": "linux-monotonic:ac8a6a54-6d3d-4ced-95da-2acc654699b8",
+      "kind": "compositor-frame",
+      "startMs": 132497.022027,
+      "endMs": 132497.024027
+    },
+    "captureStartNs": "132481993685",
+    "readyNs": "132504379303",
+    "pngEncodedNs": "132512654444",
+    "geometry": {
+      "scope": "output",
+      "outputIndex": 0,
+      "x": 0,
+      "y": 0,
+      "width": 1280,
+      "height": 800,
+      "scale": 1,
+      "outputWidth": 1280,
+      "outputHeight": 800,
+      "transform": 0
+    }
+  },
+  {
+    "version": 1,
+    "frameId": "3075-77",
+    "width": 1280,
+    "height": 800,
+    "timing": {
+      "clockId": "linux-monotonic:ac8a6a54-6d3d-4ced-95da-2acc654699b8",
+      "kind": "compositor-frame",
+      "startMs": 132528.792348,
+      "endMs": 132528.794348
+    },
+    "captureStartNs": "132513341035",
+    "readyNs": "132535649561",
+    "pngEncodedNs": "132543971611",
+    "geometry": {
+      "scope": "output",
+      "outputIndex": 0,
+      "x": 0,
+      "y": 0,
+      "width": 1280,
+      "height": 800,
+      "scale": 1,
+      "outputWidth": 1280,
+      "outputHeight": 800,
+      "transform": 0
+    }
+  },
+  {
+    "version": 1,
+    "frameId": "3075-78",
+    "width": 1280,
+    "height": 800,
+    "timing": {
+      "clockId": "linux-monotonic:ac8a6a54-6d3d-4ced-95da-2acc654699b8",
+      "kind": "compositor-frame",
+      "startMs": 132560.080028,
+      "endMs": 132560.082028
+    },
+    "captureStartNs": "132544629816",
+    "readyNs": "132567810924",
+    "pngEncodedNs": "132576055098",
+    "geometry": {
+      "scope": "output",
+      "outputIndex": 0,
+      "x": 0,
+      "y": 0,
+      "width": 1280,
+      "height": 800,
+      "scale": 1,
+      "outputWidth": 1280,
+      "outputHeight": 800,
+      "transform": 0
+    }
+  },
+  {
+    "version": 1,
+    "frameId": "3075-79",
+    "width": 1280,
+    "height": 800,
+    "timing": {
+      "clockId": "linux-monotonic:ac8a6a54-6d3d-4ced-95da-2acc654699b8",
+      "kind": "compositor-frame",
+      "startMs": 132592.256876,
+      "endMs": 132592.258876
+    },
+    "captureStartNs": "132576768400",
+    "readyNs": "132599895302",
+    "pngEncodedNs": "132608275246",
+    "geometry": {
+      "scope": "output",
+      "outputIndex": 0,
+      "x": 0,
+      "y": 0,
+      "width": 1280,
+      "height": 800,
+      "scale": 1,
+      "outputWidth": 1280,
+      "outputHeight": 800,
+      "transform": 0
+    }
+  },
+  {
+    "version": 1,
+    "frameId": "3075-80",
+    "width": 1280,
+    "height": 800,
+    "timing": {
+      "clockId": "linux-monotonic:ac8a6a54-6d3d-4ced-95da-2acc654699b8",
+      "kind": "compositor-frame",
+      "startMs": 132624.282024,
+      "endMs": 132624.284024
+    },
+    "captureStartNs": "132608916716",
+    "readyNs": "132631808397",
+    "pngEncodedNs": "132640082322",
+    "geometry": {
+      "scope": "output",
+      "outputIndex": 0,
+      "x": 0,
+      "y": 0,
+      "width": 1280,
+      "height": 800,
+      "scale": 1,
+      "outputWidth": 1280,
+      "outputHeight": 800,
+      "transform": 0
+    }
+  },
+  {
+    "version": 1,
+    "frameId": "3075-81",
+    "width": 1280,
+    "height": 800,
+    "timing": {
+      "clockId": "linux-monotonic:ac8a6a54-6d3d-4ced-95da-2acc654699b8",
+      "kind": "compositor-frame",
+      "startMs": 132655.97493,
+      "endMs": 132655.97693
+    },
+    "captureStartNs": "132640735363",
+    "readyNs": "132663519575",
+    "pngEncodedNs": "132671861904",
+    "geometry": {
+      "scope": "output",
+      "outputIndex": 0,
+      "x": 0,
+      "y": 0,
+      "width": 1280,
+      "height": 800,
+      "scale": 1,
+      "outputWidth": 1280,
+      "outputHeight": 800,
+      "transform": 0
+    }
+  },
+  {
+    "version": 1,
+    "frameId": "3075-82",
+    "width": 1280,
+    "height": 800,
+    "timing": {
+      "clockId": "linux-monotonic:ac8a6a54-6d3d-4ced-95da-2acc654699b8",
+      "kind": "compositor-frame",
+      "startMs": 132687.979779,
+      "endMs": 132687.981779
+    },
+    "captureStartNs": "132672532326",
+    "readyNs": "132695913321",
+    "pngEncodedNs": "132704432740",
+    "geometry": {
+      "scope": "output",
+      "outputIndex": 0,
+      "x": 0,
+      "y": 0,
+      "width": 1280,
+      "height": 800,
+      "scale": 1,
+      "outputWidth": 1280,
+      "outputHeight": 800,
+      "transform": 0
+    }
+  },
+  {
+    "version": 1,
+    "frameId": "3075-83",
+    "width": 1280,
+    "height": 800,
+    "timing": {
+      "clockId": "linux-monotonic:ac8a6a54-6d3d-4ced-95da-2acc654699b8",
+      "kind": "compositor-frame",
+      "startMs": 132720.229222,
+      "endMs": 132720.231222
+    },
+    "captureStartNs": "132705124173",
+    "readyNs": "132727057354",
+    "pngEncodedNs": "132735274180",
+    "geometry": {
+      "scope": "output",
+      "outputIndex": 0,
+      "x": 0,
+      "y": 0,
+      "width": 1280,
+      "height": 800,
+      "scale": 1,
+      "outputWidth": 1280,
+      "outputHeight": 800,
+      "transform": 0
+    }
+  },
+  {
+    "version": 1,
+    "frameId": "3075-84",
+    "width": 1280,
+    "height": 800,
+    "timing": {
+      "clockId": "linux-monotonic:ac8a6a54-6d3d-4ced-95da-2acc654699b8",
+      "kind": "compositor-frame",
+      "startMs": 132750.933202,
+      "endMs": 132750.935202
+    },
+    "captureStartNs": "132735906411",
+    "readyNs": "132758519716",
+    "pngEncodedNs": "132766763181",
+    "geometry": {
+      "scope": "output",
+      "outputIndex": 0,
+      "x": 0,
+      "y": 0,
+      "width": 1280,
+      "height": 800,
+      "scale": 1,
+      "outputWidth": 1280,
+      "outputHeight": 800,
+      "transform": 0
+    }
+  },
+  {
+    "version": 1,
+    "frameId": "3075-85",
+    "width": 1280,
+    "height": 800,
+    "timing": {
+      "clockId": "linux-monotonic:ac8a6a54-6d3d-4ced-95da-2acc654699b8",
+      "kind": "compositor-frame",
+      "startMs": 132785.454277,
+      "endMs": 132785.456277
+    },
+    "captureStartNs": "132767649883",
+    "readyNs": "132793373551",
+    "pngEncodedNs": "132801913265",
+    "geometry": {
+      "scope": "output",
+      "outputIndex": 0,
+      "x": 0,
+      "y": 0,
+      "width": 1280,
+      "height": 800,
+      "scale": 1,
+      "outputWidth": 1280,
+      "outputHeight": 800,
+      "transform": 0
+    }
+  },
+  {
+    "version": 1,
+    "frameId": "3075-86",
+    "width": 1280,
+    "height": 800,
+    "timing": {
+      "clockId": "linux-monotonic:ac8a6a54-6d3d-4ced-95da-2acc654699b8",
+      "kind": "compositor-frame",
+      "startMs": 132818.067597,
+      "endMs": 132818.069597
+    },
+    "captureStartNs": "132802593314",
+    "readyNs": "132825338728",
+    "pngEncodedNs": "132833643741",
+    "geometry": {
+      "scope": "output",
+      "outputIndex": 0,
+      "x": 0,
+      "y": 0,
+      "width": 1280,
+      "height": 800,
+      "scale": 1,
+      "outputWidth": 1280,
+      "outputHeight": 800,
+      "transform": 0
+    }
+  },
+  {
+    "version": 1,
+    "frameId": "3075-87",
+    "width": 1280,
+    "height": 800,
+    "timing": {
+      "clockId": "linux-monotonic:ac8a6a54-6d3d-4ced-95da-2acc654699b8",
+      "kind": "compositor-frame",
+      "startMs": 132850.090935,
+      "endMs": 132850.092935
+    },
+    "captureStartNs": "132834324833",
+    "readyNs": "132858123786",
+    "pngEncodedNs": "132866503193",
+    "geometry": {
+      "scope": "output",
+      "outputIndex": 0,
+      "x": 0,
+      "y": 0,
+      "width": 1280,
+      "height": 800,
+      "scale": 1,
+      "outputWidth": 1280,
+      "outputHeight": 800,
+      "transform": 0
+    }
+  }
+]

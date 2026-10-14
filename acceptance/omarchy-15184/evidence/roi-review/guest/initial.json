@@ -1,0 +1,42 @@
+{
+  "time_ns": 37480129966,
+  "group": "Default",
+  "info": {
+    "type": "sa(ss)",
+    "data": [
+      "us",
+      [
+        [
+          "keyboard-us",
+          ""
+        ],
+        [
+          "pinyin",
+          ""
+        ]
+      ]
+    ]
+  },
+  "active": "0",
+  "current": "",
+  "processes": [
+    {
+      "pid": 910,
+      "comm": "quickshell",
+      "start_ticks": "2201",
+      "cmd": "quickshell -n -p /usr/share/omarchy/shell "
+    },
+    {
+      "pid": 960,
+      "comm": "fcitx5",
+      "start_ticks": "2230",
+      "cmd": "/usr/bin/fcitx5 --disable notificationitem "
+    },
+    {
+      "pid": 1568,
+      "comm": "python3",
+      "start_ticks": "2382",
+      "cmd": "/usr/bin/python3 /usr/share/omarchy/default/input-methods/indicator.py "
+    }
+  ]
+}

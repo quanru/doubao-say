@@ -1,0 +1,13 @@
+diff --git a/bin/omarchy-iso-make b/bin/omarchy-iso-make
+index 0315c3f..6c88fa0 100755
+--- a/bin/omarchy-iso-make
++++ b/bin/omarchy-iso-make
+@@ -166,7 +166,7 @@ if ! docker version &>/dev/null; then
+   DOCKER=(sudo docker)
+ fi
+ 
+-"${DOCKER[@]}" run "${DOCKER_ARGS[@]}" ghcr.io/archlinux/archlinux:latest /$BUILD_SCRIPT
++"${DOCKER[@]}" run "${DOCKER_ARGS[@]}" ghcr.io/archlinux/archlinux@sha256:86092797e32aa19d3f45a831b2873cf557c21c5280e9d197ca7a43c8ea79bcd3 /$BUILD_SCRIPT
+ 
+ latest_iso=$(\ls -t "$BUILD_RELEASE_PATH"/*.iso | head -n1)
+ iso_ref="${latest_iso%.*}-$OMARCHY_ISO_REF.iso"

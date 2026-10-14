@@ -1,0 +1,174 @@
+{
+  "0": {
+    "total_count": 0,
+    "check_runs": []
+  },
+  "1": {
+    "state": "pending",
+    "statuses": [],
+    "sha": "db131c5cd9e37623db28690a6da6f9418bdacdf6",
+    "total_count": 0,
+    "repository": {
+      "id": 832452447,
+      "node_id": "R_kgDOMZ43Xw",
+      "name": "midscene",
+      "full_name": "web-infra-dev/midscene",
+      "private": false,
+      "owner": {
+        "login": "web-infra-dev",
+        "id": 87694465,
+        "node_id": "MDEyOk9yZ2FuaXphdGlvbjg3Njk0NDY1",
+        "avatar_url": "https://avatars.githubusercontent.com/u/87694465?v=4",
+        "gravatar_id": "",
+        "url": "https://api.github.com/users/web-infra-dev",
+        "html_url": "https://github.com/web-infra-dev",
+        "followers_url": "https://api.github.com/users/web-infra-dev/followers",
+        "following_url": "https://api.github.com/users/web-infra-dev/following{/other_user}",
+        "gists_url": "https://api.github.com/users/web-infra-dev/gists{/gist_id}",
+        "starred_url": "https://api.github.com/users/web-infra-dev/starred{/owner}{/repo}",
+        "subscriptions_url": "https://api.github.com/users/web-infra-dev/subscriptions",
+        "organizations_url": "https://api.github.com/users/web-infra-dev/orgs",
+        "repos_url": "https://api.github.com/users/web-infra-dev/repos",
+        "events_url": "https://api.github.com/users/web-infra-dev/events{/privacy}",
+        "received_events_url": "https://api.github.com/users/web-infra-dev/received_events",
+        "type": "Organization",
+        "user_view_type": "public",
+        "site_admin": false
+      },
+      "html_url": "https://github.com/web-infra-dev/midscene",
+      "description": "See interfaces like a human. E2E testing in natural language.",
+      "fork": false,
+      "url": "https://api.github.com/repos/web-infra-dev/midscene",
+      "forks_url": "https://api.github.com/repos/web-infra-dev/midscene/forks",
+      "keys_url": "https://api.github.com/repos/web-infra-dev/midscene/keys{/key_id}",
+      "collaborators_url": "https://api.github.com/repos/web-infra-dev/midscene/collaborators{/collaborator}",
+      "teams_url": "https://api.github.com/repos/web-infra-dev/midscene/teams",
+      "hooks_url": "https://api.github.com/repos/web-infra-dev/midscene/hooks",
+      "issue_events_url": "https://api.github.com/repos/web-infra-dev/midscene/issues/events{/number}",
+      "events_url": "https://api.github.com/repos/web-infra-dev/midscene/events",
+      "assignees_url": "https://api.github.com/repos/web-infra-dev/midscene/assignees{/user}",
+      "branches_url": "https://api.github.com/repos/web-infra-dev/midscene/branches{/branch}",
+      "tags_url": "https://api.github.com/repos/web-infra-dev/midscene/tags",
+      "blobs_url": "https://api.github.com/repos/web-infra-dev/midscene/git/blobs{/sha}",
+      "git_tags_url": "https://api.github.com/repos/web-infra-dev/midscene/git/tags{/sha}",
+      "git_refs_url": "https://api.github.com/repos/web-infra-dev/midscene/git/refs{/sha}",
+      "trees_url": "https://api.github.com/repos/web-infra-dev/midscene/git/trees{/sha}",
+      "statuses_url": "https://api.github.com/repos/web-infra-dev/midscene/statuses/{sha}",
+      "languages_url": "https://api.github.com/repos/web-infra-dev/midscene/languages",
+      "stargazers_url": "https://api.github.com/repos/web-infra-dev/midscene/stargazers",
+      "contributors_url": "https://api.github.com/repos/web-infra-dev/midscene/contributors",
+      "subscribers_url": "https://api.github.com/repos/web-infra-dev/midscene/subscribers",
+      "subscription_url": "https://api.github.com/repos/web-infra-dev/midscene/subscription",
+      "commits_url": "https://api.github.com/repos/web-infra-dev/midscene/commits{/sha}",
+      "git_commits_url": "https://api.github.com/repos/web-infra-dev/midscene/git/commits{/sha}",
+      "comments_url": "https://api.github.com/repos/web-infra-dev/midscene/comments{/number}",
+      "issue_comment_url": "https://api.github.com/repos/web-infra-dev/midscene/issues/comments{/number}",
+      "contents_url": "https://api.github.com/repos/web-infra-dev/midscene/contents/{+path}",
+      "compare_url": "https://api.github.com/repos/web-infra-dev/midscene/compare/{base}...{head}",
+      "merges_url": "https://api.github.com/repos/web-infra-dev/midscene/merges",
+      "archive_url": "https://api.github.com/repos/web-infra-dev/midscene/{archive_format}{/ref}",
+      "downloads_url": "https://api.github.com/repos/web-infra-dev/midscene/downloads",
+      "issues_url": "https://api.github.com/repos/web-infra-dev/midscene/issues{/number}",
+      "pulls_url": "https://api.github.com/repos/web-infra-dev/midscene/pulls{/number}",
+      "milestones_url": "https://api.github.com/repos/web-infra-dev/midscene/milestones{/number}",
+      "notifications_url": "https://api.github.com/repos/web-infra-dev/midscene/notifications{?since,all,participating}",
+      "labels_url": "https://api.github.com/repos/web-infra-dev/midscene/labels{/name}",
+      "releases_url": "https://api.github.com/repos/web-infra-dev/midscene/releases{/id}",
+      "deployments_url": "https://api.github.com/repos/web-infra-dev/midscene/deployments"
+    },
+    "commit_url": "https://api.github.com/repos/web-infra-dev/midscene/commits/db131c5cd9e37623db28690a6da6f9418bdacdf6",
+    "url": "https://api.github.com/repos/web-infra-dev/midscene/commits/db131c5cd9e37623db28690a6da6f9418bdacdf6/status"
+  },
+  "2": {
+    "jobs": [
+      {
+        "id": 115673242501,
+        "name": "acceptance",
+        "status": "completed",
+        "conclusion": "failure",
+        "run_id": 38509094422,
+        "logs_url": null,
+        "steps": [
+          {
+            "name": "Set up job",
+            "status": "completed",
+            "conclusion": "success",
+            "number": 1
+          },
+          {
+            "name": "Run actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1",
+            "status": "completed",
+            "conclusion": "success",
+            "number": 2
+          },
+          {
+            "name": "Run actions/setup-node@249970729cb0ef3589644e2896645e5dc5ba9c38",
+            "status": "completed",
+            "conclusion": "success",
+            "number": 3
+          },
+          {
+            "name": "Validate local harness",
+            "status": "completed",
+            "conclusion": "success",
+            "number": 4
+          },
+          {
+            "name": "Build and boot full candidate (no model credentials)",
+            "status": "completed",
+            "conclusion": "success",
+            "number": 5
+          },
+          {
+            "name": "Build pinned observation PR and verify guest native capture (no inference)",
+            "status": "completed",
+            "conclusion": "failure",
+            "number": 6
+          },
+          {
+            "name": "Install locked Midscene dependencies",
+            "status": "completed",
+            "conclusion": "skipped",
+            "number": 7
+          },
+          {
+            "name": "Run fixed real ROI timing trials (no credentials, no inference)",
+            "status": "completed",
+            "conclusion": "skipped",
+            "number": 8
+          },
+          {
+            "name": "Restore and package evidence",
+            "status": "completed",
+            "conclusion": "failure",
+            "number": 9
+          },
+          {
+            "name": "Export sanitized review bundle through job log (no artifact storage)",
+            "status": "completed",
+            "conclusion": "success",
+            "number": 10
+          },
+          {
+            "name": "Post Run actions/setup-node@249970729cb0ef3589644e2896645e5dc5ba9c38",
+            "status": "completed",
+            "conclusion": "skipped",
+            "number": 19
+          },
+          {
+            "name": "Post Run actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1",
+            "status": "completed",
+            "conclusion": "success",
+            "number": 20
+          },
+          {
+            "name": "Complete job",
+            "status": "completed",
+            "conclusion": "success",
+            "number": 21
+          }
+        ]
+      }
+    ]
+  }
+}

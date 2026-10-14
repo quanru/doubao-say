@@ -1,0 +1,1 @@
+9a7499df6e18f04026bb9d57b7715ec598573d657f7decb7058d3c21c933cfb3  work/native-capture/midscene-wayland-capture

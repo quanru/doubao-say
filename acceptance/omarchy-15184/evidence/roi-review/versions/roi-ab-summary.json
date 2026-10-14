@@ -1,0 +1,65 @@
+{
+  "blocks": [
+    {
+      "block": 0,
+      "mode": "native-source",
+      "frames": 87,
+      "median_gap_ms": 31.693112000008114,
+      "max_gap_ms": 34.52107500002603,
+      "median_encode_ms": 8.305013,
+      "remainingCapturePids": []
+    },
+    {
+      "block": 1,
+      "mode": "native-region",
+      "frames": 110,
+      "median_gap_ms": 26.41455000001588,
+      "max_gap_ms": 27.881741999997757,
+      "median_encode_ms": 0.565361,
+      "remainingCapturePids": []
+    },
+    {
+      "block": 2,
+      "mode": "native-region",
+      "frames": 121,
+      "median_gap_ms": 25.209155499993358,
+      "max_gap_ms": 27.684195000008913,
+      "median_encode_ms": 0.563384,
+      "remainingCapturePids": []
+    },
+    {
+      "block": 3,
+      "mode": "native-source",
+      "frames": 87,
+      "median_gap_ms": 31.31808799999999,
+      "max_gap_ms": 44.495063000009395,
+      "median_encode_ms": 8.276937,
+      "remainingCapturePids": []
+    },
+    {
+      "block": 4,
+      "mode": "native-source",
+      "frames": 88,
+      "median_gap_ms": 31.329652000014903,
+      "max_gap_ms": 34.85775300001842,
+      "median_encode_ms": 8.2725915,
+      "remainingCapturePids": []
+    },
+    {
+      "block": 5,
+      "mode": "native-region",
+      "frames": 118,
+      "median_gap_ms": 25.86552799999481,
+      "max_gap_ms": 27.92909900000086,
+      "median_encode_ms": 0.5552615,
+      "remainingCapturePids": []
+    }
+  ],
+  "full_median_ms": 31.329652000014903,
+  "roi_median_ms": 25.86552799999481,
+  "ratio": 0.8255925728119325,
+  "previous_full_median_ms": 30.25519,
+  "label_pixels_identical": true,
+  "first_two_frames_excluded_only_from_AB_statistics": true,
+  "no_inference": true
+}

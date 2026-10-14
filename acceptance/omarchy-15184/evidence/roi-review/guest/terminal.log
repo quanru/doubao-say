@@ -1,0 +1,2 @@
+warn: wayland.c:1888: compositor does not implement the xdg-toplevel-icon protocol
+warn: terminal.c:2034: slave exited with signal 1 (Hangup)

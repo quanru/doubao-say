@@ -1,0 +1,98 @@
+
+> nx run @midscene/core:test ui-observer observation-frame-selection observation-change-focus
+
+(node:11128) Warning: The 'NO_COLOR' env is ignored due to the 'FORCE_COLOR' env being set.
+(Use `node --trace-warnings ...` to show where the warning was created)
+(node:11148) Warning: The 'NO_COLOR' env is ignored due to the 'FORCE_COLOR' env being set.
+(Use `node --trace-warnings ...` to show where the warning was created)
+[2m$ rstest ui-observer observation-frame-selection observation-change-focus[22m
+(node:11190) Warning: The 'NO_COLOR' env is ignored due to the 'FORCE_COLOR' env being set.
+(Use `node --trace-warnings ...` to show where the warning was created)
+(node:11190) [MODULE_TYPELESS_PACKAGE_JSON] Warning: Module type of file:///workspace/midscene-observation-timing/packages/core/rstest.config.ts?fresh-import-7r5hxy12o7f=0,file:///workspace/midscene-observation-timing/packages/core/rstest.config.ts is not specified and it doesn't parse as CommonJS.
+Reparsing as ES module because module syntax was detected. This incurs a performance overhead.
+To eliminate this warning, add "type": "module" to /workspace/midscene-observation-timing/packages/core/package.json.
+(node:11242) Warning: The 'NO_COLOR' env is ignored due to the 'FORCE_COLOR' env being set.
+(Use `node --trace-warnings ...` to show where the warning was created)
+(node:11241) Warning: The 'NO_COLOR' env is ignored due to the 'FORCE_COLOR' env being set.
+(Use `node --trace-warnings ...` to show where the warning was created)
+(node:11243) Warning: The 'NO_COLOR' env is ignored due to the 'FORCE_COLOR' env being set.
+(Use `node --trace-warnings ...` to show where the warning was created)
+Fontconfig warning: using without calling FcInit()
+---
+tool: "@rstest/core@0.12.0"
+timestamp: "2026-10-14T04:16:52.215Z"
+runtime: {"node":"v24.19.0","platform":"linux","cwd":"/workspace/midscene-observation-timing/packages/core"}
+---
+# Rstest Test Execution Report
+## Summary
+```json
+{
+  "status": "pass",
+  "counts": {
+    "testFiles": 3,
+    "failedFiles": 0,
+    "tests": 33,
+    "failedTests": 0,
+    "passedTests": 33,
+    "skippedTests": 0,
+    "todoTests": 0
+  },
+  "durationMs": {
+    "total": 2587,
+    "build": 310,
+    "tests": 2277
+  },
+  "snapshot": {
+    "added": 0,
+    "updated": 0,
+    "unmatched": 0,
+    "removed": 0,
+    "unchecked": 0
+  }
+}
+```
+## Tests
+### Passed
+- tests/unit-test/agent-ui-observer.test.ts :: Agent.startObserving > returns a fixed observation that can run aiAssert
+- tests/unit-test/agent-ui-observer.test.ts :: Agent.startObserving > rejects a second active observer but permits another after stop
+- tests/unit-test/agent-ui-observer.test.ts :: Agent.startObserving > falls back to plain screenshots when no frame source exists
+- tests/unit-test/agent-ui-observer.test.ts :: Agent.startObserving > disposes a stopped unexported observer when the agent is destroyed
+- tests/unit-test/agent-ui-observer.test.ts :: Agent.startObserving > rebuilds ordered assertion context from resolved image paths
+- tests/unit-test/agent-ui-observer.test.ts :: Agent.startObserving > plain aiAssert and aiBoolean remain single-frame
+- tests/unit-test/agent-ui-observer.test.ts :: Agent.startObserving > exposes CLI artifact persistence without expanding the Agent API
+- tests/unit-test/observation-change-focus.test.ts :: buildObservationChangeFocus > crops and enlarges the strongest localized change across frames
+- tests/unit-test/observation-change-focus.test.ts :: buildObservationChangeFocus > finds independent changes in distant parts of the screen
+- tests/unit-test/observation-change-focus.test.ts :: buildObservationChangeFocus > caps rendered evidence while preserving baseline and final frames
+- tests/unit-test/observation-change-focus.test.ts :: buildObservationChangeFocus > does not create focus frames for an unchanged sequence
+- tests/unit-test/observation-change-focus.test.ts :: buildObservationChangeFocus > honors cancellation before image analysis starts
+- tests/unit-test/observation-change-focus.test.ts :: buildObservationChangeFocus > selects a bounded sample with both source endpoints
+- tests/unit-test/ui-observer.test.ts :: UIObserver > exposes records only through the observation returned by stop()
+- tests/unit-test/ui-observer.test.ts :: UIObserver > persists source frames, aligns the representative, and stops the source
+- tests/unit-test/ui-observer.test.ts :: UIObserver > decodes opaque source handles in bounded batches and detaches exports
+- tests/unit-test/ui-observer.test.ts :: UIObserver > exports every buffered frame up to the configured cap
+- tests/unit-test/ui-observer.test.ts :: UIObserver > smart thinning preserves change points and temporal endpoints
+- tests/unit-test/ui-observer.test.ts :: UIObserver > enforces maxFrames even when every frame is a change point
+- tests/unit-test/ui-observer.test.ts :: UIObserver > prunes persisted image files when the frame buffer is thinned
+- tests/unit-test/ui-observer.test.ts :: UIObserver > disposes the file-backed record after it is no longer needed
+- tests/unit-test/ui-observer.test.ts :: UIObserver > rejects live DOM options before delegating an observation insight
+- tests/unit-test/ui-observer.test.ts :: UIObserver > keeps failed observation cleanup retryable
+- tests/unit-test/ui-observer.test.ts :: UIObserver > watchdog auto-stops and can also be disabled
+- tests/unit-test/ui-observer.test.ts :: UIObserver > warns without dropping records over the soft frame limit
+- tests/unit-test/ui-observer.test.ts :: UIObserver > persists fallback screenshots immediately as JPEG files
+- tests/unit-test/ui-observer.test.ts :: UIObserver > does not shrink an already prepared fallback representative again
+- tests/unit-test/ui-observer.test.ts :: UIObserver > falls back when opening the frame source throws
+- tests/unit-test/ui-observer.test.ts :: UIObserver > stop and export are idempotent
+- tests/unit-test/ui-observer.test.ts :: UIObserver > concurrent stop calls wait for the same finalization
+- tests/unit-test/ui-observer.test.ts :: source cadence observation > blocks every AI insight when the target appears only after the frame cap
+- tests/unit-test/ui-observer.test.ts :: source cadence observation > retains pushed frames without 200ms sampling and preserves events through export
+- tests/unit-test/ui-observer.test.ts :: source cadence observation > refuses silent screenshot fallback when native source is required
+### Skipped
+None.
+## Failures
+No test failures reported.
+
+
+
+ NX   Successfully ran target test for project @midscene/core
+
+
