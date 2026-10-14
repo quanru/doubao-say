@@ -102,6 +102,15 @@ elif cmd=='probe-mode':
   except subprocess.CalledProcessError:time.sleep(.1)
  else:raise SystemExit('Observed shell did not become ready')
  save('probe-mode-'+tag,{'mode':mode,'pid':child.pid,'time_ns':time.monotonic_ns(),'snapshot':snap()});print(json.dumps({'pid':child.pid,'mode':mode}))
+elif cmd=='probe-health':
+ tag=sys.argv[2];assert tag in ['discovery','plain','passive','feedback','pixels']
+ state=json.loads((E/('probe-mode-'+tag+'.json')).read_text());pid=state['pid']
+ assert any(p['pid']==pid and p['comm'] in ['qs','quickshell'] for p in processes()),'Observed shell exited after IPC startup'
+ d=E/('probe-'+tag);p=d/'events.jsonl';events=[json.loads(x) for x in p.read_text().splitlines() if x.startswith('{')] if p.exists() else []
+ assert not [x for x in events if x['event']=='fatal'],'Observer fatal: '+str([x for x in events if x['event']=='fatal'])
+ if tag in ['passive','feedback','pixels']:assert any(x['event']=='swap-end' and x['ok'] for x in events),'Observer has not captured a successful real EGL swap'
+ monitors=json.loads(run('hyprctl','-j','monitors'));assert len(monitors)==1 and monitors[0]['reserved'][1]>=26,'Real top bar is not reserving its expected area'
+ print(json.dumps({'pid':pid,'mode':tag,'healthy':True}))
 elif cmd=='probe-freeze':
  subprocess.run(['quickshell','kill','-p','/usr/share/omarchy/shell','--any-display'],check=False,stdout=subprocess.DEVNULL,stderr=subprocess.DEVNULL)
  for _ in range(100):

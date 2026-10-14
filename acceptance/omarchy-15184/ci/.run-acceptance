@@ -1,1 +1,1 @@
-Bounded no-model rerun for diagnosed preflight trial ID mismatch in 38516700133: input-events.py accepts alphanumeric only. Same SDK 852410869c665bbb32f1017d51103fb768e01b07; no new permissions; semantics then fixed 40 presses.
+Bounded diagnosed RTLD_LOCAL provider-resolution fix after 38518973233. Local old-exit90/fixed-exit0 loader and GL fallback tests, full driver/guest contracts pass. Health before any mode inputs. SDK852410869c665bbb32f1017d51103fb768e01b07 unchanged.

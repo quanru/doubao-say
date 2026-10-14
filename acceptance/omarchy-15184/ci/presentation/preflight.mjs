@@ -11,7 +11,7 @@ const sleep=ms=>new Promise(r=>setTimeout(r,ms));
 const geometry={outputIndex:0,x:0,y:0,width:1280,height:28,scale:1,outputWidth:1280,outputHeight:800,transform:0};
 const modes=['discovery','plain','passive','feedback','pixels'];
 for(const mode of modes){
- guest('probe-mode',mode,mode);await sleep(1000);guest('focus');
+ guest('probe-mode',mode,mode);await sleep(1000);guest('probe-health',mode);console.log(`Real shell/probe healthy: ${mode}`);guest('focus');
  if(JSON.parse(guest('snapshot',`preflight-${mode}-initial`)).active!=='2'){key('meta_l','i');await sleep(700);}
  for(let i=0;i<4;i++){
   const name=`probe${mode}${i}`;guest('input-start',name);let ready=false;for(let j=0;j<50;j++){try{guest('ready',name);ready=true;break;}catch{await sleep(30);}}if(!ready)throw Error('Input baseline missing');

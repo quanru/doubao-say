@@ -29,6 +29,8 @@ try:
    all_swaps={x['token']:x for x in events if x['event']=='swap-begin'};swaps={t:x for t,x in all_swaps.items() if window_start<=int(x['enterNs'])<=window_end};ends={x['token']:x for x in events if x['event']=='swap-end'};present={x['token']:x for x in events if x['event']=='presented'}
    assert swaps and len({x['surface'] for x in swaps.values()})==1,'Not a unique bar surface'
    assert all(t in ends and ends[t]['ok'] for t in swaps),'Missing/failed EGL swap'
+   for t,x in swaps.items():
+    x['beforeSwapNs']=ends[t]['beforeSwapNs'];assert int(x['beforeLogNs'])<=int(x['beforeSwapNs'])
    result['modes'][mode].update(swaps=len(swaps),presented=len(present),surface=next(iter(swaps.values()))['surface'],observer_before_swap_ms=[(int(x['beforeSwapNs'])-int(x['enterNs']))/1e6 for x in swaps.values()])
    if mode=='feedback':
     protocol=json.loads((r/mode/'protocol.json').read_text())['lines'];pending_surface={};pairs=0

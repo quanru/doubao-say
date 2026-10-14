@@ -25,7 +25,15 @@ static int gl_reported;
 static atomic_int pending, stopping;
 static uint64_t now(void){struct timespec t;clock_gettime(CLOCK_MONOTONIC,&t);return (uint64_t)t.tv_sec*1000000000+t.tv_nsec;}
 static void logline(const char *fmt,...){pthread_mutex_lock(&log_lock);if(logfile){va_list a;va_start(a,fmt);vfprintf(logfile,fmt,a);va_end(a);fputc('\n',logfile);fflush(logfile);}pthread_mutex_unlock(&log_lock);}
-static void *symbol(const char *name){void *p=dlsym(RTLD_NEXT,name);if(!p && !strncmp(name,"gl",2)){void*(*get)(const char*)=dlsym(RTLD_NEXT,"eglGetProcAddress");if(get)p=get(name);}if(!p){logline("{\"event\":\"fatal\",\"reason\":\"missing symbol\",\"symbol\":\"%s\"}",name);_exit(90);}return p;}
+static void *existing_symbol(const char *library,const char *name){void*h=dlopen(library,RTLD_LAZY|RTLD_NOLOAD);if(!h)return NULL;void*p=dlsym(h,name);dlclose(h);return p;}
+static void *symbol(const char *name){
+ void *p=dlsym(RTLD_NEXT,name);
+ // Qt loads platform plugins locally. Do not promote scope or load new providers.
+ if(!p && !strncmp(name,"wl_egl_",7))p=existing_symbol("libwayland-egl.so.1",name);
+ if(!p && !strncmp(name,"egl",3))p=existing_symbol("libEGL.so.1",name);
+ if(!p && !strncmp(name,"gl",2)){void*(*get)(const char*)=dlsym(RTLD_NEXT,"eglGetProcAddress");if(!get)get=existing_symbol("libEGL.so.1","eglGetProcAddress");if(get)p=get(name);}
+ if(!p){logline("{\"event\":\"fatal\",\"reason\":\"missing symbol\",\"symbol\":\"%s\"}",name);_exit(90);}return p;
+}
 struct connection {struct wl_display *display;struct wl_event_queue *queue;struct wp_presentation *presentation;int clock_ok;pthread_t thread;};
 static struct connection conn;
 struct window {struct wl_egl_window *native;struct wl_surface *surface;ESurface egl;int width,height;};
@@ -73,12 +81,13 @@ static int pixels(uint64_t token,int height,uint64_t*start,uint64_t*end){
  png_structp png=png_create_write_struct(PNG_LIBPNG_VER_STRING,NULL,NULL,NULL);png_infop info=png_create_info_struct(png);if(setjmp(png_jmpbuf(png))){fclose(f);return 0;}png_init_io(png,f);png_set_IHDR(png,info,36,26,8,PNG_COLOR_TYPE_RGBA,PNG_INTERLACE_NONE,PNG_COMPRESSION_TYPE_DEFAULT,PNG_FILTER_TYPE_DEFAULT);png_set_compression_level(png,1);png_set_filter(png,0,PNG_FILTER_NONE);png_write_info(png,info);for(int y=25;y>=0;y--)png_write_row(png,rgba+y*36*4);png_write_end(png,NULL);png_destroy_write_struct(&png,&info);fclose(f);return 1;
 }
 EBool eglSwapBuffers(EDisplay d,ESurface s){
+ uint64_t entry=now();
  EBool(*real)(EDisplay,ESurface)=symbol("eglSwapBuffers");struct window w={0};pthread_mutex_lock(&map_lock);for(int i=0;i<128;i++)if(windows[i].egl==s){w=windows[i];break;}pthread_mutex_unlock(&map_lock);
  if(!logfile||!w.surface||w.width!=1280||w.height<26||w.height>40)return real(d,s);
- uint64_t token=__atomic_add_fetch(&serial,1,__ATOMIC_RELAXED),enter=now(),read_start=0,read_end=0;uint32_t surface=wl_proxy_get_id((struct wl_proxy*)w.surface);int captured=mode==2?pixels(token,w.height,&read_start,&read_end):0;
+ uint64_t token=__atomic_add_fetch(&serial,1,__ATOMIC_RELAXED),enter=entry,read_start=0,read_end=0;uint32_t surface=wl_proxy_get_id((struct wl_proxy*)w.surface);int captured=mode==2?pixels(token,w.height,&read_start,&read_end):0;
  if(mode){struct feedback*x=calloc(1,sizeof*x);x->token=token;x->surface=surface;struct wp_presentation_feedback*f=wp_presentation_feedback(conn.presentation,w.surface);wp_presentation_feedback_add_listener(f,&feedback_listener,x);atomic_fetch_add(&pending,1);}
- uint64_t submit=now();logline("{\"event\":\"swap-begin\",\"token\":%llu,\"surface\":%u,\"width\":%d,\"height\":%d,\"enterNs\":\"%llu\",\"readStartNs\":\"%llu\",\"readEndNs\":\"%llu\",\"beforeSwapNs\":\"%llu\",\"pixelSaved\":%s,\"observerFeedback\":%s}",(unsigned long long)token,surface,w.width,w.height,(unsigned long long)enter,(unsigned long long)read_start,(unsigned long long)read_end,(unsigned long long)submit,captured?"true":"false",mode?"true":"false");
- EBool ok=real(d,s);logline("{\"event\":\"swap-end\",\"token\":%llu,\"afterSwapNs\":\"%llu\",\"ok\":%s}",(unsigned long long)token,(unsigned long long)now(),ok?"true":"false");return ok;
+ uint64_t submit=now();logline("{\"event\":\"swap-begin\",\"token\":%llu,\"surface\":%u,\"width\":%d,\"height\":%d,\"enterNs\":\"%llu\",\"readStartNs\":\"%llu\",\"readEndNs\":\"%llu\",\"beforeLogNs\":\"%llu\",\"pixelSaved\":%s,\"observerFeedback\":%s}",(unsigned long long)token,surface,w.width,w.height,(unsigned long long)enter,(unsigned long long)read_start,(unsigned long long)read_end,(unsigned long long)submit,captured?"true":"false",mode?"true":"false");
+ submit=now();EBool ok=real(d,s);uint64_t after=now();logline("{\"event\":\"swap-end\",\"token\":%llu,\"beforeSwapNs\":\"%llu\",\"afterSwapNs\":\"%llu\",\"ok\":%s}",(unsigned long long)token,(unsigned long long)submit,(unsigned long long)after,ok?"true":"false");return ok;
 }
 
 void wl_display_disconnect(struct wl_display*d){void(*real)(struct wl_display*)=symbol("wl_display_disconnect");if(conn.display==d){atomic_store(&stopping,1);pthread_join(conn.thread,NULL);logline("{\"event\":\"display-disconnect\",\"pendingFeedback\":%d}",atomic_load(&pending));conn.display=NULL;}real(d);}

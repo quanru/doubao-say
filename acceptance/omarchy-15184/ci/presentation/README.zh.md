@@ -9,3 +9,7 @@ wp_presentation由观测库新增请求，不能写成Qt原本已有反馈。启
 只在1280像素宽、26至40像素高的surface上观测，必须运行后确认唯一对应顶栏。像素读取前要求read FBO、pixel-pack buffer/row/skip状态为默认；不修改GL状态，非默认时拒绝像素关联。读取会同步GPU且PNG保存会增加提交前耗时；逐次记录read和observer总耗时，先用无像素模式对照，不声称零扰动。额外事件分发线程仅处理独立队列，不调度Qt回调。
 
 任何缺失/重复反馈、discarded、失败swap、时钟不匹配、非不透明像素或像素不匹配都会阻止精确呈现判定。采集端时序同时保留，比较的端点是虚拟合成器呈现；不会用内部输入法状态代替呈现。
+
+Qt平台插件的RTLD_LOCAL作用域可能使RTLD_NEXT找不到Wayland EGL/EGL provider；探针仅用RTLD_NOLOAD查找已加载的已知soname，不提升作用域、不额外加载渲染provider。本地动态加载单元先复现旧探针exit90，再验证修复及eglGetProcAddress回退。每种模式输入前检查真实shell进程、成功EGL swap、无fatal、顶栏reserved区域；不能以IPC刚启动代替绘制健康。
+
+提交前开销从wrapper入口计起，包含符号查找和swap-begin日志I/O；真正调用原始eglSwapBuffers前的时间保存在swap-end.beforeSwapNs，swap-begin.beforeLogNs仅是日志前时间。
