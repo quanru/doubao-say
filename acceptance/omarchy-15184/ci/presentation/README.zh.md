@@ -1,0 +1,11 @@
+# 可丢弃 guest 的呈现观测
+
+不修改Omarchy/Qt/Quickshell业务源文件或内核安全设置。观测库仅通过一次进程启动的LD_PRELOAD接入真实Qt Wayland EGL路径；在预检不同模式间重启shell，正式输入窗口内不重启。
+
+模式：passive仅记录顶栏swap；feedback在该表面所属同一wl_display连接、独立事件队列请求该次提交的wp_presentation；pixels同时在swap前只读36×26标签像素，建立像素—swap—feedback关联。不会拿另一连接的surface ID请求反馈。
+
+wp_presentation由观测库新增请求，不能写成Qt原本已有反馈。启动前独立WAYLAND_DEBUG发现记录检查原有反馈。反馈包含CLOCK_MONOTONIC、序号、refresh和flags，虚拟输出的反馈不称物理显示完成。
+
+只在1280像素宽、26至40像素高的surface上观测，必须运行后确认唯一对应顶栏。像素读取前要求read FBO、pixel-pack buffer/row/skip状态为默认；不修改GL状态，非默认时拒绝像素关联。读取会同步GPU且PNG保存会增加提交前耗时；逐次记录read和observer总耗时，先用无像素模式对照，不声称零扰动。额外事件分发线程仅处理独立队列，不调度Qt回调。
+
+任何缺失/重复反馈、discarded、失败swap、时钟不匹配、非不透明像素或像素不匹配都会阻止精确呈现判定。采集端时序同时保留，比较的端点是虚拟合成器呈现；不会用内部输入法状态代替呈现。

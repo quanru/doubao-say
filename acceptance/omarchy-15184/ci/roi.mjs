@@ -65,6 +65,7 @@ try{
   results.push({trial,expectedState:expected,requestedHoldMs:holdMs,frames:frames.length,droppedFrames:0,status:'TIMING_PENDING_PIXEL_REVIEW'});
  }
  results.push({trial:'configtool',status:'NOT_EXECUTED_THIS_ROUND',reason:'No model; preserve separately the previous three-round success and latest Wubi Pinyin selection failure.'});
+ const pd=resolve(out,'presentation');mkdirSync(pd,{recursive:true});writeFileSync(resolve(pd,'events.jsonl'),guest('probe-events','pixels')+'\n');for(const [name,b64] of Object.entries(JSON.parse(guest('probe-pixels','pixels'))))writeFileSync(resolve(pd,name),Buffer.from(b64,'base64'));
  writeFileSync(resolve(out,'model-usage.json'),JSON.stringify({requests:0,cost_cny:0,credentials_injected:false,remaining_unallocated_cny:10,task_limit_cny:100},null,2));
 }catch(error){results.push({status:'BLOCKED_OR_FAILED',message:String(error)});process.exitCode=1;try{guest('screenshot','failure-roi');}catch{}}
 finally{writeFileSync(resolve(out,'ui-results.json'),JSON.stringify(results,null,2));if(agent)await agent.destroy();}

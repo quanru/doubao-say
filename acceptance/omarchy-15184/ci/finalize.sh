@@ -4,6 +4,7 @@ mkdir -p review-artifacts
 status=0
 if [[ -f work/session-state ]]; then
   bash ci/guest.sh restore > /dev/null 2>&1 || status=1
+  bash ci/guest.sh probe-freeze > /dev/null 2>&1 || status=1
   mapfile -t state < work/session-state
   ssh -i "${state[0]}" -p 2222 -o BatchMode=yes -o IdentitiesOnly=yes -o StrictHostKeyChecking=no -o UserKnownHostsFile=/dev/null -o LogLevel=ERROR omarchy@127.0.0.1 \
     'tar -C /tmp/pr15184/evidence -cf - .' | tar -C review-artifacts/guest -xf - || status=1

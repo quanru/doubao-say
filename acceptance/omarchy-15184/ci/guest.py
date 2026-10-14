@@ -38,7 +38,7 @@ if cmd=='bootstrap':
  if bad:raise SystemExit('Installed runtime does not match complete candidate manifest')
  for command in ['fcitx5','fcitx5-configtool','fcitx5-config-qt','grim','hyprctl','foot']:assert shutil.which(command),command
  monitors=json.loads(run('hyprctl','-j','monitors'));assert len(monitors)==1 and monitors[0]['width']==1280 and monitors[0]['height']==800 and monitors[0]['scale']==1,'Require 1280x800 scale=1 guest for 1:1 VNC ROI'
- save('package-versions',{'packages':run('pacman','-Q'),'kernel':run('uname','-r'),'monitors':json.loads(run('hyprctl','-j','monitors'))})
+ save('package-versions',{'graphics':run('hyprctl','systeminfo'),'packages':run('pacman','-Q'),'kernel':run('uname','-r'),'monitors':json.loads(run('hyprctl','-j','monitors'))})
  config=pathlib.Path.home()/'.config/fcitx5';shutil.copytree(config,R/'fcitx5-backup',symlinks=True)
  text=(config/'config').read_text();assert '[Hotkey/AltTriggerKeys]\n0=Shift_L' in text,'Expected real configured lone Shift trigger'
  initial=snap();assert 'pinyin' in json.dumps(initial['info']),'Pinyin must come from fresh ISO provisioning'
@@ -80,6 +80,43 @@ elif cmd=='native-status':
    if (p/'exe').resolve()==R/'midscene-wayland-capture':found.append(int(p.name))
   except OSError:pass
  print(json.dumps({'capture_pids':found}))
+elif cmd=='probe-mode':
+ tag,mode=sys.argv[2:4];assert tag.replace('-','').isalnum() and mode in ['discovery','plain','passive','feedback','pixels']
+ subprocess.run(['quickshell','kill','-p','/usr/share/omarchy/shell','--any-display'],check=False,stdout=subprocess.DEVNULL,stderr=subprocess.DEVNULL)
+ for _ in range(100):
+  if not any(p['comm'] in ['qs','quickshell'] for p in processes()):break
+  time.sleep(.05)
+ else:raise SystemExit('Old shell did not stop')
+ d=E/('probe-'+tag);d.mkdir(exist_ok=True)
+ env=dict(os.environ);env['QT_QPA_PLATFORM']='wayland';env['QS_DISABLE_FILE_WATCHER']='1';env['QS_NO_RELOAD_POPUP']='1'
+ env['OMARCHY_STARTUP_BACKGROUND']=str((pathlib.Path.home()/'.local/state/omarchy/current/background').resolve())
+ env.pop('LD_PRELOAD',None);env.pop('WAYLAND_DEBUG',None)
+ if mode in ['discovery','feedback']:env['WAYLAND_DEBUG']='client'
+ if mode in ['passive','feedback','pixels']:
+  env['LD_PRELOAD']=str(R/'presentation-probe.so');env['MIDSCENE_PRESENT_DIR']=str(d);env['MIDSCENE_PRESENT_MODE']=mode
+ child=subprocess.Popen(['quickshell','-n','-p','/usr/share/omarchy/shell'],env=env,stdout=subprocess.DEVNULL,stderr=open(d/'stderr.log','w'),start_new_session=True)
+ for _ in range(100):
+  if child.poll() is not None:raise SystemExit('Observed shell exited')
+  try:
+   run('omarchy-shell','shell','ping');break
+  except subprocess.CalledProcessError:time.sleep(.1)
+ else:raise SystemExit('Observed shell did not become ready')
+ save('probe-mode-'+tag,{'mode':mode,'pid':child.pid,'time_ns':time.monotonic_ns(),'snapshot':snap()});print(json.dumps({'pid':child.pid,'mode':mode}))
+elif cmd=='probe-freeze':
+ subprocess.run(['quickshell','kill','-p','/usr/share/omarchy/shell','--any-display'],check=False,stdout=subprocess.DEVNULL,stderr=subprocess.DEVNULL)
+ for _ in range(100):
+  if not any(p['comm'] in ['qs','quickshell'] for p in processes()):break
+  time.sleep(.05)
+ else:raise SystemExit('Observed shell remained during archive freeze')
+elif cmd=='probe-events':
+ tag=sys.argv[2];assert tag.replace('-','').isalnum();p=E/('probe-'+tag)/'events.jsonl';print(p.read_text() if p.exists() else '')
+elif cmd=='probe-pixels':
+ import base64
+ tag=sys.argv[2];assert tag.replace('-','').isalnum();d=E/('probe-'+tag);print(json.dumps({p.name:base64.b64encode(p.read_bytes()).decode() for p in d.glob('pixel-*.png')}))
+elif cmd=='probe-discovery':
+ tag=sys.argv[2] if len(sys.argv)>2 else 'discovery';assert tag in ['discovery','feedback'];d=E/('probe-'+tag);p=d/'stderr.log';lines=p.read_text(errors='replace').splitlines();keep=[x for x in lines if ('wp_presentation' in x or 'wl_surface' in x and ('commit(' in x or 'attach(' in x))]
+ save('presentation-'+tag,{'source':'real shell client protocol debug; observer feedback injected only in feedback mode','wp_presentation_lines':[x for x in lines if 'wp_presentation' in x],'surface_commit_count':sum('wl_surface' in x and 'commit(' in x for x in lines),'all_log_lines':len(lines)})
+ (d/'protocol-filtered.log').write_text('\n'.join(keep)+'\n');print(json.dumps({'kept_lines':len(keep),'lines':keep}))
 elif cmd=='clock-check':
  os.execv(str(R/'clock-check'),[str(R/'clock-check')])
 elif cmd in ['native-source','native-region']:
