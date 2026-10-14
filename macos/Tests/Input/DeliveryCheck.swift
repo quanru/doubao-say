@@ -40,7 +40,7 @@ final class CGEvent {
 struct Shortcut { let keyCode: UInt16; let modifiers: Int }
 enum HotkeyManager {
     static let syntheticMarker: Int64 = 1
-    static func flags(_ value: Int) -> CGEventFlags { [] }
+    static func flags(_ value: Int) -> CGEventFlags { value & 4 != 0 ? .maskCommand : [] }
 }
 
 @main struct DeliveryCheck {
@@ -48,6 +48,9 @@ enum HotkeyManager {
         func wait(_ seconds: Double) { RunLoop.current.run(until: Date().addingTimeInterval(seconds)) }
         var flags = CGEventFlags()
         let helper = PasteHelper(modifierFlags: { flags })
+        let (down, up) = PasteHelper.shortcutEvents(Shortcut(keyCode: 9, modifiers: 4))!
+        precondition(down.flags.contains(.maskCommand) && up.flags.isEmpty,
+                     "Synthetic paste must release its modifier flags on key-up")
         let target = InputTarget()
         var result: Bool?
         func send(_ destination: InputTarget? = target) {
@@ -80,14 +83,31 @@ enum HotkeyManager {
         Fixture.current = true; Fixture.writes = []; result = nil
         Fixture.writable = false
         helper.deliver("fallback text", target: target, method: "auto") { result = $0 }
-        wait(0.9)
+        let clipboardWriteCount = NSPasteboard.general.changeCount
+        precondition(result == nil && CGEvent.posted == 0, "Paste must wait for clipboard ownership to settle")
+        wait(1.2)
         precondition(result == true && Fixture.writes.isEmpty && CGEvent.posted == 2)
+        precondition(NSPasteboard.general.changeCount == clipboardWriteCount,
+                     "A delayed target must still find the dictated text after the former restore deadline")
         precondition(NSPasteboard.general.pastedTexts == ["fallback text"], "Unsupported fields must use the clipboard route")
         Fixture.writable = true; result = nil
         helper.deliver("clipboard choice", target: target, method: "clipboard") { result = $0 }
         wait(0.9)
         precondition(result == true && Fixture.writes.isEmpty && CGEvent.posted == 4)
         precondition(NSPasteboard.general.pastedTexts == ["fallback text", "clipboard choice"], "Explicit clipboard choice must override available AX capability")
+        result = nil
+        helper.deliver("cancel before paste", target: target, method: "clipboard") { result = $0 }
+        helper.cancel(); wait(0.15)
+        precondition(result == nil && CGEvent.posted == 4, "Cancellation during settling must prevent all key events")
+        helper.deliver("changed focus", target: target, method: "clipboard") { result = $0 }
+        Fixture.current = false; wait(0.15)
+        precondition(result == false && helper.failure == .targetChanged && CGEvent.posted == 4)
+        Fixture.current = true; result = nil
+        helper.deliver("changed clipboard", target: target, method: "clipboard") { result = $0 }
+        NSPasteboard.general.clearContents(); wait(0.15)
+        precondition(result == false && helper.failure == .clipboardChanged && CGEvent.posted == 4,
+                     "A changed clipboard must never paste unrelated contents or overwrite newer clipboard data")
+        precondition(!helper.diagnostic.contains("changed clipboard"), "Diagnostics must not contain dictated text")
         print("PASS: capability-based delivery, explicit clipboard choice, permission/focus failures, Fn release, held-key timeout and cancellation; all platform effects are inert")
     }
 }

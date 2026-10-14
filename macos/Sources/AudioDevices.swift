@@ -1,12 +1,18 @@
 import Foundation
 import CoreAudio
 
-struct AudioInputDevice: Identifiable {
+struct AudioInputDevice: Identifiable, Equatable {
     let id: String
     let name: String
     let audioID: AudioDeviceID
 }
 enum AudioDevices {
+    /// Keep the user's preference, but never bind capture to a disconnected device.
+    static func resolve(preferred: String, inputs: [AudioInputDevice], defaultUID: String?) -> AudioInputDevice? {
+        inputs.first { $0.id == preferred }
+            ?? inputs.first { $0.id == defaultUID }
+            ?? inputs.first
+    }
     static func defaultInputUID() -> String? {
         var address = AudioObjectPropertyAddress(mSelector: kAudioHardwarePropertyDefaultInputDevice,
             mScope: kAudioObjectPropertyScopeGlobal, mElement: kAudioObjectPropertyElementMain)

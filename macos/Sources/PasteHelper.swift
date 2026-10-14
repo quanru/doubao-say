@@ -5,21 +5,44 @@ import ApplicationServices
 struct InputTarget {
     let pid: pid_t
     let element: AXUIElement
-    static func capture() -> InputTarget? {
+    enum Focus { case ready(InputTarget), unavailable, window, notEditable }
+    struct Scope: Equatable {
+        let pid: pid_t
+        let window: AXUIElement
+        static func == (lhs: Scope, rhs: Scope) -> Bool {
+            lhs.pid == rhs.pid && CFEqual(lhs.window, rhs.window)
+        }
+    }
+    static func scope() -> Scope? {
         guard AXIsProcessTrusted(), let app = NSWorkspace.shared.frontmostApplication,
               app.processIdentifier != ProcessInfo.processInfo.processIdentifier else { return nil }
         var value: CFTypeRef?
         guard AXUIElementCopyAttributeValue(AXUIElementCreateApplication(app.processIdentifier),
+            kAXFocusedWindowAttribute as CFString, &value) == .success,
+              let value, CFGetTypeID(value) == AXUIElementGetTypeID() else { return nil }
+        return Scope(pid: app.processIdentifier, window: unsafeBitCast(value, to: AXUIElement.self))
+    }
+    static func capture() -> InputTarget? {
+        if case .ready(let target) = readFocus() { return target }
+        return nil
+    }
+    static func readFocus() -> Focus {
+        guard AXIsProcessTrusted(), let app = NSWorkspace.shared.frontmostApplication,
+              app.processIdentifier != ProcessInfo.processInfo.processIdentifier else { return .unavailable }
+        var value: CFTypeRef?
+        guard AXUIElementCopyAttributeValue(AXUIElementCreateApplication(app.processIdentifier),
             kAXFocusedUIElementAttribute as CFString, &value) == .success,
-            let value = value, CFGetTypeID(value) == AXUIElementGetTypeID() else { return nil }
+            let value = value, CFGetTypeID(value) == AXUIElementGetTypeID() else { return .unavailable }
         let element = unsafeBitCast(value, to: AXUIElement.self)
         var role: CFTypeRef?
         var subrole: CFTypeRef?
-        AXUIElementCopyAttributeValue(element, kAXRoleAttribute as CFString, &role)
+        guard AXUIElementCopyAttributeValue(element, kAXRoleAttribute as CFString, &role) == .success else { return .unavailable }
+        // App activation can expose the window before its text responder is ready.
+        if role as? String == kAXWindowRole { return .window }
         AXUIElementCopyAttributeValue(element, kAXSubroleAttribute as CFString, &subrole)
         guard [kAXTextFieldRole, kAXTextAreaRole, kAXComboBoxRole].contains(role as? String ?? ""),
-              subrole as? String != kAXSecureTextFieldSubrole else { return nil }
-        return InputTarget(pid: app.processIdentifier, element: element)
+              subrole as? String != kAXSecureTextFieldSubrole else { return .notEditable }
+        return .ready(InputTarget(pid: app.processIdentifier, element: element))
     }
     func isCurrent() -> Bool {
         guard let current = InputTarget.capture() else { return false }
@@ -29,8 +52,10 @@ struct InputTarget {
 
 @MainActor
 final class PasteHelper {
-    enum Failure { case permission, missingTarget, targetChanged, modifiersHeld, eventUnavailable, directUnavailable, clipboardUnavailable, enterSkipped }
+    enum Failure { case permission, missingTarget, targetChanged, modifiersHeld, eventUnavailable, directUnavailable, clipboardUnavailable, clipboardChanged, enterSkipped }
     private(set) var failure: Failure?
+    private(set) var usedClipboard = false
+    private(set) var diagnostic = "No input attempt"
     var failureMessage: String? {
         switch failure {
         case .permission: return L("Allow Accessibility access in System Settings.", "请在系统设置中允许辅助功能权限。")
@@ -40,6 +65,7 @@ final class PasteHelper {
         case .eventUnavailable: return L("Could not create the paste shortcut.", "无法发送粘贴快捷键。")
         case .directUnavailable: return L("This field rejected direct input. Text is kept; focus the field and retry.", "此输入框拒绝直接输入，文字已保留，请点击输入框后重试。")
         case .clipboardUnavailable: return L("Could not write text to the clipboard.", "无法将文字写入剪贴板。")
+        case .clipboardChanged: return L("The clipboard changed before paste. Text is kept.", "粘贴前剪贴板发生变化，文字已保留。")
         case .enterSkipped: return L("Text entered; Enter was skipped because focus or permissions changed.", "文字已输入；焦点或权限发生变化，未发送回车。")
         case nil: return nil
         }
@@ -57,9 +83,15 @@ final class PasteHelper {
     func deliver(_ text: String, target: InputTarget?, method: String = "auto", sendEnter: Bool = false, completion: @escaping (Bool) -> Void) {
         cancel()
         failure = nil
+        usedClipboard = false
+        diagnostic = "method=\(method); stage=checking"
         let token = generation
         let deadline = Date().addingTimeInterval(1)
-        func fail(_ reason: Failure) { self.failure = reason; completion(false) }
+        func fail(_ reason: Failure) {
+            self.failure = reason
+            self.diagnostic += "; failure=\(reason)"
+            completion(false)
+        }
         func attempt() {
             guard token == self.generation else { return }
             guard AXIsProcessTrusted() else { fail(.permission); return }
@@ -76,6 +108,7 @@ final class PasteHelper {
             if Self.useAccessibilityInput(method: method,
                                           selectedTextWritable: writableStatus == .success && writable.boolValue) {
                 let status = AXUIElementSetAttributeValue(target.element, kAXSelectedTextAttribute as CFString, text as CFString)
+                self.diagnostic = "method=\(method); route=accessibility; AXStatus=\(status.rawValue)"
                 guard status == .success else { fail(.directUnavailable); return }
                 if sendEnter { self.enterAfterInput(target: target, isCurrent: { token == self.generation }, completion: completion) }
                 else { completion(true) }
@@ -84,6 +117,7 @@ final class PasteHelper {
             guard let (down, up) = Self.shortcutEvents(Shortcut(keyCode: 9, modifiers: 4)) else {
                 fail(.eventUnavailable); return
             }
+            self.usedClipboard = true
             let pasteboard = NSPasteboard.general
             let saved = pasteboard.pasteboardItems?.map { item in
                 item.types.compactMap { type -> (NSPasteboard.PasteboardType, Data)? in
@@ -94,10 +128,8 @@ final class PasteHelper {
             pasteboard.clearContents()
             guard pasteboard.setString(text, forType: .string) else { fail(.clipboardUnavailable); return }
             let changeCount = pasteboard.changeCount
-            down.post(tap: .cghidEventTap); up.post(tap: .cghidEventTap)
-            // Best effort: leave newer clipboard content untouched. Applications can
-            // consume paste asynchronously; users can disable automatic paste.
-            DispatchQueue.main.asyncAfter(deadline: .now() + 0.8) {
+            self.diagnostic = "method=\(method); route=clipboard; stage=waiting"
+            func restoreClipboard() {
                 guard pasteboard.changeCount == changeCount else { return }
                 pasteboard.clearContents()
                 let items = saved.map { values -> NSPasteboardItem in
@@ -107,8 +139,28 @@ final class PasteHelper {
                 }
                 if !items.isEmpty { pasteboard.writeObjects(items) }
             }
-            if sendEnter { self.enterAfterInput(target: target, isCurrent: { token == self.generation }, completion: completion) }
-            else { completion(true) }
+            // Let clipboard ownership settle, then revalidate before posting any key.
+            DispatchQueue.main.asyncAfter(deadline: .now() + 0.08) {
+                guard token == self.generation else { restoreClipboard(); return }
+                guard AXIsProcessTrusted() else { restoreClipboard(); fail(.permission); return }
+                guard target.isCurrent() else { restoreClipboard(); fail(.targetChanged); return }
+                guard pasteboard.changeCount == changeCount else { fail(.clipboardChanged); return }
+                guard self.modifierFlags().intersection([.maskControl, .maskAlternate, .maskShift, .maskCommand, .maskSecondaryFn]).isEmpty else {
+                    restoreClipboard(); fail(.modifiersHeld); return
+                }
+                down.post(tap: .cghidEventTap)
+                DispatchQueue.main.asyncAfter(deadline: .now() + 0.02) {
+                    // Always release a posted key, including after cancellation.
+                    up.post(tap: .cghidEventTap)
+                    // There is no acknowledgement that the target has read the
+                    // pasteboard. Keep the dictated text: restoring on a timer
+                    // can make a delayed paste insert the previous contents.
+                    guard token == self.generation else { return }
+                    self.diagnostic = "method=\(method); route=clipboard; result=shortcut-posted-unverified"
+                    if sendEnter { self.enterAfterInput(target: target, isCurrent: { token == self.generation }, completion: completion) }
+                    else { completion(true) }
+                }
+            }
         }
         attempt()
     }
@@ -130,7 +182,10 @@ final class PasteHelper {
               let down = CGEvent(keyboardEventSource: source, virtualKey: shortcut.keyCode, keyDown: true),
               let up = CGEvent(keyboardEventSource: source, virtualKey: shortcut.keyCode, keyDown: false) else { return nil }
         let flags = HotkeyManager.flags(shortcut.modifiers)
-        down.flags = flags; up.flags = flags
+        down.flags = flags
+        // This is a complete synthetic chord. Keeping Command on V-up leaves
+        // the session reporting Command down after paste, blocking later input.
+        up.flags = []
         down.setIntegerValueField(.eventSourceUserData, value: HotkeyManager.syntheticMarker)
         up.setIntegerValueField(.eventSourceUserData, value: HotkeyManager.syntheticMarker)
         return (down, up)

@@ -29,7 +29,20 @@ bash macos/Tests/Settings/check.sh
 xcrun swiftc -swift-version 5 -target "$(uname -m)-apple-macos13.0" \
     -module-cache-path build/macos/module-cache \
     macos/Sources/AppState.swift macos/Sources/InputLatency.swift macos/Sources/FinalResultGate.swift \
-    macos/Sources/TranscriptionManager.swift macos/Tests/Input/RetryCheck.swift \
+    macos/Sources/InputTargetCapture.swift macos/Sources/TranscriptionManager.swift macos/Tests/Input/RetryCheck.swift \
     -o build/macos/tests/retry-check
 build/macos/tests/retry-check
 bash macos/Tests/Input/check-delivery.sh
+
+xcrun swiftc -swift-version 5 -target "$(uname -m)-apple-macos13.0" \
+    -module-cache-path build/macos/module-cache \
+    macos/Sources/InputTargetCapture.swift macos/Tests/Input/FocusCaptureCheck.swift \
+    -o build/macos/tests/focus-capture-check
+build/macos/tests/focus-capture-check
+
+xcrun swiftc -swift-version 5 -target "$(uname -m)-apple-macos13.0" \
+    -module-cache-path build/macos/module-cache \
+    macos/Sources/Strings.swift macos/Sources/PolishDefaults.swift macos/Sources/MacSettings.swift \
+    macos/Sources/ShortcutGesture.swift macos/Sources/HotkeyManager.swift macos/Tests/Input/KeyInterceptionCheck.swift \
+    -o build/macos/tests/key-interception-check
+build/macos/tests/key-interception-check

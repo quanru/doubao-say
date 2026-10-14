@@ -211,7 +211,8 @@ Modifier keys are logical choices: either the left or right physical key works.
 Your keyboard must report Fn as a Linux key; otherwise choose another key.
 
 - Tap to start; tap again to finish and paste.
-- With Fn as the trigger, pressing another key while recording also finishes and pastes. Escape still cancels; the finishing key still reaches the foreground app.
+- On Linux, with Fn as the trigger, pressing another key while recording also finishes and pastes. Escape still cancels; the finishing key still reaches the foreground app.
+- On macOS, any key during voice input finishes dictation without performing its original action, including Escape, Enter and shortcut chords. Their releases are swallowed as well. Double-tap sends Enter only while idle.
 - Hold past the threshold to speak; release to finish and paste.
 - Select one preset, or choose **Record a shortcut…** to capture a custom combination such as Ctrl+Alt+Space. Only one trigger is active.
 - Press the active trigger twice to send Enter without dictation. This can submit messages or execute terminal commands.

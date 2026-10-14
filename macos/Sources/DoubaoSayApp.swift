@@ -152,7 +152,7 @@ final class AppDelegate: NSObject, NSApplicationDelegate, NSMenuDelegate {
         if !devices.isEmpty { menu.addItem(.separator()) }
         for device in devices { add(device.name, device.id) }
         if !selected.isEmpty && !devices.contains(where: { $0.id == selected }) {
-            add(L("Saved device unavailable", "已保存的设备不可用"), selected, available: false)
+            add(L("Saved device disconnected · automatic fallback", "所选设备已断开 · 自动回退"), selected, available: false)
         }
         return menu
     }
@@ -279,6 +279,10 @@ final class AppDelegate: NSObject, NSApplicationDelegate, NSMenuDelegate {
         receiver.onAction = { [weak self] action, down in
             guard let self = self else { return }
             let settings = SettingsStore.shared.value
+            if down && (self.state.recordingState != .idle || self.state.inputPending) {
+                self.hotkey.stopFromAuxiliaryKey()
+                return
+            }
             switch action {
             case "record":
                 if let custom = settings.vibekeyRecord { if down { PasteHelper.sendShortcut(custom) } }
@@ -321,8 +325,9 @@ final class AppDelegate: NSObject, NSApplicationDelegate, NSMenuDelegate {
         alert.informativeText = L("""
         Configure your recognition service, then enable the microphone and global shortcut.
         Focus an input field before recording.
-        Your configured shortcut: tap to toggle, hold to talk; double-tap sends Enter.
-        Escape: cancel. Maximum recording: 60 seconds.
+        Your configured shortcut: tap to start, hold to talk; double-tap sends Enter while idle.
+        During voice input, any key stops and inputs text; the key itself is blocked, including Escape and Enter.
+        Outside voice input, Escape dismisses kept text or cancels retry. Maximum recording: 60 seconds.
         If the input target changes, use Copy last result from this menu.
         Dictation audio is sent to your selected service without saving local audio files.
         Speech evaluation recordings are saved locally until you delete them; running a comparison uploads them.
@@ -331,8 +336,9 @@ final class AppDelegate: NSObject, NSApplicationDelegate, NSMenuDelegate {
         """, """
         配置识别服务，并启用麦克风和全局快捷键权限。
         录音前将光标放到输入框。
-        使用你配置的快捷键：短按切换录音，长按说话；双击发送回车。
-        Esc 取消。单次最多录音 60 秒。
+        使用你配置的快捷键：短按开始录音，长按说话；空闲时双击发送回车。
+        语音输入期间，任意按键都结束并上屏，按键本身被拦截，包括 Esc 和回车。
+        非语音输入状态下，Esc 可关闭保留文字或取消重试。单次最多录音 60 秒。
         输入目标变化时，请从菜单复制最近结果。
         普通听写音频发送至所选识别服务，不保存本地录音文件。
         语音评测录音会保存在本机，直到手动删除；开始对比时才上传。

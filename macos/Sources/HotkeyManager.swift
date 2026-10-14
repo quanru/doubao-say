@@ -11,6 +11,10 @@ final class HotkeyManager {
     private var gestureTimer: Timer?
     private var active = false
     private var recording = false
+    private var interceptingInput = false
+    private var blockedKeys = Set<UInt16>()
+    private var blockedModifiers = Set<UInt16>()
+    private var withheldTriggerModifiers = Set<UInt16>()
     private var shortcut = Shortcut()
     private var gesture = ShortcutGesture()
     private var shortcutDown = false
@@ -34,6 +38,14 @@ final class HotkeyManager {
     private static func modifierBit(_ code: UInt16) -> Int {
         [UInt16(59): 1, 58: 2, 55: 4, 56: 8, 63: 16][canonical(code)] ?? 0
     }
+    private static func modifierPressed(_ code: UInt16, flags: CGEventFlags) -> Bool {
+        // IOLLEvent.h device masks distinguish releasing one side while the other is held.
+        let masks: [UInt16: (UInt64, UInt64)] = [59: (0x1, 0x2001), 62: (0x2000, 0x2001),
+            56: (0x2, 0x6), 60: (0x4, 0x6), 55: (0x8, 0x18), 54: (0x10, 0x18),
+            58: (0x20, 0x60), 61: (0x40, 0x60)]
+        if let (device, pair) = masks[code], flags.rawValue & pair != 0 { return flags.rawValue & device != 0 }
+        return modifiers(flags) & modifierBit(code) != 0
+    }
     func configure(_ settings: MacSettings) {
         resetGesture(); shortcut = settings.shortcut
         gesture.holdSeconds = Double(settings.holdMilliseconds) / 1000
@@ -42,7 +54,8 @@ final class HotkeyManager {
     }
     func start() {
         guard eventTap == nil else { return }
-        let mask = (1 << CGEventType.keyDown.rawValue) | (1 << CGEventType.keyUp.rawValue) | (1 << CGEventType.flagsChanged.rawValue)
+        // Type 14 carries AppKit system-defined media-key events.
+        let mask = (1 << CGEventType.keyDown.rawValue) | (1 << CGEventType.keyUp.rawValue) | (1 << CGEventType.flagsChanged.rawValue) | (1 << 14)
         guard let tap = CGEvent.tapCreate(tap: .cgSessionEventTap, place: .headInsertEventTap,
             options: .defaultTap, eventsOfInterest: CGEventMask(mask), callback: { _, type, event, info in
                 guard let info = info else { return Unmanaged.passUnretained(event) }
@@ -69,6 +82,7 @@ final class HotkeyManager {
         if let tap = eventTap { CGEvent.tapEnable(tap: tap, enable: false); CFMachPortInvalidate(tap) }
         if let source = source { CFRunLoopRemoveSource(CFRunLoopGetMain(), source, .commonModes) }
         eventTap = nil; source = nil; resetGesture()
+        blockedKeys.removeAll(); blockedModifiers.removeAll(); withheldTriggerModifiers.removeAll(); interceptingInput = false
     }
     func captureShortcut(_ completion: @escaping (Shortcut?) -> Void) {
         guard available, !active else { completion(nil); return }
@@ -82,7 +96,15 @@ final class HotkeyManager {
         let completion = capture; capture = nil
         if let completion = completion { DispatchQueue.main.async { completion(value) } }
     }
-    func setEscapeHandlingEnabled(_ enabled: Bool, recording: Bool = false) { active = enabled; self.recording = recording }
+    func setEscapeHandlingEnabled(_ enabled: Bool, recording: Bool = false, interceptKeys: Bool? = nil) {
+        active = enabled; self.recording = recording
+        interceptingInput = interceptKeys ?? recording
+        // Keep swallowed keys until their releases, even after delivery finishes.
+    }
+    func stopFromAuxiliaryKey() {
+        gesture.reset(); shortcutDown = false
+        onHotkeyEvent?(.stop)
+    }
     func auxiliaryRecord(_ pressed: Bool) {
         let now = ProcessInfo.processInfo.systemUptime
         emit(pressed ? gesture.down(at: now) : gesture.up(at: now))
@@ -104,6 +126,7 @@ final class HotkeyManager {
         if event.getIntegerValueField(.eventSourceUserData) == Self.syntheticMarker { return Unmanaged.passUnretained(event) }
         if type == .tapDisabledByTimeout || type == .tapDisabledByUserInput {
             if let tap = eventTap { CGEvent.tapEnable(tap: tap, enable: true) }
+            blockedKeys.removeAll(); blockedModifiers.removeAll(); withheldTriggerModifiers.removeAll()
             resetGesture(); return Unmanaged.passUnretained(event)
         }
         let code = Self.canonical(UInt16(event.getIntegerValueField(.keyboardEventKeycode)))
@@ -120,13 +143,41 @@ final class HotkeyManager {
             }
             return Unmanaged.passUnretained(event)
         }
+        let physicalCode = UInt16(event.getIntegerValueField(.keyboardEventKeycode))
+        let modifierPressed = type == .flagsChanged && Self.modifierPressed(physicalCode, flags: event.flags)
+        if type == .flagsChanged && !modifierPressed, withheldTriggerModifiers.remove(physicalCode) != nil {
+            if shortcutDown { shortcutDown = false; emit(gesture.up(at: ProcessInfo.processInfo.systemUptime)) }
+            return nil
+        }
+        if type == .keyUp, blockedKeys.remove(physicalCode) != nil { return nil }
+        if type == .flagsChanged && !modifierPressed, blockedModifiers.remove(physicalCode) != nil { return nil }
+        let draining = !blockedKeys.isEmpty || !blockedModifiers.isEmpty
+        if type.rawValue == 14, let media = NSEvent(cgEvent: event), media.subtype.rawValue == 8 {
+            let mediaCode = UInt16(0x8000 | ((media.data1 >> 16) & 0x7fff))
+            let keyState = (media.data1 >> 8) & 0xff
+            if keyState == 0x0b, blockedKeys.remove(mediaCode) != nil { return nil }
+            if keyState == 0x0a && (interceptingInput || draining) {
+                let firstPress = blockedKeys.insert(mediaCode).inserted
+                if interceptingInput && firstPress && !draining { stopFromAuxiliaryKey() }
+                return nil
+            }
+            return Unmanaged.passUnretained(event)
+        }
+        if (type == .keyDown || modifierPressed || (type == .flagsChanged && code == 57)) && (interceptingInput || draining) {
+            let firstPress: Bool
+            if modifierPressed { firstPress = blockedModifiers.insert(physicalCode).inserted }
+            else if type == .keyDown { firstPress = blockedKeys.insert(physicalCode).inserted }
+            else { firstPress = true }
+            if interceptingInput && firstPress && !draining { stopFromAuxiliaryKey() }
+            return nil
+        }
         if code == 53 && type == .keyDown && (active || shortcutDown || gesture.isPending) { resetGesture(); onHotkeyEvent?(.cancel); return nil }
-        if shortcut.keyCode == 63 && recording && type == .keyDown && code != 63 { onHotkeyEvent?(.stop); return Unmanaged.passUnretained(event) }
         let now = ProcessInfo.processInfo.systemUptime
         let modifierShortcut = Self.modifierBit(shortcut.keyCode)
         let down = modifierShortcut != 0 ? (type == .flagsChanged && code == shortcut.keyCode && mods & modifierShortcut != 0) : type == .keyDown
         if down && code == shortcut.keyCode && (mods & ~modifierShortcut) == shortcut.modifiers {
-            shortcutDown = true; emit(gesture.down(at: now)); return modifierShortcut == 0 ? nil : Unmanaged.passUnretained(event)
+            if modifierShortcut != 0 { withheldTriggerModifiers.insert(physicalCode) }
+            shortcutDown = true; emit(gesture.down(at: now)); return nil
         }
         if shortcutDown && ((type == .keyUp && code == shortcut.keyCode) || (type == .flagsChanged && (mods & shortcut.modifiers != shortcut.modifiers || (modifierShortcut != 0 && mods & modifierShortcut == 0)))) {
             shortcutDown = false; emit(gesture.up(at: now)); return type == .keyUp ? nil : Unmanaged.passUnretained(event)
