@@ -9,12 +9,17 @@ permissions:
 jobs:
   inspect:
     if: github.event.repository.private == false
+    strategy:
+      max-parallel: 2
+      matrix:
+        chunk: [0, 1, 2, 3, 4, 5, 6, 7, 8, 9]
     runs-on: ubuntu-24.04
     timeout-minutes: 3
     steps:
       - name: Inspect existing redacted archive without rerunning acceptance
         env:
           GH_TOKEN: ${{ github.token }}
+          EVIDENCE_CHUNK: ${{ matrix.chunk }}
         run: |
           gh api repos/quanru/doubao-say/actions/runs/38525941531 > /tmp/run.json
           python3 - <<'PY'
@@ -25,12 +30,15 @@ jobs:
           PY
           gh api --allow-escape-sequences repos/quanru/doubao-say/actions/jobs/115726181212/logs > /tmp/job.log
           python3 - <<'PY'
-          import pathlib,re,base64,hashlib,json
+          import pathlib,re,base64,hashlib,json,os
           s=pathlib.Path('/tmp/job.log').read_text()
           m=re.search(r'PR15184_EVIDENCE_BEGIN (\d+) ([a-f0-9]{64})',s);assert m
           encoded=''.join(re.findall(r'PR15184_EVIDENCE_DATA ([A-Za-z0-9+/=]+)',s));data=base64.b64decode(encoded,validate=True)
           assert len(data)==int(m[1]) and hashlib.sha256(data).hexdigest()==m[2]
           print('VERIFIED_ARCHIVE_METADATA',json.dumps({'bytes':len(data),'sha256':m[2],'encoded_length':len(encoded),'chunks_1m':(len(encoded)+999999)//1000000}))
-          for line in s.splitlines():
-              if len(line)<1000 and re.search(r'Real shell/probe healthy|semantic_validation|PASS.*FAIL.*INCONCLUSIVE|Traceback|AssertionError|Process completed with exit',line):print(line)
+          index=int(os.environ['EVIDENCE_CHUNK']);assert 0<=index<10
+          chunk=encoded[index*1000000:(index+1)*1000000];assert chunk
+          print('PR15184_CHUNK_BEGIN',index,len(chunk),hashlib.sha256(chunk.encode()).hexdigest())
+          for offset in range(0,len(chunk),32000):print('PR15184_CHUNK_DATA',chunk[offset:offset+32000])
+          print('PR15184_CHUNK_END',index)
           PY
