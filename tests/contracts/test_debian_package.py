@@ -1,6 +1,7 @@
 """Guard the Debian install path against fetching executable Python packages."""
 from pathlib import Path
 import unittest
+import tomllib
 from unittest.mock import patch
 
 from doubao_input import preflight
@@ -17,6 +18,8 @@ class DebianPackageTest(unittest.TestCase):
         modules.assert_called_once_with(("evdev", "websockets", "jwt", "cryptography"))
 
     def test_runtime_dependencies_are_distribution_packages(self):
+        version = tomllib.loads((ROOT / "pyproject.toml").read_text())["project"]["version"]
+        self.assertTrue((ROOT / "debian/changelog").read_text().startswith(f"doubao-say ({version}-1)"))
         control = (ROOT / "debian/control").read_text()
         postinst = (ROOT / "debian/postinst").read_text()
         rules = (ROOT / "debian/rules").read_text()
