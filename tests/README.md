@@ -146,14 +146,30 @@ GTK_A11Y=none SIWC_UI_SCREENSHOTS=artifacts/verification/siwc/native \
   dbus-run-session -- .venv/bin/python tests/manual/chatgpt_ui.py
 ```
 
-Repeat with `SIWC_UI_LANGUAGE=zh` for Chinese. This fixture exercises real GTK
+Repeat with `SIWC_UI_LANGUAGE=zh_CN` for Chinese. This fixture exercises real GTK
 controls with a synthetic connection: provider selection, account connection,
 model choice, enabling without an API key, preservation of existing API
-settings, and hiding/reopening the connection card. It does not verify live
-OAuth, actual plan inference, token expiry, audio capture or paste delivery.
+settings, and hiding/reopening the connection card. It also checks a connected
+account's quota message and explicit usage retry; a quota error must retain the
+account connection. It does not verify live OAuth, actual plan inference, token
+expiry, audio capture or paste delivery.
+Unit regressions also exercise bounded HTTP error bodies: an exact plan quota
+code pauses inference until explicit retry, while ordinary HTTP throttling,
+malformed errors and oversized bodies leave the connection available.
 Live sign-in must use a separate app-owned account store; never copy credentials
-from Codex or another product. The independent macOS preview has no ChatGPT
-connection UI in this change.
+from Codex or another product.
+
+The native Mac client has a separate Swift connection. `make macos-check`
+includes signed-identity, loopback callback, credential rotation and cancellation
+tests alongside existing polishing checks. Build its isolated native UI probe
+with `bash macos/Tests/Settings/build-chatgpt-ui.sh` under a heavy slot, then run
+`python3 macos/Tests/Settings/chatgpt_ui_check.py
+build/macos/tests/chatgpt-ui-check artifacts/verification/siwc/mac-native` under
+a runtime slot. It captures real SwiftUI controls with synthetic accounts in
+English/Chinese and both appearances; no live login, microphone or paste occurs.
+The opt-in `macos/Tests/Live/ChatGPTCheck.swift` uses this app's own Keychain
+registration for real OAuth/catalog/inference verification. Never copy a token
+from the Python client or any other product into that check.
 
 ## Personal speech and correction checks
 

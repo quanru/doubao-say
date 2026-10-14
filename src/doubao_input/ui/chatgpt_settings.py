@@ -58,6 +58,9 @@ class ChatGPTSettings(Gtk.Box):
         refresh = Gtk.Button(label=tr("Refresh models", "刷新模型"))
         refresh.connect("clicked", lambda *_: self._run(lambda: None))
         self.append(refresh)
+        self.retry_usage_button = Gtk.Button(label=tr("Retry plan usage", "重试套餐用量"))
+        self.retry_usage_button.connect("clicked", lambda *_: self._run(self.client.resume_usage))
+        self.append(self.retry_usage_button)
         self.connect("unmap", self._close)
         self.connect("map", self._mapped)
         self._run(lambda: None)
@@ -119,8 +122,12 @@ class ChatGPTSettings(Gtk.Box):
         finally:
             self._updating = False
         self._model_changed()
-        self.status.set_text(message or tr("ChatGPT plan connected" if models else "ChatGPT is not connected for plan usage",
-                                          "ChatGPT 套餐已连接" if models else "尚未连接 ChatGPT 套餐"))
+        limited = bool(state and state.get("usage_limited"))
+        self.status.set_text(message or (tr(
+            "ChatGPT plan usage limit reached. Open Manage usage; retry plan usage when available.",
+            "ChatGPT 套餐共享用量已达上限，请查看“管理用量”，可用后重试套餐用量。") if limited else tr(
+            "ChatGPT plan connected" if models else "ChatGPT is not connected for plan usage",
+            "ChatGPT 套餐已连接" if models else "尚未连接 ChatGPT 套餐")))
         return False
 
     def _selected(self, *_):

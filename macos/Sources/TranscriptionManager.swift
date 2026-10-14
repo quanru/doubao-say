@@ -85,7 +85,7 @@ final class TranscriptionManager {
         latency = InputLatency()
         rawText = ""; speaking = false; finalGate = FinalResultGate()
         state.transcriptionText = ""; state.errorMessage = nil; state.overlayStatus = ""
-        let polishKey = settings.polishEnabled ? (SecretStore.load("polish-api-key") ?? "") : ""
+        let polishKey = settings.polishEnabled ? PolishPolicy.credential(settings: settings, apiKey: SecretStore.load("polish-api-key")) : ""
         polishAvailable = !polishKey.isEmpty
         polisher.begin(settings: settings, key: polishKey)
         setState(.starting); overlay.showOverlay()

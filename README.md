@@ -102,7 +102,15 @@ are available in the same panel. Credentials stay in an owner-only local store;
 the existing API endpoint, key and model settings are preserved. This option powers
 text polishing, while speech recognition continues through the selected speech service.
 The five-second original-text fallback also applies to connection, quota and renewal failures.
-The independent macOS development preview does not yet include this connection option.
+If ChatGPT reports a plan usage limit, further polishing pauses and keeps the
+original text. Open **Manage usage** to review the plan or app limit, then use
+**Retry plan usage** when available; signing in again is not required for a quota error.
+The native macOS app also offers **ChatGPT plan** in Voice polishing. Its shared
+connection serves dictation, AI vocabulary organization and polishing comparisons;
+credentials stay in the app's Keychain. Recognition remains on the selected speech
+service, and existing API configuration is preserved. Choose a model from the
+dropdown; reconnect, add/disconnect accounts and refresh models through **Account
+options**. Usage-limit actions appear when needed.
 Doubao Say selects a prompt from each transcript's dominant language. The bundled prompts remove
 filler words and false starts, improves punctuation and organization, preserves
 meaning, and can be edited or restored to its default.

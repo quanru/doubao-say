@@ -136,7 +136,8 @@ final class PersonalModel: ObservableObject {
         guard !busy, flush() else { return }
         statistics()
         guard !candidates.isEmpty else { return }
-        guard let key = SecretStore.load("polish-api-key"), !key.isEmpty else { feedback = L("Configure your polishing API key first.", "请先配置润色 API Key。"); return }
+        let key = PolishPolicy.credential(settings: SettingsStore.shared.value, apiKey: SecretStore.load("polish-api-key"))
+        guard !key.isEmpty else { feedback = L("Configure your polishing service first.", "请先配置润色服务。"); return }
         let snapshot = candidates
         let payload = snapshot.map { ["term": $0.term, "count": $0.count] as [String: Any] }
         guard let json = try? JSONSerialization.data(withJSONObject: payload), let input = String(data: json, encoding: .utf8) else { return }

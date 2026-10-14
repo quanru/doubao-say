@@ -1,6 +1,10 @@
 import Foundation
 
 enum PolishPolicy {
+    /// This internal readiness marker is never sent as a bearer token.
+    static func credential(settings: MacSettings, apiKey: @autoclosure () -> String?) -> String {
+        settings.polishProvider == "chatgpt" ? "chatgpt-plan" : apiKey() ?? ""
+    }
     static func prompt(text: String, chinese: String, english: String) -> String {
         let han = text.unicodeScalars.filter { (0x3400...0x4DBF).contains($0.value) || (0x4E00...0x9FFF).contains($0.value) || (0xF900...0xFAFF).contains($0.value) }.count
         let words = text.split(whereSeparator: { !$0.isASCII || !$0.isLetter }).count
@@ -72,44 +76,84 @@ struct PolishStream {
 
 /// One request owns its session and five-second deadline. No redirects or response bodies in errors.
 final class PolishClient: NSObject, URLSessionDataDelegate {
+    private let planService: ChatGPTService
+    private let configuration: URLSessionConfiguration?
     private var session: URLSession?
     private var task: URLSessionDataTask?
     private var deadline: DispatchWorkItem?
     private var parser = PolishStream()
+    private var planParser = ChatGPTResponses()
+    private var planLease: ChatGPTLease?
+    private var failedHTTP = false
+    private var errorBody = Data()
+    private var credentialTask: Task<Void, Never>?
+    private var connectionObserver: NSObjectProtocol?
+    private var usingPlan = false
     private var stopped = false
     private var startedAt: TimeInterval = 0
     private var timeout: TimeInterval = 5
     var progress: ((String) -> Void)?
     var completion: ((String?, String?) -> Void)?
 
+    init(planService: ChatGPTService = .shared, configuration: URLSessionConfiguration? = nil) {
+        self.planService = planService; self.configuration = configuration
+        super.init()
+    }
+
     func start(text: String, settings: MacSettings, apiKey: String, timeout: TimeInterval = 5, personalize: Bool = true) {
         self.timeout = min(30, max(1, timeout))
         startedAt = ProcessInfo.processInfo.systemUptime
-        guard let url = PolishPolicy.endpoint(settings.polishBaseURL) else { finish(nil, "endpoint"); return }
-        var request = URLRequest(url: url, timeoutInterval: self.timeout)
-        request.httpMethod = "POST"
-        request.setValue("Bearer " + apiKey, forHTTPHeaderField: "Authorization")
-        request.setValue("application/json", forHTTPHeaderField: "Content-Type")
-        request.setValue("text/event-stream", forHTTPHeaderField: "Accept")
+        usingPlan = settings.polishProvider == "chatgpt"
         let basePrompt = PolishPolicy.prompt(text: text, chinese: settings.polishPromptZH, english: settings.polishPromptEN)
         let prompt = personalize ? PersonalVocabulary.prompt(basePrompt, words: (try? PersonalDataStore.shared.words()) ?? []) : basePrompt
         let contextualPrompt = personalize ? PersonalCorrections.prompt(prompt, text: text, corrections: (try? PersonalDataStore.shared.corrections()) ?? []) : prompt
-        var body: [String: Any] = ["model": settings.polishModel, "temperature": 0.2, "stream": true,
-            "messages": [["role": "system", "content": contextualPrompt], ["role": "user", "content": text]]]
-        body.merge(PolishPolicy.reasoning(baseURL: settings.polishBaseURL, model: settings.polishModel)) { _, new in new }
-        guard let data = try? JSONSerialization.data(withJSONObject: body) else { finish(nil, "request"); return }
-        request.httpBody = data
-        let config = URLSessionConfiguration.ephemeral
-        config.urlCache = nil; config.httpCookieStorage = nil
-        config.timeoutIntervalForRequest = self.timeout; config.timeoutIntervalForResource = self.timeout
-        session = URLSession(configuration: config, delegate: self, delegateQueue: .main)
         let expiry = DispatchWorkItem { [weak self] in self?.finish(nil, "timeout") }
         deadline = expiry
         DispatchQueue.main.asyncAfter(deadline: .now() + self.timeout, execute: expiry)
+        if usingPlan {
+            guard !settings.polishChatGPTModel.isEmpty else { finish(nil, ChatGPTError.model.localizedDescription); return }
+            connectionObserver = NotificationCenter.default.addObserver(forName: .chatGPTConnectionChanged, object: nil, queue: .main) { [weak self] notice in
+                if notice.userInfo?["reason"] as? String == "account" { self?.finish(nil, ChatGPTError.accountChanged.localizedDescription) }
+                if notice.userInfo?["reason"] as? String == "quota" { self?.finish(nil, ChatGPTError.quota.localizedDescription) }
+            }
+            credentialTask = Task { @MainActor [weak self] in
+                do {
+                    let lease = try await self?.planService.access()
+                    try Task.checkCancellation()
+                    guard let self = self, let lease = lease, !self.stopped else { return }
+                    self.planLease = lease
+                    self.send(text: text, settings: settings, prompt: contextualPrompt, credential: lease.token)
+                } catch { self?.finish(nil, (error as? ChatGPTError)?.localizedDescription ?? ChatGPTError.connection.localizedDescription) }
+            }
+        } else { send(text: text, settings: settings, prompt: contextualPrompt, credential: apiKey) }
+    }
+    private func send(text: String, settings: MacSettings, prompt: String, credential: String) {
+        let elapsed = ProcessInfo.processInfo.systemUptime - startedAt
+        guard !stopped, elapsed < timeout else { finish(nil, "timeout"); return }
+        guard let url = usingPlan ? URL(string: ChatGPTProtocol.resource + "/responses") : PolishPolicy.endpoint(settings.polishBaseURL) else { finish(nil, "endpoint"); return }
+        var request = URLRequest(url: url, timeoutInterval: timeout - elapsed)
+        request.httpMethod = "POST"
+        request.setValue("Bearer " + credential, forHTTPHeaderField: "Authorization")
+        request.setValue("application/json", forHTTPHeaderField: "Content-Type")
+        request.setValue("text/event-stream", forHTTPHeaderField: "Accept")
+        var body: [String: Any] = ["model": settings.polishModel, "temperature": 0.2, "stream": true,
+            "messages": [["role": "system", "content": prompt], ["role": "user", "content": text]]]
+        if usingPlan {
+            body = ["model": settings.polishChatGPTModel, "store": false, "stream": true,
+                    "input": [["role": "developer", "content": prompt], ["role": "user", "content": text]]]
+        } else { body.merge(PolishPolicy.reasoning(baseURL: settings.polishBaseURL, model: settings.polishModel)) { _, new in new } }
+        guard let data = try? JSONSerialization.data(withJSONObject: body) else { finish(nil, "request"); return }
+        request.httpBody = data
+        let config = (configuration?.copy() as? URLSessionConfiguration) ?? URLSessionConfiguration.ephemeral
+        config.urlCache = nil; config.httpCookieStorage = nil
+        config.timeoutIntervalForRequest = timeout - elapsed; config.timeoutIntervalForResource = timeout - elapsed
+        session = URLSession(configuration: config, delegate: self, delegateQueue: .main)
         task = session?.dataTask(with: request); task?.resume()
     }
     func cancel() {
         stopped = true; deadline?.cancel(); deadline = nil
+        credentialTask?.cancel(); credentialTask = nil
+        if let observer = connectionObserver { NotificationCenter.default.removeObserver(observer) }; connectionObserver = nil
         task?.cancel(); session?.invalidateAndCancel(); session = nil
         completion = nil; progress = nil
     }
@@ -123,20 +167,46 @@ final class PolishClient: NSObject, URLSessionDataDelegate {
                     newRequest request: URLRequest, completionHandler: @escaping (URLRequest?) -> Void) { completionHandler(nil) }
     func urlSession(_ session: URLSession, dataTask: URLSessionDataTask, didReceive response: URLResponse,
                     completionHandler: @escaping (URLSession.ResponseDisposition) -> Void) {
-        guard let http = response as? HTTPURLResponse, (200...299).contains(http.statusCode) else {
-            completionHandler(.cancel); finish(nil, "service"); return
+        guard let http = response as? HTTPURLResponse else { completionHandler(.cancel); finish(nil, "service"); return }
+        if !(200...299).contains(http.statusCode) {
+            if usingPlan { failedHTTP = true; completionHandler(.allow) }
+            else { completionHandler(.cancel); finish(nil, "service") }
+            return
         }
         completionHandler(.allow)
     }
     func urlSession(_ session: URLSession, dataTask: URLSessionDataTask, didReceive data: Data) {
         guard !stopped else { return }
         guard ProcessInfo.processInfo.systemUptime - startedAt < timeout else { finish(nil, "timeout"); return }
-        do { if let text = try parser.append(data) { progress?(text) } }
+        if failedHTTP {
+            guard errorBody.count + data.count <= 65_536 else { finish(nil, "service"); return }
+            errorBody.append(data); return
+        }
+        do { if let text = try (usingPlan ? planParser.append(data) : parser.append(data)) { progress?(text) } }
+        catch let error as ChatGPTError { planFailure(error) }
         catch { finish(nil, "response") }
     }
     func urlSession(_ session: URLSession, task: URLSessionTask, didCompleteWithError error: Error?) {
         guard !stopped else { return }
         guard error == nil else { finish(nil, "network"); return }
-        do { finish(try parser.result(), nil) } catch { finish(nil, "response") }
+        if failedHTTP {
+            let body = (try? JSONSerialization.jsonObject(with: errorBody)) as? [String: Any]
+            let failure = body?["error"] as? [String: Any]
+            let code = failure?["code"] as? String ?? body?["code"] as? String
+            if code == "subscription_sharing_usage_limit_exceeded" { planFailure(.quota) }
+            else { finish(nil, "service") }
+            return
+        }
+        if usingPlan, let lease = planLease {
+            Task { @MainActor [weak self] in
+                guard let self = self, !self.stopped else { return }
+                guard await self.planService.isCurrent(lease) else { self.finish(nil, ChatGPTError.accountChanged.localizedDescription); return }
+                do { self.finish(try self.planParser.result(), nil) } catch { self.finish(nil, ChatGPTError.response.localizedDescription) }
+            }
+        } else { do { finish(try parser.result(), nil) } catch { finish(nil, "response") } }
+    }
+    private func planFailure(_ error: ChatGPTError) {
+        if case .quota = error, let lease = planLease { Task { await planService.pauseUsage(lease) } }
+        finish(nil, error.localizedDescription)
     }
 }
