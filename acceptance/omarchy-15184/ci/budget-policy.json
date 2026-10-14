@@ -42,6 +42,11 @@
       "run_id": 38492688288,
       "micro_cny": 10000000,
       "purpose": "Native Midscene observation PR56a14ada, real guest compositor/evdev timing, 20 comparable and 20 short QMP presses, three GUI rounds; attempt 1 only"
+    },
+    {
+      "run_id": 38498146309,
+      "micro_cny": 10000000,
+      "purpose": "Pinned SDK0c6fa24d with pipe teardown fix; three real native source lifecycle checks before inference; zero producers verified after every observation; attempt 1 only"
     }
   ],
   "note": "Each unique run ID, attempt 1 only, requires an allocation; all allocations count cumulatively <=100 CNY, no cross-run refunds. Official regular prices 3/15; conservative ceiling 6/30 also covers documented fast tier; send default tier. Input entire 256Ki token model ceiling, all output incl reasoning capped max_completion_tokens=4096.",
