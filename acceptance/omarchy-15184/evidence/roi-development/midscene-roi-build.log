@@ -1,0 +1,52 @@
+
+ NX   Running target build for project @midscene/computer and 2 tasks it depends on:
+
+
+
+> nx run @midscene/shared:build  [existing outputs match the cache, left as is]
+
+
+> nx run @midscene/core:build  [existing outputs match the cache, left as is]
+
+
+> nx run @midscene/computer:build
+
+(node:9530) Warning: The 'NO_COLOR' env is ignored due to the 'FORCE_COLOR' env being set.
+(Use `node --trace-warnings ...` to show where the warning was created)
+(node:9542) Warning: The 'NO_COLOR' env is ignored due to the 'FORCE_COLOR' env being set.
+(Use `node --trace-warnings ...` to show where the warning was created)
+[2m$ rslib build[22m
+  Rslib v0.18.3
+(node:9557) Warning: The 'NO_COLOR' env is ignored due to the 'FORCE_COLOR' env being set.
+(Use `node --trace-warnings ...` to show where the warning was created)
+(node:9557) [MODULE_TYPELESS_PACKAGE_JSON] Warning: Module type of file:///workspace/midscene-observation-timing/packages/computer/rslib.config.ts?t=1791950237893 is not specified and it doesn't parse as CommonJS.
+Reparsing as ES module because module syntax was detected. This incurs a performance overhead.
+To eliminate this warning, add "type": "module" to /workspace/midscene-observation-timing/packages/computer/package.json.
+(node:9557) [MODULE_TYPELESS_PACKAGE_JSON] Warning: Module type of file:///workspace/midscene-observation-timing/scripts/rsbuild-utils.ts is not specified and it doesn't parse as CommonJS.
+Reparsing as ES module because module syntax was detected. This incurs a performance overhead.
+To eliminate this warning, add "type": "module" to /workspace/midscene-observation-timing/package.json.
+info    Type checker is enabled. It may take some time.
+info    build started...
+(node:9594) Warning: The 'NO_COLOR' env is ignored due to the 'FORCE_COLOR' env being set.
+(Use `node --trace-warnings ...` to show where the warning was created)
+ready   built in 0.50 s (esm)
+start   generating declaration files... (esm)
+ready   built in 4.58 s (cjs)
+info    declaration files prepared in 4.56 s (esm)
+ready   declaration files bundled successfully: dist/types/index.d.ts in 2.79 s (esm)
+ready   declaration files bundled successfully: dist/types/cli.d.ts in 0.67 s (esm)
+File (cjs)          Size       
+dist/lib/cli.js     117.6 kB
+dist/lib/index.js   135.9 kB
+           Total:   253.5 kB
+File (esm)          Size       
+dist/es/cli.mjs     112.9 kB
+dist/es/index.mjs   128.0 kB
+           Total:   240.9 kB
+
+
+
+ NX   Successfully ran target build for project @midscene/computer and 2 tasks it depends on
+
+Nx read the output from the cache instead of running the command for 2 out of 3 tasks.
+
