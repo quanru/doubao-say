@@ -26,7 +26,7 @@ for p in out.rglob('*'):
   if re.search(r'(?:sk-(?:proj-)?[A-Za-z0-9_-]{24,}|-----BEGIN (?:OPENSSH|RSA|EC) PRIVATE KEY-----|Bearer [A-Za-z0-9_.-]{24,})',s):
    shutil.rmtree(out);out.mkdir();(out/'REDACTION-BLOCK.txt').write_text('Artifact export blocked by credential-pattern scan. No evidence published.');raise SystemExit(1)
 PY
-python3 ci/analyze-captures.py || status=1
+python3 ci/analyze-native.py || status=1
 python3 - <<'PY'
 from pathlib import Path
 import hashlib,json,html

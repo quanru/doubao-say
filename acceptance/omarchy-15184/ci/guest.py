@@ -73,6 +73,16 @@ elif cmd=='validate-templates':
  a=(E/'active.png').read_bytes();b=(E/'inactive.png').read_bytes()
  assert a[:8]==b[:8]==b'\x89PNG\r\n\x1a\n' and a[16:24]==b[16:24] and a!=b,'Active/inactive PNG templates identical or invalid; stop before timed trials'
  save('template-validation',{'same_dimensions':True,'distinct_png_files':True,'method':'Early PNG identity guard; decoded pixel validation is performed by the host analyzer','requires_visual_review':True})
+elif cmd=='native-source':
+ os.execv(str(R/'midscene-wayland-capture'),[str(R/'midscene-wayland-capture'),'--verify-monotonic'])
+elif cmd=='input-start':
+ subprocess.Popen(['python3',str(R/'input-events.py'),sys.argv[2]],stdout=subprocess.DEVNULL,stderr=open(E/'input-error.log','a'),start_new_session=True)
+elif cmd=='input-end':
+ d=E/sys.argv[2];(d/'stop').touch()
+ for _ in range(100):
+  if (d/'done').exists():break
+  time.sleep(.02)
+ print((d/'input.json').read_text())
 elif cmd=='capture':
  # Harness grants only input-read permission inside the disposable VM.
  subprocess.Popen(['python3',str(R/'capture.py'),*sys.argv[2:]],stdout=subprocess.DEVNULL,stderr=open(E/'capture-error.log','a'),start_new_session=True)

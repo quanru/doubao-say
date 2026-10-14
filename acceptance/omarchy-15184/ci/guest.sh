@@ -1,5 +1,6 @@
 #!/bin/bash
 set -euo pipefail
+cd "$(dirname "$0")/.."
 mapfile -t state < work/session-state
 key=${state[0]}
 ssh_args=(-i "$key" -p 2222 -o BatchMode=yes -o IdentitiesOnly=yes -o StrictHostKeyChecking=no -o UserKnownHostsFile=/dev/null -o LogLevel=ERROR)

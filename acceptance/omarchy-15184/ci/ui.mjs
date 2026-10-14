@@ -1,9 +1,10 @@
-import { agentForComputer } from '@midscene/computer';
 import { execFileSync } from 'node:child_process';
-import { readFileSync, writeFileSync, mkdirSync } from 'node:fs';
+import { readFileSync, writeFileSync, mkdirSync, copyFileSync } from 'node:fs';
 import { resolve } from 'node:path';
 const root=process.env.ACCEPTANCE_ROOT;if(!root)throw Error('Missing root');
 const out=resolve(root,'review-artifacts');
+const {agentForComputer,ObservationFrameSource}=await import(resolve(root,'work/midscene/packages/computer/dist/es/index.mjs'));
+const {basename}=await import('node:path');
 const guest=(...args)=>execFileSync('bash',[resolve(root,'ci/guest.sh'),...args],{cwd:root,encoding:'utf8',timeout:30000}).trim();
 const sleep=ms=>new Promise(r=>setTimeout(r,ms));
 const state=readFileSync(resolve(root,'work/session-state'),'utf8').trim().split('\n');
@@ -12,7 +13,7 @@ const snapshot=name=>JSON.parse(guest('snapshot',name));
 const identity=s=>s.processes.map(p=>[p.pid,p.start_ticks,p.comm]).sort().toString();
 let agent;const results=[];
 try {
- agent=await agentForComputer({headless:false,keepXvfbAliveUntilProcessExit:true,generateReport:true,reportFileName:'omarchy-15184-real-desktop'});
+ agent=await agentForComputer({headless:false,keepXvfbAliveUntilProcessExit:true,generateReport:true,observationFrameSource:async()=>ObservationFrameSource.start({command:'bash',args:[resolve(root,'ci/guest.sh'),'native-source']}),reportFileName:'omarchy-15184-real-desktop'});
  await sleep(2000);guest('focus');await sleep(500);
  const initial=snapshot('ui-initial');const ids=identity(initial);
  let observation=0;const stable=()=>{const s=snapshot(`observation-${observation++}`);if(identity(s)!==ids)throw Error('Shell/fcitx/indicator process changed during measurement');return s;};
@@ -35,16 +36,29 @@ try {
  await agent.aiAssert('The desktop top-right bar now displays the small text EN in place of the previous 拼 text.');
  guest('template','inactive',...box.map(String));
  guest('validate-templates');
- for(let i=0;i<20;i++){
+ for(let i=0;i<40;i++){
   guest('focus');await sleep(150+((i*137)%500));
-  const trial=`switch${String(i).padStart(2,'0')}`;
-  guest('capture',trial,...box.map(String));
+  const trial=`${i<20?'switch':'quick'}${String(i%20).padStart(2,'0')}`;
+  guest('input-start',trial);
   let ready=false;for(let j=0;j<40;j++){try{guest('ready',trial);ready=true;break;}catch{await sleep(50);}}
-  if(!ready)throw Error('Guest capture did not become ready');
-  key('shift');await sleep(3300);
+  if(!ready)throw Error('Guest input reader did not become ready');
+  const observer=await agent.startObserving({captureMode:'source',maxFrames:300,watchdogMs:10000});
+  await sleep(200);
+  const holdMs=i<20?80:5;
+  execFileSync('python3',[resolve(root,'scripts/qmp-key.py'),state[1],'shift','--hold-ms',String(holdMs),'--disposable-vm'],{timeout:10000});
+  await sleep(1300);
+  const input=JSON.parse(guest('input-end',trial));
+  for(const e of input.events)observer.recordEvent({name:e.value===1?'keydown':e.value===0?'keyup':'repeat',timing:{clockId:input.clockId,kind:'input-event',startMs:(e.ns-1000)/1e6,endMs:(e.ns+1000)/1e6}});
+  const observation=await observer.stop();
+  const record=await observation.exportRecord();
+  const dest=resolve(out,'observations',trial);mkdirSync(resolve(dest,'images'),{recursive:true});
+  for(const frame of record.frames){const file=basename(frame.path);copyFileSync(frame.path,resolve(dest,'images',file));frame.path=`images/${file}`;}
+  writeFileSync(resolve(dest,'observation.json'),JSON.stringify({...record,requestedHoldMs:holdMs},null,2));
+  if(i===0 || i===20){try{await observation.aiAssert('The input-method text in the top-right desktop bar changes from EN to 拼 during this recorded window.');}catch(error){results.push({trial:`${trial}-visual`,status:'VISUAL_ASSERTION_FAILED_REQUIRES_REVIEW',message:String(error)});process.exitCode=1;}}
+  await observation.dispose();
   const s=stable();const expected=i%2===0?'2':'1';
   if(s.active!==expected)throw Error(`${trial}: wrong actual input state`);
-  results.push({trial,expectedState:expected,status:'TIMING_PENDING_PIXEL_REVIEW'});
+  results.push({trial,expectedState:expected,requestedHoldMs:holdMs,frames:record.frames.length,droppedFrames:record.droppedFrames,status:'TIMING_PENDING_PIXEL_REVIEW'});
  }
  guest('screenshot','success-repeat-switch');
  } catch(error) {
@@ -55,16 +69,21 @@ try {
  // Each list mutation is performed through the real configtool, not D-Bus setters.
  guest('configtool');await sleep(1000);
  for(let round=0;round<3;round++){
-  await agent.aiAct('In the real Fcitx 5 Configuration window, remove only Pinyin from the current input-method list. Keep Keyboard - English (US). Click Apply to save. Do not restart Fcitx or the desktop shell.');
+  await agent.aiTap('Input Method tab in the Fcitx 5 Configuration window');
+  await agent.aiTap('Pinyin row in the left Current Input Method list');
+  await agent.aiTap('RIGHT-pointing arrow between Current Input Method and Available Input Method, to remove the selected Pinyin');
+  await agent.aiTap('Apply button at the bottom of the configuration window');
   await sleep(5000);const removed=stable();if(JSON.stringify(removed.info).includes('pinyin'))throw Error('Pinyin still registered after GUI removal');
   guest('screenshot',`success-config-remove-${round}`);
   let removedVisual=true;try{await agent.aiAssert('The left Current Input Method list has only Keyboard - English (US), without Pinyin. The desktop top-right bar has no EN or 拼 text.');}catch(error){removedVisual=false;results.push({trial:`config-remove-visual-${round}`,status:'VISUAL_ASSERTION_FAILED_REQUIRES_REVIEW',message:String(error)});process.exitCode=1;}
-  await agent.aiAct('If Only Show Current Language is checked, uncheck it. Otherwise do nothing. Do not scroll or change input methods.');
+  if(await agent.aiBoolean('Is the Only Show Current Language checkbox visibly present and checked in the Input Method tab?')) await agent.aiTap('Only Show Current Language checkbox');
   await agent.aiTap('Search Input Method text field above the right-hand Available Input Method list');
   key('ctrl','a');await sleep(150);
   for(const k of ['p','i','n','y','i','n']){key(k);await sleep(120);}
   await sleep(500);guest('screenshot',`search-pinyin-${round}`);
-  await agent.aiAct('The Available Input Method list is filtered by the search text pinyin. Select Pinyin in the right-hand list, click the LEFT-pointing arrow between the lists to add it to Current Input Method alongside Keyboard - English (US), then click Apply. Do not scroll, restart Fcitx or restart the shell.');
+  await agent.aiTap('Pinyin row in the right Available Input Method list');
+  await agent.aiTap('LEFT-pointing arrow between the two lists, to add Pinyin');
+  await agent.aiTap('Apply button at the bottom of the configuration window');
   await sleep(5000);const added=stable();if(!JSON.stringify(added.info).includes('pinyin'))throw Error('Pinyin missing after GUI addition');
   guest('screenshot',`success-config-add-${round}`);
   let addedVisual=true;try{await agent.aiAssert('Pinyin appears in the left Current Input Method list alongside Keyboard - English (US), and the small EN text is visible in the desktop top-right bar, outside the configuration window.');}catch(error){addedVisual=false;results.push({trial:`config-add-visual-${round}`,status:'VISUAL_ASSERTION_FAILED_REQUIRES_REVIEW',message:String(error)});process.exitCode=1;}

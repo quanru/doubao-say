@@ -48,6 +48,8 @@ jobs:
         run: python3 ci/validate.py
       - name: Build and boot full candidate (no model credentials)
         run: bash ci/prepare-runner.sh
+      - name: Build pinned observation PR and verify guest native capture (no inference)
+        run: bash ci/build-midscene.sh
       - name: Install locked Midscene dependencies
         run: npm --prefix ci ci --ignore-scripts
       - name: Run focused real desktop cases
