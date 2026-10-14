@@ -1,4 +1,4 @@
-name: Inspect native acceptance progress (no inference)
+name: Recover fixed exported evidence in bounded log chunks
 on:
   push:
     branches: [acceptance/omarchy-15184-a1ead6b3]
@@ -12,24 +12,25 @@ jobs:
     runs-on: ubuntu-24.04
     timeout-minutes: 3
     steps:
-      - name: Read fixed run progress from already redacted Actions logs
+      - name: Inspect existing redacted archive without rerunning acceptance
         env:
           GH_TOKEN: ${{ github.token }}
         run: |
-          gh api repos/quanru/doubao-say/actions/runs/38492688288 > /tmp/run.json
+          gh api repos/quanru/doubao-say/actions/runs/38525941531 > /tmp/run.json
           python3 - <<'PY'
           import json
           r=json.load(open('/tmp/run.json'))
-          assert r['id']==38492688288 and r['head_sha']=='a3bff9d5ed754a93dac9154be107490ee91ff204'
-          print('Run status:',r['status'],r['conclusion'])
+          assert r['id']==38525941531 and r['head_sha']=='dc99919a0cae61795e2bb7604ec3a1ba6f2e397e' and r['status']=='completed'
+          print('Fixed existing run:',r['id'],r['conclusion'])
           PY
-          gh api --allow-escape-sequences repos/quanru/doubao-say/actions/jobs/115621357086/logs > /tmp/job.log
+          gh api --allow-escape-sequences repos/quanru/doubao-say/actions/jobs/115726181212/logs > /tmp/job.log
           python3 - <<'PY'
-          import pathlib,re
-          s=pathlib.Path('/tmp/job.log').read_text(errors='replace')
-          print('Available log bytes:',len(s))
-          for line in s.splitlines()[-70:]:
-              if len(line)>500 or re.search(r'authorization|api.?key|Bearer|secret|token|PR15184_EVIDENCE_DATA',line,re.I):
-                  print('[long or sensitive-category line omitted]')
-              else: print(line)
+          import pathlib,re,base64,hashlib,json
+          s=pathlib.Path('/tmp/job.log').read_text()
+          m=re.search(r'PR15184_EVIDENCE_BEGIN (\d+) ([a-f0-9]{64})',s);assert m
+          encoded=''.join(re.findall(r'PR15184_EVIDENCE_DATA ([A-Za-z0-9+/=]+)',s));data=base64.b64decode(encoded,validate=True)
+          assert len(data)==int(m[1]) and hashlib.sha256(data).hexdigest()==m[2]
+          print('VERIFIED_ARCHIVE_METADATA',json.dumps({'bytes':len(data),'sha256':m[2],'encoded_length':len(encoded),'chunks_1m':(len(encoded)+999999)//1000000}))
+          for line in s.splitlines():
+              if len(line)<1000 and re.search(r'Real shell/probe healthy|semantic_validation|PASS.*FAIL.*INCONCLUSIVE|Traceback|AssertionError|Process completed with exit',line):print(line)
           PY
