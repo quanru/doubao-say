@@ -20,3 +20,5 @@
 历史：[前一轮原生审阅](evidence/native-REVIEW.zh.md) / [前一轮完整包](evidence/native-review.zip) / [首次原生失效诊断](evidence/run-38492688288-DIAGNOSTIC.zh.md) / [瓶颈与本地基准](evidence/capture-diagnosis/DIAGNOSIS.zh.md)。全部原始档案保留。
 
 2026-10-14：按用户继续授权实现独立 RegionObservation（Midscene c59498befd69b23bf88fa31b3283c63c3c47c937），启动一次无模型 ROI 对照：固定六个 3 秒全屏/顶栏块，ROI 中位帧间隔须低于同机全屏及历史 30.255190ms 的 80%，否则停止；通过后固定 20×80ms 与 20×5ms QMP Shift，不挑样本。新工作流不注入任何模型 secret，不启动模型代理，不分配/消耗最后 10 元；历史累计保守计费 4.815786 元、累计分配 90 元仍保留。PR15184 head 重新确认不变 a1ead6b37605d5f3b63a9ebba2f6a621d6a43b6c；quattro 当前已前进至 9f49906d22419c45931b92a8816ec852e232c6d6，历史比较基线仍固定 097c733fc6f24cd437028e0233910b7143fe83f7。此刻仅本地回归通过，真实 ROI 验证未完成，不报验收通过。
+
+ROI 专门运行：[38509094422](https://github.com/quanru/doubao-say/actions/runs/38509094422)，job115673242501，harness adfa187ce6b1876463c6812defa7dd85b9926f52。当前仍构建新VM，尚无ROI实测结论。当前SDK head c59498befd69b23bf88fa31b3283c63c3c47c937 已完成 lint、Computer构建、严格C编译；最终head重跑Computer共158项（154通过、4按平台/环境跳过），Core observer/selection/change-focus共33项全通过。完整本地日志和固定计划在 evidence/roi-development/。PR自动check为0，不报CI全绿。新workflow不注入模型secret，本轮预算0，最后10元未分配。

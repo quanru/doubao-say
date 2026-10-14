@@ -1,0 +1,53 @@
+{
+  "computer": {
+    "status": "pass",
+    "counts": {
+      "testFiles": 20,
+      "failedFiles": 0,
+      "tests": 158,
+      "failedTests": 0,
+      "passedTests": 154,
+      "skippedTests": 4,
+      "todoTests": 0
+    },
+    "durationMs": {
+      "total": 13227,
+      "build": 344,
+      "tests": 12883
+    },
+    "snapshot": {
+      "added": 0,
+      "updated": 0,
+      "unmatched": 0,
+      "removed": 0,
+      "unchecked": 0
+    }
+  },
+  "core": {
+    "status": "pass",
+    "counts": {
+      "testFiles": 3,
+      "failedFiles": 0,
+      "tests": 33,
+      "failedTests": 0,
+      "passedTests": 33,
+      "skippedTests": 0,
+      "todoTests": 0
+    },
+    "durationMs": {
+      "total": 1671,
+      "build": 283,
+      "tests": 1388
+    },
+    "snapshot": {
+      "added": 0,
+      "updated": 0,
+      "unmatched": 0,
+      "removed": 0,
+      "unchecked": 0
+    }
+  },
+  "head": "c59498befd69b23bf88fa31b3283c63c3c47c937",
+  "native_build": "cc -std=c11 -O2 -Wall -Wextra -Werror, passed",
+  "no_inference": true
+}
