@@ -1,0 +1,46 @@
+{
+  "source_commit": "bda9733b1c18942ef8efc24abb7c3a64814191bc",
+  "method": "Actual encode_png; every warmup and measured PNG decoded and RGB compared outside encoding timer; local only, not guest cadence",
+  "results": [
+    {
+      "image": "terminal",
+      "adaptive": true,
+      "measured_encodings": 100,
+      "decoded_pixel_checks": 105,
+      "median_encode_ms": 17.888887,
+      "p95_ms": 19.776981,
+      "max_ms": 23.863381,
+      "png_bytes": 68928
+    },
+    {
+      "image": "terminal",
+      "adaptive": false,
+      "measured_encodings": 100,
+      "decoded_pixel_checks": 105,
+      "median_encode_ms": 6.489146,
+      "p95_ms": 6.654232,
+      "max_ms": 6.888409,
+      "png_bytes": 81509
+    },
+    {
+      "image": "configtool",
+      "adaptive": true,
+      "measured_encodings": 100,
+      "decoded_pixel_checks": 105,
+      "median_encode_ms": 20.217658,
+      "p95_ms": 24.702549,
+      "max_ms": 31.561506,
+      "png_bytes": 126409
+    },
+    {
+      "image": "configtool",
+      "adaptive": false,
+      "measured_encodings": 100,
+      "decoded_pixel_checks": 105,
+      "median_encode_ms": 7.9057275,
+      "p95_ms": 8.158463,
+      "max_ms": 10.251446,
+      "png_bytes": 151470
+    }
+  ]
+}

@@ -1,0 +1,30 @@
+{
+  "run_id": 38498146309,
+  "source": "versions/native-preflight.json",
+  "statistics": {
+    "request_to_ready_ms": {
+      "n": 40,
+      "min": 19.734577,
+      "median": 20.3854415,
+      "max": 65.416805
+    },
+    "png_encode_ms": {
+      "n": 40,
+      "min": 19.814444,
+      "median": 19.932536,
+      "max": 24.345034
+    },
+    "encoded_to_next_request_ms": {
+      "n": 39,
+      "min": 0.50324,
+      "median": 0.586372,
+      "max": 1.289085
+    },
+    "source_frame_gap_ms": {
+      "n": 39,
+      "min": 40.43528499999957,
+      "median": 41.14818300001207,
+      "max": 60.48432399999001
+    }
+  }
+}
