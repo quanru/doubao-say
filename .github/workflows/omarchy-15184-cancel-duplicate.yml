@@ -1,4 +1,4 @@
-name: Cancel identified duplicate acceptance (no inference)
+name: Cancel identified invalid-session acceptance (no inference)
 on:
   push:
     branches: [acceptance/omarchy-15184-a1ead6b3]
@@ -12,16 +12,16 @@ jobs:
     runs-on: ubuntu-24.04
     timeout-minutes: 3
     steps:
-      - name: Validate identity and cancel native run with capture cleanup defect
+      - name: Validate identity and cancel run using known contaminated SSH launch context
         env:
           GH_TOKEN: ${{ github.token }}
         run: |
-          gh api repos/quanru/doubao-say/actions/runs/38492688288 > /tmp/duplicate.json
+          gh api repos/quanru/doubao-say/actions/runs/38521186461 > /tmp/duplicate.json
           python3 - <<'PY'
           import json
           j=json.load(open('/tmp/duplicate.json'))
-          assert j['id']==38492688288 and j['head_sha']=='a3bff9d5ed754a93dac9154be107490ee91ff204'
+          assert j['id']==38521186461 and j['head_sha']=='002bff816986a4114f43178272a9b075e8d5c8ac'
           assert j['head_branch']=='acceptance/omarchy-15184-a1ead6b3' and j['event']=='push'
           assert j['status'] in ['pending','queued','in_progress','waiting']
           PY
-          gh api --method POST repos/quanru/doubao-say/actions/runs/38492688288/cancel
+          gh api --method POST repos/quanru/doubao-say/actions/runs/38521186461/cancel
