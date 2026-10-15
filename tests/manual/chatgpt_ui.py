@@ -91,6 +91,7 @@ def main():
         window.set_child(scroll)
         window.present()
         pump()
+        box.enabled.set_active(True)
         box.provider.set_active_id("chatgpt")
         pump()
         capture("disconnected")

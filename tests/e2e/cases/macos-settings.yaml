@@ -1,0 +1,44 @@
+cases:
+  - name: macOS setup navigation and signed-in account
+    steps:
+      - aiAssert: The native Doubao Say settings window is visible. Setup is selected, Step 1 / 4 is displayed, and Signed in to Doubao has a green checkmark. There is no Sign in to Doubao button.
+      - aiAct: Click Shortcut in the horizontal setup steps at the top of the content area, without enabling or changing any shortcut.
+      - aiAssert: The content shows Step 3 / 4 and Shortcut ready. The left sidebar remains on Setup.
+      - aiAct: Click Recognition in the horizontal setup steps to return to the first step.
+      - aiAssert: Step 1 / 4 and Signed in to Doubao are visible again. The Setup sidebar row has no rectangular keyboard focus outline.
+
+  - name: macOS shortcut settings autosave across navigation
+    steps:
+      - aiAct: Open Shortcuts from the left sidebar. Toggle Double-tap sends Enter when idle once.
+      - aiWaitFor:
+          prompt: Automatically saved is visible in the footer.
+          options: { timeoutMs: 10000 }
+      - aiAssert: There is no Save settings button. The footer says Automatically saved.
+      - aiAct: Open Recent text in the left sidebar, then return to Shortcuts.
+      - aiAssert: The Double-tap sends Enter when idle checkbox is unchecked.
+
+  - name: macOS recent text padding and editing
+    steps:
+      - aiAct: Open Recent text from the left sidebar.
+      - aiAssert: The text editor shows First line must be fully visible. as its first line, completely readable with space above it and no clipping. Synthetic recent dictation. is on the second line.
+      - aiAct: Replace the contents of the recent text editor with Midscene native Mac test. Do not click Copy or Retry.
+      - aiAssert: The text editor displays Midscene native Mac test.
+      - aiAct: Click Clear below the recent text editor.
+      - aiAssert: The recent text editor is empty.
+
+  - name: macOS vocabulary autosave across navigation
+    steps:
+      - aiAct: Open Personal vocabulary from the left sidebar. Replace the vocabulary editor contents with Midscene and NativeTestWord on separate lines.
+      - aiWaitFor:
+          prompt: Vocabulary saved automatically. is visible.
+          options: { timeoutMs: 10000 }
+      - aiAct: Open Input history, then return to Personal vocabulary.
+      - aiAssert: The vocabulary editor still contains Midscene and NativeTestWord on separate lines.
+  - name: macOS explicit correction preview and memory
+    steps:
+      - aiAct: Open Input history and click Correct & remember on the synthetic Use Midjourney for UI tests. entry. Fill Misrecognized word or phrase with Midjourney and Correct spelling with Midscene. Do not confirm yet.
+      - aiAssert: The correction dialog previews Use Midscene for UI tests. and has Confirm & remember and Cancel buttons.
+      - aiAct: Click Confirm & remember in the correction dialog.
+      - aiAssert: The main Doubao Say settings window remains open on Input history. The modal sheet titled Confirm & remember a correction is no longer present. The history entry shows Use Midscene for UI tests. and Correction confirmed by you.
+      - aiAct: Open Personal vocabulary and scroll down to Confirmed corrections if needed.
+      - aiAssert: A remembered correction from Midjourney to Midscene is visible.

@@ -3,7 +3,7 @@
 - [`unit/`](unit/) contains fast Python behavior and component tests.
 - [`contracts/`](contracts/) verifies packaging, releases, version alignment,
   Marketplace rules, and the Pages report builder.
-- [`e2e/`](e2e/) exercises complete desktop flows on Ubuntu and Omarchy with
+- [`e2e/`](e2e/) exercises desktop flows on Ubuntu, Omarchy and macOS with
   Midscene and publishes HTML reports from GitHub Actions.
 - [`manual/`](manual/) contains opt-in checks that require a real desktop,
   devices, credentials, or human observation.
@@ -25,6 +25,9 @@ The maintained Midscene suite lives in [`e2e/`](e2e/README.md), using
 `e2e/cases/`; `e2e/midscene.config.ts` owns desktop setup and teardown.
 `make test` and `make check` do not execute this separate Node-based suite.
 
+- **macOS:** uses the real SwiftUI settings with synthetic data in an isolated
+  bundle. Covers setup navigation, autosave, recent text and correction memory.
+  See [native setup and coverage](../macos/Tests/Midscene/README.md).
 - **Ubuntu:** runs the real GTK onboarding UI with a synthetic fixture on an
   isolated Xvfb desktop. Sign-in and endpoint responses are simulated. The
   separate `ubuntu-polishing` project covers the native polishing overlay.

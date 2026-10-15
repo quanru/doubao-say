@@ -51,7 +51,7 @@ for language in ['en', 'zh']:
             env['DOUBAO_SMOKE_SIGNED_IN'] = '1' if label == 'doubao-signed-in' else '0'
         if label.startswith('launch-'):
             env.update(DOUBAO_SMOKE_LAUNCH_CHECK='1',
-                       DOUBAO_SMOKE_UPDATE_VERSION='1.8.0' if label.endswith('available') else '')
+                       DOUBAO_SMOKE_UPDATE_VERSION='1.8.2' if label.endswith('available') else '')
         command = [str(bundle / 'Contents/MacOS/DoubaoSay'), argument, '-language', language]
         if label.startswith('setup-') and '--setup-completion' in sys.argv[3:]:
             env.update(DOUBAO_SMOKE_SETUP_STEP='1',

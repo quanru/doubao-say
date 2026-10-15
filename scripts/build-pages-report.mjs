@@ -332,7 +332,7 @@ function buildFallbackEntry({ label, project, reportPrefix, role, status }) {
     cases: [
       {
         caseId: `infrastructure-${slug}`,
-        name: `${project} CI shard`,
+        name: `${project} CI project`,
         status: 'failed',
         selection: 'workflow-failure',
         description,
@@ -348,23 +348,23 @@ function fallbackSvg(project, description) {
   return `<svg xmlns="http://www.w3.org/2000/svg" width="1200" height="675" viewBox="0 0 1200 675">
   <rect width="1200" height="675" fill="#160d12"/>
   <rect x="70" y="70" width="1060" height="535" rx="28" fill="#26151d" stroke="#ef4444" stroke-width="4"/>
-  <text x="120" y="175" fill="#fca5a5" font-family="system-ui,sans-serif" font-size="34" font-weight="700">CI shard failed before report capture</text>
+  <text x="120" y="175" fill="#fca5a5" font-family="system-ui,sans-serif" font-size="34" font-weight="700">CI project failed before report capture</text>
   <text x="120" y="255" fill="#ffffff" font-family="system-ui,sans-serif" font-size="30">${escapeHtml(project)}</text>
   <foreignObject x="120" y="305" width="960" height="210"><div xmlns="http://www.w3.org/1999/xhtml" style="color:#d1d5db;font:26px/1.5 system-ui,sans-serif">${escapeHtml(description)}</div></foreignObject>
 </svg>\n`;
 }
 
 function fallbackHtml(project, description, workflowUrl) {
-  return `<!doctype html><html><head><meta charset="utf-8"><meta name="viewport" content="width=device-width"><title>${escapeHtml(project)} · CI failure</title></head><body style="font-family:system-ui,sans-serif;max-width:850px;margin:4rem auto;padding:0 1rem"><h1>CI shard failed before report capture</h1><h2>${escapeHtml(project)}</h2><p>${escapeHtml(description)}</p><p><a href="${escapeHtml(workflowUrl)}">Open the GitHub Actions run</a></p></body></html>\n`;
+  return `<!doctype html><html><head><meta charset="utf-8"><meta name="viewport" content="width=device-width"><title>${escapeHtml(project)} · CI failure</title></head><body style="font-family:system-ui,sans-serif;max-width:850px;margin:4rem auto;padding:0 1rem"><h1>CI project failed before report capture</h1><h2>${escapeHtml(project)}</h2><p>${escapeHtml(description)}</p><p><a href="${escapeHtml(workflowUrl)}">Open the GitHub Actions run</a></p></body></html>\n`;
 }
 
-async function shardStatuses(directory) {
+async function projectStatuses(directory) {
   const statuses = new Map();
   async function visit(current) {
     for (const entry of await readdir(current, { withFileTypes: true })) {
       const item = path.join(current, entry.name);
       if (entry.isDirectory()) await visit(item);
-      else if (entry.isFile() && /^ci-shard-status-.+\.json$/.test(entry.name)) {
+      else if (entry.isFile() && /^ci-(?:project|shard)-status-.+\.json$/.test(entry.name)) {
         const status = JSON.parse(await readFile(item, 'utf8'));
         if (typeof status.project !== 'string') {
           throw new Error(`${item} does not identify a project`);
@@ -808,7 +808,7 @@ export async function buildPagesReport(options) {
         report.run.projects[0].name === projectName,
     );
   const reportPrefix = `reports/${runId}`;
-  const statuses = await shardStatuses(reportDirectory);
+  const statuses = await projectStatuses(reportDirectory);
   const generatedFallbacks = [];
   let selectedReports;
   let entries;

@@ -1,21 +1,15 @@
-# Doubao Say 1.8.0
+# Doubao Say 1.8.1
 
-## ChatGPT polishing
+## Dictation and setup
 
-Linux now supports ChatGPT as a polishing provider alongside the existing API-based providers. Recognition and polishing remain separate, and original recognition text stays available for review.
+On macOS, final polishing starts while recognition finishes. Revised recognition text invalidates stale polishing, and delivery still waits for the final recognition result. Returning users open General settings after completing onboarding; restarting or upgrading preserves that completion.
 
-## Mac input recovery
-
-Automatic input chooses direct accessibility insertion when the focused field supports it, otherwise clipboard paste. All applications follow the same capability-based rules. Explicit clipboard and direct-input choices remain available; existing preferences are retained. Failed delivery keeps text visible with a specific reason and supports retry. Shortcut release checks include Fn. If text was entered but Enter could not be sent, the message distinguishes those outcomes to avoid duplicate retries.
-
-## Settings and devices
-
-Opening the Mac app shows settings. Setup steps can be selected independently, successful checks show green ticks, and signed-in Doubao sessions hide the login action. Microphone lists refresh on device and default-input changes, with quick switching from the menu bar. Update availability appears beside the settings sidebar entry. Recent-text editing includes internal padding to keep the first line visible.
+On Linux, the polishing page keeps model and API settings beside the endpoint test and its feedback. Detailed model guidance is expandable. Disabling polishing collapses API and ChatGPT service controls without discarding their configuration. Arch and Omarchy source installation now includes the required JWT and cryptography packages.
 
 ## Downloads and verification
 
 Developer ID signed, Apple-notarized DMGs are provided for Apple Silicon and Intel. Linux app and plugin archives support Python 3.11–3.14. SHA256SUMS and update.json cover the release packages.
 
-Automated checks cover input recovery, capability routing, shortcut-release timing, settings persistence, device-change handling and network protocol behavior. A real cmux 0.65.1 receiver accepted three synthetic text samples exactly once without changing the clipboard. That check did not establish physical-hotkey behavior, microphone/ASR accuracy, other applications or Intel hardware behavior.
+Native desktop regression suites cover settings, shortcuts, microphone-check gating, synthetic dictation delivery and cancellation. CI Summary tables include a screenshot and an exact report-step link for each case. Synthetic checks do not establish real microphone/ASR quality, physical-hotkey behavior, accessibility permission retention, clipboard behavior in every receiving application or Intel hardware acceptance.
 
-[Full changes](https://github.com/quanru/doubao-say/compare/v1.7.0...v1.8.0)
+[Full changes](https://github.com/quanru/doubao-say/compare/v1.8.0...v1.8.1)

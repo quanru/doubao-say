@@ -91,6 +91,23 @@ jobs:
           for language in en zh_CN; do
             PERSONAL_UI_LANGUAGE="$language" timeout --signal=TERM --kill-after=5s 35s xvfb-run -a .venv/bin/python tests/manual/personal_ui.py
           done
+      - name: Exercise polishing settings and capture their layout
+        env:
+          GTK_A11Y: none
+          PYTHONPATH: src:.
+          POLISH_UI_SCREENSHOTS: artifacts/verification/polish-settings
+        run: |
+          for language in en zh_CN; do
+            POLISH_UI_LANGUAGE="$language" timeout --signal=TERM --kill-after=5s 35s xvfb-run -a -s "-screen 0 1280x800x24" .venv/bin/python tests/manual/polish_settings_ui.py
+          done
+      - name: Upload synthetic polishing settings captures
+        if: always()
+        uses: actions/upload-artifact@043fb46d1a93c77aae656e7c1c64a875d1fc6a0a # v7.0.1
+        with:
+          name: polish-settings-captures
+          path: artifacts/verification/polish-settings
+          if-no-files-found: warn
+          retention-days: 14
       - name: Upload synthetic GTK personal UI captures
         if: always()
         uses: actions/upload-artifact@043fb46d1a93c77aae656e7c1c64a875d1fc6a0a # v7.0.1

@@ -1,8 +1,8 @@
 import http from 'node:http';
 import https from 'node:https';
 
-// Each GitHub matrix job has one independent VM and one Midscene worker. Pace
-// requests per worker so five concurrent jobs stay below the Ark endpoint RPM.
+// One VM runs the Omarchy projects serially. Keep request pacing conservative
+// because the model quota can also be shared with other workflows.
 const upstream = new URL(process.env.MIDSCENE_RATE_GATE_UPSTREAM);
 const intervalMs = Number(process.env.MIDSCENE_RATE_GATE_INTERVAL_MS ?? 20000);
 const port = Number(process.env.MIDSCENE_RATE_GATE_PORT ?? 18783);

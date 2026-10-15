@@ -37,6 +37,11 @@ on:
         default: success
         type: string
 
+# Serialize history restoration through deployment across all platforms.
+concurrency:
+  group: pages-report-deploy
+  cancel-in-progress: false
+
 jobs:
   prepare:
     name: Build report and Markdown summary
@@ -130,9 +135,6 @@ jobs:
     needs: prepare
     runs-on: ubuntu-latest
     timeout-minutes: 10
-    concurrency:
-      group: pages-report-deploy
-      cancel-in-progress: false
     permissions:
       actions: read
       contents: read

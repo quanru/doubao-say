@@ -128,7 +128,9 @@ a team mismatch or failed notarization fail the job; no unsigned fallback app is
 uploaded. An always-run cleanup step removes the temporary keychain and credential
 files. Only the DMG, checksum and public provenance manifest are uploaded.
 
-Download `Doubao-Say-macos-signed-preview` from the successful workflow run. The
+The preview job builds both CPU variants. Download
+`Doubao-Say-macos-signed-preview-arm64` or
+`Doubao-Say-macos-signed-preview-x86_64` from the successful workflow run. The
 manifest records the exact source commit, architecture, bundle ID, signing
 requirement and artifact hash. Replacing an older ad-hoc or Apple Development
 build may require one final permission grant. Successive Developer ID previews

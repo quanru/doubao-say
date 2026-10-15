@@ -1,0 +1,143 @@
+name: macOS Midscene E2E
+on:
+  pull_request:
+    paths:
+      - 'macos/**'
+      - 'tests/e2e/**'
+      - '.github/workflows/midscene-macos.yml'
+      - '.github/workflows/deploy-midscene-report.yml'
+      - 'scripts/*report*.mjs'
+      - 'tests/contracts/test_pages_report_history.mjs'
+  workflow_dispatch:
+permissions:
+  contents: read
+concurrency:
+  group: midscene-macos-e2e
+  cancel-in-progress: false
+jobs:
+  macos-e2e:
+    outputs:
+      report-artifact-id: ${{ steps.report.outputs.artifact-id }}
+    if: github.event_name != 'pull_request' || github.event.pull_request.head.repo.full_name == github.repository
+    environment:
+      name: Model
+      deployment: false
+    runs-on: macos-latest
+    timeout-minutes: 40
+    env:
+      NODE_OPTIONS: "--dns-result-order=ipv4first --no-network-family-autoselection"
+      MIDSCENE_MODEL_RETRY_COUNT: "2"
+      MIDSCENE_MODEL_RETRY_INTERVAL: "65000"
+    steps:
+      - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
+        with:
+          persist-credentials: false
+      - uses: actions/setup-node@249970729cb0ef3589644e2896645e5dc5ba9c38 # v6.5.0
+        with:
+          node-version: "24"
+          cache: npm
+          cache-dependency-path: tests/e2e/package-lock.json
+      - name: Install locked Midscene dependencies
+        working-directory: tests/e2e
+        run: |
+          npm ci --include=optional --ignore-scripts
+          npm rebuild node-mac-permissions
+      - name: Verify Midscene model compatibility
+        working-directory: tests/e2e
+        env:
+          MIDSCENE_MODEL_API_KEY: ${{ secrets.MIDSCENE_MODEL_API_KEY }}
+          MIDSCENE_MODEL_NAME: ${{ vars.MIDSCENE_MODEL_NAME || secrets.MIDSCENE_MODEL_NAME }}
+          MIDSCENE_MODEL_BASE_URL: ${{ vars.MIDSCENE_MODEL_BASE_URL || secrets.MIDSCENE_MODEL_BASE_URL }}
+          MIDSCENE_MODEL_FAMILY: ${{ vars.MIDSCENE_MODEL_FAMILY || secrets.MIDSCENE_MODEL_FAMILY }}
+          MIDSCENE_MODEL_REASONING_ENABLED: ${{ vars.MIDSCENE_MODEL_REASONING_ENABLED || secrets.MIDSCENE_MODEL_REASONING_ENABLED }}
+        run: npm run check:model
+      - name: Typecheck desktop suites
+        working-directory: tests/e2e
+        run: npm run typecheck
+      - name: Inspect cloud desktop
+        run: |
+          system_profiler SPDisplaysDataType
+          swift -e 'import AppKit; for screen in NSScreen.screens { print("NSScreen:", screen.frame) }'
+          mkdir -p tests/e2e/midscene_run/diagnostics
+          screencapture -x tests/e2e/midscene_run/diagnostics/desktop.png
+      - name: Build isolated native fixture
+        run: bash macos/Tests/Midscene/build.sh
+      - name: Run native visual interactions
+        id: midscene-test
+        working-directory: tests/e2e
+        env:
+          MIDSCENE_MODEL_API_KEY: ${{ secrets.MIDSCENE_MODEL_API_KEY }}
+          MIDSCENE_MODEL_NAME: ${{ vars.MIDSCENE_MODEL_NAME || secrets.MIDSCENE_MODEL_NAME }}
+          MIDSCENE_MODEL_BASE_URL: ${{ vars.MIDSCENE_MODEL_BASE_URL || secrets.MIDSCENE_MODEL_BASE_URL }}
+          MIDSCENE_MODEL_FAMILY: ${{ vars.MIDSCENE_MODEL_FAMILY || secrets.MIDSCENE_MODEL_FAMILY }}
+          MIDSCENE_MODEL_REASONING_ENABLED: ${{ vars.MIDSCENE_MODEL_REASONING_ENABLED || secrets.MIDSCENE_MODEL_REASONING_ENABLED }}
+          MIDSCENE_REPLANNING_CYCLE_LIMIT: "40"
+          # Load the native binding before Midscene's tsx config loader.
+          NODE_OPTIONS: --dns-result-order=ipv4first --no-network-family-autoselection --require=node-mac-permissions
+        run: npm run test:macos -- --project macos-settings
+      - name: Capture report evidence
+        id: capture-report
+        if: always() && !cancelled()
+        run: node tests/e2e/capture-report-preview.mjs --report-dir tests/e2e/midscene_run --projects macos-settings
+      - name: Record project results for report aggregation
+        if: always() && !cancelled()
+        env:
+          TEST_OUTCOME: ${{ steps.midscene-test.outcome }}
+          CAPTURE_OUTCOME: ${{ steps.capture-report.outcome }}
+        run: |
+          node scripts/write-ci-project-status.mjs \
+            --output tests/e2e/midscene_run/ci-project-status-macos-settings.json \
+            --project macos-settings \
+            --test-outcome "${TEST_OUTCOME:-skipped}" \
+            --capture-outcome "${CAPTURE_OUTCOME:-skipped}"
+      - name: Preserve visual reports (including failures)
+        id: report
+        if: always()
+        uses: actions/upload-artifact@043fb46d1a93c77aae656e7c1c64a875d1fc6a0a # v7.0.1
+        with:
+          name: macos-midscene-report
+          path: |
+            tests/e2e/midscene_run/
+            tests/e2e/.midscene/
+          include-hidden-files: true
+          if-no-files-found: warn
+          retention-days: 14
+      - name: Write test results to Summary
+        if: always()
+        run: |
+          {
+            found=false
+            for result in tests/e2e/.midscene/test-results/*/result.md; do
+              [ -f "$result" ] || continue
+              found=true
+              # The native report link is local to the downloaded artifact.
+              sed '/^\[Open the Midscene Test report ↗\](/d' "$result"
+              echo
+            done
+            if [ "$found" = false ]; then
+              echo "Midscene did not produce a test result. Check the preceding steps for setup or model verification failures."
+              echo
+            fi
+            echo "[Download test artifacts]($GITHUB_SERVER_URL/$GITHUB_REPOSITORY/actions/runs/$GITHUB_RUN_ID#artifacts)"
+          } >> "$GITHUB_STEP_SUMMARY"
+
+  pages-report:
+    name: GitHub Pages report
+    needs: macos-e2e
+    if: >-
+      always() && !cancelled() &&
+      needs.macos-e2e.outputs.report-artifact-id != '' &&
+      (github.event_name != 'pull_request' ||
+      github.event.pull_request.head.repo.full_name == github.repository)
+    permissions:
+      actions: read
+      contents: read
+      pages: write
+      id-token: write
+    uses: ./.github/workflows/deploy-midscene-report.yml
+    with:
+      artifact-name: macos-midscene-report
+      report-label: macOS
+      summary-title: macOS
+      report-groups: '[{"role":"primary","label":"Doubao Say settings","projects":["macos-settings"]}]'
+      run-result: ${{ needs.macos-e2e.result }}
