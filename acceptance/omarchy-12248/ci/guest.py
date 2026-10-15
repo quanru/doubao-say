@@ -5,18 +5,29 @@ def run(*a):return subprocess.check_output(a,text=True,stderr=subprocess.STDOUT)
 def save(n,x): (E/(n+'.json')).write_text(json.dumps(x,indent=2));return x
 def hashes(p):return {str(f.relative_to(p)):hashlib.sha256(f.read_bytes()).hexdigest() for f in p.rglob('*') if f.is_file() and not f.is_symlink()}
 def snap():
- ps=[]
+ allps={}
  for p in pathlib.Path('/proc').glob('[0-9]*'):
   try:
    cmd=(p/'cmdline').read_bytes().replace(b'\0',b' ').decode(errors='replace')
-   if 'omarchy-disk-speedtest' not in cmd and not (p/'comm').read_text().strip()=='dd':continue
-   if 'guest.py' in cmd or 'ssh' in cmd:continue
-   fds={}
+   stat=(p/'stat').read_text().split()
+   allps[int(p.name)]={'pid':int(p.name),'ppid':int(stat[3]),'start_ticks':stat[21],'state':stat[2],'cmd':cmd,'comm':(p/'comm').read_text().strip()}
+  except OSError:pass
+ tracked=R/'tracked-processes.json';old=json.loads(tracked.read_text()) if tracked.exists() else {}
+ selected={pid for pid,p in allps.items() if (('omarchy-disk-speedtest' in p['cmd'] or p['comm']=='dd') and 'guest.py' not in p['cmd'] and 'ssh' not in p['cmd']) or old.get(str(pid))==p['start_ticks']}
+ while True:
+  new={pid for pid,p in allps.items() if p['ppid'] in selected}
+  if new<=selected:break
+  selected|=new
+ ps=[]
+ for pid in sorted(selected):
+  entry=allps[pid];p=pathlib.Path('/proc',str(pid));fds={}
+  try:
    for f in (p/'fd').iterdir():
     try:fds[f.name]={'target':os.readlink(f),'info':(p/'fdinfo'/f.name).read_text()}
     except OSError:pass
-   stat=(p/'stat').read_text().split();ps.append({'pid':int(p.name),'ppid':int(stat[3]),'start_ticks':stat[21],'state':stat[2],'cmd':cmd,'fds':fds})
   except OSError:pass
+  entry['fds']=fds;ps.append(entry)
+ tracked.write_text(json.dumps({str(p['pid']):p['start_ticks'] for p in ps}))
  ts=list((H/'.cache/omarchy').glob('disk-speedtest-*.dat'))+list(pathlib.Path('/dev/shm').glob('omarchy-disk-speedtest-*.src'))
  return {'time_ns':time.monotonic_ns(),'processes':ps,'temporary_files':[{'path':str(p),'size':p.stat().st_size} for p in ts],'layers':run('hyprctl','-j','layers')}
 def switch(v):
