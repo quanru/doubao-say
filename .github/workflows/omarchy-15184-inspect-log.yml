@@ -18,14 +18,14 @@ jobs:
         env:
           GH_TOKEN: ${{ github.token }}
         run: |
-          gh api repos/quanru/doubao-say/actions/runs/38552833742 > /tmp/run.json
+          gh api repos/quanru/doubao-say/actions/runs/38682989467 > /tmp/run.json
           python3 - <<'PY'
           import json
           r=json.load(open('/tmp/run.json'))
-          assert r['id']==38552833742 and r['head_sha']=='1e5890025ce59f732f4871700b8eb548ac0fcff7' and r['status']=='completed'
+          assert r['id']==38682989467 and r['head_sha']=='c7e0b9b7ca0218212c99e16c12de1b5964756fda' and r['status']=='completed'
           print('Fixed existing run:',r['id'],r['conclusion'])
           PY
-          gh api --allow-escape-sequences repos/quanru/doubao-say/actions/jobs/115814674338/logs > /tmp/job.log
+          gh api --allow-escape-sequences repos/quanru/doubao-say/actions/jobs/116251465636/logs > /tmp/job.log
           python3 - <<'PY'
           import pathlib,re,base64,hashlib,json,os
           s=pathlib.Path('/tmp/job.log').read_text();m=re.search(r'PR15184_EVIDENCE_BEGIN (\d+) ([a-f0-9]{64})',s);assert m
@@ -52,7 +52,7 @@ jobs:
           GH_TOKEN: ${{ github.token }}
           EVIDENCE_CHUNK: ${{ matrix.chunk }}
         run: |
-          gh api --allow-escape-sequences repos/quanru/doubao-say/actions/jobs/115814674338/logs > /tmp/job.log
+          gh api --allow-escape-sequences repos/quanru/doubao-say/actions/jobs/116251465636/logs > /tmp/job.log
           python3 - <<'PY'
           import pathlib,re,base64,hashlib,json,os
           s=pathlib.Path('/tmp/job.log').read_text();m=re.search(r'PR15184_EVIDENCE_BEGIN (\d+) ([a-f0-9]{64})',s);assert m
