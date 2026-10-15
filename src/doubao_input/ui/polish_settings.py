@@ -30,18 +30,20 @@ class PolishSettings(Gtk.Box):
         self.status = Gtk.Label(xalign=0, wrap=True)
         self.append(self.status)
 
+        self.details = Gtk.Box(orientation=Gtk.Orientation.VERTICAL, spacing=10)
+        self.append(self.details)
+
         self.provider = Gtk.ComboBoxText()
         self.provider.append("api", tr("API key", "API Key"))
         self.provider.append("chatgpt", tr("ChatGPT plan", "ChatGPT 套餐"))
         self.provider.set_active_id(settings.polish_provider)
-        self.append(self._row(tr("Polishing service", "润色服务"), self.provider))
+        self.details.append(self._row(tr("Polishing service", "润色服务"), self.provider))
         self.chatgpt = ChatGPTSettings(settings.polish_chatgpt_model, self._queue_save)
         self.chatgpt.set_visible(settings.polish_provider == "chatgpt")
-        self.append(self.chatgpt)
+        self.details.append(self.chatgpt)
 
-        self.details = Gtk.Box(orientation=Gtk.Orientation.VERTICAL, spacing=10)
-        self.append(self.details)
-        self.details.append(Gtk.Label(xalign=0, wrap=True, label=tr(
+        help_content = Gtk.Box(orientation=Gtk.Orientation.VERTICAL, spacing=10)
+        help_content.append(Gtk.Label(xalign=0, wrap=True, label=tr(
             "Turn rough speech into cleaner sentences without changing your meaning. Pauses show a preview; finishing your recording pastes the final text once. If polishing takes longer than 5 seconds, the original text is used.",
             "把口语整理成更清晰的文字，不改变原意。停顿时只预览，结束录音后一次上屏；超过五秒则自动使用原文。")))
 
@@ -60,17 +62,17 @@ class PolishSettings(Gtk.Box):
             "Choose a small, fast model and turn thinking off, even for Flash/Lite models. Try DeepSeek Flash (deepseek-flash) or Gemini 2.5 Flash-Lite (gemini-2.5-flash-lite) on their official endpoints; thinking-off is requested automatically. Large reasoning models may exceed the 5-second limit and fall back to your original text.",
             "优先选择小型、低延迟模型，并关闭思考，Flash/Lite 模型也不例外。建议使用 DeepSeek Flash（deepseek-flash）或 Gemini 2.5 Flash-Lite（gemini-2.5-flash-lite）的官方接口，应用会自动请求关闭思考。大型推理模型可能超过五秒上限，导致回退原文。"))
         self.latency_guidance.add_css_class("dim-label")
-        self.details.append(self.latency_guidance)
+        help_content.append(self.latency_guidance)
         self.reasoning_notice = Gtk.Label(xalign=0, wrap=True)
         self.reasoning_notice.add_css_class("dim-label")
-        self.details.append(self.reasoning_notice)
+        help_content.append(self.reasoning_notice)
         self.base_url.connect("changed", self._update_reasoning_notice)
         self.model.connect("changed", self._update_reasoning_notice)
         self._update_reasoning_notice()
         key_row = self._row("API Key", self.api_key)
         self.api_rows.append(key_row)
         self.details.append(key_row)
-        self.details.append(Gtk.Label(xalign=0, wrap=True, label=tr(
+        help_content.append(Gtk.Label(xalign=0, wrap=True, label=tr(
             "The API key is stored separately with owner-only permissions and excluded from diagnostics.",
             "API Key 使用仅限当前用户读取的独立文件保存，不会出现在诊断信息中。")))
 
@@ -104,6 +106,9 @@ class PolishSettings(Gtk.Box):
         self.test_status.add_css_class("accent")
         self.test_status.set_visible(False)
         self.details.append(self.test_status)
+        help_expander = Gtk.Expander(label=tr("How polishing works and model tips", "润色说明与模型建议"))
+        help_expander.set_child(help_content)
+        self.details.append(help_expander)
         restore = Gtk.Button(label=tr("Restore default prompts", "恢复默认提示词"))
         restore.connect("clicked", self._restore_prompts)
         restore.get_child().set_wrap(True)

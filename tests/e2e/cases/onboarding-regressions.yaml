@@ -65,52 +65,33 @@ cases:
   - name: Toggle polishing without losing configuration
     steps:
       - fixture.prepare: { mode: trigger-settings }
-      - aiScroll:
-          options: { direction: down, scrollType: singleAction, distance: 500 }
-      - aiWaitFor:
-          prompt: The Trigger key step and the Voice polishing switch are visible.
-          options: { timeoutMs: 30000, checkIntervalMs: 1000 }
+      - aiAct: Scroll within the Trigger key panel until the Voice polishing heading and its switch are fully visible. Do not change any settings.
       - aiTap: The blue enabled switch to the right of the Voice polishing heading
       - aiWaitFor:
           prompt: The Voice polishing switch is gray and off, and the text Voice polishing disabled. appears below it; the Base URL and Model inputs are not shown.
           options: { timeoutMs: 30000, checkIntervalMs: 1000 }
       - aiAssert: Voice polishing disabled. is visible and the polishing settings are collapsed.
       - aiTap: The gray disabled switch to the right of the Voice polishing heading
-      - aiScroll:
-          options: { direction: down, scrollType: singleAction, distance: 500 }
-      - aiWaitFor:
-          prompt: Voice polishing is enabled and its Model input is visible.
-          options: { timeoutMs: 30000, checkIntervalMs: 1000 }
-      - aiAssert: The blue Voice polishing switch is on, and the Model text field visibly reads synthetic-model.
+      - aiAssert: The Voice polishing switch is blue and on.
+      - aiAct: Scroll within the Trigger key panel only if necessary to bring the Model text field fully into view. Do not change any settings.
+      - aiAssert: The Model text field visibly reads synthetic-model.
 
   - name: Recover from an endpoint failure
     steps:
       - fixture.prepare: { mode: trigger-settings }
-      - aiScroll:
-          options: { direction: down, scrollType: singleAction, distance: 500 }
+      - aiAct: Scroll within the Trigger key panel until the Model text field in Voice polishing is fully visible. Do not change any settings.
       - computer.inputText: { target: The editable text field to the right of Model containing synthetic-model, value: ci-fail-model }
-      - aiScroll:
-          options: { direction: down, scrollType: singleAction, distance: 300 }
-      - aiWaitFor:
-          prompt: The entire Test endpoint button in Voice polishing is visible inside the scrolling panel, above the fixed Vocabulary & history button. The small model recommendation text is not the target.
-          options: { timeoutMs: 30000, checkIntervalMs: 1000 }
+      - aiAct: Scroll within the Trigger key panel only if necessary to bring the entire Test endpoint button into view above the fixed Vocabulary & history button.
       - aiTap: Test endpoint button in the Voice polishing section
-      - aiScroll:
-          options: { direction: down, scrollType: singleAction, distance: 300 }
+      - aiAct: Scroll within the Trigger key panel only if necessary to reveal the endpoint result immediately below the test button.
       - aiWaitFor:
           prompt: The endpoint feedback contains Synthetic endpoint unavailable and the retry button says Test failed — try again.
           options: { timeoutMs: 30000, checkIntervalMs: 1000 }
-      - aiScroll:
-          options: { direction: up, scrollType: singleAction, distance: 300 }
+      - aiAct: Scroll within the Trigger key panel only if necessary to bring the Model text field fully into view.
       - computer.inputText: { target: The editable text field to the right of Model containing ci-fail-model, value: ci-ok-model }
-      - aiScroll:
-          options: { direction: down, scrollType: singleAction, distance: 300 }
-      - aiWaitFor:
-          prompt: The entire Test failed — try again button is visible in Voice polishing, above the fixed Vocabulary & history button.
-          options: { timeoutMs: 30000, checkIntervalMs: 1000 }
+      - aiAct: Scroll within the Trigger key panel only if necessary to bring the entire Test failed — try again button into view above the fixed Vocabulary & history button.
       - aiTap: Test failed — try again button in the Voice polishing section
-      - aiScroll:
-          options: { direction: down, scrollType: singleAction, distance: 300 }
+      - aiAct: Scroll within the Trigger key panel only if necessary to reveal the endpoint result immediately below the test button.
       - aiWaitFor:
           prompt: The endpoint result contains Synthetic endpoint response and the button says Endpoint works.
           options: { timeoutMs: 30000, checkIntervalMs: 1000 }
