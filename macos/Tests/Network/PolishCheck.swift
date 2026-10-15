@@ -67,6 +67,32 @@ struct PolishCheck {
         final = nil
         coordinator.finish(text: "success", completion: { text, _ in final = text })
         check(final == "周四上线。", "matching preview cache reused")
+        // A stop starts work immediately instead of waiting for the preview debounce.
+        // Simulate ASR's finalization window before allowing delivery.
+        coordinator.begin(settings: settings, key: "fake-polish-key")
+        var overlapReady = false
+        coordinator.onPreview = { _, busy in if !busy { overlapReady = true } }
+        coordinator.prepareFinal(text: "  overlap  ")
+        drain(until: { overlapReady }, seconds: 0.8)
+        check(overlapReady, "polishing completes during ASR finalization")
+        final = nil
+        coordinator.prepareFinal(text: "overlap")
+        coordinator.finish(text: "overlap", completion: { text, _ in final = text })
+        check(final == "周四上线。", "final text reuses overlapped result synchronously")
+
+        coordinator.begin(settings: settings, key: "fake-polish-key")
+        coordinator.prepareFinal(text: "slow")
+        coordinator.prepareFinal(text: "success")
+        final = nil
+        coordinator.finish(text: "success", completion: { text, _ in final = text })
+        drain(until: { final != nil })
+        check(final == "周四上线。", "trailing ASR correction invalidates early polishing")
+
+        coordinator.begin(settings: settings, key: "")
+        coordinator.prepareFinal(text: "no credentials")
+        final = nil
+        coordinator.finish(text: "no credentials", completion: { text, _ in final = text })
+        check(final == "no credentials", "early polishing requires credentials")
         coordinator.cancel()
         print(failed ? "FAIL: polish network lifecycle" : "PASS: streaming, malformed/incomplete responses, redirects, five-second deadline, skip, cancel, stale preview and cache")
         exit(failed ? 1 : 0)
