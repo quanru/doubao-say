@@ -27,12 +27,13 @@ for p in out.rglob('*'):
   if re.search(r'(?:sk-(?:proj-)?[A-Za-z0-9_-]{24,}|-----BEGIN (?:OPENSSH|RSA|EC) PRIVATE KEY-----|Bearer [A-Za-z0-9_.-]{24,})',s):
    shutil.rmtree(out);out.mkdir();(out/'REDACTION-BLOCK.txt').write_text('Artifact export blocked by credential-pattern scan. No evidence published.');raise SystemExit(1)
 PY
-if [[ ${ACCEPTANCE_SUITE:-timing-and-gui} == gui ]]; then
-  python3 ci/verify-gui-operations.py || status=1
-else
+# In full mode every gate is mandatory; still collect all failures and export evidence.
+if [[ ${ACCEPTANCE_SUITE:-timing-and-gui} != gui ]]; then
   python3 ci/analyze-native.py review-artifacts/plain || status=1
   python3 ci/analyze-native.py || status=1
 fi
+python3 ci/verify-gui-operations.py || status=1
+python3 ci/verify-complete.py || status=1
 python3 - <<'PY'
 from pathlib import Path
 import hashlib,json,html

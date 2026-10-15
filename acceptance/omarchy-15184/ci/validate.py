@@ -1,4 +1,4 @@
-"""Offline static checks only. Does not boot a VM or invoke a model."""
+"""Offline syntax and gate-unit checks only. Does not boot a VM or invoke a model."""
 from pathlib import Path
 import ast,json,subprocess,re
 r=Path('.')
@@ -24,3 +24,5 @@ assert pins['upstream_pr_head']=='a1ead6b37605d5f3b63a9ebba2f6a621d6a43b6c'
 assert pins['omarchy']!=pins['upstream_pr_head']
 assert 'work/session-state' not in workflow
 print('PASS: Python/Bash/JS syntax, source pins, lockfile, manual or exact-marker trigger, no Pages, credential-stage separation, QMP-only switching, no controller list setters.')
+
+subprocess.run(['python3','ci/test-complete-gate.py'],check=True)

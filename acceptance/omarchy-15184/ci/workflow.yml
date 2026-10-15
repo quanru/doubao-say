@@ -35,7 +35,7 @@ jobs:
     timeout-minutes: 150
     env:
       ACCEPTANCE_DISPOSABLE_CI: '1'
-      ACCEPTANCE_SUITE: gui
+      ACCEPTANCE_SUITE: timing-and-gui
       BUILDER_IMAGE: ${{ inputs.builder_image || 'ghcr.io/archlinux/archlinux@sha256:86092797e32aa19d3f45a831b2873cf557c21c5280e9d197ca7a43c8ea79bcd3' }}
       MAX_REQUESTS: ${{ inputs.max_requests || '60' }}
     steps:
@@ -49,11 +49,11 @@ jobs:
         run: python3 ci/validate.py
       - name: Build and boot full candidate (no model credentials)
         run: bash ci/prepare-runner.sh
-      - name: Build pinned Midscene for real GUI evidence (no inference)
+      - name: Build pinned Midscene and verify native timing (no inference)
         run: bash ci/build-midscene.sh
       - name: Install locked Midscene dependencies
         run: npm --prefix ci ci --ignore-scripts
-      - name: Complete three real GUI remove/add/restore rounds (no inference)
+      - name: Run all 80 fixed timing trials and three real GUI rounds (no inference)
         timeout-minutes: 25
         run: bash ci/run-roi.sh
       - name: Restore and package evidence
