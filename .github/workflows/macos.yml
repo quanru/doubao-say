@@ -27,15 +27,61 @@ jobs:
         run: bash macos/Tests/Settings/build-sidebar-focus.sh
       - name: Build opt-in personal learning UI probe
         run: bash macos/Tests/Settings/build-personal-ui.sh
-      - name: Archive preview (development signing only)
+      - name: Explain preview availability
         run: |
-          ditto -c -k --sequesterRsrc --keepParent "build/macos/$(uname -m)/Doubao Say.app" build/Doubao-Say-macos-preview.zip
+          echo 'PR builds publish test probes only. Installable previews are Developer ID signed and notarized by the protected-main preview job. Missing signing credentials fail that job instead of producing an ad-hoc application.' >> "$GITHUB_STEP_SUMMARY"
+      - name: Archive opt-in test probes
+        run: |
           ditto -c -k build/macos/tests/sidebar-focus-check build/Sidebar-Focus-Check.zip
           ditto -c -k build/macos/tests/personal-ui-check build/Personal-Learning-Check.zip
       - uses: actions/upload-artifact@043fb46d1a93c77aae656e7c1c64a875d1fc6a0a # v7.0.1
         with:
-          name: Doubao-Say-macos-development-preview
+          name: Doubao-Say-macos-test-probes
           path: |
-            build/Doubao-Say-macos-preview.zip
             build/Sidebar-Focus-Check.zip
             build/Personal-Learning-Check.zip
+
+  preview:
+    # Signing credentials never reach pull-request code or a dispatch on another branch.
+    if: github.event_name != 'pull_request' && github.ref == 'refs/heads/main'
+    needs: build
+    runs-on: macos-latest
+    environment: macos-preview
+    timeout-minutes: 30
+    steps:
+      - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
+        with:
+          persist-credentials: false
+      - uses: actions/setup-python@5fda3b95a4ea91299a34e894583c3862153e4b97 # v7.0.0
+        with:
+          python-version: '3.12'
+      - name: Import preview signing credentials
+        env:
+          MACOS_CERTIFICATE_P12_BASE64: ${{ secrets.MACOS_CERTIFICATE_P12_BASE64 }}
+          MACOS_CERTIFICATE_PASSWORD: ${{ secrets.MACOS_CERTIFICATE_PASSWORD }}
+          MACOS_NOTARY_KEY_P8_BASE64: ${{ secrets.MACOS_NOTARY_KEY_P8_BASE64 }}
+          MACOS_NOTARY_KEY_ID: ${{ secrets.MACOS_NOTARY_KEY_ID }}
+          MACOS_NOTARY_ISSUER_ID: ${{ secrets.MACOS_NOTARY_ISSUER_ID }}
+          MACOS_SIGNING_TEAM_ID: ${{ vars.MACOS_SIGNING_TEAM_ID }}
+        run: bash macos/Packaging/prepare-preview-signing.sh
+      - name: Build signed preview
+        run: bash macos/build.sh
+      - name: Notarize and package preview
+        run: |
+          python3 macos/package-dmg.py --identity "$DOUBAO_CODESIGN_IDENTITY" \
+            --key "$DOUBAO_NOTARY_KEY_PATH" --key-id "$DOUBAO_NOTARY_KEY_ID" \
+            --issuer "$DOUBAO_NOTARY_ISSUER_ID"
+          python3 macos/Packaging/preview-manifest.py
+      - uses: actions/upload-artifact@043fb46d1a93c77aae656e7c1c64a875d1fc6a0a # v7.0.1
+        with:
+          name: Doubao-Say-macos-signed-preview
+          if-no-files-found: error
+          path: |
+            build/macos/*.dmg
+            build/macos/*.dmg.sha256
+            build/macos/preview-manifest.json
+      - name: Remove preview signing credentials
+        if: always()
+        run: |
+          security delete-keychain "$RUNNER_TEMP/doubao-preview-signing.keychain-db" 2>/dev/null || true
+          rm -f "$RUNNER_TEMP/doubao-preview-certificate.p12" "$RUNNER_TEMP/doubao-preview-notary.p8"

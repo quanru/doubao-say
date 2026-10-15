@@ -93,7 +93,45 @@ bash macos/build.sh
 
 The setting stays in this checkout's local Git configuration. An explicit
 `DOUBAO_CODESIGN_IDENTITY` overrides it. Local builds fail without a configured
-identity instead of silently falling back to ad-hoc signing. CI previews still
-use ad-hoc signing; `DOUBAO_CODESIGN_IDENTITY=-` explicitly requests a disposable
+identity instead of silently falling back to ad-hoc signing. PR CI builds still
+use ad-hoc signing for tests and do not distribute an installable app; `DOUBAO_CODESIGN_IDENTITY=-` explicitly requests a disposable
 local preview. Changing from ad-hoc to certificate signing may require one more
 permission grant. Release DMGs still require Developer ID signing and notarization.
+
+## Signed Mac previews
+
+Installable previews use the same Developer ID signing team and bundle ID as the
+release DMGs. They are notarized and stapled before upload. The protected-main
+`preview` job in `.github/workflows/macos.yml` runs after the Mac checks on a main
+push or a manual run on main. Pull-request builds publish only opt-in test probes;
+they cannot access signing credentials or distribute an ad-hoc application ZIP.
+Dispatching the workflow on another branch does not start the signing job.
+
+Configure the `macos-preview` GitHub environment before merging this workflow.
+Restrict its deployment branches to protected branches and keep `main` protected.
+Set the environment variable `MACOS_SIGNING_TEAM_ID` to the existing release
+team. Add these environment secrets through GitHub Settings → Environments →
+macos-preview (never through source files, issue comments or chat):
+
+| Secret | Value |
+| --- | --- |
+| `MACOS_CERTIFICATE_P12_BASE64` | Single-line base64 of the release Developer ID Application certificate **and private key**, exported as PKCS#12 |
+| `MACOS_CERTIFICATE_PASSWORD` | Nonempty password protecting that PKCS#12 export |
+| `MACOS_NOTARY_KEY_P8_BASE64` | Single-line base64 of the App Store Connect API private key used for notarization |
+| `MACOS_NOTARY_KEY_ID` | That API key's key ID |
+| `MACOS_NOTARY_ISSUER_ID` | That API key's issuer ID |
+
+The job imports the certificate into a temporary keychain, permits `codesign`
+access, requires exactly one valid Developer ID Application identity and verifies
+that the app's team matches the configured release team. Missing credentials,
+a team mismatch or failed notarization fail the job; no unsigned fallback app is
+uploaded. An always-run cleanup step removes the temporary keychain and credential
+files. Only the DMG, checksum and public provenance manifest are uploaded.
+
+Download `Doubao-Say-macos-signed-preview` from the successful workflow run. The
+manifest records the exact source commit, architecture, bundle ID, signing
+requirement and artifact hash. Replacing an older ad-hoc or Apple Development
+build may require one final permission grant. Successive Developer ID previews
+and releases with compatible signing requirements should retain existing grants.
+Real permission retention across two distributed previews still needs acceptance
+on a Mac; synthetic signing tests do not establish that result.

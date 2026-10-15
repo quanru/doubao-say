@@ -69,7 +69,7 @@ ChatGPT 凭据使用本应用独立的 macOS 钥匙串条目，不借用 Codex �
 
 隔离 UI 检查渲染真实设置窗口和非激活浮窗，逐页检查中英文，并由测试主进程捕获对应窗口；需要测试宿主已有屏幕录制权限。验证应用使用独立 Bundle ID，不读取真实登录会话。
 
-本地构建需要固定的签名证书。运行 `security find-identity -v -p codesigning` 查看证书，再执行 `git config --local doubao.codesignIdentity '<证书 SHA-1>'` 保存到当前仓库的本机配置。后续构建自动复用该证书，避免临时签名随代码变化而使快捷键权限失效。也可通过 `DOUBAO_CODESIGN_IDENTITY` 指定证书；发行包使用 Developer ID 签名。首次从临时签名切换到证书签名时，可能需要重新授权一次。CI 默认使用临时签名；本机只有显式设置 `DOUBAO_CODESIGN_IDENTITY=-` 才生成临时预览包，不建议用于日常安装。`macos/package-dmg.py` 使用指定的公证配置生成带“应用程序”拖拽入口的签名、公证 DMG。真实麦克风、快捷键、不同应用的粘贴、登录项、AU05 硬件、全屏/多屏和 Intel 运行需分别实机验收；编译和合成检查不替代这些结果。详见 [验收清单](ACCEPTANCE.zh-CN.md)。
+本地构建需要固定的签名证书。运行 `security find-identity -v -p codesigning` 查看证书，再执行 `git config --local doubao.codesignIdentity '<证书 SHA-1>'` 保存到当前仓库的本机配置。后续构建自动复用该证书，避免临时签名随代码变化而使快捷键权限失效。也可通过 `DOUBAO_CODESIGN_IDENTITY` 指定证书；发行包使用 Developer ID 签名。首次从临时签名切换到证书签名时，可能需要重新授权一次。PR CI 的临时签名构建仅用于测试，不再提供应用安装包。主分支预览包与正式包使用同一发行团队的 Developer ID 证书，完成公证后才提供下载；凭据配置见 [更新与签名说明](../packaging/UPDATES.md#signed-mac-previews)。本机只有显式设置 `DOUBAO_CODESIGN_IDENTITY=-` 才生成临时预览包，不建议用于日常安装。`macos/package-dmg.py` 使用指定的公证配置生成带“应用程序”拖拽入口的签名、公证 DMG。真实麦克风、快捷键、不同应用的粘贴、登录项、AU05 硬件、全屏/多屏和 Intel 运行需分别实机验收；编译和合成检查不替代这些结果。详见 [验收清单](ACCEPTANCE.zh-CN.md)。
 
 上游来源和许可见根目录 `NOTICE` 及本目录 `UPSTREAM-LICENSE`。
 
