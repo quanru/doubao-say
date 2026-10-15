@@ -16,7 +16,7 @@ const wheel=d=>script('qmp-wheel.py',d);
 const results=[];let agent,n=0;
 async function capture(mode,label,expect){
  await sleep(400);const observed=state(),id=`${mode}-${String(++n).padStart(2,'0')}-${label}`;
- guest('screenshot',id);
+ guest('screenshot',id);guest('desktop-state',id);
  await agent.recordToReport(id,{content:JSON.stringify({id,observed,expected:expect,actionSource:'real QMP; state from read-only gallery observer; independent screenshot review required'})});
  const pass=Object.entries(expect).every(([k,v])=>observed[k]===v);
  results.push({id,mode,label,observed,expected:expect,pass,screenshot:`guest/${id}.png`});
@@ -28,6 +28,19 @@ try{
  mkdirSync(out,{recursive:true});
  writeFileSync(resolve(out,'qmp-schema.json'),script('qmp-wheel.py','schema'));
  agent=await agentForComputer({headless:false,keepXvfbAliveUntilProcessExit:true,generateReport:true,reportFileName:'omarchy-13930-real-gallery-no-model'});
+ if(process.env.ACCEPTANCE_DIAGNOSTIC==='1') {
+  const findings=[];
+  for(const mode of ['baseline','candidate']){
+   guest('mode',mode);n=0;
+   let s=await capture(mode,'diagnostic-initial',{});
+   move(s);wheel('down');s=await capture(mode,'diagnostic-wheel',{});
+   click(s);s=await capture(mode,'diagnostic-click-open',{});
+   key('ret');s=await capture(mode,'diagnostic-enter',{});
+   findings.push({mode,color:s.colorProbe,focus:s.focusChain,windowActive:s.windowActive,value:s.value,popup:s.popup});
+  }
+  writeFileSync(resolve(out,'diagnostic-findings.json'),JSON.stringify(findings,null,2));
+  throw Error('DIAGNOSTIC ONLY: Color resolution and focus captured; full acceptance not run');
+ }
  for(const mode of ['baseline','candidate']){
   guest('mode',mode);n=0;
   let s=await capture(mode,'initial-unmatched',{value:'Clock',popup:false});
