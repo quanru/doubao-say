@@ -1,0 +1,28 @@
+name: Omarchy 13930 prerequisites only
+on:
+  push:
+    branches: [acceptance/omarchy-13930-8997958d]
+    paths: ['acceptance/omarchy-13930/**', '.github/workflows/omarchy-13930-preflight.yml']
+permissions:
+  contents: read
+concurrency:
+  group: omarchy-13930-8997958d-preflight
+  cancel-in-progress: false
+jobs:
+  prerequisites:
+    if: github.repository == 'quanru/doubao-say' && github.event.repository.private == false
+    runs-on: ubuntu-24.04
+    timeout-minutes: 5
+    steps:
+      - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1
+        with:
+          persist-credentials: false
+      - name: Check public source pin and disposable runner prerequisites
+        shell: bash
+        run: |
+          set -euo pipefail
+          test -c /dev/kvm
+          observed=$(git ls-remote https://github.com/omacom/omarchy.git refs/pull/13930/head | cut -f1)
+          test "$observed" = 8997958d8e6419e384e68057fb37fe09a148e697
+          curl --fail --silent --show-error https://api.github.com/repos/omacom/omarchy/pulls/13930 | python3 -c 'import json,sys; p=json.load(sys.stdin); assert p["state"]=="open" and not p["merged"]; assert p["head"]["sha"]=="8997958d8e6419e384e68057fb37fe09a148e697"; print(json.dumps({k:p[k] for k in ["state","merged","mergeable"]}))'
+          echo 'Prerequisites only. No VM or Midscene acceptance was executed.' >> "$GITHUB_STEP_SUMMARY"
