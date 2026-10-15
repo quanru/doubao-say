@@ -41,6 +41,12 @@ jobs:
       - name: Typecheck desktop suites
         working-directory: tests/e2e
         run: npm run typecheck
+      - name: Inspect cloud desktop
+        run: |
+          system_profiler SPDisplaysDataType
+          swift -e 'import AppKit; for screen in NSScreen.screens { print("NSScreen:", screen.frame) }'
+          mkdir -p tests/e2e/midscene_run/diagnostics
+          screencapture -x tests/e2e/midscene_run/diagnostics/desktop.png
       - name: Build isolated native fixture
         run: bash macos/Tests/Midscene/build.sh
       - name: Run native visual interactions
