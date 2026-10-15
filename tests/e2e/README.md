@@ -5,20 +5,11 @@ The native macOS suite is documented in [macOS Midscene settings E2E](../../maco
 GitHub Actions exposes two Linux distribution-named suites: `Ubuntu 22.04` and
 `Omarchy 4.0.3`. The Omarchy suite also checks the real desktop shell visually.
 
-> **Scheduling (2026-09).** The Volcengine Ark endpoint behind
-> `MIDSCENE_MODEL_*` has been rate-limited to roughly 25–35 RPM. Running both
-> five-job visual workflows at once previously exhausted that quota:
->
-> - the Ubuntu 22.04 workflow runs only via **Actions → Run workflow**
->   (`workflow_dispatch`); its push/pull-request triggers were removed from the
->   `on:` block but everything else (matrix, polishing, Pages) is unchanged;
-> - the Omarchy workflow runs five independent VM jobs in parallel again, as
->   requested on 2026-09-25. Its model-call retries remain enabled, but 429
->   errors may recur until the endpoint quota is raised.
->
-> To restore Ubuntu automatic runs as well, reinstate its previous
-> `push`/`pull_request` trigger block from git history. Running both workflows
-> in parallel needs an endpoint quota of at least ~150 RPM / ~1M TPM.
+Each platform runs in one Actions job. Product cases and the platform's auxiliary
+project run serially, without matrix shards. Ubuntu remains manual-only;
+Omarchy runs on relevant pushes and same-repository pull requests. The shared
+Linux concurrency group queues workflows that use the same model quota.
+The job budget is 240 minutes, with 220 minutes reserved for visual execution.
 
 The image-builder CI proves that a GitHub-hosted runner can install the exact
 official Omarchy ISO in a headless QEMU/KVM VM. It reuses Omarchy's own ISO
@@ -70,23 +61,22 @@ The Ubuntu workflow runs the deterministic GTK fixture through
 and `@midscene/computer`. Pull requests from forks are skipped because GitHub
 does not expose the required model secret to untrusted workflow code.
 
-Both distributions execute the same 13 declarative product cases from
+Both distributions execute the same 14 declarative product cases from
 `cases/onboarding.yaml`, `cases/onboarding-regressions.yaml`, and
 `cases/runtime.yaml`, including synthetic microphone, voice, regression, and
 post-setup dictation checks. `midscene.config.ts` passes each case
-identity to a fresh fixture. Four duration-balanced shards run in isolated
-Actions jobs, each with its own Xvfb desktop or Omarchy VM, while cases inside
-one shard remain serial so window focus cannot leak between tests. The shards
-run in parallel (`max-parallel: 5`). The config prepares the GTK fixture or
+identity to a fresh fixture. `ubuntu-product` and `omarchy-product` each include
+all product case files without tag filtering. Projects and cases run serially
+so window focus cannot leak between tests. The config prepares the GTK fixture or
 Omarchy VNC viewer, and resets that state for every retry. Custom `shell.*`
 Nodes prepare the real Omarchy menu and bar; `cases/omarchy-shell.yaml` keeps
 the three pixel-level assertions explicit. Run `npm run nodes` in this
 directory to regenerate the Node reference, or
-`npm test -- --project ubuntu-shard-1` on a prepared Linux desktop.
+`npm test -- --project ubuntu-product` on a prepared Linux desktop.
 Projects use Midscene Test's case-level `retry` setting, so a failed model
 attempt is rerun with a fresh fixture while successful cases are kept. Every
 attempt remains visible in the generated report.
-Each shard writes a Midscene Test HTML report under `midscene_run/report/`.
+Each project writes a Midscene Test HTML report under `midscene_run/report/`.
 CI keeps the native reports separate, then aggregates their cases into one
 evidence table. Every row links to its exact native report node. A failed
 project captures its first failing screenshot, so the summary shows the
@@ -160,10 +150,12 @@ synthetic callbacks. They do not establish live ASR, recording, durable
 credential persistence, system-wide shortcut capture, clipboard paste, or
 delivery into an unrelated application.
 
-Run `npm test -- --project ubuntu-shard-1` with the system dependencies and
-model configuration from the Ubuntu workflow. Replace the final number with
-`2`, `3`, or `4` to run another duration-balanced shard. Omarchy uses the
-matching `omarchy-shard-*` projects and a separate shell project.
+Run `npm test -- --project ubuntu-product` with the system dependencies and
+model configuration from the Ubuntu workflow. The complete Ubuntu job also
+runs `ubuntu-polishing`. Omarchy runs `omarchy-product` and `omarchy-shell`
+sequentially inside one VM session. Each invocation keeps its own native report;
+a failed product invocation does not suppress the auxiliary project.
+Focused manual runs can still select a product, auxiliary, or provider project.
 
 ## Polishing overlay regression
 

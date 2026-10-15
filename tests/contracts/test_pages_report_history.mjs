@@ -37,38 +37,21 @@ test('publishes the Markdown evidence table for same-repository pull requests', 
   }
 });
 
-test('records every shard and renders the Summary before Pages deployment', async () => {
+test('runs each platform serially and uploads reports without shard aggregation', async () => {
   for (const workflow of [
     'midscene-ubuntu-22.04.yml',
     'midscene-omarchy-4.0.3.yml',
   ]) {
     const source = await readFile(
-      new URL(`../../.github/workflows/${workflow}`, import.meta.url),
-      'utf8',
+      new URL(`../../.github/workflows/${workflow}`, import.meta.url), 'utf8',
     );
-    assert.match(source, /Record shard result for report aggregation/);
-    assert.match(
-      source,
-      /if: always\(\) && !cancelled\(\)/,
-      `${workflow} must preserve failure evidence without extending manually cancelled runs`,
-    );
-    assert.match(
-      source,
-      /^\s*max-parallel: 5$/m,
-      `${workflow} must run its independent VM shards in parallel`,
-    );
+    assert.doesNotMatch(source, /matrix:|max-parallel:|report-bundle:|shard-[1-4]/);
+    assert.match(source, /Record project results for report aggregation/);
+    assert.match(source, /if: always\(\) && !cancelled\(\)/);
     assert.match(source, /if-no-files-found: error/);
-    assert.match(source, /Create bundle even when every shard failed early/);
-    assert.match(
-      source,
-      /Upload .*shard report[\s\S]*?overwrite: true/,
-      `${workflow} must replace a rerun shard artifact instead of keeping duplicate names`,
-    );
-    assert.match(
-      source,
-      /Upload combined report bundle[\s\S]*?overwrite: true/,
-      `${workflow} must replace the previous attempt's combined bundle`,
-    );
+    assert.match(source, /id: report[\s\S]*?overwrite: true/);
+    assert.match(source, /include-hidden-files: true/);
+    assert.match(source, /Write test results to Summary/);
   }
 
   const deploy = await readFile(
@@ -99,47 +82,19 @@ test('records every shard and renders the Summary before Pages deployment', asyn
   );
 });
 
-test('rerun aggregation excludes the previous combined report artifact', async () => {
-  const source = await readFile(
-    new URL('../../.github/workflows/midscene-omarchy-4.0.3.yml', import.meta.url),
-    'utf8',
-  );
-  assert.match(source, /pattern: omarchy-midscene-omarchy-\*/);
-  assert.doesNotMatch(source, /pattern: omarchy-midscene-\*\s*$/m);
-});
-
-test('assigns every product case to exactly one balanced shard', async () => {
-  const shardCounts = new Map();
+test('retains all product cases without shard tags or project filters', async () => {
   let caseCount = 0;
-  for (const file of [
-    'onboarding.yaml',
-    'onboarding-regressions.yaml',
-    'runtime.yaml',
-  ]) {
-    const source = await readFile(
-      new URL(`../e2e/cases/${file}`, import.meta.url),
-      'utf8',
-    );
-    const cases = source
-      .split(/(?=^  - name:)/m)
-      .filter((section) => section.startsWith('  - name:'));
-    for (const testCase of cases) {
-      const tags = [...testCase.matchAll(/^    tags: \[([^\]]+)\]$/gm)];
-      assert.equal(tags.length, 1, testCase.split('\n')[0]);
-      const shards = tags[0][1].split(',').map((tag) => tag.trim())
-        .filter((tag) => /^shard-[1-4]$/.test(tag));
-      assert.equal(shards.length, 1, testCase.split('\n')[0]);
-      shardCounts.set(shards[0], (shardCounts.get(shards[0]) ?? 0) + 1);
-      caseCount += 1;
-    }
+  for (const file of ['onboarding.yaml', 'onboarding-regressions.yaml', 'runtime.yaml']) {
+    const source = await readFile(new URL(`../e2e/cases/${file}`, import.meta.url), 'utf8');
+    assert.doesNotMatch(source, /shard-[1-4]/);
+    caseCount += [...source.matchAll(/^  - name:/gm)].length;
   }
   assert.equal(caseCount, 14);
-  assert.deepEqual(Object.fromEntries(shardCounts), {
-    'shard-1': 2,
-    'shard-2': 3,
-    'shard-3': 5,
-    'shard-4': 4,
-  });
+  const config = await readFile(new URL('../e2e/midscene.config.ts', import.meta.url), 'utf8');
+  const product = config.slice(config.indexOf('const productProject'), config.indexOf('export default'));
+  assert.match(product, /files: \{ include: productCaseFiles \}/);
+  assert.doesNotMatch(product, /tags:/);
+  assert.match(config, /maxConcurrency: 1/);
 });
 
 test('keeps visual E2E interactions at task level with proven tap exceptions', async () => {
@@ -771,7 +726,7 @@ test('keeps a complete Markdown table when a shard produces no native report', a
     summaryTitle: 'Ubuntu',
   });
   assert.match(summary, /ubuntu-shard-1 visual case/);
-  assert.match(summary, /ubuntu-shard-2 CI shard/);
+  assert.match(summary, /ubuntu-shard-2 CI project/);
   assert.match(summary, /CI failure before node capture/);
   assert.match(summary, /workflow setup before test execution/);
   assert.doesNotMatch(summary, /runner-step=.*infrastructure-ubuntu-shard-2/);
@@ -781,7 +736,7 @@ test('uses a failure row when node evidence extraction fails', async (context) =
   const root = await mkdtemp(path.join(os.tmpdir(), 'pages-capture-failed-'));
   const reportDirectory = await fixtureDirectory(root);
   await writeFile(
-    path.join(reportDirectory, 'ci-shard-status-ubuntu.json'),
+    path.join(reportDirectory, 'ci-project-status-ubuntu.json'),
     JSON.stringify({
       project: 'ubuntu',
       result: 'failure',

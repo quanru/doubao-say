@@ -321,14 +321,12 @@ const productCaseFiles = [
   'cases/runtime.yaml',
 ] as const;
 
-const productShardProjects = (environment: 'ubuntu' | 'omarchy') =>
-  [1, 2, 3, 4].map((shard) => ({
-    name: `${environment}-shard-${shard}`,
-    retry: 2,
-    setup,
-    files: { include: productCaseFiles },
-    tags: { include: [`shard-${shard}`] },
-  }));
+const productProject = (environment: 'ubuntu' | 'omarchy') => ({
+  name: `${environment}-product`,
+  retry: 2,
+  setup,
+  files: { include: productCaseFiles },
+});
 
 export default defineTestProject<DesktopContext>({
   test: { maxConcurrency: 1, testTimeout: 8 * 60_000 },
@@ -341,8 +339,8 @@ export default defineTestProject<DesktopContext>({
       setup,
       files: { include: ['cases/polishing.yaml'] },
     },
-    ...productShardProjects('ubuntu'),
-    ...productShardProjects('omarchy'),
+    productProject('ubuntu'),
+    productProject('omarchy'),
     {
       name: 'ubuntu-providers',
       retry: 2,

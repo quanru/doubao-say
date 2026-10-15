@@ -1,6 +1,5 @@
 cases:
   - name: Cancel sign-in and retry
-    tags: [shard-1]
     steps:
       - aiAssert: The current step is Sign in, the page says Not signed in, and the large blue Open Doubao sign-in button is visible.
       - aiTap: The large blue full-width Open Doubao sign-in button near the bottom of the central Sign in panel, around 50% width and 73% screen height
@@ -23,7 +22,6 @@ cases:
       - aiAssert: The visible Doubao Say page is the Microphone step with Synthetic microphone one selected.
 
   - name: Preserve signed-in account across backward navigation
-    tags: [shard-4]
     steps:
       - aiAssert: The visible Doubao Say window starts on the Sign in step and says the user is not signed in.
       - aiTap: The large blue full-width Open Doubao sign-in button near the bottom of the central Sign in panel, around 50% width and 73% screen height
@@ -43,7 +41,6 @@ cases:
           options: { timeoutMs: 30000, checkIntervalMs: 1000 }
 
   - name: Require an enabled trigger and retain the replacement
-    tags: [shard-4]
     steps:
       - fixture.prepare: { mode: trigger-settings }
       - aiAssert: The Trigger key step shows Choose how to start speaking and Voice polishing is enabled.
@@ -66,7 +63,6 @@ cases:
       - aiAssert: The Trigger key step still shows Active trigger F8 and F8 is selected in the trigger dropdown.
 
   - name: Toggle polishing without losing configuration
-    tags: [shard-3]
     steps:
       - fixture.prepare: { mode: trigger-settings }
       - aiScroll:
@@ -88,7 +84,6 @@ cases:
       - aiAssert: The blue Voice polishing switch is on, and the Model text field visibly reads synthetic-model.
 
   - name: Recover from an endpoint failure
-    tags: [shard-2]
     steps:
       - fixture.prepare: { mode: trigger-settings }
       - aiScroll:
@@ -121,7 +116,6 @@ cases:
           options: { timeoutMs: 30000, checkIntervalMs: 1000 }
 
   - name: Microphone check gates setup completion
-    tags: [shard-4]
     steps:
       - fixture.prepare: { mode: microphone-gate }
       - aiAssert: The visible Doubao Say window starts on the Microphone step, shows Synthetic microphone one, and offers Check microphone · 3 seconds.
@@ -162,7 +156,6 @@ cases:
       - aiAssert: The Finish setup button is visibly enabled.
 
   - name: Complete and cancel a voice test safely
-    tags: [shard-3]
     steps:
       - fixture.prepare: { mode: voice-test }
       - aiWaitFor:
@@ -194,7 +187,6 @@ cases:
       - aiAssert: Start voice test is available again, and the enabled setup control says Voice test passed and nothing pasted or sent.
 
   - name: Switch to Volcengine and validate credentials
-    tags: [shard-3]
     steps:
       - fixture.prepare: { mode: volcengine }
       - aiTap: The Recognition service dropdown currently showing Doubao account
@@ -218,7 +210,7 @@ cases:
           options: { timeoutMs: 30000, checkIntervalMs: 1000 }
 
   - name: Switch to Deepgram English recognition
-    tags: [shard-3, provider]
+    tags: [provider]
     steps:
       - fixture.prepare: { mode: deepgram }
       - aiAct: Switch the Recognition service from Doubao account to Deepgram Nova-3 (English).
@@ -247,7 +239,6 @@ cases:
           options: { timeoutMs: 30000, checkIntervalMs: 1000 }
 
   - name: Changing microphone requires another check
-    tags: [shard-2]
     steps:
       - fixture.prepare: { mode: microphone-change }
       - aiTap: The microphone dropdown currently showing Synthetic microphone one
@@ -292,7 +283,6 @@ cases:
       - aiAssert: The Finish setup button is visibly enabled.
 
   - name: Capture and retain a custom trigger shortcut
-    tags: [shard-2]
     steps:
       - fixture.prepare: { mode: shortcut-capture }
       - aiTap: The trigger selection dropdown currently showing fn

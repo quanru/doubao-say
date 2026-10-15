@@ -1,6 +1,5 @@
 cases:
   - name: Complete Doubao Say onboarding on a real desktop
-    tags: [shard-1]
     steps:
       - aiAssert: The visible Doubao Say window is on Sign in and says the user is not signed in.
       - aiTap: The large blue full-width Open Doubao sign-in button near the bottom of the central Sign in panel, around 50% width and 73% screen height
