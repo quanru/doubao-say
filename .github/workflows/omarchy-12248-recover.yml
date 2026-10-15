@@ -1,0 +1,67 @@
+name: Omarchy 12248 bounded evidence recovery (read only)
+on:
+  push:
+    branches: [acceptance/omarchy-12248-f88f533b]
+    paths: [.github/workflows/omarchy-12248-recover.yml]
+permissions:
+  actions: read
+  contents: read
+jobs:
+  metadata:
+    if: github.event.repository.private == false
+    runs-on: ubuntu-24.04
+    timeout-minutes: 3
+    outputs:
+      chunks: ${{ steps.inspect.outputs.chunks }}
+    steps:
+      - id: inspect
+        env:
+          GH_TOKEN: ${{ github.token }}
+        run: |
+          gh api repos/quanru/doubao-say/actions/runs/38707679155 > /tmp/run.json
+          python3 - <<'PY'
+          import json
+          r=json.load(open('/tmp/run.json'))
+          assert r['id']==38707679155 and r['head_sha']=='56380aee17a38d88a3625664e6914a6e32b9b995' and r['status']=='completed'
+          print('Fixed existing run:',r['id'],r['conclusion'])
+          PY
+          gh api --allow-escape-sequences repos/quanru/doubao-say/actions/jobs/116332563672/logs > /tmp/job.log
+          python3 - <<'PY'
+          import pathlib,re,base64,hashlib,json,os
+          s=pathlib.Path('/tmp/job.log').read_text();m=re.search(r'PR12248_EVIDENCE_BEGIN (\d+) ([a-f0-9]{64})',s);assert m
+          encoded=''.join(re.findall(r'PR12248_EVIDENCE_DATA ([A-Za-z0-9+/=]+)',s));data=base64.b64decode(encoded,validate=True)
+          assert len(data)==int(m[1])<=50*1024*1024 and hashlib.sha256(data).hexdigest()==m[2]
+          count=(len(encoded)+999999)//1000000
+          print('VERIFIED_ARCHIVE_METADATA',json.dumps({'bytes':len(data),'sha256':m[2],'encoded_length':len(encoded),'chunks_1m':count}))
+          with open(os.environ['GITHUB_OUTPUT'],'a') as f:f.write('chunks='+json.dumps(list(range(count)))+'\n')
+          # Only short non-archive diagnostics. Existing job's secret masking still applies.
+          lines=[line for line in s.splitlines() if not re.search(r'PR12248_EVIDENCE_(DATA|BEGIN|END)',line)]
+          for line in lines[-140:]:print(line)
+          PY
+  chunks:
+    needs: metadata
+    strategy:
+      max-parallel: 2
+      matrix:
+        chunk: ${{ fromJSON(needs.metadata.outputs.chunks) }}
+    runs-on: ubuntu-24.04
+    timeout-minutes: 3
+    steps:
+      - name: Read one bounded chunk of the existing sanitized archive
+        env:
+          GH_TOKEN: ${{ github.token }}
+          EVIDENCE_CHUNK: ${{ matrix.chunk }}
+        run: |
+          gh api --allow-escape-sequences repos/quanru/doubao-say/actions/jobs/116332563672/logs > /tmp/job.log
+          python3 - <<'PY'
+          import pathlib,re,base64,hashlib,json,os
+          s=pathlib.Path('/tmp/job.log').read_text();m=re.search(r'PR12248_EVIDENCE_BEGIN (\d+) ([a-f0-9]{64})',s);assert m
+          encoded=''.join(re.findall(r'PR12248_EVIDENCE_DATA ([A-Za-z0-9+/=]+)',s));data=base64.b64decode(encoded,validate=True)
+          assert len(data)==int(m[1])<=50*1024*1024 and hashlib.sha256(data).hexdigest()==m[2]
+          print('VERIFIED_ARCHIVE_METADATA',json.dumps({'bytes':len(data),'sha256':m[2],'encoded_length':len(encoded),'chunks_1m':(len(encoded)+999999)//1000000}))
+          index=int(os.environ['EVIDENCE_CHUNK']);assert 0<=index<(len(encoded)+999999)//1000000
+          chunk=encoded[index*1000000:(index+1)*1000000];assert chunk
+          print('PR12248_CHUNK_BEGIN',index,len(chunk),hashlib.sha256(chunk.encode()).hexdigest())
+          for offset in range(0,len(chunk),32000):print('PR12248_CHUNK_DATA',chunk[offset:offset+32000])
+          print('PR12248_CHUNK_END',index)
+          PY
