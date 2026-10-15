@@ -1,6 +1,7 @@
 #!/bin/bash
 set -euo pipefail
 cd "$(dirname "$0")/.."
+python3 macos/Tests/Packaging/test_preview_signing.py
 swift test --package-path macos --jobs 2
 mkdir -p build/macos/tests
 chatgpt_core=(macos/Sources/ChatGPTVault.swift macos/Sources/ChatGPTProtocol.swift macos/Sources/ChatGPTOAuth.swift macos/Sources/ChatGPTCallback.swift macos/Sources/ChatGPTService.swift macos/Sources/ChatGPTResponses.swift)

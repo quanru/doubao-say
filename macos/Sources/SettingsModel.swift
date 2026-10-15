@@ -23,6 +23,8 @@ final class SettingsModel: ObservableObject {
     @Published var feedback = ""
     @Published var selectedTab = "setup"
     @Published var setupStep = 0
+    @Published private(set) var repeatingSetup = false
+    var showsSetupWizard: Bool { !draft.onboardingComplete || repeatingSetup }
     @Published var shortcutAvailable = false
     @Published var capturing = false { didSet { if !capturing { resumeAutosave() } } }
     @Published var testing = false { didSet { if !testing { resumeAutosave() } } }
@@ -68,8 +70,12 @@ final class SettingsModel: ObservableObject {
     private var currentDefaultMicrophoneID: String?
     private var deviceMonitor: AudioDeviceMonitor?
     init(state: AppState, microphoneInputs: @escaping () -> [AudioInputDevice] = AudioDevices.inputs,
-         defaultMicrophoneID: @escaping () -> String? = AudioDevices.defaultInputUID) {
+         defaultMicrophoneID: @escaping () -> String? = AudioDevices.defaultInputUID,
+         initialSettings: MacSettings? = nil) {
         self.state = state
+        let saved = initialSettings ?? SettingsStore.shared.value
+        suppressAutosave = true; draft = saved; suppressAutosave = false
+        selectedTab = saved.onboardingComplete ? "general" : "setup"
         self.microphoneInputs = microphoneInputs; self.defaultMicrophoneID = defaultMicrophoneID
         microphones = microphoneInputs(); currentDefaultMicrophoneID = defaultMicrophoneID()
         deviceMonitor = AudioDeviceMonitor { [weak self] in self?.refreshMicrophones() }
@@ -192,6 +198,10 @@ final class SettingsModel: ObservableObject {
         guard !setupBusy else { return }
         setupStep = max(0, setupStep - 1); feedback = ""
     }
+    func repeatSetup() {
+        guard !setupBusy, saveIfNeeded() else { return }
+        repeatingSetup = true; setupStep = 0; feedback = ""
+    }
     func finishSetup() {
         guard setupStep == 3, canAdvanceSetup, saveIfNeeded() else { return }
         let saved = SettingsStore.shared.value
@@ -201,7 +211,7 @@ final class SettingsModel: ObservableObject {
             return
         }
         var completed = draft; completed.onboardingComplete = true
-        do { try apply?(completed, nil, nil); draft = completed; onFinishSetup?() }
+        do { try apply?(completed, nil, nil); draft = completed; repeatingSetup = false; onFinishSetup?() }
         catch { feedback = L("Could not complete setup.", "无法完成使用准备。") }
     }
     func chooseShortcut(_ destination: String = "record") {

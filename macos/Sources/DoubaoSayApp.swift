@@ -376,6 +376,11 @@ final class AppDelegate: NSObject, NSApplicationDelegate, NSMenuDelegate {
         state.updateVersion = ProcessInfo.processInfo.environment["DOUBAO_SMOKE_UPDATE_VERSION"] ?? ""
         settingsWindow.model.selectedTab = ProcessInfo.processInfo.environment["DOUBAO_SMOKE_TAB"] ?? "setup"
         settingsWindow.model.draft.polishEnabled = true
+        if ProcessInfo.processInfo.environment["DOUBAO_SMOKE_ONBOARDING_SAVED"] == "1" {
+            settingsWindow.model.draft.onboardingComplete = true
+            precondition(!settingsWindow.model.showsSetupWizard,
+                         "Saved onboarding must show completion without live microphone or voice checks")
+        }
         settingsWindow.model.setupStep = min(max(Int(ProcessInfo.processInfo.environment["DOUBAO_SMOKE_SETUP_STEP"] ?? "0") ?? 0, 0), 3)
         if ProcessInfo.processInfo.environment["DOUBAO_SMOKE_SIGNED_IN"] == "1" {
             state.loginStatus = .loggedIn

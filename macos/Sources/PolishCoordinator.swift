@@ -37,6 +37,15 @@ final class PolishCoordinator {
         self.timer = timer
         DispatchQueue.main.asyncAfter(deadline: .now() + 1.2, execute: timer)
     }
+    /// Overlap polishing with ASR finalization; delivery still waits for final text.
+    func prepareFinal(text: String) {
+        guard !isFinal else { return }
+        let text = text.trimmingCharacters(in: .whitespacesAndNewlines)
+        update(text: text, speaking: false)
+        timer?.cancel(); timer = nil
+        guard settings.polishEnabled, !key.isEmpty else { return }
+        startPreview()
+    }
     private func startPreview() {
         guard !isFinal, !currentText.isEmpty, snapshot != currentText else { return }
         snapshot = currentText; cached = nil; cachedPolished = false

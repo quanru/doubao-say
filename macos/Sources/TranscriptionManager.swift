@@ -103,7 +103,10 @@ final class TranscriptionManager {
                 self.state.transcriptionText = text
                 self.state.overlayStatus = ""
                 if self.state.isRecording { self.polisher.update(text: text, speaking: self.speaking) }
-                else if self.state.recordingState == .stopping { self.armQuietCompletion(token: token) }
+                else if self.state.recordingState == .stopping {
+                    self.polisher.prepareFinal(text: text)
+                    self.armQuietCompletion(token: token)
+                }
             }
         }
         transport.onAudioDrained = { [weak self] in
@@ -153,6 +156,7 @@ final class TranscriptionManager {
         guard state.recordingState == .starting || state.recordingState == .recording else { return }
         latency.stop(at: ProcessInfo.processInfo.systemUptime)
         setState(.stopping); audio.stopCapture(); client?.finishSending()
+        polisher.prepareFinal(text: rawText)
         // Bound slow handshakes without authorizing delivery of incomplete text.
         scheduleTimeout(seconds: 8, token: session) { [weak self] in
             guard let self = self else { return }

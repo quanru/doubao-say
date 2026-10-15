@@ -71,6 +71,27 @@ struct AutoSaveCheck {
         let defaults = UserDefaults(suiteName: suite)!
         defer { defaults.removePersistentDomain(forName: suite) }
         let store = SettingsStore(defaults: defaults)
+        // A replacement app loads the same persisted settings with fresh in-memory checks.
+        precondition(SettingsModel(state: AppState(), initialSettings: store.value).selectedTab == "setup")
+        var completed = store.value; completed.onboardingComplete = true
+        try! store.save(completed)
+        let restored = SettingsStore(defaults: defaults)
+        let upgradeState = AppState()
+        let upgraded = SettingsModel(state: upgradeState, initialSettings: restored.value)
+        precondition(upgraded.selectedTab == "general" && !upgraded.showsSetupWizard,
+                     "Restarting or upgrading must not reopen completed onboarding")
+        precondition(!upgradeState.microphoneChecked && !upgradeState.voiceChecked,
+                     "Saved onboarding must not fabricate live device checks")
+        upgraded.draft.microphoneID = "new-device"
+        precondition(!upgraded.showsSetupWizard && upgraded.draft.onboardingComplete,
+                     "Device changes must not reset completed onboarding")
+        upgraded.repeatSetup()
+        precondition(upgraded.showsSetupWizard && upgraded.setupStep == 0 && upgraded.draft.onboardingComplete,
+                     "Explicit rechecks must not erase saved completion")
+        let reopened = SettingsModel(state: AppState(), initialSettings: restored.value)
+        precondition(!reopened.showsSetupWizard, "Abandoning an optional recheck must not reset onboarding")
+        try! store.save(MacSettings())
+        print("PASS: persisted onboarding survives app replacement and fresh runtime checks; explicit rechecks stay optional")
         deviceModel.apply = { settings, _, _ in try store.save(settings) }
         precondition(deviceModel.selectMicrophone(builtIn.id) && store.value.microphoneID == builtIn.id)
         precondition(deviceModel.selectMicrophone("") && store.value.microphoneID.isEmpty)

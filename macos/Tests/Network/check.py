@@ -42,6 +42,8 @@ class Handler(http.server.BaseHTTPRequestHandler):
                 else:
                     assert 'User-confirmed' not in prompt
             requests.append(sample)
+            if sample == 'overlap':
+                time.sleep(0.3)
             if sample == 'slow':
                 time.sleep(6)
             if sample == 'error':
@@ -81,7 +83,8 @@ try:
     result = subprocess.run([sys.argv[1], f'http://127.0.0.1:{server.server_port}/v1'], timeout=28)
     if errors:
         raise SystemExit('FAIL: fixture ' + repr(errors))
-    assert requests.count('success') == 3, requests
+    assert requests.count('success') == 4, requests
+    assert requests.count('overlap') == 1, requests
     raise SystemExit(result.returncode)
 finally:
     server.shutdown()

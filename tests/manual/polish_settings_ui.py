@@ -9,7 +9,7 @@ gi.require_version("Gtk", "4.0")
 from gi.repository import GLib, Gtk
 from PIL import ImageGrab
 
-from doubao_input.i18n import set_language
+from doubao_input.i18n import set_language, tr
 from doubao_input.ui.polish_settings import PolishSettings
 from tests.e2e.gtk_onboarding_fixture import build_onboarding_fixture
 
@@ -37,7 +37,7 @@ set_language(os.environ.get("POLISH_UI_LANGUAGE", "en"))
 cleanup = build_onboarding_fixture("trigger-settings")
 try:
     window = next(window for window in Gtk.Window.get_toplevels()
-                  if window.get_title() == "Doubao Say")
+                  if window.get_title() == tr("Doubao Say", "豆包说"))
     window.set_default_size(1000, 740)
     drain()
     polish = next(widget for widget in widgets(window) if isinstance(widget, PolishSettings))

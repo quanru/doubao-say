@@ -124,7 +124,23 @@ struct SettingsView: View {
         }.formStyle(.grouped).padding(8)
     }
     private var setupTitles: [String] { [L("Recognition", "识别服务"), L("Microphone", "麦克风"), L("Shortcut", "快捷键"), L("Voice test", "语音试说")] }
-    private var setup: some View {
+    @ViewBuilder private var setup: some View {
+        if model.showsSetupWizard {
+            setupWizard
+        } else {
+            VStack(alignment: .leading, spacing: 16) {
+                Label(L("Setup complete", "使用准备已完成"), systemImage: "checkmark.circle.fill")
+                    .font(.headline).foregroundColor(.green)
+                Text(L("You have already completed setup. Your settings are kept when the app is restarted or updated.", "你已完成使用准备。重启或更新应用后，已有设置会保留。"))
+                Button(L("Open general settings", "打开通用设置")) { model.selectedTab = "general" }
+                    .buttonStyle(.borderedProminent)
+                Button(L("Run setup again", "重新检查使用准备")) { model.repeatSetup() }
+                    .disabled(model.setupBusy)
+                Spacer()
+            }.padding(24)
+        }
+    }
+    private var setupWizard: some View {
         VStack(alignment: .leading, spacing: 16) {
             HStack(spacing: 12) {
                 ForEach(0..<4) { index in

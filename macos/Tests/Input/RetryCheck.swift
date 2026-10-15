@@ -55,6 +55,7 @@ final class HotkeyManager {
     var onPreview: ((String, Bool) -> Void)?; var onProgress: ((String) -> Void)?
     func begin(settings: MacSettings, key: String) {}
     func update(text: String, speaking: Bool) {}
+    func prepareFinal(text: String) {}
     func useOriginal() {}
     func cancel() {}
     func finish(text: String, completion: @escaping (String, Bool) -> Void) { completion(text, false) }
