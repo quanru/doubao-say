@@ -1,6 +1,8 @@
-# Midscene E2E by Linux distribution
+# Midscene desktop E2E
 
-GitHub Actions exposes two distribution-named suites: `Ubuntu 22.04` and
+The native macOS suite is documented in [macOS Midscene settings E2E](../../macos/Tests/Midscene/README.md). Run it with `npm run test:macos -- --project macos-settings`; it uses a separate config and isolated native fixture, not the Linux desktop setup.
+
+GitHub Actions exposes two Linux distribution-named suites: `Ubuntu 22.04` and
 `Omarchy 4.0.3`. The Omarchy suite also checks the real desktop shell visually.
 
 > **Scheduling (2026-09).** The Volcengine Ark endpoint behind

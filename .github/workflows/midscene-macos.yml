@@ -1,0 +1,51 @@
+name: macOS Midscene E2E
+# Opt-in until desktop permissions and model quota are provisioned on the runner.
+on:
+  workflow_dispatch:
+permissions:
+  contents: read
+concurrency:
+  group: midscene-model-e2e
+  cancel-in-progress: false
+jobs:
+  macos-e2e:
+    runs-on: macos-latest
+    timeout-minutes: 40
+    env:
+      MIDSCENE_MODEL_API_KEY: ${{ secrets.MIDSCENE_MODEL_API_KEY }}
+      MIDSCENE_MODEL_NAME: ${{ secrets.MIDSCENE_MODEL_NAME }}
+      MIDSCENE_MODEL_BASE_URL: ${{ secrets.MIDSCENE_MODEL_BASE_URL }}
+      MIDSCENE_MODEL_FAMILY: ${{ secrets.MIDSCENE_MODEL_FAMILY }}
+      MIDSCENE_MODEL_REASONING_ENABLED: ${{ secrets.MIDSCENE_MODEL_REASONING_ENABLED }}
+      MIDSCENE_MODEL_RETRY_COUNT: "2"
+      MIDSCENE_MODEL_RETRY_INTERVAL: "65000"
+    steps:
+      - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
+        with:
+          persist-credentials: false
+      - uses: actions/setup-node@249970729cb0ef3589644e2896645e5dc5ba9c38 # v6.5.0
+        with:
+          node-version: "22"
+          cache: npm
+          cache-dependency-path: tests/e2e/package-lock.json
+      - name: Install locked Midscene dependencies
+        working-directory: tests/e2e
+        run: |
+          npm ci --include=optional --ignore-scripts
+          npm rebuild node-mac-permissions
+      - name: Typecheck desktop suites
+        working-directory: tests/e2e
+        run: npm run typecheck
+      - name: Build isolated native fixture
+        run: bash macos/Tests/Midscene/build.sh
+      - name: Run native visual interactions
+        working-directory: tests/e2e
+        run: npm run test:macos -- --project macos-settings
+      - name: Preserve visual reports (including failures)
+        if: always()
+        uses: actions/upload-artifact@043fb46d1a93c77aae656e7c1c64a875d1fc6a0a # v7.0.1
+        with:
+          name: macos-midscene-report
+          path: tests/e2e/midscene_run/
+          if-no-files-found: warn
+          retention-days: 7

@@ -27,6 +27,8 @@ jobs:
         run: bash macos/Tests/Settings/build-sidebar-focus.sh
       - name: Build opt-in personal learning UI probe
         run: bash macos/Tests/Settings/build-personal-ui.sh
+      - name: Build isolated Midscene fixture
+        run: bash macos/Tests/Midscene/build.sh
       - name: Archive preview (development signing only)
         run: |
           ditto -c -k --sequesterRsrc --keepParent "build/macos/$(uname -m)/Doubao Say.app" build/Doubao-Say-macos-preview.zip
