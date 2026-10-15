@@ -79,3 +79,21 @@ all eight Linux archives, official asset URLs and matching checksum entries. It
 omits release body, uploader/account fields and credentials. Verify the public
 `releases/latest/download/update.json` URL and both update-source paths. Older
 clients that cannot reach the API need one manual DMG upgrade to get this fallback.
+
+## Local Mac development signing
+
+Pin a certificate for local builds so successive app replacements keep a stable
+code-signing identity for macOS permission checks:
+
+```sh
+security find-identity -v -p codesigning
+git config --local doubao.codesignIdentity '<certificate SHA-1>'
+bash macos/build.sh
+```
+
+The setting stays in this checkout's local Git configuration. An explicit
+`DOUBAO_CODESIGN_IDENTITY` overrides it. Local builds fail without a configured
+identity instead of silently falling back to ad-hoc signing. CI previews still
+use ad-hoc signing; `DOUBAO_CODESIGN_IDENTITY=-` explicitly requests a disposable
+local preview. Changing from ad-hoc to certificate signing may require one more
+permission grant. Release DMGs still require Developer ID signing and notarization.
