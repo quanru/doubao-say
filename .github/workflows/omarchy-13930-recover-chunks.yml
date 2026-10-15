@@ -1,0 +1,43 @@
+name: Omarchy 13930 recover existing green evidence chunks
+on:
+  push:
+    branches: [acceptance/omarchy-13930-8997958d]
+    paths: ['acceptance/omarchy-13930/ci/.recover-chunks']
+permissions:
+  actions: read
+  contents: read
+jobs:
+  manifest:
+    runs-on: ubuntu-24.04
+    timeout-minutes: 5
+    outputs:
+      chunks: ${{ steps.read.outputs.chunks }}
+    steps:
+      - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1
+        with:
+          persist-credentials: false
+      - id: read
+        env:
+          GH_TOKEN: ${{ github.token }}
+        run: |
+          gh api --allow-escape-sequences repos/quanru/doubao-say/actions/jobs/116468073940/logs > /tmp/pr13930-existing.log
+          python3 acceptance/omarchy-13930/ci/recover-chunks.py
+  chunk:
+    needs: manifest
+    runs-on: ubuntu-24.04
+    timeout-minutes: 5
+    strategy:
+      max-parallel: 4
+      matrix:
+        index: ${{ fromJSON(needs.manifest.outputs.chunks) }}
+    steps:
+      - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1
+        with:
+          persist-credentials: false
+      - name: Emit one verified bounded chunk from original evidence
+        env:
+          GH_TOKEN: ${{ github.token }}
+          CHUNK_INDEX: ${{ matrix.index }}
+        run: |
+          gh api --allow-escape-sequences repos/quanru/doubao-say/actions/jobs/116468073940/logs > /tmp/pr13930-existing.log
+          python3 acceptance/omarchy-13930/ci/recover-chunks.py "$CHUNK_INDEX"
