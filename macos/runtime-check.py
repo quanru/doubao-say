@@ -20,6 +20,8 @@ for language in ['en', 'zh']:
     cases = [('overlay', '--smoke-test', '')]
     if '--launch-settings' in sys.argv[3:]:
         cases = [(f'launch-{status}', '--settings-smoke-test', 'general') for status in ['available', 'latest']]
+    if '--saved-setup' in sys.argv[3:]:
+        cases = [('saved-setup', '--settings-smoke-test', 'setup')]
     if '--setup-completion' in sys.argv[3:]:
         cases = [(f'setup-{status}-{theme}', '--settings-smoke-test', 'setup')
                  for status in ['complete', 'pending'] for theme in ['light', 'dark']]
@@ -35,6 +37,8 @@ for language in ['en', 'zh']:
         cases += [(f'settings-{tab}', '--settings-smoke-test', tab) for tab in ['setup', 'recognition', 'polishing', 'shortcuts', 'general', 'result']]
     for label, argument, tab in cases:
         env = dict(os.environ, DOUBAO_SMOKE_IMAGE=str(output / f'{label}-{language}.png'), DOUBAO_SMOKE_TAB=tab)
+        if label == 'saved-setup':
+            env['DOUBAO_SMOKE_ONBOARDING_SAVED'] = '1'
         if label == 'input-failure':
             env['DOUBAO_SMOKE_INPUT_FAILURE'] = '1'
         if label == 'microphone-menu':
