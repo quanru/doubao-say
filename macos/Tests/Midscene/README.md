@@ -54,7 +54,7 @@ preferences and application-support directory. A `.running` directory beside
 the fixture prevents concurrent use of the same profile. After a hard process
 kill, verify that its fixture is no longer running before removing that lock.
 
-Cases run serially, without retries, with a six-minute case limit and an
+Cases run serially, without retries, with a six-minute step limit and an
 eight-minute fixture watchdog. Failures retain their native HTML reports under
 `tests/e2e/midscene_run/report/`; `--result-dir` selects a unique summary output
 directory. Preserve the report HTML with the summary before another run.
