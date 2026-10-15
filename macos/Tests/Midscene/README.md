@@ -66,7 +66,18 @@ this must not be reported as visual success.
 The normal macOS preview workflow compiles the fixture. The separate
 `macOS Midscene E2E` workflow runs for relevant pull requests from this repository
 and supports manual dispatch after it reaches the default branch. It uses the
-existing `MIDSCENE_MODEL_*` Actions secrets; fork pull requests are skipped. It uploads reports on success and failure,
+`Model` environment, with repository secrets as the fallback. The API key is
+a secret; model name, base URL, family and reasoning settings prefer Actions
+variables over secrets. Only model verification and case execution receive
+these credentials. Fork pull requests are skipped. It runs the native
+`midscene-test model verify` compatibility check before building the fixture.
+
+The workflow uses Node 24 and locked Midscene 1.15.4 dependencies. Like Rome,
+it appends the native `.midscene/test-results/*/result.md` to the Actions
+Summary, removes the artifact-local report link, and adds an artifact download
+link. If setup fails before a result exists, the Summary says so explicitly.
+Both `midscene_run/` and `.midscene/` are uploaded on success and failure
+with hidden files included and a 14-day retention,
 without publishing desktop captures to Pages. Its own concurrency group prevents Linux workflow events from cancelling a
 pending Mac run. Cases stay serial; model credentials may still share provider
 quota with Linux suites.
@@ -76,7 +87,7 @@ GitHub-hosted macOS runner permission availability must be verified before this
 workflow becomes a required PR check. It fails explicitly when unavailable and
 does not modify TCC databases or bypass permission checks.
 
-On Node 22 the CI preloads `node-mac-permissions` before the TypeScript config
+The CI preloads `node-mac-permissions` before the TypeScript config
 loader; this avoids a native-binding lookup failure caused by tsx namespaced
 module URLs. The runner also checks AppKit screen enumeration and native capture.
 When screenshot-desktop reports no displays despite the hosted virtual desktop,
