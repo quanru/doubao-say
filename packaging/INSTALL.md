@@ -90,6 +90,9 @@ Complete any required logout/login and the application's four-step onboarding be
 enabling the plugin. Do not create a virtual environment inside an installed plugin:
 Omarchy rejects symlinks and watches its tree for changes. Git installs use OS packages;
 offline bundles provide their own wheels/runtime. Their dependency versions can differ.
+Source installs also require `python-sounddevice`, `python-websockets`,
+`python-evdev`, `python-pyjwt` and `python-cryptography`; both `install.sh` and
+`setup-omarchy.sh` install these before checking the runtime.
 
 For updates, stop recording and disable the plugin first. Review the changes offered by
 `omarchy plugin update md.lifeos.doubao-say`, rerun setup if requirements

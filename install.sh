@@ -69,7 +69,7 @@ if [[ -z ${DISPLAY:-} || -n ${WAYLAND_DISPLAY:-} || ${XDG_SESSION_TYPE:-} == way
   packages+=(gtk4-layer-shell wl-clipboard)
 fi
 if ! $BUNDLE; then
-  packages+=(python-sounddevice python-websockets python-evdev)
+  packages+=(python-sounddevice python-websockets python-evdev python-pyjwt python-cryptography)
 fi
 missing=()
 for package in "${packages[@]}"; do
