@@ -6,12 +6,13 @@ bundle ID, synthetic account/transcript/history data, and no production app
 controller. It does not start recognition, global shortcuts, an updater, or
 OAuth. Settings and SQLite data are isolated from the installed application.
 
-Four YAML cases cover:
+Five YAML cases cover:
 
 - Setup step navigation, signed-in presentation and the sidebar focus outline.
 - Shortcut settings autosave and preservation across page navigation.
 - Recent-text first-line padding, editing and clearing.
-- Vocabulary autosave, correction preview, explicit confirmation and memory.
+- Vocabulary autosave across page navigation.
+- Correction preview, explicit confirmation and memory.
 
 This is native UI integration coverage, not live speech recognition, microphone
 hot-plug, input delivery into other applications, or installer acceptance.

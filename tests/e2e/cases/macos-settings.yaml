@@ -26,7 +26,7 @@ cases:
       - aiAct: Click Clear below the recent text editor.
       - aiAssert: The recent text editor is empty.
 
-  - name: macOS vocabulary autosave and explicit correction memory
+  - name: macOS vocabulary autosave across navigation
     steps:
       - aiAct: Open Personal vocabulary from the left sidebar. Replace the vocabulary editor contents with Midscene and NativeTestWord on separate lines.
       - aiWaitFor:
@@ -34,6 +34,8 @@ cases:
           options: { timeoutMs: 10000 }
       - aiAct: Open Input history, then return to Personal vocabulary.
       - aiAssert: The vocabulary editor still contains Midscene and NativeTestWord on separate lines.
+  - name: macOS explicit correction preview and memory
+    steps:
       - aiAct: Open Input history and click Correct & remember on the synthetic Use Midjourney for UI tests. entry. Fill Misrecognized word or phrase with Midjourney and Correct spelling with Midscene. Do not confirm yet.
       - aiAssert: The correction dialog previews Use Midscene for UI tests. and has Confirm & remember and Cancel buttons.
       - aiAct: Click Confirm & remember in the correction dialog.
