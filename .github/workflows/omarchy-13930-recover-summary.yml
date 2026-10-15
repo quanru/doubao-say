@@ -1,0 +1,22 @@
+name: Omarchy 13930 bounded existing evidence summary
+on:
+  push:
+    branches: [acceptance/omarchy-13930-8997958d]
+    paths: ['acceptance/omarchy-13930/ci/.recover-summary']
+permissions:
+  actions: read
+  contents: read
+jobs:
+  recover:
+    runs-on: ubuntu-24.04
+    timeout-minutes: 5
+    steps:
+      - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1
+        with:
+          persist-credentials: false
+      - name: Read existing job and extract bounded diagnostic files only
+        env:
+          GH_TOKEN: ${{ github.token }}
+        run: |
+          gh api --allow-escape-sequences repos/quanru/doubao-say/actions/jobs/116378369948/logs > /tmp/pr13930-existing.log
+          python3 acceptance/omarchy-13930/ci/recover-summary.py
