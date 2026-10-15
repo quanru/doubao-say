@@ -43,6 +43,9 @@ run('codesign', '--verify', '--strict', str(app))
 signature = subprocess.run(['codesign', '-d', '--verbose=4', str(app)], capture_output=True, text=True, check=True).stderr
 if 'Developer ID Application:' not in signature or 'runtime' not in signature:
     raise RuntimeError('Build with DOUBAO_CODESIGN_IDENTITY and hardened runtime first')
+expected_team = os.environ.get('DOUBAO_EXPECTED_TEAM_ID')
+if expected_team and f'TeamIdentifier={expected_team}' not in signature.splitlines():
+    raise RuntimeError('Preview signing team does not match the configured release team')
 archive = Path('build/macos/Doubao-Say-notarization.zip').resolve()
 run('ditto', '-c', '-k', '--keepParent', str(app), str(archive))
 # Apple accepts ZIP submissions; the ticket is stapled to the contained application.
@@ -60,7 +63,7 @@ if not shortcut.is_symlink():
     os.symlink('/Applications', shortcut)
 commit = subprocess.check_output(['git', 'rev-parse', '--short', 'HEAD'], text=True).strip()
 dmg = Path(f'build/macos/Doubao-Say-{version}-macos-{args.arch}-{commit}.dmg').resolve()
-run(str(Path.home() / '.local/bin/dev-gate'), 'run', '--label', 'doubao-dmg-image', '--', 'hdiutil', 'create', '-volname', 'Doubao Say', '-srcfolder', str(stage), '-fs', 'HFS+', '-format', 'UDZO', '-ov', str(dmg))
+run('hdiutil', 'create', '-volname', 'Doubao Say', '-srcfolder', str(stage), '-fs', 'HFS+', '-format', 'UDZO', '-ov', str(dmg))
 run('codesign', '--sign', args.identity, '--timestamp', str(dmg))
 notarize(dmg)
 run('spctl', '--assess', '--type', 'open', '--context', 'context:primary-signature', '--verbose=2', str(dmg))
