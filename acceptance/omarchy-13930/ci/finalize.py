@@ -31,10 +31,13 @@ if state.exists():
     except ProcessLookupError:pass
 source=pathlib.Path('work/ui/midscene_run/report')
 if source.exists(): shutil.copytree(source,R/'midscene',dirs_exist_ok=True)
-required=['steps.json','coverage.json','guest/restored-hashes.json','versions/restored-permissions.txt']
+restore_ok=state.exists() and not failed
+required=['steps.json','coverage.json','guest/restored-hashes.json','versions/restored-permissions.txt','guest/input-cleanup.json','qmp-horizontal-actual-events.json']
 missing=[x for x in required if not (R/x).is_file()]
 htmls=list((R/'midscene').glob('**/*.html')) if (R/'midscene').exists() else []
 if missing or not htmls:failed=True
-(R/'completion.json').write_text(json.dumps({'missing':missing,'raw_midscene_html_count':len(htmls),'automated_suite_complete':not failed,'independent_visual_review':'PENDING','fine_touchpad':'NOT_COVERED','horizontal_guest_delivery':'NOT_VERIFIED','models':0},indent=2))
+coverage=json.loads((R/'coverage.json').read_text()) if (R/'coverage.json').exists() else {}
+if not coverage.get('complete'):failed=True
+(R/'completion.json').write_text(json.dumps({'restoration_succeeded':restore_ok,'missing':missing,'raw_midscene_html_count':len(htmls),'automated_suite_complete':not failed,'independent_visual_review':'PENDING','fine_touchpad':'NOT_COVERED','horizontal_guest_delivery':coverage.get('horizontal','NOT_VERIFIED'),'models':0},indent=2))
 (R/'SHA256SUMS').write_text(''.join(hashlib.sha256(p.read_bytes()).hexdigest()+'  '+str(p.relative_to(R))+'\n' for p in sorted(R.rglob('*')) if p.is_file() and p.name!='SHA256SUMS'))
 raise SystemExit(1 if failed else 0)

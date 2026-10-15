@@ -1,4 +1,4 @@
-import sys, subprocess, pathlib, json, time, hashlib, shutil, base64
+import sys, subprocess, pathlib, json, time, hashlib, shutil, base64, socket
 R = pathlib.Path('/tmp/pr13930'); E = R/'evidence'
 D = pathlib.Path('/usr/share/omarchy/shell/Ui/Dropdown.qml')
 G = pathlib.Path('/usr/share/omarchy/shell/plugins/dev-gallery/GalleryPanel.qml')
@@ -57,14 +57,22 @@ elif cmd=='mode':
     mode=sys.argv[2]; assert mode in ['baseline','candidate']
     stop(); shutil.copy(R/(mode+'.qml'),D)
     assert digest(D)==digest(R/(mode+'.qml'))
-    save(mode+'-source',{'installed_dropdown_sha256':digest(D),'gallery_sha256':digest(G)})
-    (R/'mode').write_text(mode); launch(mode)
+    tag=sys.argv[3] if len(sys.argv)>3 else mode;assert tag.replace('-','').isalnum()
+    save(tag+'-source',{'installed_dropdown_sha256':digest(D),'gallery_sha256':digest(G)})
+    (R/'mode').write_text(tag); launch(tag)
 elif cmd=='state':
     mode=(R/'mode').read_text(); lines=(E/(mode+'.log')).read_text(errors='replace').splitlines()
     for line in reversed(lines):
         if 'PR13930_STATE ' in line:
             data=json.loads(line.split('PR13930_STATE ',1)[1]); assert abs(time.time()*1000-data['time'])<3000,'stale observation';print(json.dumps(data));break
     else: raise RuntimeError('No actual gallery observation')
+elif cmd=='probe':
+    request={'cmd':sys.argv[2]}
+    if len(sys.argv)>3:request['value']=int(sys.argv[3])
+    client=socket.socket(socket.AF_UNIX);client.settimeout(10);client.connect(str(R/'input-probe.sock'))
+    client.sendall(json.dumps(request).encode());data=b''
+    while chunk:=client.recv(65536):data+=chunk
+    obj=json.loads(data);assert 'error' not in obj,obj;print(json.dumps(obj))
 elif cmd=='geometry':
     clients=json.loads(run('hyprctl','-j','clients'))
     matches=[c for c in clients if c.get('title')=='Omarchy shell – dev gallery' and c.get('mapped')]
@@ -90,6 +98,17 @@ elif cmd=='screenshot':
     name=sys.argv[2]; assert name.replace('-','').isalnum()
     run('grim',str(E/(name+'.png')))
 elif cmd=='restore':
+    if (R/'input-probe.sock').exists():
+        client=socket.socket(socket.AF_UNIX);client.settimeout(5);client.connect(str(R/'input-probe.sock'));client.sendall(b'{"cmd":"stop"}');client.recv(4096);client.close()
+        for _ in range(50):
+            if not (R/'input-probe.sock').exists():break
+            time.sleep(.1)
+        assert not (R/'input-probe.sock').exists(),'Input probe leaked'
+    for _ in range(50):
+        if not any('Omarchy13930' in p.read_text(errors='replace') for p in pathlib.Path('/sys/class/input').glob('event*/device/name')):break
+        time.sleep(.1)
+    save('input-cleanup',{'socket_removed':not (R/'input-probe.sock').exists(),'test_device_present':any('Omarchy13930' in p.read_text(errors='replace') for p in pathlib.Path('/sys/class/input').glob('event*/device/name'))})
+    assert not json.loads((E/'input-cleanup.json').read_text())['test_device_present']
     stop(); shutil.copy(R/'candidate.qml',D);shutil.copy(R/'gallery.qml',G)
     result={'dropdown':digest(D),'gallery':digest(G)}
     assert result==json.loads((E/'original-hashes.json').read_text())

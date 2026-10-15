@@ -36,6 +36,8 @@ jobs:
         run: bash ci/build-midscene.sh
       - name: Install existing locked host input dependency
         run: npm --prefix ci ci --ignore-scripts
+      - name: Start bounded guest evdev and uinput probe
+        run: python3 ci/start-input-probe.py
       - name: Compare baseline and head through real gallery inputs
         timeout-minutes: 15
         run: bash ci/run-ui.sh
