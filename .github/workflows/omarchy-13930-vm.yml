@@ -1,0 +1,44 @@
+name: Omarchy 13930 real gallery VM acceptance
+on:
+  push:
+    branches: [acceptance/omarchy-13930-8997958d]
+    paths: ['acceptance/omarchy-13930/ci/.run-vm']
+permissions:
+  contents: read
+concurrency:
+  group: omarchy-13930-real-gallery-vm
+  cancel-in-progress: false
+jobs:
+  acceptance:
+    if: github.repository == 'quanru/doubao-say' && github.event.repository.private == false
+    runs-on: ubuntu-24.04
+    timeout-minutes: 150
+    defaults:
+      run:
+        working-directory: acceptance/omarchy-13930
+    env:
+      ACCEPTANCE_DISPOSABLE_CI: '1'
+      BUILDER_IMAGE: ghcr.io/archlinux/archlinux@sha256:86092797e32aa19d3f45a831b2873cf557c21c5280e9d197ca7a43c8ea79bcd3
+    steps:
+      - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1
+        with:
+          persist-credentials: false
+      - uses: actions/setup-node@249970729cb0ef3589644e2896645e5dc5ba9c38
+        with:
+          node-version: '22'
+          package-manager-cache: false
+      - name: Build pinned ISO and boot disposable real desktop
+        run: bash ci/prepare-runner.sh
+      - name: Build pinned Midscene without inference configuration
+        run: bash ci/build-midscene.sh
+      - name: Install existing locked host input dependency
+        run: npm --prefix ci ci --ignore-scripts
+      - name: Compare baseline and head through real gallery inputs
+        timeout-minutes: 15
+        run: bash ci/run-ui.sh
+      - name: Restore configuration and retain all failure evidence
+        if: always()
+        run: python3 ci/finalize.py
+      - name: Export sanitized original evidence in CI log
+        if: always()
+        run: python3 ci/export-evidence-log.py

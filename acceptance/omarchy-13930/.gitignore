@@ -1,0 +1,4 @@
+work/
+review-artifacts/
+ci/node_modules/
+__pycache__/

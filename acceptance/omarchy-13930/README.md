@@ -1,7 +1,8 @@
 # PR 13930 isolated acceptance checkpoint
 
-Status: blocked before desktop execution. The prerequisite workflow is not an
-acceptance workflow and its success must never be reported as desktop CI passing.
+Status: real VM workflow implemented and launched independently. Results and
+independent image review are pending. The prerequisite workflow remains separate
+and its success must never be reported as desktop CI passing.
 
 Pinned baseline and candidate are in `pins.json`. The production diff is exactly
 32 added lines in `shell/Ui/Dropdown.qml`. Do not modify production to pass tests.
@@ -35,3 +36,11 @@ steps or PR15184-specific guest setup. The current environment lacks QEMU/KVM an
 its GitHub API calls return 403, including the attempt outside the default sandbox.
 
 QMP reference: https://www.qemu.org/docs/master/interop/qemu-qmp-ref.html
+
+The real workflow is `.github/workflows/omarchy-13930-vm.yml`, triggered only by
+`ci/.run-vm`. It reuses the existing pinned ISO builder and locked dependencies,
+uses no model configuration, and exports `PR13930_EVIDENCE_*` log records. A
+read-only gallery Timer observes actual values and geometry; production Dropdown
+bytes are checked against the pinned head and swapped only for the exact baseline.
+The built-in unmatched initial value is `Clock`, so no setup value patch is needed.
+Horizontal injection is diagnostic until guest delivery is independently verified.
