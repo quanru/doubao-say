@@ -45,6 +45,9 @@ jobs:
         run: bash macos/Tests/Midscene/build.sh
       - name: Run native visual interactions
         working-directory: tests/e2e
+        env:
+          # Load the native binding before Midscene's tsx config loader (Node 22).
+          NODE_OPTIONS: --require=node-mac-permissions
         run: npm run test:macos -- --project macos-settings
       - name: Preserve visual reports (including failures)
         if: always()
