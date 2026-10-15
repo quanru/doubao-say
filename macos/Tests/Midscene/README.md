@@ -74,3 +74,12 @@ The visual job requires a logged-in, capturable desktop with input permission;
 GitHub-hosted macOS runner permission availability must be verified before this
 workflow becomes a required PR check. It fails explicitly when unavailable and
 does not modify TCC databases or bypass permission checks.
+
+On Node 22 the CI preloads `node-mac-permissions` before the TypeScript config
+loader; this avoids a native-binding lookup failure caused by tsx namespaced
+module URLs. The runner also checks AppKit screen enumeration and native capture.
+When screenshot-desktop reports no displays despite the hosted virtual desktop,
+`MacComputerDevice` falls back to `/usr/sbin/screencapture` for the actual primary
+display. Explicit display selection retains the standard device path. Permission
+checks, pointer health checks and image assertions remain enabled; capture
+failures remain failures, and temporary PNG files are removed after each capture.

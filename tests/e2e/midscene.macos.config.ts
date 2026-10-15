@@ -2,9 +2,10 @@ import { spawn, execFileSync, type ChildProcess } from 'node:child_process';
 import { mkdir, rm } from 'node:fs/promises';
 import { homedir } from 'node:os';
 import { resolve } from 'node:path';
-import { agentForComputer, ComputerAgent, checkAccessibilityPermission, checkScreenRecordingPermission } from '@midscene/computer';
+import { ComputerAgent, checkAccessibilityPermission, checkScreenRecordingPermission } from '@midscene/computer';
 import { defineProjectSetup, defineTestProject } from '@midscene/test/config';
 import { createMidsceneNodes } from '@midscene/test/midscene';
+import { MacComputerDevice } from './macos-device';
 
 interface MacContext {
   start: () => Promise<ComputerAgent>;
@@ -80,15 +81,23 @@ const setup = defineProjectSetup<MacContext>({
           child.stdout?.on('data', capture); child.stderr?.on('data', capture);
           child.once('error', failed); child.once('exit', failed);
         });
-        agent = await agentForComputer({
+        const options = {
           headless: false,
           displayId: process.env.MIDSCENE_MACOS_DISPLAY_ID,
           aiContexts: {
             aiAct: 'Interact only with the foreground Doubao Say settings fixture. Never open other apps, sign in, record audio, test services, copy text, or change system settings. All account and transcript data is synthetic.',
             aiAssert: 'Judge the visible native Doubao Say settings window only. Do not infer UI success from fixture setup.',
           },
-        });
-        return agent;
+        };
+        const device = new MacComputerDevice(options);
+        try {
+          await device.connect();
+          agent = new ComputerAgent(device, options);
+          return agent;
+        } catch (error) {
+          await device.destroy();
+          throw error;
+        }
       },
     };
   },
@@ -111,7 +120,7 @@ export default defineTestProject<MacContext>({
         },
         async releaseAgent(runId: string) {
           const entry = active.get(runId);
-          if (!entry) throw new Error(`Missing macOS case ${runId}`);
+          if (!entry) return; // Acquisition failures still run project cleanup.
           active.delete(runId);
           await entry.context.stop();
           if (!entry.agent.reportFile) throw new Error('Missing native visual report');
