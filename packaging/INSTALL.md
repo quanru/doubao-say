@@ -1,4 +1,4 @@
-# Doubao Say 1.8.0
+# Doubao Say 1.8.1
 
 [Website](https://doubao-say.lifeos.md/) · [简体中文安装指南](https://doubao-say.lifeos.md/zh/guide/install)
 

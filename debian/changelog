@@ -1,3 +1,10 @@
+doubao-say (1.8.1-1) noble; urgency=medium
+
+  * Fix Arch source dependencies and simplify polishing settings.
+  * Improve macOS dictation latency and restore completed onboarding.
+
+ -- quanru <quanruzhuoxiu@gmail.com>  Thu, 15 Oct 2026 19:00:00 +0800
+
 doubao-say (1.8.0-1) noble; urgency=medium
 
   * Add ChatGPT polishing and its JWT verification dependencies.
