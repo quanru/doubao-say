@@ -47,13 +47,15 @@ async function cancel(v){
  guest('open');let staging;
  for(let i=0;i<100;i++){const s=status();if(writers(s).length===4&&!readers(s).length){staging=s;break;}await sleep(100);}
  if(!staging)throw Error(v+': staging cancellation not observed');
- await sleep(1300);staging=snap(v+'-cancel-before');if(writers(staging).length!==4||readers(staging).length)throw Error(v+': staging ended before close');
- await capture(v+'-cancel-staging','Genuine staging writers and temporary files before QMP Escape.');
- const old=staging.processes.map(p=>[p.pid,p.start_ticks].join(':'));key('esc');await sleep(500);
+ const ready=JSON.parse(guest('cancel-ready',v));
+ const old=ready.old.map(p=>p.join(':'));key('esc');await sleep(500);
  let end;const cleanup=[];
  for(let i=0;i<40;i++){end=status();cleanup.push(end);if(!end.processes.length&&!end.temporary_files.length)break;await sleep(100);}
  writeFileSync(resolve(out,v+'-cancel-trace.json'),JSON.stringify({old,cleanup},null,2));
- snap(v+'-cancel-after');await capture(v+'-cancel-closed','Panel closed; process and temporary-file cleanup are independently checked.');
+ snap(v+'-cancel-after');
+ const content='Real guest tmpfs screenshot immediately before QMP Escape; report import occurs after cleanup observation. Process brackets and remaining staging bytes are in guest/'+v+'-cancel-input-proof.json. '+JSON.stringify(ready);
+ await agent.recordToReport(v+'-cancel-staging',{content,screenshotBase64:'data:image/png;base64,'+guest('cancel-image',v)});events.push({id:v+'-cancel-staging',content,ready});
+ await capture(v+'-cancel-closed','Panel closed; process and temporary-file cleanup are independently checked.');
  if(end.processes.length||end.temporary_files.length)throw Error(v+': background process or temporary-file leak after closing');
  results.push({case:v+'-cancel',status:'PROCESS_AND_FILE_CLEANUP_CONFIRMED',old});
  await full(v+'-reopen');

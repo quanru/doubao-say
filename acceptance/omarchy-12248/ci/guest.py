@@ -72,6 +72,25 @@ elif c=='snapshot':
  (R/'case-label').write_text(sys.argv[2]);config.capture(sys.argv[2]);print(json.dumps(save(sys.argv[2],snap())))
 elif c=='status':print(json.dumps(snap()))
 elif c=='screenshot':run('grim',str(E/(sys.argv[2]+'.png')))
+elif c=='cancel-ready':
+ label=sys.argv[2];assert label in ['baseline','head']
+ def staging_snapshot():
+  x=snap();dd=[p for p in x['processes'] if p['cmd'].startswith('dd ')]
+  assert len(dd)==4 and all('oflag=direct' in p['cmd'] for p in dd),'Cancel point is not staging'
+  remaining=sum(max(0,256*1024*1024-f['size']) for f in x['temporary_files'] if f['path'].endswith('.dat'))
+  assert remaining>=128*1024*1024,'Insufficient genuine staging work remaining for unambiguous cancellation'
+  return x,remaining
+ before,_=staging_snapshot();path=pathlib.Path('/dev/shm')/('pr12248-cancel-'+label+'.png');start=time.monotonic_ns();run('grim',str(path));finish=time.monotonic_ns()
+ after,remaining=staging_snapshot()
+ d={'before':before,'after':after,'capture_start_ns':start,'capture_end_ns':finish,'remaining_staging_bytes':remaining,'sha256':hashlib.sha256(path.read_bytes()).hexdigest()}
+ (path.with_suffix('.json')).write_text(json.dumps(d,indent=2))
+ print(json.dumps({'capture_start_ns':start,'capture_end_ns':finish,'remaining_staging_bytes':remaining,'old':[[p['pid'],p['start_ticks']] for p in after['processes']]}))
+elif c=='cancel-image':
+ import base64
+ label=sys.argv[2];assert label in ['baseline','head'];p=pathlib.Path('/dev/shm')/('pr12248-cancel-'+label+'.png')
+ shutil.copy2(p,E/(label+'-cancel-staging.png'));shutil.copy2(p.with_suffix('.json'),E/(label+'-cancel-input-proof.json'))
+ proof=json.loads(p.with_suffix('.json').read_text());save(label+'-cancel-before',proof['after'])
+ print(base64.b64encode(p.read_bytes()).decode())
 elif c=='observe-start':
  label=sys.argv[2];assert label in ['baseline','baseline-reopen','head','head-reopen']
  d=pathlib.Path('/dev/shm/pr12248-observer')/label
@@ -121,7 +140,7 @@ elif c=='picker-result':
  p=E/(sys.argv[2]+'-picker-'+sys.argv[3]+'.json');print(p.read_text() if p.exists() else '{}')
 elif c=='restore':
  run('omarchy-shell','shell','hide','omarchy.disk-speedtest');time.sleep(2);switch('head')
- s=snap();assert not s['processes'] and not s['temporary_files'],s
+ s=snap();cleanup_ok=not s['processes'] and not s['temporary_files'];save('restore-entry-cleanup',s)
  before=json.loads((R/'config-before.json').read_text());pre=hashes(H/'.config');config.capture('pre-restore')
  save('pre-restore',{'snapshot':s,'config_byte_identical':before==pre,'config_before':before,'config_after':pre})
  # Stop the actual shell before restoring so an asynchronous FileView write cannot race the copy.
@@ -154,7 +173,8 @@ elif c=='restore':
   if (R/'config-watch-done').exists():break
   time.sleep(.1)
  assert (R/'config-watch-done').exists(),'Config observer did not finish'
- s=snap();assert not s['processes'] and not s['temporary_files'],'Final cleanup failed'
- save('restore',{'snapshot':s,'pre_restore_config_byte_identical':before==pre,'config_byte_identical':before==after,'config_before':before,'config_after':after,'quiesced_changed_files':changed,'stable_checks':checks,'shell_stopped_for_final_disposable_vm_teardown':True})
+ s=snap();final_cleanup_ok=not s['processes'] and not s['temporary_files']
+ save('restore',{'snapshot':s,'pre_restore_config_byte_identical':before==pre,'config_byte_identical':before==after,'config_before':before,'config_after':after,'quiesced_changed_files':changed,'stable_checks':checks,'shell_stopped_for_final_disposable_vm_teardown':True,'entry_product_cleanup_ok':cleanup_ok,'final_product_cleanup_ok':final_cleanup_ok})
  assert before==after,'Configuration restore failed'
+ assert cleanup_ok and final_cleanup_ok,'Product cleanup failed; evidence preserved and configuration restored separately'
 else:raise SystemExit('Unknown operation')
