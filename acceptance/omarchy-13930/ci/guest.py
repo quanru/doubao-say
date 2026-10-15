@@ -1,4 +1,4 @@
-import sys, subprocess, pathlib, json, time, hashlib, shutil
+import sys, subprocess, pathlib, json, time, hashlib, shutil, base64
 R = pathlib.Path('/tmp/pr13930'); E = R/'evidence'
 D = pathlib.Path('/usr/share/omarchy/shell/Ui/Dropdown.qml')
 G = pathlib.Path('/usr/share/omarchy/shell/plugins/dev-gallery/GalleryPanel.qml')
@@ -37,17 +37,20 @@ if cmd=='bootstrap':
     interval: 100; running: true; repeat: true
     onTriggered: {
       if (!window.visible) return
-      var p = demoDropdown.mapToGlobal(0, demoDropdown.height - demoDropdown.rowHeight)
+      var p = demoDropdown.mapToItem(null,0, demoDropdown.height - demoDropdown.rowHeight)
       var win = demoDropdown.Window.window
       var focused = win ? win.activeFocusItem : null
       var chain = [], cur = focused
       for (var i = 0; cur && i < 12; ++i) { chain.push(String(cur)); cur = cur.parent }
       var probe = {}
       try { probe = {unqualified:String(Color), qualified:String(AcceptanceCommons.Color), unqualifiedPalette:!!Color.popups, qualifiedPalette:!!AcceptanceCommons.Color.popups} } catch (err) { probe = {error:String(err)} }
-      console.log("PR13930_STATE " + JSON.stringify({colorProbe:probe, activeFocusItem:String(focused), focusChain:chain, windowActive:win ? win.active : false, keyCatcherFocus:keyCatcher.activeFocus, keyCatcherBlocked:keyCatcher.blocked, value: demoDropdown.value, popup: demoDropdown.popupOpen, x:p.x, y:p.y, width:demoDropdown.width, height:demoDropdown.rowHeight, row:demoDropdown.popupRowHeight, time:Date.now()}))
+      console.log("PR13930_STATE " + JSON.stringify({colorProbe:probe, activeFocusItem:String(focused), focusChain:chain, windowActive:win ? win.active : false, keyCatcherFocus:keyCatcher.activeFocus, keyCatcherBlocked:keyCatcher.blocked, pointerHover:acceptanceTriggerHover.hovered, coordinateSpace:"window-content-logical", value: demoDropdown.value, popup: demoDropdown.popupOpen, x:p.x, y:p.y, width:demoDropdown.width, height:demoDropdown.rowHeight, row:demoDropdown.popupRowHeight, time:Date.now()}))
     }
   }
 '''
+    marker='                  id: demoDropdown\n'
+    assert s.count(marker)==1
+    s=s.replace(marker,marker+'                  HoverHandler { id: acceptanceTriggerHover }\n')
     G.write_text(s.replace(needle,needle+observer))
     save('instrumentation',{'scope':'gallery-only read-only Timer, real Dropdown untouched','gallery_original':digest(R/'gallery.qml'),'gallery_observed':digest(G)})
 elif cmd=='mode':
@@ -62,6 +65,24 @@ elif cmd=='state':
         if 'PR13930_STATE ' in line:
             data=json.loads(line.split('PR13930_STATE ',1)[1]); assert abs(time.time()*1000-data['time'])<3000,'stale observation';print(json.dumps(data));break
     else: raise RuntimeError('No actual gallery observation')
+elif cmd=='geometry':
+    clients=json.loads(run('hyprctl','-j','clients'))
+    matches=[c for c in clients if c.get('title')=='Omarchy shell – dev gallery' and c.get('mapped')]
+    assert len(matches)==1,'Expected one gallery window'
+    c=matches[0];monitors=json.loads(run('hyprctl','-j','monitors'))
+    assert len(monitors)==1,'Multi-monitor QMP mapping not validated'
+    m=monitors[0];assert m['transform']==0 and m['width']==1280 and m['height']==800
+    assert c['monitor']==m['id'] and not c['xwayland']
+    print(json.dumps({'client':{k:c[k] for k in ['address','at','size','monitor','title']},'monitor':{k:m[k] for k in ['id','x','y','width','height','scale','transform']}}))
+elif cmd=='focus-gallery':
+    clients=json.loads(run('hyprctl','-j','clients'));c=[c for c in clients if c.get('title')=='Omarchy shell – dev gallery' and c.get('mapped')];assert len(c)==1
+    run('hyprctl','dispatch','hl.dsp.focus({ window = "address:'+c[0]['address']+'" })')
+    assert json.loads(run('hyprctl','-j','activewindow'))['address']==c[0]['address']
+elif cmd=='runtime-state':
+    before={'packages':run('pacman','-Q'),'dropdown':digest(D),'gallery':digest(G)}
+    save('matched-runtime',before);print(json.dumps(before))
+elif cmd=='stop':
+    stop()
 elif cmd=='desktop-state':
     name=sys.argv[2]; assert name.replace('-','').isalnum()
     save(name+'-desktop', {k:json.loads(run('hyprctl','-j',k)) for k in ['activewindow','clients','devices','layers']})

@@ -1,0 +1,118 @@
+{
+  "database_source": "https://archive.archlinux.org/repos/2026/10/01/extra/os/x86_64/extra.db",
+  "database_sha256": "b2c0d01420d9bc1da17589c622fbf12c49af15d60e54f46cad8f6c307b5497ba",
+  "packages": [
+    {
+      "NAME": "qt6-5compat",
+      "VERSION": "6.11.2-1",
+      "FILENAME": "qt6-5compat-6.11.2-1-x86_64.pkg.tar.zst",
+      "SHA256SUM": "bbdcd646fdfbb48c2bda59ca5952b435fd9107e1beb574a5955f837f9faff084",
+      "PGPSIG": "iQEzBAABCgAdFiEEFRnVq6Zb9vwrc8dWek52CV2KUuQFAmqEWT8ACgkQek52CV2KUuSclQf/RpfinfllWYzg/yRNIH3KU38+ePMjmXEo0rGSKjWJlMUvIIqCaGI3BmITJnJI4nUV37fvhC6lAZ9FWj0ewNnfONC+xoborfAzCVUGhyvKMB4GF1sw2DCE4ZlryXefCc02/q5pAQ9m3BRVaerQf1eCwR1UXSg2O0FBshUyGOcpFnkb1GOLWQo3rPpFniR/lPu728npMKVz/hxaQlzvoXNT3RljRt4METXZ+Lpq6AzretwSgy0EQUvKsM1Ai6rI828VO9hvwVLEndBVpC2JlBIZIj9jcHvmrivppDrKkjOh0aN5CS6MofSTrG9z6e1i1Z35uCOKwyT9RjJLxvs3XY7Odg=="
+    },
+    {
+      "NAME": "qt6-base",
+      "VERSION": "6.11.2-3",
+      "FILENAME": "qt6-base-6.11.2-3-x86_64.pkg.tar.zst",
+      "SHA256SUM": "257c5ef6180119d5b4365bdfe2a2ad051694b5dff390eac8e736dd78b8107b21",
+      "PGPSIG": "iQEzBAABCgAdFiEEFRnVq6Zb9vwrc8dWek52CV2KUuQFAmqRkw8ACgkQek52CV2KUuS2cQf8CwJVSU+2DgbYV0mBLr5i/0Izp4zIcUGg1qa4umQ2lC1vxvvUHRa86Itht4nwZwrtl6TpWbBYcc/zhuju07qgpoW9KQkQpRosoQ0R/AysFGwXcdIi8pyhA1045eq8JtqBYWahBz8AYDejTWYUTXkelm9/e6/OeyiNBrVTT5QhUbD6sJjlkvUkd3BrKtObpxoczpZFErsMPgp9JTYQKyMgMqKSGuVUgF7D9G1DDFT85kq0elin+5mqjaQDbTU5AzAnD4ewX9X0bJL3XMWpG9EV90C+Ta1IlKYJtH6cDEBrIiAzkkkH8nU8MzQWhox2wh73VB3IKzx7TAZZdTpwZ8LuUA=="
+    },
+    {
+      "NAME": "qt6-declarative",
+      "VERSION": "6.11.2-2",
+      "FILENAME": "qt6-declarative-6.11.2-2-x86_64.pkg.tar.zst",
+      "SHA256SUM": "230c1bec364d4af2c4c9d10f0df6dabd8361463e8559979f235f59f71e8c2f77",
+      "PGPSIG": "iQEzBAABCgAdFiEEFRnVq6Zb9vwrc8dWek52CV2KUuQFAmqoC+wACgkQek52CV2KUuSRAAf/aTklfCVgyfxFiPbGcFwe7bdIOP7OCgr9bKFew6bxy/k/l9lU0vu2C0o4hXSOD1nAQEMusLdx4aCwMD6U6R2Y8VfXLbDGlNwdRfv2Fbd2tp+FZxE6YimRSwqKzRdNa3UKV30TPCIb9mSAiqaFY/BGwW4wvu/hIQ1SER/iMDWpylZIG9Lw7EM/k7wQqH8Ec6QJMtNWj7vnQ9i5ruJ1rcYbjw1QhaT6jyTQgQIXVDGkvgKQZkveXMSrnSqc5elgAz0AbgVL9hggVOAkZIsjT6hVnCF6ammcdX31NQs+kwXkzgfqAjbwkdLulwwIdXet5NsOk6YKdOALmxgRRw/mMJIm9w=="
+    },
+    {
+      "NAME": "qt6-imageformats",
+      "VERSION": "6.11.2-1",
+      "FILENAME": "qt6-imageformats-6.11.2-1-x86_64.pkg.tar.zst",
+      "SHA256SUM": "907fb84c7f3dcab3bbaa96326630a3d300e7daa7a3c0a0d86423297ec74f2f72",
+      "PGPSIG": "iQEzBAABCgAdFiEEFRnVq6Zb9vwrc8dWek52CV2KUuQFAmqEWNgACgkQek52CV2KUuStVgf/buq/XqLlfJUMcefzUvfgEtxYqOJU5f4WJjJBXD0/OYSjPURnK84aIJrvIjPAwkOT/9NMx1sHnRamIbB4nnLg68QtU43DTbIOgZc5MlleIOXf8W10HmT4nRUBwXXZKIqRXArGoLqolkCY4IKAxk49XgX59QB7ZNn+kFMjx+cLuEUoMr++SSfKWswrmK+lxekpnihiTRnq8zbnaGp788hCg52UxEZtwFQXl4irZ9xIYj40NPSC1+zA0L2TcFL62TFF0roqu57FXrisgRCZtCpB6SNzyKx/2st4/LdT3rqQ+yIOZBPtMsSe7/6GwiNWYgdH1M2/LpL6iHCkCqVgqFWznw=="
+    },
+    {
+      "NAME": "qt6-multimedia",
+      "VERSION": "6.11.2-1",
+      "FILENAME": "qt6-multimedia-6.11.2-1-x86_64.pkg.tar.zst",
+      "SHA256SUM": "1dc7671b26be1d60b8e51255552ebf5e3649fa2c2a178b5d7a07565e5454984b",
+      "PGPSIG": "iQEzBAABCgAdFiEEFRnVq6Zb9vwrc8dWek52CV2KUuQFAmqEWIkACgkQek52CV2KUuTmwwf/bICacMVXxDpbs7tcBZt9EpUXDRyiZ2LeJgLPd9cue1G5dnwJzNzLjJvmORdfz7vvFUQFrm3wZ3TiF+3+eJzByxv69rZGpylpzFEm0f6SquMk1xgnQ2lDSGX1EtaKzjR1+z12bCQ/LN/SCgSs0fpG2VwCYjF4aJvpkgZktQypEW0buzzmYLx8MQebd9qFzr8Nm1S4lWbmrgJV3nPTNZ6GUn7YpxV3ozPfNRbYmhCmRwPMT8/S2yaSNm5B1qsFWzzd9X9FuNp7hVpVate+90vgT/j1zYAYDZDIlgJ+Z9U6Zwr8MubO8qRZ0gqlpjEvChwgzHK9m2/9Y3ZTrnLBx7FTlg=="
+    },
+    {
+      "NAME": "qt6-multimedia-ffmpeg",
+      "VERSION": "6.11.2-1",
+      "FILENAME": "qt6-multimedia-ffmpeg-6.11.2-1-x86_64.pkg.tar.zst",
+      "SHA256SUM": "5e56b0f6c0886eb033a34d1a5ce531791e7eeadb4137f9dbdbfe09bfbb9fcb44",
+      "PGPSIG": "iQEzBAABCgAdFiEEFRnVq6Zb9vwrc8dWek52CV2KUuQFAmqEWIkACgkQek52CV2KUuR/wQf/TuN1kYu/NP7VWrr2Jw6xU3tmdAz0Uz6j0uhHk/niP6Y2SVxwsppBf2aEgyuGRP4mVP6Of4MowCyTyB6rpOO6UVfsrIFDpAExoBRJc1LSsSNOkD33fjiFP4mPwcHlMFBm1XCRHk+AblZb79GoXuCqJIMwzz0J9syiifownIPXtTuKJeSOyClX1+U5YutCcBblMiSYsRAXW9pU2/Qvm3LfWL+Hd9+P3HJgO3X+DrJ6vhKbRTxUpWdqmtUEx5hhI/oNfkUKSXNwhBBRbQ36zoEyF8RlcL9+9aX/AbiPaK7thMmLDfDeMfu3VHGxrljfQZV1O+BVAMIVNyhS8N3rkhS1gw=="
+    },
+    {
+      "NAME": "qt6-networkauth",
+      "VERSION": "6.11.2-1",
+      "FILENAME": "qt6-networkauth-6.11.2-1-x86_64.pkg.tar.zst",
+      "SHA256SUM": "e51f9db4c7bdc00e1705bae15d8a75ed500be600db36f517b98e05f65f3d0b66",
+      "PGPSIG": "iQEzBAABCgAdFiEEFRnVq6Zb9vwrc8dWek52CV2KUuQFAmqEWPEACgkQek52CV2KUuQHFQf+LhEgAUqL1Utj7rBFscyjqpELwl1rj0lpbnrQJPEfXrHXt1e3NtNqMyjNAL5pP9azj8QIG7BYDRU9nZXL1ChbH7Fo3OELBU6YIPaKFCGlJt02R+nWrepErxs0RZkntGxE91b0EMFMiANDHhhVPhvBh6bqxz8KtuxQ8+1RGWvcbVYnlN97JjcvVpTycVRbCriKBr3HNGpiSQK0QhnKGMfjVUmzEiaqO1FrOe2NqGZjlrDwrxjApGPy2abISAm71NHhNn2QapaGP+SDP5RE4KUvY48ISyxsr+q11ytf56OgT+WUnkltqoDwWr2MllEc7IfdZM+++BbeFM8JJ+Jy8KRj7w=="
+    },
+    {
+      "NAME": "qt6-positioning",
+      "VERSION": "6.11.2-1",
+      "FILENAME": "qt6-positioning-6.11.2-1-x86_64.pkg.tar.zst",
+      "SHA256SUM": "6c5cae1b987b845f6c573d8dcc94f546c1611b09cbccb0ad285e579b9e838076",
+      "PGPSIG": "iQEzBAABCgAdFiEEFRnVq6Zb9vwrc8dWek52CV2KUuQFAmqEWFUACgkQek52CV2KUuSWsQf/UaBTRunn3TjuLRzQXN7vd1bNfzm4OEHLKxYdOskET5D2QTPLRFFBYmnykwOi3hdcVvTe8b9dzlF35H0qdcukLYd86ldm32Vz6daVd0+xDb8YOKdvXjWleIDDZmXuiUDrNMN6qVBXzS2xzudHsxQGIPl+6ahJ3mIt2S6QcdOiP+3m0no9jBbc3v2aBQwJHOOUifZBsE2xUB3ofg76vYucFNgR16+xnlax0RKfaIP411y6mj5djvZ2A1iJhomJzjpIs+OXMWDlRZtEcPCytWGK/Yx7w2lb0hGA0ALDxKURzsvccfg28L2FzF6ibwym0+YtfBftic3O49fAfSmwo1AeAQ=="
+    },
+    {
+      "NAME": "qt6-shadertools",
+      "VERSION": "6.11.2-1",
+      "FILENAME": "qt6-shadertools-6.11.2-1-x86_64.pkg.tar.zst",
+      "SHA256SUM": "fb15bcab4869147dac4d84da8dbca7dbdea0dc17497c3322169ad049ae6c0c72",
+      "PGPSIG": "iQEzBAABCgAdFiEEFRnVq6Zb9vwrc8dWek52CV2KUuQFAmqEWBcACgkQek52CV2KUuQq7Qf+L715Xa8w5wJZY2ClVTN+O2pwyEgy4bHX79ipLmt/hqYmQpYR4HSM4LZuyziRVuzi9Z8H0PEc1Hw4XxY1NGkKBSivJOknS1WyaW6fB6sSDgFE/f23s9jrWfS7i1ThrCb6vT8BJX5qs4dNRvaBMGBjuK+yDClpmEw09nbOoMfNJrOjrzQyYC96yXwctlZeSS26YVPa9T5rTbYQwxPhsBpjreSQptzwNaQxViRk6uaYZyAnJqLzdhQRpYE1Ec9lD6SBtyAHejjfr/B7VloqWwg7SPzyMcyWNUCtHgUlE/4DdGMg05TfZPHm4kn/VjxSiLyPBA/FPAIlVeVsaB9l5piE4g=="
+    },
+    {
+      "NAME": "qt6-speech",
+      "VERSION": "6.11.2-1",
+      "FILENAME": "qt6-speech-6.11.2-1-x86_64.pkg.tar.zst",
+      "SHA256SUM": "35d9b55be68c10e3f4871b9b0ae9f864fa18cac317ba68053a869af5213062c1",
+      "PGPSIG": "iQEzBAABCgAdFiEEFRnVq6Zb9vwrc8dWek52CV2KUuQFAmqEWSIACgkQek52CV2KUuRneAf/R+vHMSlC0hP72r9jBlI1TQe8XIz2/mqpT5OWgIl8P6U5cmZFm/C0PvHb0x1W9kJtBvxgd0iZFNkKcpkR9oV0nHUi+DrhGpdWAsU6h2SYRlyXhs4tdYEtUzgDnuzJrEWwWG49ti+IRB1q8twuH4gXaZZgGnPTI9ZLuPzRfTYy407uICKUaFw+FpT7lKYZEyBX0mYx3mc82evSKQeoHnL6eZiB5lTMZTPyimlWxxUS4sf2lgfzRjHfeBFSt4UITX2lcX23Bay91duADX1Mz/DsXnb3UMD2dJ9ZK6cZOSbfNN21r9ow+LkNAE3OzYv7cQLcL4CXHijNNVbNu6fw3vOHqA=="
+    },
+    {
+      "NAME": "qt6-svg",
+      "VERSION": "6.11.2-1",
+      "FILENAME": "qt6-svg-6.11.2-1-x86_64.pkg.tar.zst",
+      "SHA256SUM": "eb90e6353ee6a15a11ab73ee9d9510951e62548028f43113ec25be08119f9f40",
+      "PGPSIG": "iQEzBAABCgAdFiEEFRnVq6Zb9vwrc8dWek52CV2KUuQFAmqEWCMACgkQek52CV2KUuR7EwgAmFnYNyx9QqrdIX/QSWGKzWJllvC9Ydtm/sjhL5Uiizn7lVtr4unnSr36OD7JKWXi+6WgGX1E00Y32llFmOersqXNIvd6SZTx7mqD0LTuqevtsBwhDMghLlBu9FLB07TP2YEimZvIVmZH80qUu923J508rh74eR+ly3txHQPyuoJp50AlZhgpibu36FmJ2lwHUWCHipFQzIrImpidWnfVA1VfdjviE2nWqo6CzjXRUKaIE4r6wRYnjkmE4hmFQ7l8EckpNUa4rvcmbNqu+bWV6yqem/plYaUEQFLUwQnh23aiy7sj7809qQvjCEPqadZiGEmA+HFeVTn+suU2RTiyMQ=="
+    },
+    {
+      "NAME": "qt6-translations",
+      "VERSION": "6.11.2-1",
+      "FILENAME": "qt6-translations-6.11.2-1-any.pkg.tar.zst",
+      "SHA256SUM": "f604396f4313f4c18b96d0a62d5cfc9b95ca1b794885d2910c8f15c73e0a7e77",
+      "PGPSIG": "iQEzBAABCgAdFiEEFRnVq6Zb9vwrc8dWek52CV2KUuQFAmqEWS0ACgkQek52CV2KUuQxyAf/TffhBD2AjYbslko2ZNRN9sn+mJRrX2iymI0c35MZBziEgXwbfbIg3vKn84UpIWre4WYQjfbdcPBXrd3m/BAQDGggdmwvePNunK3wPWfxgpYQL5DJrmiNJW1iBkkmLJfhmRM0uDY0gOKgsPyRenX/1Mkx6Ir0fr8FiFdLs0pcR1OccowDzdjFwa4mOSOkFCqXcDa6kkTElhgZ4f9It1Yxm2Lqc/hTpfvKewq/7aZVQDeJ9bbXjKSPfIleKRILu9x2gQWCahNHmfAfq5ueRDcBjtbRfRHcaypSEXBa9t1+p7oYC91A+Sh+yZwO3lTovmDVASii4RLWwW/mSJLY5M7U9w=="
+    },
+    {
+      "NAME": "qt6-wayland",
+      "VERSION": "6.11.2-1",
+      "FILENAME": "qt6-wayland-6.11.2-1-x86_64.pkg.tar.zst",
+      "SHA256SUM": "0e4f84b21871bf4a2f65278a0a4e85d43aa2681e036eb143ce882817552c8f66",
+      "PGPSIG": "iQEzBAABCgAdFiEEFRnVq6Zb9vwrc8dWek52CV2KUuQFAmqEWJEACgkQek52CV2KUuTF/Af9G/M4szhgFAKvo5EIfVjRp6+4MoqSKc92fTYHBptycHbyARJGhgihH3sGyTV+TvkC105P7fF9YLQoJVnQprw6qqM8fT4jWwvELXz3vaGDGKDxagseQUADs2LSODfeMRIqVe0fusH2Jc3Ch4kxwWk9ZhEBK8h+RXBZ+KPPL2jikfg2IFRKlHbM2IQwfwbYZD5x2dICIbrY/If/WGY7hLGxBYu89FeP8RLKoovqKMBLno/W/96qckyJ30t/v7BiFPfSRqNKZgaWt/r+0faNBxFau5IguQKN7pukf/mKHkGB2NHvga4ksJIJn0Va43YvX7tBGDCqgrDyz2tUBefV/MlBfQ=="
+    },
+    {
+      "NAME": "qt6-webchannel",
+      "VERSION": "6.11.2-1",
+      "FILENAME": "qt6-webchannel-6.11.2-1-x86_64.pkg.tar.zst",
+      "SHA256SUM": "6f501a91c952c812c0a641bc4964c37e50993ca7adaf26eb8704a679a381f155",
+      "PGPSIG": "iQEzBAABCgAdFiEEFRnVq6Zb9vwrc8dWek52CV2KUuQFAmqEWGEACgkQek52CV2KUuSsgQgAnOuPKVUAscNocgIkR7XAG2wNzmBpyYt/xoIPXEJXUbP1qbG+FuerBUHg9iLU1FCzJNjXOpPautGG65aCVKCF0iO1hgZ6lIul/xT3Jx4N4D3QLn9mG/do+aij3BZlPlswPR+hkQBZEmlZs4BkxxF5K+UcTV0CcTT9d9b6jkQH8lPReonyi7iTMDb1RJ1XNqFnF0MfEUJvdfiDvYgKS/h4s4IdlsYmDMoJbS8OhaOh71k6viaud52BM8bbh2s/d6kyG+Yar4HcJMrCn3Rtyh7UtMUDzY+HKWT4gMcz37FKCoaN47vlJWJOhswgjkPnpeEqHxrYq+oYge5cCwzmPOXJ8Q=="
+    },
+    {
+      "NAME": "qt6-webengine",
+      "VERSION": "6.11.2-1",
+      "FILENAME": "qt6-webengine-6.11.2-1-x86_64.pkg.tar.zst",
+      "SHA256SUM": "80f827d3d4be4b1ea532bc948c5248b8f5ba3570b4a725cc0f7ddbfb0657b766",
+      "PGPSIG": "iQEzBAABCgAdFiEEFRnVq6Zb9vwrc8dWek52CV2KUuQFAmqEWGgACgkQek52CV2KUuQXTgf/dSOdgH1AvLr7bAGJ5EQClspabippqa7i9Wb3Hjko87kqhwfZXwQRtPaAoQO0PD3u8ugCQMnlXym9OTwgWi2/Qc+eQKv5MoSHoyp5zIsZEjpmr/7GsOHdNBoiwEpxt44w9Bhboc3JH6GVpQ0BPCbdRhWO3DeBGELlyfN9zK+pl0bdtkYHhXCquXW9Va9DHuyRwyFaa5RULA64yYq0cJoqZ5hqa8ArHbpBI2OSbbdGBtH2db41RXtWQ9HX6TvVNznoWz7UOqEln4RrQpzFj6RrfqIwjbgFScalN0NdbMgk0yzyyUkbWy8SMXmNpoh/1Y9UKsPsVgfFnKM0DpSOv497Rg=="
+    },
+    {
+      "NAME": "quickshell",
+      "VERSION": "0.3.1-1",
+      "FILENAME": "quickshell-0.3.1-1-x86_64.pkg.tar.zst",
+      "SHA256SUM": "5988659fdc1b0addf138a3cd8e3540fc1078bfc60c995c6f4cd0fb9054484ec7",
+      "PGPSIG": "iQIzBAABCgAdFiEEsNZSlUdmBrcfDG+CqF6BHrTKLggFAmqIDHUACgkQqF6BHrTKLghm9A//VK41/rAYsFoo8pDKAc5p8daXOTv5Ng0/sqTvSKtnwZqCrKgb2DFvG0mZKiQoCS+Mif8CL0EFsjELcTr6MUeoGTrTk39eekte1/VzOXNHYYCBx16/rK5pEhiR+Bg0wS7d72fOpWb4yvvizmn9zPBPmHw2pc3Kgn4zTBv1GpEErQzBsnnOiO92gJml8s+xA4Pl/IgJUhahJOkFLshECGZ+P9dRTT0apmwNAzpDlR6n/kiAvtJjH1EjVYVflYtTYfO+rjGULiNI8LhOYPkP9PyC0Y6ORxnJLCtpo6WU9Bc2QLdW4ne+3Cou8cth/9QfSxNwgCiz7bbvf2WzCgsdvdUQaWc/fcfcVstFPEy5KpTdJtPkD3pm6azhKfhun4dZo15SZSvpNhIg7EIZlcjAB9fZNUy6uvYT0ORhpKC8k37QAVN4yBkStqrVv1betj+lUH5jncaD9uzFshDApf078jxxwUd+zDfVLfAXCU9Zjl2yVEdj8ZbSONHBmTlS0XKwHHIlxC9wzxidih9qS8PVyARVZQo0oXJqdCyV43aTFc3pBziJxqDe0UXCYWnlKuVVjOmBx71Kq6Gvb3RhFbptErOoObUfWRpViFIZhfCiMqdZh3ISHuchjfuHc5rj3jTDVmWtKhzP+gNGtpXaanlWxRuHNyJ8rANaMXEK8Gk8thfxYds="
+    }
+  ]
+}

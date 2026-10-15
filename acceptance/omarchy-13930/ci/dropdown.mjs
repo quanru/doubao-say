@@ -2,6 +2,7 @@
 import {execFileSync} from 'node:child_process';
 import {readFileSync,writeFileSync,mkdirSync} from 'node:fs';
 import {resolve} from 'node:path';
+import {windowPointToOutput} from './coordinates.mjs';
 const root=process.env.ACCEPTANCE_ROOT,out=resolve(root,'review-artifacts');
 const {agentForComputer}=await import(resolve(root,'work/midscene/packages/computer/dist/es/index.mjs'));
 const guest=(...args)=>execFileSync('bash',[resolve(root,'ci/guest.sh'),...args],{cwd:root,encoding:'utf8',timeout:45000}).trim();
@@ -10,8 +11,16 @@ const script=(name,...args)=>execFileSync('python3',[resolve(root,'scripts',name
 const sleep=ms=>new Promise(r=>setTimeout(r,ms));
 const state=()=>JSON.parse(guest('state'));
 const key=(...args)=>script('qmp-key.py',...args);
-const move=s=>script('qmp-wheel.py','move','--x',String(Math.round(s.x+s.width/2)),'--y',String(Math.round(s.y+s.height/2)));
-const click=s=>script('qmp-click.py',String(Math.round(s.x+s.width/2)),String(Math.round(s.y+s.height/2)));
+function point(s,offsetY=0){
+ const g=JSON.parse(guest('geometry')),{x,y}=windowPointToOutput(s,g,offsetY);
+ return {x,y,geometry:g,source:s};
+}
+async function move(s){
+ const p=point(s);script('qmp-wheel.py','move','--x',String(p.x),'--y',String(p.y));await sleep(250);
+ const observed=state();if(!observed.pointerHover)throw Error('Real HoverHandler did not confirm pointer hit');
+ writeFileSync(resolve(out,'latest-input-mapping.json'),JSON.stringify({point:p,afterMove:observed},null,2));
+}
+const click=s=>{const p=point(s);script('qmp-click.py',String(p.x),String(p.y));};
 const wheel=d=>script('qmp-wheel.py',d);
 const results=[];let agent,n=0;
 async function capture(mode,label,expect){
@@ -31,9 +40,9 @@ try{
  if(process.env.ACCEPTANCE_DIAGNOSTIC==='1') {
   const findings=[];
   for(const mode of ['baseline','candidate']){
-   guest('mode',mode);n=0;
+   guest('mode',mode);guest('focus-gallery');n=0;
    let s=await capture(mode,'diagnostic-initial',{});
-   move(s);wheel('down');s=await capture(mode,'diagnostic-wheel',{});
+   await move(s);wheel('down');s=await capture(mode,'diagnostic-wheel',{});
    click(s);s=await capture(mode,'diagnostic-click-open',{});
    key('ret');s=await capture(mode,'diagnostic-enter',{});
    findings.push({mode,color:s.colorProbe,focus:s.focusChain,windowActive:s.windowActive,value:s.value,popup:s.popup});
@@ -42,9 +51,10 @@ try{
   throw Error('DIAGNOSTIC ONLY: Color resolution and focus captured; full acceptance not run');
  }
  for(const mode of ['baseline','candidate']){
-  guest('mode',mode);n=0;
+  guest('mode',mode);guest('focus-gallery');n=0;
   let s=await capture(mode,'initial-unmatched',{value:'Clock',popup:false});
-  move(s);wheel('down');
+  if(!s.colorProbe.unqualifiedPalette || !s.colorProbe.qualifiedPalette)throw Error('Runtime Color palette precondition failed');
+  await move(s);wheel('down');
   s=await capture(mode,'unmatched-wheel-down',{value:mode==='candidate'?'omarchy.clock':'Clock',popup:false});
   if(mode==='baseline'){
    // Establish matched selection via the real popup before closed-wheel comparison.
@@ -52,10 +62,10 @@ try{
    s=await capture(mode,'click-keyboard-first',{value:'omarchy.clock',popup:false});
   }
   for(const [dir,want,label] of [['down','omarchy.weather','down-middle'],['down','omarchy.power','down-last'],['down','omarchy.power','clamp-last'],['up','omarchy.weather','up-middle'],['up','omarchy.clock','up-first'],['up','omarchy.clock','clamp-first']]){
-   move(s);wheel(dir);s=await capture(mode,label,{value:mode==='candidate'?want:'omarchy.clock',popup:false});
+   await move(s);wheel(dir);s=await capture(mode,label,{value:mode==='candidate'?want:'omarchy.clock',popup:false});
   }
   click(s);s=await capture(mode,'popup-open',{value:'omarchy.clock',popup:true});
-  move(s);wheel('down');s=await capture(mode,'popup-trigger-wheel',{value:'omarchy.clock',popup:true});
+  await move(s);wheel('down');s=await capture(mode,'popup-trigger-wheel',{value:'omarchy.clock',popup:true});
   key('esc');s=await capture(mode,'escape',{value:'omarchy.clock',popup:false});
   click(s);await sleep(250);key('down');key('ret');
   s=await capture(mode,'keyboard-select-middle',{value:'omarchy.weather',popup:false});
@@ -63,9 +73,9 @@ try{
   s=await capture(mode,'keyboard-select-first',{value:'omarchy.clock',popup:false});
   // Click the first visible option at popup-relative row center; retain image before.
   click(s);await capture(mode,'before-option-click',{value:'omarchy.clock',popup:true});
-  script('qmp-click.py',String(Math.round(s.x+s.width/2)),String(Math.round(s.y+s.height+s.row/2+4)));
+  const optionPoint=point(s,s.height/2+s.row/2+4);script('qmp-click.py',String(optionPoint.x),String(optionPoint.y));
   s=await capture(mode,'option-click',{value:'omarchy.clock',popup:false});
-  for(const dir of ['left','right']){move(s);wheel(dir);s=await capture(mode,`horizontal-${dir}-delivery-unverified`,{value:'omarchy.clock',popup:false});}
+  for(const dir of ['left','right']){await move(s);wheel(dir);s=await capture(mode,`horizontal-${dir}-delivery-unverified`,{value:'omarchy.clock',popup:false});}
  }
  writeFileSync(resolve(out,'coverage.json'),JSON.stringify({core:'automated state checks complete; independent images pending',horizontal:'QMP acknowledged and no selection change; guest delivery NOT established, no coverage claim',fine_grained_touchpad:'NOT COVERED: discrete QMP buttons do not simulate high-resolution wheel',model_calls:0,scope:'real shared-component dev gallery; not business-panel E2E'},null,2));
 }catch(e){writeFileSync(resolve(out,'failure.json'),JSON.stringify({error:String(e),stack:e.stack},null,2));process.exitCode=1;try{guest('screenshot','failure');if(agent)await agent.recordToReport('FAILED: '+String(e));}catch{}}

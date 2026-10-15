@@ -19,7 +19,7 @@ jobs:
     env:
       ACCEPTANCE_DISPOSABLE_CI: '1'
       BUILDER_IMAGE: ghcr.io/archlinux/archlinux@sha256:86092797e32aa19d3f45a831b2873cf557c21c5280e9d197ca7a43c8ea79bcd3
-      ACCEPTANCE_DIAGNOSTIC: '1'
+      ACCEPTANCE_DIAGNOSTIC: '0'
     steps:
       - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1
         with:
@@ -30,8 +30,8 @@ jobs:
           package-manager-cache: false
       - name: Build pinned ISO and boot disposable real desktop
         run: bash ci/prepare-runner.sh
-      - name: Inspect official historical runtime metadata without installing
-        run: python3 ci/runtime-inventory.py
+      - name: Install exact signed compatible runtime in disposable VM
+        run: python3 ci/match-runtime.py
       - name: Build pinned Midscene without inference configuration
         run: bash ci/build-midscene.sh
       - name: Install existing locked host input dependency
