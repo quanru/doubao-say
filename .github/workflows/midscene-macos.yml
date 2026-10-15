@@ -1,6 +1,10 @@
 name: macOS Midscene E2E
-# Opt-in until desktop permissions and model quota are provisioned on the runner.
 on:
+  pull_request:
+    paths:
+      - 'macos/**'
+      - 'tests/e2e/**'
+      - '.github/workflows/midscene-macos.yml'
   workflow_dispatch:
 permissions:
   contents: read
@@ -9,6 +13,7 @@ concurrency:
   cancel-in-progress: false
 jobs:
   macos-e2e:
+    if: github.event_name != 'pull_request' || github.event.pull_request.head.repo.full_name == github.repository
     runs-on: macos-latest
     timeout-minutes: 40
     env:
