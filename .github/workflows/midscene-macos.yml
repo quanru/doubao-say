@@ -9,7 +9,7 @@ on:
 permissions:
   contents: read
 concurrency:
-  group: midscene-model-e2e
+  group: midscene-macos-e2e
   cancel-in-progress: false
 jobs:
   macos-e2e:

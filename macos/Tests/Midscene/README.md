@@ -66,8 +66,9 @@ The normal macOS preview workflow compiles the fixture. The separate
 `macOS Midscene E2E` workflow runs for relevant pull requests from this repository
 and supports manual dispatch after it reaches the default branch. It uses the
 existing `MIDSCENE_MODEL_*` Actions secrets; fork pull requests are skipped. It uploads reports on success and failure,
-without publishing desktop captures to Pages. It shares the model quota
-concurrency group with Linux visual suites.
+without publishing desktop captures to Pages. Its own concurrency group prevents Linux workflow events from cancelling a
+pending Mac run. Cases stay serial; model credentials may still share provider
+quota with Linux suites.
 
 The visual job requires a logged-in, capturable desktop with input permission;
 GitHub-hosted macOS runner permission availability must be verified before this
