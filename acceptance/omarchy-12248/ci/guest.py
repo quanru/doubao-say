@@ -62,6 +62,28 @@ elif c=='open':run('omarchy-shell','shell','summon','omarchy.disk-speedtest','{}
 elif c=='snapshot':print(json.dumps(save(sys.argv[2],snap())))
 elif c=='status':print(json.dumps(snap()))
 elif c=='screenshot':run('grim',str(E/(sys.argv[2]+'.png')))
+elif c=='observe-start':
+ label=sys.argv[2];assert label in ['baseline','baseline-reopen','head','head-reopen']
+ d=pathlib.Path('/dev/shm/pr12248-observer')/label
+ p=subprocess.Popen([sys.executable,str(R/'observe-write.py'),label],stdout=open(E/(label+'-observer.log'),'w'),stderr=subprocess.STDOUT,start_new_session=True)
+ for _ in range(100):
+  if (d/'ready').exists():break
+  if p.poll() is not None:raise RuntimeError('Observer failed before ready')
+  time.sleep(.02)
+ else:raise RuntimeError('Observer not ready')
+ save(label+'-observer-start',{'pid':p.pid,'label':label})
+elif c=='observe-result':
+ label=sys.argv[2];d=pathlib.Path('/dev/shm/pr12248-observer')/label
+ for _ in range(200):
+  if (d/'done').exists():break
+  time.sleep(.05)
+ else:raise RuntimeError('Observer has not finished preserving evidence')
+ result=json.loads((d/'observation.json').read_text());assert not result['error'],result['error']
+ print(json.dumps({'label':label,'status':result['status'],'frames':[{k:f[k] for k in ['name','path','full_screen','capture_start_ns','capture_end_ns','capture_epoch_ns','sha256']} for f in result['frames']]}))
+elif c=='observe-image':
+ import base64
+ label,name=sys.argv[2:4];assert label in ['baseline','baseline-reopen','head','head-reopen'] and name in ['read-live','write-live-first','write-live-sampled','completed']
+ print(base64.b64encode((pathlib.Path('/dev/shm/pr12248-observer')/label/(name+'.png')).read_bytes()).decode())
 elif c=='picker-prepare':
  import struct,zlib
  d=R/'images';d.mkdir(exist_ok=True)

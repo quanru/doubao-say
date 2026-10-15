@@ -4,7 +4,7 @@ import {readFileSync,writeFileSync,mkdirSync} from 'node:fs';
 import {resolve} from 'node:path';
 const root=process.env.ACCEPTANCE_ROOT,out=resolve(root,'review-artifacts');
 const {agentForComputer}=await import(resolve(root,'work/midscene/packages/computer/dist/es/index.mjs'));
-const guest=(...a)=>execFileSync('bash',[resolve(root,'ci/guest.sh'),...a],{cwd:root,encoding:'utf8',timeout:30000}).trim();
+const guest=(...a)=>execFileSync('bash',[resolve(root,'ci/guest.sh'),...a],{cwd:root,encoding:'utf8',timeout:30000,maxBuffer:16*1024*1024}).trim();
 const state=readFileSync(resolve(root,'work/session-state'),'utf8').trim().split('\n');
 const key=(...a)=>execFileSync('python3',[resolve(root,'scripts/qmp-key.py'),state[1],...a,'--disposable-vm'],{encoding:'utf8',timeout:10000});
 const sleep=ms=>new Promise(r=>setTimeout(r,ms));
@@ -15,7 +15,7 @@ async function capture(id,content){guest('screenshot',id);await agent.recordToRe
 const writers=s=>s.processes.filter(p=>p.cmd.startsWith('dd ')&&p.cmd.includes('oflag=direct'));
 const readers=s=>s.processes.filter(p=>p.cmd.startsWith('dd ')&&p.cmd.includes('iflag=direct'));
 async function full(v){
- guest('open');let seenRead=false,seenWrite=false,seenStage=false,done=false;const captured=new Set(),trace=[];
+ guest('observe-start',v);guest('open');let seenRead=false,seenWrite=false,seenStage=false,done=false;const captured=new Set(),trace=[];
  for(let i=0;i<220;i++){
   const s=status();trace.push(s);let phase='starting';
   if(readers(s).length){seenRead=true;phase='read';}
@@ -31,7 +31,17 @@ async function full(v){
  }
  writeFileSync(resolve(out,v+'-trace.json'),JSON.stringify(trace,null,2));
  const end=snap(v+'-full-end');if(!seenStage||!seenRead||!seenWrite||!done||end.processes.length||end.temporary_files.length)throw Error(v+': missing phase or cleanup');
+ await nativeEvidence(v);
  results.push({case:v+'-full',status:'OBSERVED_PENDING_VISUAL_REVIEW',phases:[...captured]});key('esc');await sleep(500);
+}
+async function nativeEvidence(v){
+ const observation=JSON.parse(guest('observe-result',v));
+ for(const frame of observation.frames.filter(f=>f.full_screen)){
+  const content=`Real guest grim capture buffered in tmpfs before report import; capture epoch ns ${frame.capture_epoch_ns}; monotonic bracket ${frame.capture_start_ns}..${frame.capture_end_ns}; SHA256 ${frame.sha256}. Original process brackets and continuous ROI: guest/native-write/${v}/observation.json. Report insertion time is NOT capture time. Visual review still required.`;
+  await agent.recordToReport(`${v}-native-${frame.name}`,{content,screenshotBase64:'data:image/png;base64,'+guest('observe-image',v,frame.name)});
+  events.push({id:`${v}-native-${frame.name}`,content,frame});
+ }
+ results.push({case:v+'-native-write',status:observation.status,frames:observation.frames});
 }
 async function cancel(v){
  guest('open');let staging;

@@ -7,3 +7,7 @@ Reuses the VM build, QMP input, pinned Midscene and log export approach from c7e
 Coverage: real staging/read/write/completion, Escape during actual staging, old process/fd and temporary-file cleanup, successful reopen, head restoration and configuration hash comparison. Image picker uses three fixed local PNGs, actual Right/Enter selection, cold/warm/forced-row-rebuild opens and exact result/index comparison. UI state conclusions remain pending visual review even if process assertions pass.
 
 Local checks: Python compilation, Bash syntax, Node syntax, git diff --check. Repository make check blocked before lint because .venv/bin/python is unavailable; this is not a test pass.
+
+## Read-to-write visual follow-up
+
+The original successful run 38707679155 remains unchanged. Its write-labelled snapshots were late completion images, not active-write proof. The follow-up adds a guest-local read-only /proc observer and a three-second native grim burst at the actual read-to-write worker transition. Frames are buffered in /dev/shm to avoid throttled evidence writes, with monotonic capture brackets, before/after worker identities, hashes and original PNGs. Full frames are imported unchanged into Midscene with explicit original-capture timestamps; report insertion time is not capture time. At least six write frames spanning one second and a full sampled frame must have four real write workers on both sides. Product source, phase durations and disk throttle are unchanged. All prior cases rerun in the same CI; visual acceptance remains a separate independent check.
