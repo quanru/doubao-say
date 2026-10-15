@@ -51,6 +51,31 @@ elif c=='open':run('omarchy-shell','shell','summon','omarchy.disk-speedtest','{}
 elif c=='snapshot':print(json.dumps(save(sys.argv[2],snap())))
 elif c=='status':print(json.dumps(snap()))
 elif c=='screenshot':run('grim',str(E/(sys.argv[2]+'.png')))
+elif c=='picker-prepare':
+ import struct,zlib
+ d=R/'images';d.mkdir(exist_ok=True)
+ def chunk(k,b):return struct.pack('!I',len(b))+k+b+struct.pack('!I',zlib.crc32(k+b)&0xffffffff)
+ for n,col in [('a-red',(200,40,40)),('b-green',(40,180,70)),('c-blue',(40,80,210))]:
+  raw=b''.join(b'\0'+bytes(col)*320 for _ in range(200))
+  (d/(n+'.png')).write_bytes(b'\x89PNG\r\n\x1a\n'+chunk(b'IHDR',struct.pack('!2I5B',320,200,8,2,0,0,0))+chunk(b'IDAT',zlib.compress(raw))+chunk(b'IEND',b''))
+ save('image-fixtures',hashes(d))
+elif c=='picker-start':
+ variant,round=sys.argv[2:4];assert variant in ['baseline','head'] and round in ['cold','warm','index']
+ cache=R/('cache-'+variant)
+ if round=='cold':assert not cache.exists(),'Cold cache already exists'
+ if round=='index':
+  for f in (cache/'omarchy/image-selector').glob('*'):
+   if f.suffix in ['.rows','.signature','.fast-signature']:f.unlink()
+ subprocess.Popen([sys.executable,__file__,'picker-worker',variant,round],stdout=open(E/(variant+'-picker-'+round+'.log'),'w'),stderr=subprocess.STDOUT,start_new_session=True)
+ print('started')
+elif c=='picker-worker':
+ variant,round=sys.argv[2:4];env=dict(os.environ,XDG_CACHE_HOME=str(R/('cache-'+variant)))
+ start=time.monotonic_ns()
+ p=subprocess.run(['omarchy-menu-images','--show-labels','--selected',str(R/'images/b-green.png'),str(R/'images')],env=env,text=True,capture_output=True,timeout=60)
+ cache=R/('cache-'+variant)/'omarchy/image-selector'
+ save(variant+'-picker-'+round,{'exit_code':p.returncode,'stdout':p.stdout,'stderr':p.stderr,'duration_ns':time.monotonic_ns()-start,'cache_hashes':hashes(cache),'index':(cache/'index.tsv').read_text() if (cache/'index.tsv').exists() else None})
+elif c=='picker-result':
+ p=E/(sys.argv[2]+'-picker-'+sys.argv[3]+'.json');print(p.read_text() if p.exists() else '{}')
 elif c=='restore':
  run('omarchy-shell','shell','hide','omarchy.disk-speedtest');time.sleep(2);switch('head')
  s=snap();assert not s['processes'] and not s['temporary_files'],s

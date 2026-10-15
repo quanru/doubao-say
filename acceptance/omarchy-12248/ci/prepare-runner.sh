@@ -53,5 +53,5 @@ printf '#!/bin/sh\nexec convert "$@"\n' > work/shims/magick
 chmod +x work/shims/*
 export ACCEPTANCE_STATE="$PWD/work/session-state"
 export OMARCHY_PATH="$PWD/work/omarchy"
-PATH="$PWD/work/shims:$PATH" bash work/iso/bin/acceptance-session "${images[0]}" --keyboard us --keep-running --no-preview --memory 4096
+PATH="$PWD/work/shims:$PATH" bash work/iso/bin/acceptance-session "${images[0]}" --keyboard 'English (US)' --keep-running --no-preview --memory 4096
 bash ci/guest.sh bootstrap

@@ -48,11 +48,27 @@ async function cancel(v){
  results.push({case:v+'-cancel',status:'PROCESS_AND_FILE_CLEANUP_CONFIRMED',old});
  await full(v+'-reopen');
 }
+async function picker(v){
+ const rounds=[];
+ for(const round of ['cold','warm','index']){
+  guest('picker-start',v,round);await sleep(1800);
+  await capture(`${v}-picker-${round}-open`,'Fixed local red/green/blue PNGs; selected green. Cold/warm/index-only cache states are isolated.');
+  key('right');await sleep(500);
+  await capture(`${v}-picker-${round}-selected`,'QMP Right selects blue; Enter result checked against exact source path.');
+  key('ret');let r={};
+  for(let i=0;i<50;i++){r=JSON.parse(guest('picker-result',v,round));if('exit_code' in r)break;await sleep(100);}
+  if(r.exit_code!==0||r.stdout.trim()!=='/tmp/pr12248/images/c-blue.png')throw Error(v+' '+round+': unexpected actual picker result '+JSON.stringify(r));
+  rounds.push(r);await sleep(300);
+ }
+ if(rounds.some(r=>r.index!==rounds[0].index))throw Error(v+': index changed on warm or forced-row-rebuild open');
+ results.push({case:v+'-image-picker',status:'RESULTS_IDENTICAL_PENDING_VISUAL_REVIEW',rounds:['cold','warm','index']});
+}
 try{
  agent=await agentForComputer({headless:false,keepXvfbAliveUntilProcessExit:true,generateReport:true,reportFileName:'omarchy-12248-no-model'});
+ guest('picker-prepare');
  for(const v of ['baseline','head']){
   guest('switch',v);await capture(v+'-desktop','Installed exact baseline/head file hashes saved in guest metadata.');
-  await full(v);await cancel(v);
+  await full(v);await cancel(v);await picker(v);
  }
 }catch(error){results.push({status:'FAILED_OR_BLOCKED',message:String(error)});process.exitCode=1;try{await capture('failure','Failure retained; not acceptance PASS.');}catch{}}
 finally{
