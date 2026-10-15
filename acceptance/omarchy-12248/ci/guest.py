@@ -1,5 +1,7 @@
 import os,sys,pathlib,subprocess,json,time,hashlib,shutil
 R=pathlib.Path('/tmp/pr12248'); E=R/'evidence'; H=pathlib.Path.home(); O=pathlib.Path('/usr/share/omarchy')
+import importlib.util
+spec=importlib.util.spec_from_file_location('config_evidence',R/'config-evidence.py');config=importlib.util.module_from_spec(spec);spec.loader.exec_module(config)
 files=['bin/omarchy-disk-speedtest','bin/omarchy-menu-images','shell/plugins/panels/disk-speedtest/Panel.qml']
 def run(*a):return subprocess.check_output(a,text=True,stderr=subprocess.STDOUT).strip()
 def save(n,x): (E/(n+'.json')).write_text(json.dumps(x,indent=2));return x
@@ -47,7 +49,13 @@ def switch(v):
  save(v+'-installed',actual)
 c=sys.argv[1]
 if c=='bootstrap':
- E.mkdir(exist_ok=True);(R/'config-before.json').write_text(json.dumps(hashes(H/'.config')))
+ E.mkdir(exist_ok=True)
+ cfg=H/'.config/omarchy/shell.json'
+ if cfg.exists():shutil.copy2(cfg,R/'shell-config-backup')
+ (R/'config-before.json').write_text(json.dumps(hashes(H/'.config')))
+ config.capture('before')
+ p=subprocess.Popen([sys.executable,str(R/'config-evidence.py')],stdout=open(E/'config-watch.log','w'),stderr=subprocess.STDOUT,start_new_session=True)
+ save('config-watch-start',{'pid':p.pid})
  d=H/'.cache/omarchy';d.mkdir(parents=True,exist_ok=True)
  assert shutil.disk_usage(d).free>=3*1024**3
  assert not snap()['temporary_files'],'Existing test files in fresh VM'
@@ -57,9 +65,11 @@ if c=='bootstrap':
   run('dd','if='+str(p),'of=/dev/null','bs=4M','iflag=direct','status=none')
  finally:p.unlink(missing_ok=True)
  save('preflight',{'df':run('df','-h',str(d)),'mount':run('findmnt','-no','SOURCE,FSTYPE,OPTIONS','--target',str(d)),'block':run('lsblk','-J'),'direct_io_probe':True,'config_before':hashes(H/'.config'),'package_versions':run('pacman','-Q','hyprland','quickshell','bash','coreutils')})
-elif c=='switch':switch(sys.argv[2])
+elif c=='switch':
+ (R/'case-label').write_text('switch-'+sys.argv[2]);config.capture('before-switch-'+sys.argv[2]);switch(sys.argv[2]);config.capture('after-switch-'+sys.argv[2])
 elif c=='open':run('omarchy-shell','shell','summon','omarchy.disk-speedtest','{}')
-elif c=='snapshot':print(json.dumps(save(sys.argv[2],snap())))
+elif c=='snapshot':
+ (R/'case-label').write_text(sys.argv[2]);config.capture(sys.argv[2]);print(json.dumps(save(sys.argv[2],snap())))
 elif c=='status':print(json.dumps(snap()))
 elif c=='screenshot':run('grim',str(E/(sys.argv[2]+'.png')))
 elif c=='observe-start':
@@ -112,6 +122,39 @@ elif c=='picker-result':
 elif c=='restore':
  run('omarchy-shell','shell','hide','omarchy.disk-speedtest');time.sleep(2);switch('head')
  s=snap();assert not s['processes'] and not s['temporary_files'],s
- before=json.loads((R/'config-before.json').read_text());after=hashes(H/'.config');save('restore',{'snapshot':s,'config_byte_identical':before==after,'config_before':before,'config_after':after})
- assert before==after,'Configuration changed'
+ before=json.loads((R/'config-before.json').read_text());pre=hashes(H/'.config');config.capture('pre-restore')
+ save('pre-restore',{'snapshot':s,'config_byte_identical':before==pre,'config_before':before,'config_after':pre})
+ # Stop the actual shell before restoring so an asynchronous FileView write cannot race the copy.
+ for _ in range(10):
+  p=subprocess.run(['quickshell','kill','-p',str(O/'shell'),'--any-display'],capture_output=True,text=True,timeout=8)
+  if p.returncode!=0:break
+ else:raise RuntimeError('Shell instances did not stop')
+ def shell_pids():
+  out=[]
+  for p in pathlib.Path('/proc').glob('[0-9]*'):
+   try:
+    cmd=(p/'cmdline').read_bytes().replace(b'\0',b' ').decode(errors='replace')
+    if (p/'comm').read_text().strip() in ['quickshell','qs'] and str(O/'shell') in cmd:out.append({'pid':int(p.name),'cmd':cmd})
+   except OSError:pass
+  return out
+ time.sleep(1);stopped=shell_pids();save('shell-stopped',{'processes':stopped});assert not stopped,'Shell writer still alive'
+ config.capture('quiesced-before-restore');quiesced=hashes(H/'.config')
+ changed=[n for n in set(before)|set(quiesced) if before.get(n)!=quiesced.get(n)]
+ save('quiesced-config-diff',{'changed_files':changed,'before':before,'after':quiesced})
+ assert not [n for n in changed if n!='omarchy/shell.json'],'Unexpected non-shell config changes; refusing broad restore'
+ cfg=H/'.config/omarchy/shell.json';backup=R/'shell-config-backup'
+ if backup.exists():shutil.copy2(backup,cfg)
+ else:cfg.unlink(missing_ok=True)
+ config.capture('after-restore');checks=[]
+ for _ in range(12):
+  time.sleep(.25);after=hashes(H/'.config');checks.append({'epoch_ns':time.time_ns(),'config_equal':before==after,'shell_processes':shell_pids()})
+  assert before==after and not checks[-1]['shell_processes'],'Restored configuration changed or shell writer restarted'
+ (R/'config-watch-stop').touch()
+ for _ in range(50):
+  if (R/'config-watch-done').exists():break
+  time.sleep(.1)
+ assert (R/'config-watch-done').exists(),'Config observer did not finish'
+ s=snap();assert not s['processes'] and not s['temporary_files'],'Final cleanup failed'
+ save('restore',{'snapshot':s,'pre_restore_config_byte_identical':before==pre,'config_byte_identical':before==after,'config_before':before,'config_after':after,'quiesced_changed_files':changed,'stable_checks':checks,'shell_stopped_for_final_disposable_vm_teardown':True})
+ assert before==after,'Configuration restore failed'
 else:raise SystemExit('Unknown operation')

@@ -16,7 +16,7 @@ if [[ ${1:-} == bootstrap ]]; then
   done
   ssh "${args[@]}" omarchy@127.0.0.1 'mkdir -p /tmp/pr12248/evidence /tmp/pr12248/sources'
   tar -C work/sources -cf - . | ssh "${args[@]}" omarchy@127.0.0.1 'tar -C /tmp/pr12248/sources -xf -'
-  scp -q -i "$key" -P 2222 -o StrictHostKeyChecking=no -o UserKnownHostsFile=/dev/null ci/guest.py ci/observe-write.py omarchy@127.0.0.1:/tmp/pr12248/
+  scp -q -i "$key" -P 2222 -o StrictHostKeyChecking=no -o UserKnownHostsFile=/dev/null ci/guest.py ci/observe-write.py ci/config-evidence.py omarchy@127.0.0.1:/tmp/pr12248/
 fi
 printf -v quoted '%q ' "$@"
 exec ssh "${args[@]}" omarchy@127.0.0.1 "export XDG_RUNTIME_DIR=/run/user/1000; export DBUS_SESSION_BUS_ADDRESS=unix:path=/run/user/1000/bus; export HYPRLAND_INSTANCE_SIGNATURE=\$(ls -t /run/user/1000/hypr | head -1); export WAYLAND_DISPLAY=\$(find /run/user/1000 -maxdepth 1 -name 'wayland-*' ! -name '*.lock' -printf '%f\\n' | head -1); export OMARCHY_PATH=/usr/share/omarchy; export PATH=/usr/share/omarchy/bin:\$PATH; python3 /tmp/pr12248/guest.py $quoted"
