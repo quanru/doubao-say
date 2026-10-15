@@ -5,6 +5,9 @@ on:
       - 'macos/**'
       - 'tests/e2e/**'
       - '.github/workflows/midscene-macos.yml'
+      - '.github/workflows/deploy-midscene-report.yml'
+      - 'scripts/*report*.mjs'
+      - 'tests/contracts/test_pages_report_history.mjs'
   workflow_dispatch:
 permissions:
   contents: read
@@ -13,6 +16,8 @@ concurrency:
   cancel-in-progress: false
 jobs:
   macos-e2e:
+    outputs:
+      report-artifact-id: ${{ steps.report.outputs.artifact-id }}
     if: github.event_name != 'pull_request' || github.event.pull_request.head.repo.full_name == github.repository
     environment:
       name: Model
@@ -58,6 +63,7 @@ jobs:
       - name: Build isolated native fixture
         run: bash macos/Tests/Midscene/build.sh
       - name: Run native visual interactions
+        id: midscene-test
         working-directory: tests/e2e
         env:
           MIDSCENE_MODEL_API_KEY: ${{ secrets.MIDSCENE_MODEL_API_KEY }}
@@ -69,7 +75,23 @@ jobs:
           # Load the native binding before Midscene's tsx config loader.
           NODE_OPTIONS: --dns-result-order=ipv4first --no-network-family-autoselection --require=node-mac-permissions
         run: npm run test:macos -- --project macos-settings
+      - name: Capture report evidence
+        id: capture-report
+        if: always() && !cancelled()
+        run: node tests/e2e/capture-report-preview.mjs --report-dir tests/e2e/midscene_run --projects macos-settings
+      - name: Record project results for report aggregation
+        if: always() && !cancelled()
+        env:
+          TEST_OUTCOME: ${{ steps.midscene-test.outcome }}
+          CAPTURE_OUTCOME: ${{ steps.capture-report.outcome }}
+        run: |
+          node scripts/write-ci-project-status.mjs \
+            --output tests/e2e/midscene_run/ci-project-status-macos-settings.json \
+            --project macos-settings \
+            --test-outcome "${TEST_OUTCOME:-skipped}" \
+            --capture-outcome "${CAPTURE_OUTCOME:-skipped}"
       - name: Preserve visual reports (including failures)
+        id: report
         if: always()
         uses: actions/upload-artifact@043fb46d1a93c77aae656e7c1c64a875d1fc6a0a # v7.0.1
         with:
@@ -98,3 +120,24 @@ jobs:
             fi
             echo "[Download test artifacts]($GITHUB_SERVER_URL/$GITHUB_REPOSITORY/actions/runs/$GITHUB_RUN_ID#artifacts)"
           } >> "$GITHUB_STEP_SUMMARY"
+
+  pages-report:
+    name: GitHub Pages report
+    needs: macos-e2e
+    if: >-
+      always() && !cancelled() &&
+      needs.macos-e2e.outputs.report-artifact-id != '' &&
+      (github.event_name != 'pull_request' ||
+      github.event.pull_request.head.repo.full_name == github.repository)
+    permissions:
+      actions: read
+      contents: read
+      pages: write
+      id-token: write
+    uses: ./.github/workflows/deploy-midscene-report.yml
+    with:
+      artifact-name: macos-midscene-report
+      report-label: macOS
+      summary-title: macOS
+      report-groups: '[{"role":"primary","label":"Doubao Say settings","projects":["macos-settings"]}]'
+      run-result: ${{ needs.macos-e2e.result }}

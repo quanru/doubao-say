@@ -94,7 +94,7 @@ function caseRow(pagesUrl, { entry, testCase }, detail) {
   const screenshot = testCase.previewPath
     ? `<a href="${htmlAttribute(target)}"><img src="${htmlAttribute(reportUrl(pagesUrl, testCase.previewPath))}" alt="${htmlAttribute(testCase.name)}" width="160"></a>`
     : '—';
-  return `| ${inlineCell(caseProject(entry, testCase))} | [${inlineCell(testCase.name)}](${target}) | ${screenshot} | ${inlineCell(detail)} | ${formatDuration(testCase.durationMs) || '—'} |`;
+  return `| ${inlineCell(caseProject(entry, testCase))} | [${inlineCell(testCase.name)}](${target}) | ${screenshot} | ${inlineCell(detail)} | ${formatDuration(testCase.durationMs) || '—'} | [Open report](${target}) |`;
 }
 
 export function renderReportSummary({
@@ -169,13 +169,13 @@ export function renderReportSummary({
     sections.push(
       '### Needs attention',
       '',
-      '| Shard | Case | Screenshot | Status / reason | Duration |',
-      '|:--|:--|:--|:--|--:|',
+      '| Project | Case | Screenshot | Status / reason | Duration | Report |',
+      '|:--|:--|:--|:--|--:|:--|',
       ...incompleteEntries.map((entry) =>
-        `| ${inlineCell(entry.label)} | — | — | ❌ ${inlineCell(entry.status)}${runUrl ? ` · [Workflow run](${runUrl})` : ''} | — |`,
+        `| ${inlineCell(entry.label)} | — | — | ❌ ${inlineCell(entry.status)}${runUrl ? ` · [Workflow run](${runUrl})` : ''} | — | — |`,
       ),
       ...(unreportedFailure
-        ? [`| Workflow | — | — | ❌ ${inlineCell(producerResult === 'success' ? 'incomplete report' : producerResult)}${runUrl ? ` · [Workflow run](${runUrl})` : ''} | — |`]
+        ? [`| Workflow | — | — | ❌ ${inlineCell(producerResult === 'success' ? 'incomplete report' : producerResult)}${runUrl ? ` · [Workflow run](${runUrl})` : ''} | — | — |`]
         : []),
       ...failedCases
         .sort((left, right) =>
@@ -198,16 +198,13 @@ export function renderReportSummary({
   }
 
   sections.push(
-    '<details>',
-    `<summary>Appendix: passed cases (${passedCases.length})</summary>`,
+    `### Passed cases (${passedCases.length})`,
     '',
-    '| Shard | Case | Screenshot | Status | Duration |',
-    '|:--|:--|:--|:--|--:|',
+    '| Project | Case | Screenshot | Status | Duration | Report |',
+    '|:--|:--|:--|:--|--:|:--|',
     ...passedCases.map((item) => caseRow(pagesUrl, item, '✅ Passed')),
     '',
-    '</details>',
-    '',
-    'Click a screenshot or case name to open its exact step in the native Midscene report. A CI failure card appears when a shard stops before Midscene can capture a report.',
+    'Click a screenshot or case name to open its exact step in the native Midscene report. A CI failure card appears when a project stops before Midscene can capture a report.',
     '',
   );
 

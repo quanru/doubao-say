@@ -78,7 +78,10 @@ Summary, removes the artifact-local report link, and adds an artifact download
 link. If setup fails before a result exists, the Summary says so explicitly.
 Both `midscene_run/` and `.midscene/` are uploaded on success and failure
 with hidden files included and a 14-day retention,
-without publishing desktop captures to Pages. Its own concurrency group prevents Linux workflow events from cancelling a
+and publish synthetic case evidence to Pages. The publication job adds a visible
+Summary table with each case’s status, screenshot, duration and a report link
+to its exact native report step. Diagnostic desktop captures are excluded from
+the restricted Pages payload. Its own concurrency group prevents Linux workflow events from cancelling a
 pending Mac run. Cases stay serial; model credentials may still share provider
 quota with Linux suites.
 

@@ -16,6 +16,7 @@ import { verifyPublishedReport } from '../../scripts/verify-pages-report.mjs';
 
 test('publishes the Markdown evidence table for same-repository pull requests', async () => {
   for (const workflow of [
+    'midscene-macos.yml',
     'midscene-ubuntu-22.04.yml',
     'midscene-omarchy-4.0.3.yml',
   ]) {
@@ -1456,14 +1457,16 @@ test('renders Rome-style passed-case appendix with linked screenshots', () => {
     summary,
     /index\.html#runner-step=case-ubuntu%3Asteps%3A8/,
   );
-  assert.match(summary, /\| Shard \| Case \| Screenshot \| Status \| Duration \|/);
+  assert.match(summary, /\| Project \| Case \| Screenshot \| Status \| Duration \| Report \|/);
   assert.match(summary, /\| ubuntu \| \[Launch and finish onboarding\].*\| ✅ Passed \| 1m13s \|/);
   assert.match(summary, /\| ubuntu-polishing \| \[Polish selected text\].*\| ✅ Passed \| 52s \|/);
   assert.match(
     summary,
     /<img src="[^"]*case-preview-ubuntu-case-ubuntu\.jpg"[^>]*width="160">/,
   );
-  assert.match(summary, /<summary>Appendix: passed cases \(2\)<\/summary>/);
+  assert.match(summary, /### Passed cases \(2\)/);
+  assert.doesNotMatch(summary, /<details>/);
+  assert.equal((summary.match(/\[Open report\]\(/g) ?? []).length, 2);
   assert.match(summary, /Open the published HTML report/);
 });
 
@@ -1512,7 +1515,7 @@ test('renders singular failure copy for one available report', () => {
   assert.match(summary, /Ubuntu × Midscene · failure captured/);
   assert.match(summary, /\*\*1 need attention · 0 passed\*\*/);
   assert.match(summary, /### Needs attention/);
-  assert.match(summary, /\| Shard \| Case \| Screenshot \| Status \/ reason \| Duration \|/);
+  assert.match(summary, /\| Project \| Case \| Screenshot \| Status \/ reason \| Duration \| Report \|/);
   assert.match(summary, /\| ubuntu \| \[Broken flow\]/);
   assert.match(summary, /<img src="[^"]*case-preview-ubuntu-case-fail\.jpg"[^>]*width="160">/);
   assert.match(
@@ -1524,7 +1527,7 @@ test('renders singular failure copy for one available report', () => {
     /index\.html#runner-step=case-fail%3Asteps%3A2/,
   );
   assert.match(summary, /case-preview-ubuntu-case-fail\.jpg/);
-  assert.match(summary, /<summary>Appendix: passed cases \(0\)<\/summary>/);
+  assert.match(summary, /### Passed cases \(0\)/);
 });
 
 test('selects the last screenshot for success and first failed screenshot for failure', async () => {
@@ -1786,7 +1789,7 @@ test('publishes all case metadata when one report has no node screenshot', async
   assert.match(summary, /1 need attention · 0 passed/);
   assert.match(summary, /### Needs attention/);
   assert.match(summary, /\| ubuntu \| \[ubuntu damaged-agent case\].*\| — \| ❌ Failed:/);
-  assert.match(summary, /Appendix: passed cases \(0\)/);
+  assert.match(summary, /Passed cases \(0\)/);
   assert.match(summary, /ubuntu damaged-agent case/);
 });
 
