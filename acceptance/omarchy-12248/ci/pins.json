@@ -1,0 +1,11 @@
+{
+  "omarchy": "f88f533b6fd90178daf8165b0e8132a9b299d3e8",
+  "iso": "53b80d406cdcb56cd757562e0f31d2c13cb57f47",
+  "pkgs": "eba2a95f2e9ef209e906a93e93db70b9a856b910",
+  "midscene": "PR3196 source 1.13.3 + native timing",
+  "builder_image": "ghcr.io/archlinux/archlinux@sha256:86092797e32aa19d3f45a831b2873cf557c21c5280e9d197ca7a43c8ea79bcd3",
+  "midscene_commit": "852410869c665bbb32f1017d51103fb768e01b07",
+  "upstream_pr_head": "f88f533b6fd90178daf8165b0e8132a9b299d3e8",
+  "baseline": "8b4eae66da2938ba9559f103b18dbf85cdf28a70",
+  "reference_harness": "c7e0b9b7ca0218212c99e16c12de1b5964756fda"
+}

@@ -1,0 +1,20 @@
+"""Transport sanitized evidence in free CI logs; no artifact storage or Pages."""
+from pathlib import Path
+import io,tarfile,base64,hashlib,re
+root=Path('review-artifacts');assert root.is_dir()
+buf=io.BytesIO()
+with tarfile.open(fileobj=buf,mode='w:gz') as tar:
+ for p in sorted(root.rglob('*')):
+  if p.is_file():
+   assert p.suffix in {'.html','.png','.jpg','.jpeg','.webp','.json','.jsonl','.csv','.txt','.log','.diff'} or p.name in {'SHA256SUMS','ready','done','stop','iso.sha256'},str(p)
+   # Keep export safe even when an earlier cleanup/analysis step failed.
+   assert not p.is_symlink(),'Evidence symlinks are not exportable'
+   if p.suffix not in {'.png','.jpg','.jpeg','.webp'}:
+    assert not re.search(r'(?:sk-(?:proj-)?[A-Za-z0-9_-]{24,}|-----BEGIN (?:OPENSSH|RSA|EC) PRIVATE KEY-----|Bearer [A-Za-z0-9_.-]{24,})',p.read_text(errors='ignore')),'Credential-pattern scan blocked export'
+   tar.add(p,arcname=str(p.relative_to(root)),recursive=False)
+data=buf.getvalue()
+assert len(data)<=50*1024*1024,'Evidence exceeds log transport cap; leave run logs for diagnosis'
+print('PR12248_EVIDENCE_BEGIN '+str(len(data))+' '+hashlib.sha256(data).hexdigest(),flush=True)
+s=base64.b64encode(data).decode()
+for i in range(0,len(s),32000): print('PR12248_EVIDENCE_DATA '+s[i:i+32000],flush=True)
+print('PR12248_EVIDENCE_END',flush=True)
