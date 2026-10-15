@@ -1,5 +1,24 @@
-<svg xmlns="http://www.w3.org/2000/svg" width="128" height="128" viewBox="0 0 128 128">
-  <rect width="128" height="128" rx="30" fill="#1a1b26"/>
-  <path d="M24 76c0-25 17-44 40-44s40 19 40 44c0 17-16 25-40 25S24 93 24 76Z" fill="#7aa2f7"/>
-  <path d="m50 32 14 10 14-10M44 67v10m13-19v29m14-24v19m13-15v10" fill="none" stroke="#1a1b26" stroke-width="6" stroke-linecap="round" stroke-linejoin="round"/>
+<svg xmlns="http://www.w3.org/2000/svg" width="1024" height="1024" viewBox="0 0 128 128">
+  <defs>
+    <linearGradient id="bun" x1="0" y1="0" x2="1" y2="1">
+      <stop stop-color="#A9D5FF"/><stop offset="1" stop-color="#7295E8"/>
+    </linearGradient>
+    <clipPath id="body">
+      <path d="M23 78c0-20 11-35 27-41-3-7 2-12 8-9l6 3 6-3c6-3 11 2 8 9 16 6 27 21 27 41 0 19-17 25-41 25S23 97 23 78Z"/>
+    </clipPath>
+  </defs>
+  <rect width="128" height="128" rx="29" fill="#FFF"/>
+  <g clip-path="url(#body)">
+    <rect x="20" y="24" width="88" height="82" fill="url(#bun)"/>
+    <ellipse cx="48" cy="39" rx="55" ry="35" fill="#D9EEFF" opacity=".42"/>
+    <ellipse cx="92" cy="101" rx="52" ry="36" fill="#6C8DDD" opacity=".22"/>
+  </g>
+  <path d="m54 39 10 6 10-6" fill="none" stroke="#DCEEFF" stroke-width="4.5" stroke-linecap="round" stroke-linejoin="round"/>
+  <g fill="#FFF">
+    <rect x="40" y="68" width="6" height="12" rx="3"/>
+    <rect x="50.5" y="63" width="6" height="22" rx="3"/>
+    <rect x="61" y="57" width="6" height="34" rx="3"/>
+    <rect x="71.5" y="63" width="6" height="22" rx="3"/>
+    <rect x="82" y="68" width="6" height="12" rx="3"/>
+  </g>
 </svg>
