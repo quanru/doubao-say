@@ -117,6 +117,8 @@ meaning, and can be edited or restored to its default.
 
 The built-in prompts use passage context to correct unambiguous accent-related recognition errors, including Chinese retroflex initials, nasal endings, and n/l or f/h confusions. Ambiguous wording is retained; names, quantities and negation are never guessed from sound alone. Updates migrate exact old defaults while preserving custom prompts.
 
+Context includes grammar and action sequences: in a troubleshooting request, “确认附件验证解决” can become “确认、复现、验证、解决”. References to email attachments, deliberate quotations and ambiguous short phrases retain “附件”; this is model-based correction, not a global word replacement.
+
 Explicitly spoken points such as 第一、第二、第三 are formatted as Markdown numbered lists, one item per line; ordinary references to days, rankings or counts stay as prose.
 
 Polished text also gains restrained reading layout: related sentences stay together, clear topic changes can start a new paragraph, and paragraphs and lists are separated by one blank line. Short answers stay compact; formatting does not add headings or change the content order.
@@ -145,6 +147,9 @@ Use **Test endpoint** to check connectivity, then try a short recording to asses
 actual polishing latency and quality.
 
 The settings page shows the thinking policy for your endpoint and model.
+The verified `qwen3.7-plus` model on `token-plan.cn-beijing.maas.aliyuncs.com`
+also requests `enable_thinking: false`; other Token Plan models keep their
+provider defaults. See the [Token Plan parameter guide](https://help.aliyun.com/en/model-studio/qwen-code).
 Automatic control depends on the official hostname, not just the model name.
 For gateways or providers without a verified policy (including OpenAI, Claude,
 and Grok), confirm thinking is disabled in the provider configuration or choose
