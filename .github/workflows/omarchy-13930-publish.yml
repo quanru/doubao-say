@@ -1,4 +1,4 @@
-name: Publish reviewed Omarchy 13930 evidence in isolation
+name: Publish English Omarchy 13930 evidence presentation
 on:
   push:
     branches: [acceptance/omarchy-13930-8997958d]
@@ -22,7 +22,7 @@ jobs:
       - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1
         with:
           persist-credentials: false
-      - name: Preserve complete live artifact and append isolated report
+      - name: Preserve raw evidence and publish English presentation
         env:
           GH_TOKEN: ${{ github.token }}
         run: python3 acceptance/omarchy-13930/publish/publish.py prepare

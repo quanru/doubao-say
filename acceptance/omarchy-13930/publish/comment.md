@@ -1,6 +1,6 @@
 Tested **8997958** against base **8b4eae6** in a disposable Omarchy desktop using the real shared-component gallery (`omarchy dev ui-preview dropdown`), with **Qt 6.11.2 / Quickshell 0.3.1**. All 37 recorded steps were reviewed against screenshots. Closed wheel selection advances/reverses and clamps; the baseline does not change selection. Four horizontal injections (left/right on both revisions) were independently observed as `REL_HWHEEL ±1`, with **no vertical events**. Original files/permissions were restored and the temporary input device was removed. No model calls.
 
-[Full report](https://quanru.github.io/doubao-say/reports/38748420827/index.html) · [Original Midscene HTML](https://quanru.github.io/doubao-say/reports/38748420827/raw-midscene-omarchy-13930-real-gallery-no-model.html). Step pages below use real Midscene execution IDs and link the unmodified original report.
+[Full report](https://quanru.github.io/doubao-say/reports/38748420827/index.html) · [English Midscene presentation](https://quanru.github.io/doubao-say/reports/38748420827/midscene-english.html) · [Immutable original evidence](https://quanru.github.io/doubao-say/reports/38748420827/original-evidence.tar.gz). The English viewer preserves the original records and screenshots; step pages use real Midscene execution IDs.
 
 | Check | Actual screenshot | Corresponding Midscene step |
 |---|---|---|
