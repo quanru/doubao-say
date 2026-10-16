@@ -1,3 +1,4 @@
+# Publish the requested four-row draft; recorded steps are not all assertions.
 name: Update only Omarchy 13930 English comment draft
 on:
   push:
