@@ -89,7 +89,7 @@ struct OverlayView: View {
         case .idle: return ""
         case .starting: return L("Starting voice recognition…", "正在启动语音识别…")
         case .recording: return L("Listening…", "正在聆听…")
-        case .stopping: return L("Transcribing…", "正在转写…")
+        case .stopping: return L("Transcribing… · Esc to cancel", "正在转写… · Esc 取消")
         case .polishing: return L("Polishing…", "润色中")
         }
     }
