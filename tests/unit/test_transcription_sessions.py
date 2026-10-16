@@ -8,6 +8,7 @@ class TranscriptionSessionTest(TestCase):
     def test_cancel_during_finalization_releases_session_and_ignores_late_results(self):
         manager = self.manager()
         manager.app_state.login_status = LoginStatus.LOGGED_IN
+        manager.credential_store = Mock()
         manager.on_paste = Mock()
         manager.on_overlay_hide = Mock()
         manager._later = Mock(return_value=123)
