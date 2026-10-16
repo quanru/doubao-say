@@ -25,18 +25,23 @@ if sys.argv[1]=='prepare':
  assert (site/'index.html').read_bytes()==get('index.html')[0],'Root mismatch; stop without deploy'
  assert target.is_dir(),'Existing isolated report required'
  before={str(f.relative_to(site)):sha(f.read_bytes()) for f in site.rglob('*') if f.is_file()}
- from english import build
- build(target)
- original=pathlib.Path('acceptance/omarchy-13930/delivery/omarchy-13930-original-evidence.tar.gz').read_bytes()
- assert sha(original)=='b9317f0f708fb3ba31c90b04c72b0da1ce133f4f7eff9005bb4f0ce0644b683e'
- (target/'original-evidence.tar.gz').write_bytes(original)
- (target/'english-pr-reply-draft.txt').write_text(pathlib.Path('acceptance/omarchy-13930/publish/comment.md').read_text())
- newfiles=[str(f.relative_to(site)) for f in target.iterdir()]
- record=next(r for r in manifest['reports'] if r['runId']=='38748420827');record['files']=newfiles
- (site/'reports/manifest.json').write_text(json.dumps(manifest,indent=2)+'\n')
- assert all(sha((site/f).read_bytes())==v for f,v in before.items() if f!='reports/manifest.json' and not (f.startswith(prefix+'/evidence-') or f in [prefix+'/index.html',prefix+'/english-pr-reply-draft.txt']))
+ if os.environ.get('DRAFT_ONLY')=='1':
+  (target/'english-pr-reply-draft.txt').write_bytes(pathlib.Path('acceptance/omarchy-13930/publish/comment.md').read_bytes())
+  newfiles=[str(f.relative_to(site)) for f in target.iterdir()]
+  assert all(sha((site/f).read_bytes())==v for f,v in before.items() if f!=prefix+'/english-pr-reply-draft.txt'),'Unexpected change outside draft'
+ else:
+  from english import build
+  build(target)
+  original=pathlib.Path('acceptance/omarchy-13930/delivery/omarchy-13930-original-evidence.tar.gz').read_bytes()
+  assert sha(original)=='b9317f0f708fb3ba31c90b04c72b0da1ce133f4f7eff9005bb4f0ce0644b683e'
+  (target/'original-evidence.tar.gz').write_bytes(original)
+  (target/'english-pr-reply-draft.txt').write_text(pathlib.Path('acceptance/omarchy-13930/publish/comment.md').read_text())
+  newfiles=[str(f.relative_to(site)) for f in target.iterdir()]
+  record=next(r for r in manifest['reports'] if r['runId']=='38748420827');record['files']=newfiles
+  (site/'reports/manifest.json').write_text(json.dumps(manifest,indent=2)+'\n')
+  assert all(sha((site/f).read_bytes())==v for f,v in before.items() if f!='reports/manifest.json' and not (f.startswith(prefix+'/evidence-') or f in [prefix+'/index.html',prefix+'/english-pr-reply-draft.txt']))
  assert get('reports/manifest.json')[0]==live,'Concurrent update; stop without deploy'
- audit={'existing_file_count':len(before),'existing_root_sha256':before['index.html'],'original_manifest_sha256':sha(live),'existing_report_count':len(manifest['reports']),'new_files':{f:sha((site/f).read_bytes()) for f in newfiles},'restored_artifact':a['id'],'restored_run':current,'preservation':'Only report/evidence presentation HTML and English draft replaced; immutable raw evidence, screenshots and all other reports unchanged.'}
+ audit={'existing_file_count':len(before),'existing_root_sha256':before['index.html'],'original_manifest_sha256':sha(live),'existing_report_count':len(manifest['reports']),'new_files':{f:sha((site/f).read_bytes()) for f in newfiles},'restored_artifact':a['id'],'restored_run':current,'preservation':('Only english-pr-reply-draft.txt changed; every other existing file, including manifest and all HTML, is byte-identical.' if os.environ.get('DRAFT_ONLY')=='1' else 'Only presentation files changed; original evidence unchanged.')}
  pathlib.Path('/tmp/pr13930-publication-audit.json').write_text(json.dumps(audit,indent=2));print(json.dumps({k:v for k,v in audit.items() if k!='new_files'}))
 else:
  audit=json.loads(pathlib.Path('/tmp/pr13930-publication-audit.json').read_text())

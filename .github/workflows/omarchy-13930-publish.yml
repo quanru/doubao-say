@@ -1,4 +1,4 @@
-name: Publish English Omarchy 13930 evidence presentation
+name: Update only Omarchy 13930 English comment draft
 on:
   push:
     branches: [acceptance/omarchy-13930-8997958d]
@@ -15,6 +15,8 @@ jobs:
   publish:
     runs-on: ubuntu-24.04
     timeout-minutes: 25
+    env:
+      DRAFT_ONLY: "1"
     environment:
       name: github-pages
       url: https://quanru.github.io/doubao-say/reports/38748420827/index.html
@@ -22,7 +24,7 @@ jobs:
       - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1
         with:
           persist-credentials: false
-      - name: Preserve raw evidence and publish English presentation
+      - name: Preserve complete site and update only comment draft
         env:
           GH_TOKEN: ${{ github.token }}
         run: python3 acceptance/omarchy-13930/publish/publish.py prepare
