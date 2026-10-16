@@ -1,0 +1,21 @@
+name: Omarchy 13930 inspect existing hosting
+on:
+  push:
+    branches: [acceptance/omarchy-13930-8997958d]
+    paths: [.github/workflows/omarchy-13930-hosting-probe.yml]
+permissions:
+  contents: read
+  actions: read
+  pages: read
+jobs:
+  inspect:
+    runs-on: ubuntu-24.04
+    steps:
+      - name: Inspect existing Pages configuration and active deployment
+        env:
+          GH_TOKEN: ${{ github.token }}
+        run: |
+          gh api repos/quanru/doubao-say/pages --jq '{html_url,build_type,status}'
+          gh api 'repos/quanru/doubao-say/deployments?environment=github-pages&per_page=3' --jq '.[]|{id,sha,ref,payload,statuses_url}'
+          gh api 'repos/quanru/doubao-say/actions/artifacts?per_page=15' --jq '.artifacts[]|{id,name,expired,workflow_run}'
+          curl --fail --silent --show-error --location https://quanru.github.io/doubao-say/reports/manifest.json
