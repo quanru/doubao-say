@@ -1,0 +1,42 @@
+name: Publish reviewed Omarchy 13930 evidence in isolation
+on:
+  push:
+    branches: [acceptance/omarchy-13930-8997958d]
+    paths: [.github/workflows/omarchy-13930-publish.yml]
+concurrency:
+  group: pages-report-deploy
+  cancel-in-progress: false
+permissions:
+  contents: read
+  actions: read
+  pages: write
+  id-token: write
+jobs:
+  publish:
+    runs-on: ubuntu-24.04
+    timeout-minutes: 25
+    environment:
+      name: github-pages
+      url: https://quanru.github.io/doubao-say/reports/38748420827/index.html
+    steps:
+      - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1
+        with:
+          persist-credentials: false
+      - name: Preserve complete live artifact and append isolated report
+        env:
+          GH_TOKEN: ${{ github.token }}
+        run: python3 acceptance/omarchy-13930/publish/publish.py prepare
+      - uses: actions/upload-pages-artifact@fc324d3547104276b827a68afc52ff2a11cc49c9
+        with:
+          name: omarchy13930-reviewed-pages
+          path: /tmp/pages13930
+      - uses: actions/deploy-pages@368f82528645a54fb793d4d04e342629a3f51346
+        with:
+          artifact_name: omarchy13930-reviewed-pages
+      - name: Verify anonymous report screenshots and preserved root
+        run: python3 acceptance/omarchy-13930/publish/publish.py verify
+      - uses: actions/upload-artifact@043fb46d1a93c77aae656e7c1c64a875d1fc6a0a
+        if: always()
+        with:
+          name: omarchy13930-publication-audit
+          path: /tmp/pr13930-publication-audit.json
