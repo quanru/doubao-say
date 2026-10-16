@@ -5,6 +5,35 @@ from doubao_input.doubao.transcription import TranscriptionManager
 
 
 class TranscriptionSessionTest(TestCase):
+    def test_cancel_during_finalization_releases_session_and_ignores_late_results(self):
+        manager = self.manager()
+        manager.app_state.login_status = LoginStatus.LOGGED_IN
+        manager.credential_store = Mock()
+        manager.on_paste = Mock()
+        manager.on_overlay_hide = Mock()
+        manager._later = Mock(return_value=123)
+        manager.app_state.recording_state = RecordingState.RECORDING
+        manager._stop_recording()
+        old_result, old_finish = manager.asr_client.on_result, manager.asr_client.on_finish
+        pending = []
+        with patch("doubao_input.doubao.transcription.GLib.source_remove"), patch(
+                "doubao_input.doubao.transcription.GLib.idle_add",
+                side_effect=lambda callback, *args: pending.append((callback, args))):
+            manager.handle_cancel()
+            self.assertEqual(manager.app_state.recording_state, RecordingState.IDLE)
+            self.assertFalse(manager.awaiting_final_result)
+            self.assertIsNone(manager.safety_timer_id)
+            manager.on_overlay_hide.assert_called_once()
+            manager.handle_toggle()
+            self.assertEqual(manager.app_state.recording_state, RecordingState.STARTING)
+            old_result("discarded words")
+            old_finish()
+            for callback, args in pending:
+                callback(*args)
+        self.assertEqual(manager.app_state.transcription_text, "")
+        self.assertEqual(manager.app_state.recording_state, RecordingState.STARTING)
+        manager.on_paste.assert_not_called()
+
     def test_official_backend_uses_its_credential_store_without_web_login(self):
         client, store = Mock(), Mock()
         credentials = object()

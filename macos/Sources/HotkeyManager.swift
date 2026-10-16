@@ -151,6 +151,15 @@ final class HotkeyManager {
         }
         if type == .keyUp, blockedKeys.remove(physicalCode) != nil { return nil }
         if type == .flagsChanged && !modifierPressed, blockedModifiers.remove(physicalCode) != nil { return nil }
+        // Cancellation takes priority over the generic finish-on-any-key rule,
+        // including while ASR or polishing is still pending. Retain the key until
+        // release so neither repeats nor key-up escape into the target app.
+        if code == 53 && type == .keyDown && (active || shortcutDown || gesture.isPending) {
+            if blockedKeys.insert(physicalCode).inserted {
+                resetGesture(); onHotkeyEvent?(.cancel)
+            }
+            return nil
+        }
         let draining = !blockedKeys.isEmpty || !blockedModifiers.isEmpty
         if type.rawValue == 14, let media = NSEvent(cgEvent: event), media.subtype.rawValue == 8 {
             let mediaCode = UInt16(0x8000 | ((media.data1 >> 16) & 0x7fff))
@@ -171,7 +180,6 @@ final class HotkeyManager {
             if interceptingInput && firstPress && !draining { stopFromAuxiliaryKey() }
             return nil
         }
-        if code == 53 && type == .keyDown && (active || shortcutDown || gesture.isPending) { resetGesture(); onHotkeyEvent?(.cancel); return nil }
         let now = ProcessInfo.processInfo.systemUptime
         let modifierShortcut = Self.modifierBit(shortcut.keyCode)
         let down = modifierShortcut != 0 ? (type == .flagsChanged && code == shortcut.keyCode && mods & modifierShortcut != 0) : type == .keyDown
