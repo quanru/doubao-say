@@ -1,6 +1,5 @@
 cases:
   - name: Complete Doubao Say onboarding on a real desktop
-    tags: [shard-1]
     steps:
       - aiAssert: The visible Doubao Say window is on Sign in and says the user is not signed in.
       - aiTap: The large blue full-width Open Doubao sign-in button near the bottom of the central Sign in panel, around 50% width and 73% screen height
@@ -18,22 +17,16 @@ cases:
           options: { timeoutMs: 30000, checkIntervalMs: 1000 }
       - aiAssert: The visible microphone result says Microphone is working.
       - aiTap: Right-arrow Next button in the fixed top navigation
-      - aiScroll:
-          options:
-            direction: down
-            scrollType: singleAction
-            distance: 500
+      - aiAct: Scroll within the Trigger key panel to How polishing works and model tips, then expand it and reveal the model recommendations.
       - aiWaitFor:
           prompt: The Trigger key page visibly recommends a small, fast Voice polishing model with thinking off, names DeepSeek Flash and Gemini 2.5 Flash-Lite, and warns that large reasoning models may exceed five seconds and fall back to the original text.
           options: { timeoutMs: 30000, checkIntervalMs: 1000 }
-      - aiScroll:
-          options: { direction: down, scrollType: singleAction, distance: 300 }
+      - aiAct: Collapse How polishing works and model tips, then scroll within the Trigger key panel until the entire Test endpoint button is visible above Vocabulary & history.
       - aiWaitFor:
           prompt: The entire Test endpoint button in Voice polishing is visible inside the scrolling panel, above the fixed Vocabulary & history button. The small model recommendation text is not the target.
           options: { timeoutMs: 30000, checkIntervalMs: 1000 }
       - aiTap: Test endpoint button in the Voice polishing section
-      - aiScroll:
-          options: { direction: down, scrollType: singleAction, distance: 300 }
+      - aiAct: Scroll within the Trigger key panel only if necessary to reveal the endpoint result immediately below the test button.
       - aiWaitFor:
           prompt: The Voice polishing result says Endpoint works and includes Synthetic endpoint response.
           options: { timeoutMs: 30000, checkIntervalMs: 1000 }

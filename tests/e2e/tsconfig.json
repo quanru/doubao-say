@@ -8,5 +8,5 @@
     "skipLibCheck": true,
     "types": ["node"]
   },
-  "include": ["midscene.config.ts"]
+  "include": ["midscene.config.ts", "midscene.macos.config.ts"]
 }

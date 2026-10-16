@@ -101,6 +101,36 @@ if sys.argv[1] == 'find-identity': print(os.environ['IDENTITIES'])
             self.assertFalse(list(directory.rglob('*.dmg')))
             return calls
 
+    def test_preview_manifest_records_cross_compiled_artifact(self):
+        manifest_script = ROOT / 'Packaging/preview-manifest.py'
+        with tempfile.TemporaryDirectory() as folder:
+            directory = Path(folder)
+            for arch in ['arm64', 'x86_64']:
+                app = directory / f'build/macos/{arch}/Doubao Say.app/Contents'
+                app.mkdir(parents=True)
+                (app / 'Info.plist').write_bytes(plistlib.dumps({
+                    'CFBundleShortVersionString': '1.8.1',
+                    'CFBundleIdentifier': 'md.lifeos.doubao-say.macos',
+                }))
+                (directory / f'build/macos/Doubao-Say-1.8.1-macos-{arch}-abc123.dmg').write_bytes(arch.encode())
+            previous = Path.cwd()
+            try:
+                os.chdir(directory)
+                for arch in ['arm64', 'x86_64']:
+                    with self.subTest(arch=arch), \
+                         patch.dict(os.environ, {'DOUBAO_MAC_ARCH': arch}), \
+                         patch('platform.machine', return_value='arm64'), \
+                         patch('subprocess.run', return_value=subprocess.CompletedProcess(
+                             [], 0, stdout='designated => synthetic requirement', stderr='')), \
+                         patch('subprocess.check_output', return_value='abc123'):
+                        runpy.run_path(str(manifest_script), run_name='__main__')
+                    manifest = json.loads(Path('build/macos/preview-manifest.json').read_text())
+                    self.assertEqual(manifest['architecture'], arch)
+                    self.assertEqual(manifest['artifact'], f'Doubao-Say-1.8.1-macos-{arch}-abc123.dmg')
+                    self.assertEqual(manifest['commit'], 'abc123')
+            finally:
+                os.chdir(previous)
+
     def test_wrong_team_is_rejected_before_notarization(self):
         calls = self.package_failure('OTHERTEAM1', 'Accepted')
         self.assertFalse(any('notarytool' in call for call in calls))

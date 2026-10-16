@@ -1,6 +1,7 @@
 import hashlib
 import importlib.util
 import json
+import os
 from pathlib import Path
 import tempfile
 import unittest
@@ -49,7 +50,7 @@ class ReleaseTest(unittest.TestCase):
         notes = (ROOT / "RELEASE_NOTES.md").read_text()
         self.assertIn("--notes-file RELEASE_NOTES.md", workflow)
         self.assertNotIn("--generate-notes", workflow)
-        for expected in ("Doubao Say 1.8.0", "ChatGPT", "accessibility", "clipboard", "microphone"):
+        for expected in ("Doubao Say 1.8.1", "ChatGPT", "accessibility", "clipboard", "microphone"):
             self.assertIn(expected, " ".join(notes.split()))
 
     def test_both_archives_exclude_ignored_source_files(self):
@@ -143,3 +144,49 @@ class ReleaseTest(unittest.TestCase):
                                 text=True, capture_output=True)
         self.assertIn("--check", result.stdout)
         self.assertIn("--enable", result.stdout)
+
+
+class ArchSourceInstallerTest(unittest.TestCase):
+    @unittest.skipIf(os.geteuid() == 0, "Installers require a normal desktop user")
+    def test_source_installers_install_auth_dependencies_before_preflight(self):
+        for script in ("install.sh", "setup-omarchy.sh"):
+            with self.subTest(script=script), tempfile.TemporaryDirectory() as folder:
+                root = Path(folder)
+                commands = root / "bin"
+                commands.mkdir()
+                target = root / script
+                target.write_text((ROOT / script).read_text())
+                stubs = {
+                    "uname": "echo Linux",
+                    "pacman": 'case "$2" in python-pyjwt|python-cryptography) exit 1;; esac',
+                    "omarchy": 'printf "%s\\n" "$@" > "$INSTALL_TEST_LOG"',
+                    "python3": "exit 0",
+                    "id": "echo input",
+                }
+                for name, body in stubs.items():
+                    command = commands / name
+                    command.write_text("#!/bin/bash\n" + body + "\n")
+                    command.chmod(0o755)
+                preflight = root / "start.sh"
+                preflight.write_text(
+                    '#!/bin/bash\nset -eu\n'
+                    'grep -qx python-pyjwt "$INSTALL_TEST_LOG"\n'
+                    'grep -qx python-cryptography "$INSTALL_TEST_LOG"\n'
+                )
+                preflight.chmod(0o755)
+                log = root / "installed.txt"
+                env = {**os.environ, "PATH": f"{commands}:{os.environ['PATH']}",
+                       "INSTALL_TEST_LOG": str(log)}
+                if script == "install.sh":
+                    check = subprocess.run(["bash", str(target), "--check"], env=env,
+                                           capture_output=True, text=True)
+                    self.assertEqual(check.returncode, 1)
+                    self.assertIn("python-pyjwt python-cryptography", check.stdout)
+                    self.assertFalse(log.exists(), "--check must not install packages")
+                result = subprocess.run(
+                    ["bash", str(target)] + (["--yes"] if script == "install.sh" else []),
+                    env=env, capture_output=True, text=True,
+                )
+                self.assertEqual(result.returncode, 0, result.stdout + result.stderr)
+                self.assertIn("python-pyjwt", log.read_text().splitlines())
+                self.assertIn("python-cryptography", log.read_text().splitlines())

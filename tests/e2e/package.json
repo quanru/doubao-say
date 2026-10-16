@@ -6,15 +6,17 @@
   "scripts": {
     "test": "midscene-test",
     "nodes": "midscene-test nodes",
-    "typecheck": "tsc --noEmit"
+    "typecheck": "tsc --noEmit",
+    "test:macos": "midscene-test --config midscene.macos.config.ts",
+    "check:model": "midscene-test model verify"
   },
   "optionalDependencies": {
     "@img/sharp-libvips-linux-x64": "1.2.4",
     "@img/sharp-linux-x64": "0.34.5"
   },
   "devDependencies": {
-    "@midscene/computer": "1.15.3",
-    "@midscene/test": "1.15.3",
+    "@midscene/computer": "1.15.4",
+    "@midscene/test": "1.15.4",
     "@types/node": "^22.0.0",
     "puppeteer-core": "^25.11.0",
     "typescript": "^5.8.3"

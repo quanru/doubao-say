@@ -27,6 +27,8 @@ jobs:
         run: bash macos/Tests/Settings/build-sidebar-focus.sh
       - name: Build opt-in personal learning UI probe
         run: bash macos/Tests/Settings/build-personal-ui.sh
+      - name: Build isolated Midscene fixture
+        run: bash macos/Tests/Midscene/build.sh
       - name: Explain preview availability
         run: |
           echo 'PR builds publish test probes only. Installable previews are Developer ID signed and notarized by the protected-main preview job. Missing signing credentials fail that job instead of producing an ad-hoc application.' >> "$GITHUB_STEP_SUMMARY"
@@ -45,6 +47,12 @@ jobs:
     # Signing credentials never reach pull-request code or a dispatch on another branch.
     if: github.event_name != 'pull_request' && github.ref == 'refs/heads/main'
     needs: build
+    strategy:
+      fail-fast: false
+      matrix:
+        arch: [arm64, x86_64]
+    env:
+      DOUBAO_MAC_ARCH: ${{ matrix.arch }}
     runs-on: macos-latest
     environment: macos-preview
     timeout-minutes: 30
@@ -68,13 +76,13 @@ jobs:
         run: bash macos/build.sh
       - name: Notarize and package preview
         run: |
-          python3 macos/package-dmg.py --identity "$DOUBAO_CODESIGN_IDENTITY" \
+          python3 macos/package-dmg.py --arch "$DOUBAO_MAC_ARCH" --identity "$DOUBAO_CODESIGN_IDENTITY" \
             --key "$DOUBAO_NOTARY_KEY_PATH" --key-id "$DOUBAO_NOTARY_KEY_ID" \
             --issuer "$DOUBAO_NOTARY_ISSUER_ID"
           python3 macos/Packaging/preview-manifest.py
       - uses: actions/upload-artifact@043fb46d1a93c77aae656e7c1c64a875d1fc6a0a # v7.0.1
         with:
-          name: Doubao-Say-macos-signed-preview
+          name: Doubao-Say-macos-signed-preview-${{ matrix.arch }}
           if-no-files-found: error
           path: |
             build/macos/*.dmg

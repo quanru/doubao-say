@@ -16,7 +16,7 @@ fi
 
 omarchy pkg add \
   python python-gobject python-cairo \
-  python-sounddevice python-websockets python-evdev \
+  python-sounddevice python-websockets python-evdev python-pyjwt python-cryptography \
   gtk4 gtk4-layer-shell webkitgtk-6.0 pipewire wl-clipboard portaudio
 
 "$PROJECT_DIR/start.sh" --check
