@@ -34,6 +34,9 @@ class ReasoningTest(TestCase):
 
     def test_provider_specific_parameters(self):
         pairs = [
+            ("https://token-plan.cn-beijing.maas.aliyuncs.com/compatible-mode/v1", "qwen3.7-plus", {"enable_thinking": False}),
+            ("https://token-plan.cn-beijing.maas.aliyuncs.com/compatible-mode/v1", "unknown", {}),
+            ("https://proxy.example/v1", "qwen3.7-plus", {}),
             ("https://api.deepseek.com/v1", "deepseek-v4-flash", {"thinking": {"type": "disabled"}}),
             ("https://dashscope.aliyuncs.com/compatible-mode/v1", "qwen-plus", {"enable_thinking": False}),
             ("https://generativelanguage.googleapis.com/v1beta/openai", "gemini-2.5-flash", {"reasoning_effort": "none"}),

@@ -101,7 +101,7 @@ NUMBERED_POLISH_PROMPT_EN = PHONETIC_POLISH_PROMPT_EN.replace(
     'An ordinal referring to a date, rank or count is not a list marker. Keep ordinary narrative intact and do not fill in unfinished points.')
 
 
-DEFAULT_POLISH_PROMPT_ZH = NUMBERED_POLISH_PROMPT_ZH.replace(
+PARAGRAPH_POLISH_PROMPT_ZH = NUMBERED_POLISH_PROMPT_ZH.replace(
     '只返回校正后的文本，不要解释修改。',
     '适度整理阅读格式：遇到明确的话题变化或独立意思时，将长文本分为自然段，各段之间空一行；关联紧密的句子放在同段，简短表达无需拆段。不要把每次停顿、逗号或固定长度都当作分段点。\n'
     '列表与前后的叙述之间空一行，编号项目逐行连续排列，项目之间不额外空行。不得改变内容顺序或逻辑联系，不创作标题、结论、加粗或分隔线。只输出必要的标点和实际换行，不使用字面量反斜杠 n，不保留首尾空行或多余连续空行。\n'
@@ -109,13 +109,29 @@ DEFAULT_POLISH_PROMPT_ZH = NUMBERED_POLISH_PROMPT_ZH.replace(
     '今天核对需求，已经确认。\n\n明天开始开发，先处理登录。\n'
     '只有一句“明天开始开发”时，不增加其他段落。\n'
     '只返回校正后的文本，不要解释修改。')
-DEFAULT_POLISH_PROMPT_EN = NUMBERED_POLISH_PROMPT_EN.replace(
+PARAGRAPH_POLISH_PROMPT_EN = NUMBERED_POLISH_PROMPT_EN.replace(
     'Return only the corrected text, with no explanation.',
     'For readability, divide long text into paragraphs when a topic or distinct idea changes, using one empty line between paragraphs. Related sentences belong together; a brief response does not need extra paragraphs. A pause, comma or character count alone is not a reason for a line break.\n'
     'Leave one empty line between a list and the surrounding prose, but keep the numbered items on consecutive lines without empty lines between them. Formatting must not alter order or logical relationships. Do not add headings, conclusions, bold emphasis or decorative separators. Emit real line breaks rather than literal backslash-n sequences, with no outer or surplus blank lines.\n'
     'Example layout:\nRequirements were confirmed today.\n\nImplementation starts tomorrow, beginning with login.\n'
     'A single short sentence remains a single paragraph.\n'
     'Return only the corrected text, with no explanation.')
+
+
+DEFAULT_POLISH_PROMPT_ZH = PARAGRAPH_POLISH_PROMPT_ZH.replace(
+    '补充必要的标点。',
+    '结合句法、搭配和动作顺序判断近音词，不要仅因转写里的词本身存在就保留。省略标点的连续动词也能构成完整语境；若其中一个词无法承担相应动作，而近音词能使整组动作连贯，只局部修正该词并补标点，不扩写步骤。不要求用户先说出“识别错了”才纠错。\n'
+    "在问题排查语境中，“确认、复现、验证、解决”是不同的连续动作，不能合并或删去“确认”。例如：'帮我逐一确认附件验证解决。' -> '帮我逐一确认、复现、验证、解决。'；这里“附件”无法作为动作，应按近音与动词搭配纠正为“复现”。若是在确认文件或邮件的附件，则保留“附件”。\n"
+    "例如：'这些问题请先附件，再验证修复结果。' -> '这些问题请先复现，再验证修复结果。'；'请先查看邮件附件，再验证文件内容。' 保留“附件”。缺少足够语境的“确认附件”、明确引用词语、强调就要用某词时保留原词，不从一个例子推导全局替换。\n"
+    '补充必要的标点。'
+)
+DEFAULT_POLISH_PROMPT_EN = PARAGRAPH_POLISH_PROMPT_EN.replace(
+    'Add necessary punctuation.',
+    'Use syntax, collocations and the sequence of actions to assess close-sounding words; a valid dictionary word can still be misplaced. A sequence of verbs without punctuation can provide sufficient context. If one word cannot serve the action and a close-sounding alternative makes the sequence coherent, correct only that word and add punctuation without expanding the steps. An explicit spoken correction is not required.\n'
+    "In troubleshooting, confirmation, reproduction, verification and resolution are distinct actions; do not drop confirmation. Chinese example: '帮我逐一确认附件验证解决。' -> '帮我逐一确认、复现、验证、解决。' Here 附件 cannot serve as the action, so the close-sounding verb 复现 fits. Keep 附件 when confirming file or email attachments.\n"
+    "Chinese example: '这些问题请先附件，再验证修复结果。' -> '这些问题请先复现，再验证修复结果。' Keep 附件 in '请先查看邮件附件，再验证文件内容。' Preserve ambiguous short phrases such as '确认附件', quoted words and deliberate word choices. Never infer a global replacement from an example.\n"
+    'Add necessary punctuation.'
+)
 
 
 def canonical_key_code(code):
@@ -340,10 +356,10 @@ class Settings:
                 values.setdefault("polish_prompt_zh", old_prompt)
                 values.setdefault("polish_prompt_en", old_prompt)
         # Upgrade only exact built-in defaults, independently per language.
-        for field, previous, phonetic, numbered, current in (
-                ("polish_prompt_zh", PREVIOUS_POLISH_PROMPT_ZH, PHONETIC_POLISH_PROMPT_ZH, NUMBERED_POLISH_PROMPT_ZH, DEFAULT_POLISH_PROMPT_ZH),
-                ("polish_prompt_en", PREVIOUS_POLISH_PROMPT_EN, PHONETIC_POLISH_PROMPT_EN, NUMBERED_POLISH_PROMPT_EN, DEFAULT_POLISH_PROMPT_EN)):
-            if values.get(field) in (previous, phonetic, numbered):
+        for field, previous, phonetic, numbered, paragraph, current in (
+                ("polish_prompt_zh", PREVIOUS_POLISH_PROMPT_ZH, PHONETIC_POLISH_PROMPT_ZH, NUMBERED_POLISH_PROMPT_ZH, PARAGRAPH_POLISH_PROMPT_ZH, DEFAULT_POLISH_PROMPT_ZH),
+                ("polish_prompt_en", PREVIOUS_POLISH_PROMPT_EN, PHONETIC_POLISH_PROMPT_EN, NUMBERED_POLISH_PROMPT_EN, PARAGRAPH_POLISH_PROMPT_EN, DEFAULT_POLISH_PROMPT_EN)):
+            if values.get(field) in (previous, phonetic, numbered, paragraph):
                 values[field] = current
         # A background plugin can briefly keep running older Python code while
         # an update adds a preference. Keep all settings this version knows

@@ -13,6 +13,9 @@ enum PolishPolicy {
     static func reasoning(baseURL: String, model: String) -> [String: Any] {
         let host = URLComponents(string: baseURL)?.host
         let name = model.lowercased()
+        if host == "token-plan.cn-beijing.maas.aliyuncs.com", name == "qwen3.7-plus" {
+            return ["enable_thinking": false]
+        }
         if host == "api.deepseek.com" { return ["thinking": ["type": "disabled"]] }
         if host == "open.bigmodel.cn" {
             return ["glm-5.3", "glm-5.3-flash"].contains(name) ? ["reasoning_effort": "low"] : ["thinking": ["type": "disabled"]]

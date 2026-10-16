@@ -10,7 +10,8 @@ from doubao_input.settings import (DEFAULT_POLISH_PROMPT_EN, DEFAULT_POLISH_PROM
                                    FORMATTING_POLISH_PROMPT, PREVIOUS_POLISH_PROMPT_ZH,
                                    PREVIOUS_POLISH_PROMPT_EN, PHONETIC_POLISH_PROMPT_ZH,
                                    PHONETIC_POLISH_PROMPT_EN, NUMBERED_POLISH_PROMPT_ZH,
-                                   NUMBERED_POLISH_PROMPT_EN)
+                                   NUMBERED_POLISH_PROMPT_EN, PARAGRAPH_POLISH_PROMPT_ZH,
+                                   PARAGRAPH_POLISH_PROMPT_EN)
 
 
 class SettingsTest(unittest.TestCase):
@@ -93,6 +94,26 @@ class SettingsTest(unittest.TestCase):
             values["polish_prompt_zh"] += "\nCustom paragraph rule"
             path.write_text(json.dumps(values))
             self.assertEqual(Settings.load().polish_prompt_zh, values["polish_prompt_zh"])
+
+    def test_paragraph_defaults_upgrade_context_without_overwriting_custom_language(self):
+        with tempfile.TemporaryDirectory() as root, patch.dict(
+                "os.environ", {"XDG_CONFIG_HOME": root}):
+            path = Path(root) / "doubao-say/settings.json"
+            path.parent.mkdir()
+            for field, old, current, other in (
+                    ("polish_prompt_zh", PARAGRAPH_POLISH_PROMPT_ZH,
+                     DEFAULT_POLISH_PROMPT_ZH, "polish_prompt_en"),
+                    ("polish_prompt_en", PARAGRAPH_POLISH_PROMPT_EN,
+                     DEFAULT_POLISH_PROMPT_EN, "polish_prompt_zh")):
+                values = asdict(Settings())
+                values.update({field: old, other: "My custom prompt"})
+                path.write_text(json.dumps(values))
+                loaded = Settings.load()
+                self.assertEqual(getattr(loaded, field), current)
+                self.assertEqual(getattr(loaded, other), "My custom prompt")
+                values[field] = old + "\nMy custom rule"
+                path.write_text(json.dumps(values))
+                self.assertEqual(getattr(Settings.load(), field), values[field])
 
     def test_input_method_defaults_and_roundtrip(self):
         with tempfile.TemporaryDirectory() as root, patch.dict("os.environ", {"XDG_CONFIG_HOME": root}):

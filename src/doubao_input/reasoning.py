@@ -7,6 +7,9 @@ from doubao_input.i18n import tr
 def reasoning_policy(base_url, model):
     host = urlsplit(base_url).hostname
     name = model.lower()
+    if host == "token-plan.cn-beijing.maas.aliyuncs.com" and name == "qwen3.7-plus":
+        return {"enable_thinking": False}, tr(
+            "Thinking-off requested via Model Studio.", "通过百炼接口请求关闭思考。")
     if host == "api.deepseek.com":
         return {"thinking": {"type": "disabled"}}, tr(
             "Thinking-off requested via DeepSeek.", "通过 DeepSeek 接口请求关闭思考。")
