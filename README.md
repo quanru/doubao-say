@@ -2,6 +2,8 @@
 
 > **macOS development preview:** A native Swift menu-bar client supports Doubao web sign-in, official Volcengine and Deepgram recognition, optional polishing, configurable shortcuts, microphone selection and input recovery. See the [Mac build and usage guide](macos/README.zh-CN.md) (Chinese). No Developer ID signed or notarized Mac release is available yet.
 
+On macOS, dictation is delivered to the current cursor after the shortcut keys are released. Clipboard paste does not require the recording-time input field to remain focused. Auto mode uses the current accessible field when available, otherwise clipboard paste; Direct mode requires a current accessible input.
+
 On macOS, closing the last settings or sign-in window keeps dictation available
 from the menu bar while removing the app from the Dock and Cmd+Tab. Opening a
 window restores both entries; minimized windows keep their Dock entry.
@@ -229,7 +231,8 @@ Your keyboard must report Fn as a Linux key; otherwise choose another key.
 
 - Tap to start; tap again to finish and paste.
 - On Linux, with Fn as the trigger, pressing another key while recording also finishes and pastes. Escape still cancels; the finishing key still reaches the foreground app.
-- On macOS, any key during voice input finishes dictation without performing its original action, including Escape, Enter and shortcut chords. Their releases are swallowed as well. Double-tap sends Enter only while idle.
+- On macOS, keys other than Escape during voice input finishes dictation without performing its original action, including Enter and shortcut chords. Escape cancels immediately during recording, transcription, polishing or pending input; cancelled recognition is never pasted. Their releases are swallowed as well. Double-tap sends Enter only while idle.
+- If two accidental taps leave a transcription pending, press Escape to cancel and record again immediately. In Linux portal mode, use **Cancel input** in the control center or tray instead.
 - Hold past the threshold to speak; release to finish and paste.
 - Select one preset, or choose **Record a shortcut…** to capture a custom combination such as Ctrl+Alt+Space. Only one trigger is active.
 - Press the active trigger twice to send Enter without dictation. This can submit messages or execute terminal commands.

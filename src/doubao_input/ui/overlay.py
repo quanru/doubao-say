@@ -20,6 +20,7 @@ from doubao_input.i18n import tr
 from doubao_input.ui.voice_motion import VoiceMotion
 from doubao_input.ui.waveform import draw_waveform
 from doubao_input.product import VERSION
+from doubao_input.trigger.backend import trigger_backend
 
 import cairo
 import gi
@@ -259,11 +260,13 @@ class Overlay:
         self._state = value
         if self._css_provider is not None:
             self._load_css()
-        if not self._text and self._polishing_since is None:
+        if (not self._text or value == "stopping") and self._polishing_since is None:
             state_status = {
                 "starting": tr("Starting voice recognition…", "正在启动语音识别…"),
                 "recording": tr("Listening…", "正在聆听…"),
-                "stopping": tr("Transcribing…", "正在转写…"),
+                "stopping": (tr("Transcribing… · Cancel input to stop", "正在转写… · 可取消输入")
+                             if trigger_backend() == "portal" else
+                             tr("Transcribing… · Esc to cancel", "正在转写… · Esc 取消")),
             }.get(value)
             if state_status:
                 self._status_text = state_status

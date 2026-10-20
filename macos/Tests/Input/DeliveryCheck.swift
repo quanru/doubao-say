@@ -3,7 +3,7 @@ import ApplicationServices
 
 // Test the production delivery implementation with inert platform boundaries.
 enum Fixture {
-    static var trusted = true, current = true, writable = true
+    static var trusted = true, current = true, writable = true, cursorAvailable = true, fieldAvailable = true
     static var writeStatus = AXError.success
     static var writes: [String] = []
 }
@@ -18,6 +18,9 @@ func AXUIElementSetAttributeValue(_ element: AXUIElement, _ attribute: CFString,
 struct InputTarget {
     let pid = ProcessInfo.processInfo.processIdentifier
     let element = AXUIElementCreateApplication(ProcessInfo.processInfo.processIdentifier)
+    var cursorOnly = false
+    static func capture() -> InputTarget? { Fixture.fieldAvailable ? InputTarget() : nil }
+    static func captureCursor() -> InputTarget? { Fixture.cursorAvailable ? InputTarget(cursorOnly: true) : nil }
     func isCurrent() -> Bool { Fixture.current }
 }
 final class NSPasteboard {
@@ -60,17 +63,19 @@ enum HotkeyManager {
         precondition(result == true && Fixture.writes == ["synthetic words"] && helper.failure == nil)
         Fixture.writes = []; Fixture.trusted = false; send()
         precondition(result == false && helper.failure == .permission && Fixture.writes.isEmpty)
-        Fixture.trusted = true; send(nil)
+        Fixture.trusted = true; Fixture.fieldAvailable = false; Fixture.cursorAvailable = false; send(nil)
         precondition(result == false && helper.failure == .missingTarget)
+        Fixture.fieldAvailable = true; Fixture.cursorAvailable = true
         Fixture.current = false; send()
-        precondition(result == false && helper.failure == .targetChanged && Fixture.writes.isEmpty)
+        precondition(result == true && Fixture.writes == ["synthetic words"], "Delivery must resolve the current field instead of rejecting the recording-time target")
+        Fixture.writes = []
         Fixture.current = true; flags = .maskSecondaryFn; send()
         precondition(result == nil && Fixture.writes.isEmpty, "Fn must be released before insertion")
-        flags = []; wait(0.15)
+        flags = []; wait(0.4)
         precondition(result == true && Fixture.writes == ["synthetic words"], "Release must insert exactly once")
         Fixture.writes = []; flags = .maskControl; send(); wait(1.15)
         precondition(result == false && helper.failure == .modifiersHeld && Fixture.writes.isEmpty)
-        send(); helper.cancel(); flags = []; wait(0.15)
+        send(); helper.cancel(); flags = []; wait(0.4)
         precondition(result == nil && Fixture.writes.isEmpty, "Cancellation must prevent late insertion")
         Fixture.writeStatus = .cannotComplete; send()
         precondition(result == false && helper.failure == .directUnavailable && Fixture.writes.count == 1 && CGEvent.posted == 0 && NSPasteboard.general.pastedTexts.isEmpty,
@@ -97,17 +102,29 @@ enum HotkeyManager {
         precondition(NSPasteboard.general.pastedTexts == ["fallback text", "clipboard choice"], "Explicit clipboard choice must override available AX capability")
         result = nil
         helper.deliver("cancel before paste", target: target, method: "clipboard") { result = $0 }
-        helper.cancel(); wait(0.15)
+        helper.cancel(); wait(0.4)
         precondition(result == nil && CGEvent.posted == 4, "Cancellation during settling must prevent all key events")
         helper.deliver("changed focus", target: target, method: "clipboard") { result = $0 }
-        Fixture.current = false; wait(0.15)
-        precondition(result == false && helper.failure == .targetChanged && CGEvent.posted == 4)
+        Fixture.current = false; wait(0.4)
+        precondition(result == true && CGEvent.posted == 6, "Clipboard paste must follow current focus")
         Fixture.current = true; result = nil
         helper.deliver("changed clipboard", target: target, method: "clipboard") { result = $0 }
-        NSPasteboard.general.clearContents(); wait(0.15)
-        precondition(result == false && helper.failure == .clipboardChanged && CGEvent.posted == 4,
+        NSPasteboard.general.clearContents(); wait(0.4)
+        precondition(result == false && helper.failure == .clipboardChanged && CGEvent.posted == 6,
                      "A changed clipboard must never paste unrelated contents or overwrite newer clipboard data")
         precondition(!helper.diagnostic.contains("changed clipboard"), "Diagnostics must not contain dictated text")
+        Fixture.cursorAvailable = true; Fixture.fieldAvailable = false
+        let posted = CGEvent.posted
+        send(nil); wait(0.4)
+        precondition(result == true && helper.usedClipboard && Fixture.writes.isEmpty && CGEvent.posted == posted + 2,
+                     "Missing AX text fields must paste once at the current cursor, never write an arbitrary AX element")
+        helper.deliver("direct only", target: nil, method: "direct") { result = $0 }
+        precondition(result == false && helper.failure == .missingTarget)
+        send(nil); Fixture.current = false; wait(0.4)
+        precondition(result == true && CGEvent.posted == posted + 4)
+        Fixture.current = true
+        send(nil); helper.cancel(); wait(0.4)
+        precondition(result == nil && CGEvent.posted == posted + 4)
         print("PASS: capability-based delivery, explicit clipboard choice, permission/focus failures, Fn release, held-key timeout and cancellation; all platform effects are inert")
     }
 }

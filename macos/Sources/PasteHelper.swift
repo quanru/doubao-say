@@ -1,10 +1,12 @@
 import AppKit
 import ApplicationServices
 
-/// Only deliver to the exact accessible input element captured before recording.
+/// Track an accessible input, or the current cursor for clipboard-only delivery.
 struct InputTarget {
     let pid: pid_t
     let element: AXUIElement
+    var cursorOnly = false
+    var cursorScope: Scope? = nil
     enum Focus { case ready(InputTarget), unavailable, window, notEditable }
     struct Scope: Equatable {
         let pid: pid_t
@@ -44,7 +46,29 @@ struct InputTarget {
               subrole as? String != kAXSecureTextFieldSubrole else { return .notEditable }
         return .ready(InputTarget(pid: app.processIdentifier, element: element))
     }
+    /// Custom editors may accept Command-V without exposing a text-field AX role.
+    static func captureCursor() -> InputTarget? {
+        guard AXIsProcessTrusted(), let app = NSWorkspace.shared.frontmostApplication,
+              app.processIdentifier != ProcessInfo.processInfo.processIdentifier else { return nil }
+        let application = AXUIElementCreateApplication(app.processIdentifier)
+        var value: CFTypeRef?
+        let status = AXUIElementCopyAttributeValue(application, kAXFocusedUIElementAttribute as CFString, &value)
+        let element: AXUIElement
+        if status == .success, let value, CFGetTypeID(value) == AXUIElementGetTypeID() {
+            element = unsafeBitCast(value, to: AXUIElement.self)
+        } else {
+            element = application
+        }
+        var subrole: CFTypeRef?
+        AXUIElementCopyAttributeValue(element, kAXSubroleAttribute as CFString, &subrole)
+        guard subrole as? String != kAXSecureTextFieldSubrole else { return nil }
+        return InputTarget(pid: app.processIdentifier, element: element, cursorOnly: true, cursorScope: scope())
+    }
     func isCurrent() -> Bool {
+        if cursorOnly {
+            guard let current = Self.captureCursor() else { return false }
+            return current.pid == pid && current.cursorScope == cursorScope && CFEqual(current.element, element)
+        }
         guard let current = InputTarget.capture() else { return false }
         return current.pid == pid && CFEqual(current.element, element)
     }
@@ -59,7 +83,7 @@ final class PasteHelper {
     var failureMessage: String? {
         switch failure {
         case .permission: return L("Allow Accessibility access in System Settings.", "请在系统设置中允许辅助功能权限。")
-        case .missingTarget: return L("No editable input field was focused when recording started.", "开始录音时未找到可编辑的输入框，请先点击输入框再录音。")
+        case .missingTarget: return L("No input target is available. Focus the destination and retry input.", "未找到输入目标，请点击要输入的位置后重试输入。")
         case .targetChanged: return L("The focused input field changed during dictation.", "听写期间目标输入框发生了变化。")
         case .modifiersHeld: return L("Release the shortcut keys before retrying input.", "快捷键尚未释放，请松开后重试输入。")
         case .eventUnavailable: return L("Could not create the paste shortcut.", "无法发送粘贴快捷键。")
@@ -80,7 +104,7 @@ final class PasteHelper {
         return method == "auto" && selectedTextWritable
     }
     func cancel() { generation = UUID() }
-    func deliver(_ text: String, target: InputTarget?, method: String = "auto", sendEnter: Bool = false, completion: @escaping (Bool) -> Void) {
+    func deliver(_ text: String, target _: InputTarget?, method: String = "auto", sendEnter: Bool = false, completion: @escaping (Bool) -> Void) {
         cancel()
         failure = nil
         usedClipboard = false
@@ -95,17 +119,20 @@ final class PasteHelper {
         func attempt() {
             guard token == self.generation else { return }
             guard AXIsProcessTrusted() else { fail(.permission); return }
-            guard let target = target else { fail(.missingTarget); return }
-            guard target.isCurrent() else { fail(.targetChanged); return }
             let flags = self.modifierFlags()
             if !flags.intersection([.maskControl, .maskAlternate, .maskShift, .maskCommand, .maskSecondaryFn]).isEmpty {
                 guard Date() < deadline else { fail(.modifiersHeld); return }
                 DispatchQueue.main.asyncAfter(deadline: .now() + 0.05) { attempt() }
                 return
             }
+            // Resolve the destination at delivery time, after shortcut release.
+            // Clipboard input follows the current cursor, just like Command-V.
+            let target = method == "clipboard" ? InputTarget.captureCursor()
+                : (InputTarget.capture() ?? (method == "direct" ? nil : InputTarget.captureCursor()))
+            guard let target else { fail(.missingTarget); return }
             var writable = DarwinBoolean(false)
             let writableStatus = AXUIElementIsAttributeSettable(target.element, kAXSelectedTextAttribute as CFString, &writable)
-            if Self.useAccessibilityInput(method: method,
+            if !target.cursorOnly && Self.useAccessibilityInput(method: method,
                                           selectedTextWritable: writableStatus == .success && writable.boolValue) {
                 let status = AXUIElementSetAttributeValue(target.element, kAXSelectedTextAttribute as CFString, text as CFString)
                 self.diagnostic = "method=\(method); route=accessibility; AXStatus=\(status.rawValue)"
@@ -124,7 +151,6 @@ final class PasteHelper {
                     item.data(forType: type).map { (type, $0) }
                 }
             } ?? []
-            guard target.isCurrent() else { fail(.targetChanged); return }
             pasteboard.clearContents()
             guard pasteboard.setString(text, forType: .string) else { fail(.clipboardUnavailable); return }
             let changeCount = pasteboard.changeCount
@@ -143,7 +169,6 @@ final class PasteHelper {
             DispatchQueue.main.asyncAfter(deadline: .now() + 0.08) {
                 guard token == self.generation else { restoreClipboard(); return }
                 guard AXIsProcessTrusted() else { restoreClipboard(); fail(.permission); return }
-                guard target.isCurrent() else { restoreClipboard(); fail(.targetChanged); return }
                 guard pasteboard.changeCount == changeCount else { fail(.clipboardChanged); return }
                 guard self.modifierFlags().intersection([.maskControl, .maskAlternate, .maskShift, .maskCommand, .maskSecondaryFn]).isEmpty else {
                     restoreClipboard(); fail(.modifiersHeld); return

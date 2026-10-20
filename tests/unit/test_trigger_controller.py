@@ -37,6 +37,15 @@ class TriggerControllerTest(TestCase):
     def aux(self, action, pressed=True):
         self.readers[-1].callbacks["on_aux"](action, pressed)
 
+    def test_escape_cancels_while_waiting_for_final_transcription(self):
+        # No longer recording, but recognition is still pending.
+        self.recording_active = False
+        self.edge(1, True)
+        self.edge(1, False)
+        self.cancel.assert_called_once_with()
+        self.stop.assert_not_called()
+        self.toggle.assert_not_called()
+
     def test_capture_only_returns_after_release_and_restores_listener(self):
         result = Mock()
         self.control.begin_capture(result)

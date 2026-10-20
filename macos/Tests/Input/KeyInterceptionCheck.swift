@@ -8,7 +8,7 @@ import AppKit
     }
     static func main() {
         for shortcut in [Shortcut(keyCode: 49, modifiers: 3), Shortcut(keyCode: 63, modifiers: 0)] {
-            for code: UInt16 in [0, 36, 53, 49, 48, 51, 123, 122] {
+            for code: UInt16 in [0, 36, 49, 48, 51, 123, 122] {
                 let manager = HotkeyManager()
                 var settings = MacSettings(); settings.shortcut = shortcut
                 manager.configure(settings)
@@ -60,10 +60,21 @@ import AppKit
                      "The original trigger modifier release must not become a new blocked press")
         precondition(manager.handle(.flagsChanged, key(62, false)) == nil)
         precondition(manager.handle(.keyDown, key(0, true)) != nil, "Both modifier sides must drain without leaving keyboard interception stuck")
-        manager.setEscapeHandlingEnabled(true, interceptKeys: true)
-        precondition(manager.handle(.keyDown, key(53, true)) == nil, "Finishing input must not cancel on Escape")
-        manager.setEscapeHandlingEnabled(false)
-        precondition(manager.handle(.keyUp, key(53, false)) == nil)
+        for recording in [true, false] {
+            let cancellable = HotkeyManager()
+            var cancels = 0
+            cancellable.onHotkeyEvent = { if case .cancel = $0 { cancels += 1 } }
+            cancellable.setEscapeHandlingEnabled(true, recording: recording, interceptKeys: true)
+            precondition(cancellable.handle(.keyDown, key(53, true)) == nil)
+            precondition(cancels == 1, "Escape must cancel recording and transcribing immediately")
+            precondition(cancellable.handle(.keyDown, key(53, true)) == nil && cancels == 1,
+                         "Held Escape must cancel only once")
+            cancellable.setEscapeHandlingEnabled(false)
+            precondition(cancellable.handle(.keyUp, key(53, false)) == nil,
+                         "Cancelled Escape release must not reach the foreground")
+            precondition(cancellable.handle(.keyDown, key(0, true)) != nil,
+                         "Typing must resume immediately after cancellation")
+        }
         manager.setEscapeHandlingEnabled(true, recording: true)
         let synthetic = key(9, true, flags: .maskCommand)
         synthetic.setIntegerValueField(.eventSourceUserData, value: HotkeyManager.syntheticMarker)
@@ -74,6 +85,7 @@ import AppKit
         var cancelled = false
         manager.onHotkeyEvent = { if case .cancel = $0 { cancelled = true } }
         precondition(manager.handle(.keyDown, key(53, true)) == nil && cancelled, "Escape still dismisses kept text outside input")
+        precondition(manager.handle(.keyUp, key(53, false)) == nil)
         manager.onHotkeyEvent = { if case .stop = $0 { stops += 1 } else { preconditionFailure("Unexpected media gesture") } }
         manager.setEscapeHandlingEnabled(true, recording: true)
         let mediaDown = NSEvent.otherEvent(with: .systemDefined, location: .zero, modifierFlags: [], timestamp: 0,
