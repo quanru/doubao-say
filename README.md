@@ -2,6 +2,8 @@
 
 > **macOS development preview:** A native Swift menu-bar client supports Doubao web sign-in, official Volcengine and Deepgram recognition, optional polishing, configurable shortcuts, microphone selection and input recovery. See the [Mac build and usage guide](macos/README.zh-CN.md) (Chinese). No Developer ID signed or notarized Mac release is available yet.
 
+On macOS, dictation is delivered to the current cursor after the shortcut keys are released. Clipboard paste does not require the recording-time input field to remain focused. Auto mode uses the current accessible field when available, otherwise clipboard paste; Direct mode requires a current accessible input.
+
 On macOS, closing the last settings or sign-in window keeps dictation available
 from the menu bar while removing the app from the Dock and Cmd+Tab. Opening a
 window restores both entries; minimized windows keep their Dock entry.

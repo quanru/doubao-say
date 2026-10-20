@@ -2,6 +2,8 @@
 
 > **macOS 开发预览版**：已提供原生 Swift 菜单栏客户端，支持豆包网页登录、火山和 Deepgram 识别、可选润色、自定义快捷键、麦克风选择和文字恢复。构建、权限及功能范围见 [macOS 使用说明](macos/README.zh-CN.md)。尚未发布签名公证的 Mac 安装包。
 
+macOS 在快捷键释放后向当前光标输入文字。剪贴板粘贴不要求保持录音开始时的输入框；自动模式优先使用当前可识别的输入框，否则粘贴。直接输入模式需要当前存在可识别的输入框。
+
 [官网](https://doubao-say.lifeos.md/zh/) · [English](README.md)
 
 ![豆包说在 Omarchy Linux 上运行的界面](images/readme-cn.jpeg)
