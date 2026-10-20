@@ -155,6 +155,7 @@ final class TranscriptionManager {
     func stopRecording() {
         guard state.recordingState == .starting || state.recordingState == .recording else { return }
         latency.stop(at: ProcessInfo.processInfo.systemUptime)
+        state.overlayStatus = "" // A listening preview must not hide the transcription cancellation hint.
         setState(.stopping); audio.stopCapture(); client?.finishSending()
         polisher.prepareFinal(text: rawText)
         // Bound slow handshakes without authorizing delivery of incomplete text.

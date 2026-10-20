@@ -168,9 +168,11 @@ final class PersonalDataStore {
         cancelledHotkey.onHotkeyEvent?(.start)
         RunLoop.current.run(until: Date().addingTimeInterval(0.1))
         let oldTransport = DoubaoASRClient.latest!
+        cancelledState.overlayStatus = "Preview ready · finish to input"
         cancelledHotkey.onHotkeyEvent?(.stop)
         RunLoop.current.run(until: Date().addingTimeInterval(0.1))
         precondition(cancelledState.recordingState == .stopping)
+        precondition(cancelledState.overlayStatus.isEmpty, "A stale listening preview must not hide the stopping cancellation hint")
         cancelledHotkey.onHotkeyEvent?(.cancel)
         RunLoop.current.run(until: Date().addingTimeInterval(0.1))
         precondition(cancelledState.recordingState == .idle && !cancelledState.inputPending)
