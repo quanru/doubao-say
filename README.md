@@ -238,6 +238,8 @@ Your keyboard must report Fn as a Linux key; otherwise choose another key.
 - Press the active trigger twice to send Enter without dictation. This can submit messages or execute terminal commands.
 - Configure the hold threshold, double-tap interval, Enter gesture and startup.
 
+If recognition is rejected, fails to connect, or times out, the overlay keeps the error visible until you choose **Open settings** or **Close**. While it is visible, the trigger starts no new recording and does not open Settings automatically.
+
 The bottom overlay shows an audio-driven waveform and live text.
 Choose Classic bars, Soft waves, Concentric ripples, or Basketball rhythm
 under Settings → Appearance → Listening waveform. The basketball theme uses an

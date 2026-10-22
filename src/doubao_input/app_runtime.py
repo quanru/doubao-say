@@ -101,7 +101,7 @@ class RuntimeMixin:
         self._overlay.waveform_style = self.settings.waveform_style
         tm.audio_capture = self._audio_capture
 
-        tm.on_show_login = self._connect_recognition
+        tm.on_show_login = self._prompt_recognition_setup
         tm.on_overlay_show = lambda: self._overlay.show(tr("Starting voice recognition…", "正在启动语音识别…"))
         tm.on_overlay_hide = self._hide_recording_overlay
         tm.on_overlay_update = self._recording_text_updated
@@ -110,6 +110,7 @@ class RuntimeMixin:
         tm.on_recover = self._recover_partial
         tm.on_cancel_enabled_changed = lambda enabled: None
         tm.on_auth_expired = self._on_auth_expired
+        tm.on_service_error = self._on_service_error
         tm.on_params_needed = self._provide_params
         tm.on_diagnostic = self._trace_input
         self._tm = tm

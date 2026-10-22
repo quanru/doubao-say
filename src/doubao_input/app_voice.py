@@ -49,7 +49,18 @@ def _application_class():
 
 
 class VoiceMixin:
+    def _retry_saved_recognition(self):
+        # A server-side grant or balance can recover without changing the key.
+        # Retry only after the user closes the persistent error and presses the
+        # trigger again; missing credentials still require Settings.
+        if (self.app_state.login_status != LoginStatus.LOGGED_IN
+                and recognition_provider(self.settings.asr_provider).uses_api_key
+                and self._recognition_ready()):
+            self.app_state.login_status = LoginStatus.LOGGED_IN
+
     def _voice_start(self):
+        if self._overlay.error_visible:
+            return
         if getattr(self, "_polish_mode", None) == "final" and self._polisher.busy:
             self._cancel_polish(use_original=True)
             return
@@ -58,6 +69,7 @@ class VoiceMixin:
         if self._mic_test_running or self._triggers.capturing or self._recovery_timer:
             return
         if self.app_state.recording_state == RecordingState.IDLE and not self._paste_pending:
+            self._retry_saved_recognition()
             if not self._preview_testing:
                 self._setup_session.dismiss()
             self._enter_after_paste = False
@@ -67,10 +79,11 @@ class VoiceMixin:
 
 
     def _voice_prime(self):
-        if (not self._mic_test_running and not self._triggers.capturing
+        if (not self._overlay.error_visible and not self._mic_test_running and not self._triggers.capturing
                 and not self._recovery_timer and not self._paste_pending
                 and getattr(self, "_polish_mode", None) != "final"
                 and not (getattr(self, "_personal_window", None) and self._personal_window.evaluation and self._personal_window.evaluation.active)):
+            self._retry_saved_recognition()
             self._tm.prime_recording()
 
 
@@ -83,6 +96,8 @@ class VoiceMixin:
 
 
     def _voice_toggle(self):
+        if self._overlay.error_visible:
+            return
         if getattr(self, "_personal_window", None) and self._personal_window.evaluation and self._personal_window.evaluation.active:
             return
         if getattr(self, "_polish_mode", None) == "final" and self._polisher.busy:
@@ -92,6 +107,7 @@ class VoiceMixin:
             if self._mic_test_running or self._triggers.capturing or self._recovery_timer:
                 return
             if not self._paste_pending:
+                self._retry_saved_recognition()
                 if not self._preview_testing:
                     self._setup_session.dismiss()
                 self._enter_after_paste = False
@@ -103,6 +119,8 @@ class VoiceMixin:
 
 
     def _voice_enter(self):
+        if self._overlay.error_visible:
+            return
         if getattr(self, "_personal_window", None) and self._personal_window.evaluation and self._personal_window.evaluation.active:
             return
         if self._mic_test_running or self._triggers.capturing or self._recovery_timer:
