@@ -61,6 +61,7 @@ class TranscriptionManager:
 
         # Callbacks set by app.py
         self.on_auth_expired = None  # () -> None
+        self.on_service_error = None  # (reason: str) -> None
         self.on_show_login = None  # () -> None
         self.on_params_needed = None  # (callback: (ASRParams|None)->None) -> None
         self.on_overlay_show = None  # () -> None
@@ -276,6 +277,8 @@ class TranscriptionManager:
             self.app_state.error_message = tr(
                 "Configure recognition credentials in Settings and try again",
                 "请在设置中配置语音识别凭证后重试")
+            if self.on_service_error:
+                self.on_service_error("credentials")
 
     def _stop_recording(self) -> None:
         logger.info("Stopping recording...")
@@ -311,6 +314,8 @@ class TranscriptionManager:
             self.app_state.error_message = tr(
                 "Recognition timed out. Any partial text was kept; review it before sending.",
                 "识别超时，已有文本已保留，请检查后手动发送。")
+            if self.on_service_error:
+                self.on_service_error("timeout")
         self.safety_timer_id = None
         return GLib.SOURCE_REMOVE
 
@@ -379,12 +384,14 @@ class TranscriptionManager:
         if self.on_recover and self.app_state.transcription_text.strip():
             self.on_recover(self.app_state.transcription_text)
         # NOTE: genuine auth failures arrive via `on_auth_error` -> `_on_auth_error`,
-        # which calls `_handle_auth_failure()` and re-prompts login. A generic ASR
+        # which calls `_handle_auth_failure()` and prompts for setup. A generic ASR
         # error (connection refused, timeout, DNS, proxy down, etc.) must NOT be
         # treated as auth failure — doing so wipes cached cookies and pops the
         # login window every time the network/proxy is unavailable.
         self._reset_to_idle()
         self.app_state.error_message = tr("Connection failed; check your network and retry", "连接出错,请检查网络后重试")
+        if self.on_service_error:
+            self.on_service_error("request")
         return GLib.SOURCE_REMOVE
 
     def _on_auth_error(self) -> bool:

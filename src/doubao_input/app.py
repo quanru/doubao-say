@@ -342,6 +342,33 @@ class DoubaoInputApp(VoiceMixin, RuntimeMixin, Gtk.Application):
         else:
             self._show_login()
 
+    def _show_recognition_issue(self, title: str, detail: str) -> None:
+        self._control.set_feedback(title + tr(": ", "：") + detail)
+        self._overlay.show_error(title, detail, self._show_settings)
+
+    def _prompt_recognition_setup(self) -> None:
+        provider = recognition_provider(self.settings.asr_provider)
+        detail = (tr("Open settings to check your account, service access and API key.",
+                     "请打开设置检查账户、服务权限和 API Key。")
+                  if provider.uses_api_key else
+                  tr("Open settings to sign in again.", "请打开设置重新登录。"))
+        self._show_recognition_issue(
+            tr("Voice recognition is unavailable", "语音识别暂不可用"), detail)
+
+    def _on_service_error(self, reason: str) -> None:
+        if reason == "credentials":
+            self._prompt_recognition_setup()
+        elif reason == "timeout":
+            self._show_recognition_issue(
+                tr("Recognition timed out", "语音识别超时"),
+                tr("Any partial text was saved in the app. Check the service and try again.",
+                   "部分文字已保留在应用中，请检查服务后重试。"))
+        else:
+            self._show_recognition_issue(
+                tr("Voice recognition failed", "语音识别失败"),
+                tr("Check your network or service status, then try again.",
+                   "请检查网络或服务状态后重试。"))
+
     def _api_key_has_saved(self):
         provider = recognition_provider(self.settings.asr_provider)
         return provider.uses_api_key and provider.credential_store.has_saved()
@@ -482,12 +509,18 @@ class DoubaoInputApp(VoiceMixin, RuntimeMixin, Gtk.Application):
         self.app_state.login_status = LoginStatus.NOT_LOGGED_IN
         provider = recognition_provider(self.settings.asr_provider)
         if provider.uses_api_key:
-            self._control.set_feedback(tr(
-                "The recognition service rejected the saved API key. Update or test it in Settings.",
-                "语音识别服务拒绝了已保存的 API Key，请在设置中更新或测试。"))
-            self._show_settings()
+            detail = (tr("Check your balance, model access and API key in Settings.",
+                         "请在设置中检查余额、模型权限和 API Key。")
+                      if provider.id == "volcengine" else
+                      tr("Check your account balance and API key in Settings.",
+                         "请在设置中检查账户余额和 API Key。"))
+            self._show_recognition_issue(
+                tr("Recognition service rejected the request", "语音识别服务拒绝请求"),
+                detail)
         else:
-            self._show_login()
+            self._show_recognition_issue(
+                tr("Doubao sign-in expired", "豆包登录已失效"),
+                tr("Open settings to sign in again.", "请打开设置重新登录。"))
 
     def _check_mic(self) -> None:
         if self._busy():

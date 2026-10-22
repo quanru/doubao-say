@@ -6,6 +6,7 @@ from unittest.mock import Mock, patch
 from gi.repository import GLib
 
 from doubao_input.app import DoubaoInputApp
+from doubao_input.doubao.app_state import LoginStatus
 from doubao_input.ui.control_window import ControlWindow
 from doubao_input.ui.polish_settings import PolishSettings
 from doubao_input.ui.settings_window import SettingsWindow
@@ -80,6 +81,68 @@ class SetupActionsTest(unittest.TestCase):
         view.window.get_visible.return_value = True
         DoubaoInputApp._show_settings(SimpleNamespace(_settings_window=view))
         view.show.assert_called_once_with()
+
+    def test_rejected_recognition_stays_in_overlay_until_user_acts(self):
+        app = SimpleNamespace(
+            _login_attempt=object(),
+            app_state=SimpleNamespace(login_status=None),
+            settings=SimpleNamespace(asr_provider="volcengine"),
+            _control=Mock(), _overlay=Mock(), _show_settings=Mock(),
+        )
+        app._show_recognition_issue = lambda title, detail: DoubaoInputApp._show_recognition_issue(
+            app, title, detail)
+
+        DoubaoInputApp._on_auth_expired(app)
+
+        app._show_settings.assert_not_called()
+        app._overlay.show_error.assert_called_once()
+        title, detail, open_settings = app._overlay.show_error.call_args.args
+        self.assertIn("api key", detail.lower())
+        self.assertEqual(open_settings, app._show_settings)
+        self.assertIsNone(app._login_attempt)
+
+    def test_service_request_error_uses_overlay_without_opening_settings(self):
+        app = SimpleNamespace(_control=Mock(), _overlay=Mock(), _show_settings=Mock())
+        app._show_recognition_issue = lambda title, detail: DoubaoInputApp._show_recognition_issue(
+            app, title, detail)
+
+        DoubaoInputApp._on_service_error(app, "request")
+
+        app._show_settings.assert_not_called()
+        app._overlay.show_error.assert_called_once()
+
+    def test_repeat_trigger_without_credentials_prompts_in_overlay(self):
+        app = SimpleNamespace(
+            settings=SimpleNamespace(asr_provider="volcengine"),
+            _control=Mock(), _overlay=Mock(), _show_settings=Mock(),
+        )
+        app._show_recognition_issue = lambda title, detail: DoubaoInputApp._show_recognition_issue(
+            app, title, detail)
+
+        DoubaoInputApp._prompt_recognition_setup(app)
+
+        app._show_settings.assert_not_called()
+        app._overlay.show_error.assert_called_once()
+
+    def test_trigger_does_not_dismiss_service_error(self):
+        app = SimpleNamespace(_overlay=SimpleNamespace(error_visible=True),
+                              _setup_session=Mock(), _tm=Mock())
+
+        DoubaoInputApp._voice_toggle(app)
+
+        app._setup_session.dismiss.assert_not_called()
+        app._tm.handle_toggle.assert_not_called()
+
+    def test_saved_api_key_can_retry_after_error_is_closed(self):
+        app = SimpleNamespace(
+            app_state=SimpleNamespace(login_status=LoginStatus.NOT_LOGGED_IN),
+            settings=SimpleNamespace(asr_provider="volcengine"),
+            _recognition_ready=Mock(return_value=True),
+        )
+
+        DoubaoInputApp._retry_saved_recognition(app)
+
+        self.assertEqual(app.app_state.login_status, LoginStatus.LOGGED_IN)
 
     def test_error_preserves_relevant_recovery_instruction(self):
         control = Mock()

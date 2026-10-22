@@ -99,9 +99,11 @@ class TranscriptionSessionTest(TestCase):
                 manager.asr_client.is_connected = connected
                 manager.on_paste = Mock()
                 manager.on_recover = Mock()
+                manager.on_service_error = Mock()
                 manager._safety_timeout()
                 manager.on_paste.assert_not_called()
                 manager.on_recover.assert_called_once_with("partial")
+                manager.on_service_error.assert_called_once_with("timeout")
                 self.assertEqual(manager.app_state.recording_state, RecordingState.IDLE)
                 self.assertTrue(manager.app_state.error_message)
 
@@ -166,8 +168,10 @@ class TranscriptionSessionTest(TestCase):
     def test_error_stops_capture_immediately_and_keeps_actionable_message(self):
         manager = self.manager()
         manager.app_state.recording_state = RecordingState.RECORDING
+        manager.on_service_error = Mock()
         manager._on_asr_error(RuntimeError("network"))
         manager.audio_capture.stop.assert_called_once()
+        manager.on_service_error.assert_called_once_with("request")
         self.assertEqual(manager.app_state.recording_state, RecordingState.IDLE)
         self.assertTrue(manager.app_state.error_message)
 

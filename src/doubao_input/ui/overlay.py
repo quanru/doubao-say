@@ -86,6 +86,8 @@ class Overlay:
         self._status_row = None
         self._sparkles = []
         self._hint_label = None
+        self._error_actions = None
+        self._error_open = None
         self._waveform = None
         self._polishing_since = None
         self._canvas: Gtk.Picture | None = None
@@ -119,8 +121,36 @@ class Overlay:
 
     # ---- public API ----
 
+    @property
+    def error_visible(self) -> bool:
+        return self._visible and self._error_open is not None
+
     def show(self, status: str | None = None) -> None:
         self._run_on_main(self._show, status or tr("Listening…", "聆听中…"))
+
+    def show_error(self, status: str, detail: str, open_settings) -> None:
+        """Keep a service failure visible until the user chooses an action."""
+        self._run_on_main(self._show_error, status, detail, open_settings)
+
+    def _show_error(self, status: str, detail: str, open_settings) -> None:
+        self._show(status)
+        self._set_text(detail)
+        self._waveform.set_visible(False)
+        self._error_open = open_settings
+        self._error_actions.set_visible(True)
+
+    def _clear_error(self) -> None:
+        self._error_open = None
+        if self._error_actions is not None:
+            self._error_actions.set_visible(False)
+        if self._waveform is not None:
+            self._waveform.set_visible(True)
+
+    def _open_error_settings(self, _button) -> None:
+        callback = self._error_open
+        self._hide()
+        if callback:
+            callback()
 
     def show_polishing(self, text: str) -> None:
         """Keep polishing activity separate from the transcript."""
@@ -211,6 +241,7 @@ class Overlay:
     def _show(self, status: str) -> None:
         self._ensure_window()
         self._clear_polishing()
+        self._clear_error()
         self._text = ""
         self._status_text = status
         self._status_priority = True
@@ -222,6 +253,7 @@ class Overlay:
 
     def _hide(self) -> None:
         self._clear_polishing()
+        self._clear_error()
         self._motion = VoiceMotion()
         if self._update_button:
             self._update_button.popdown()
@@ -391,6 +423,17 @@ class Overlay:
         label.set_hexpand(True)
         label.add_css_class("doubao-overlay-label")
         panel.append(label)
+        error_actions = Gtk.Box(orientation=Gtk.Orientation.HORIZONTAL, spacing=8)
+        error_actions.set_halign(Gtk.Align.CENTER)
+        open_button = Gtk.Button(label=tr("Open settings", "打开设置"))
+        open_button.connect("clicked", self._open_error_settings)
+        error_actions.append(open_button)
+        close_button = Gtk.Button(label=tr("Close", "关闭"))
+        close_button.connect("clicked", lambda _button: self.hide())
+        error_actions.append(close_button)
+        error_actions.set_visible(False)
+        panel.append(error_actions)
+        self._error_actions = error_actions
         self._hint_label = Gtk.Label(
             label=tr("Press shortcut again to use original", "再次按快捷键使用原文"),
             visible=False)

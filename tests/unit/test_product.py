@@ -82,7 +82,8 @@ class ProductTest(TestCase):
         self.assertFalse(app._enter_after_paste)
 
     def test_key_capture_suppresses_dictation(self):
-        app = polishing_app(_mic_test_running=False, _triggers=SimpleNamespace(capturing=True), _tm=Mock())
+        app = polishing_app(_mic_test_running=False, _triggers=SimpleNamespace(capturing=True),
+                            _overlay=SimpleNamespace(error_visible=False), _tm=Mock())
         DoubaoInputApp._voice_start(app)
         app._tm.handle_toggle.assert_not_called()
 

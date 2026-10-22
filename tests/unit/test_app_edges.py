@@ -15,10 +15,12 @@ from doubao_input.result import RecentResult
 from doubao_input.personal import PersonalStore
 from doubao_input.settings import Settings
 from doubao_input.inject.delivery import Delivery
+from doubao_input.i18n import set_language
 
 
 class AppLifecycleEdgesTest(TestCase):
     def test_update_before_settings_are_opened_downloads_and_launches(self):
+        self.addCleanup(set_language, "en")
         with tempfile.TemporaryDirectory() as root, patch(
                 "doubao_input.app.GLib.unix_signal_add"), patch(
                 "doubao_input.app_runtime.prepare_update", return_value=Path(root)), patch(

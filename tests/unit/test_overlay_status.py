@@ -1,12 +1,30 @@
 """Waiting for recognition must expose the available cancellation action."""
 from unittest import TestCase
 from unittest.mock import Mock, patch
+from types import SimpleNamespace
 
 from doubao_input.i18n import set_language
 from doubao_input.ui.overlay import Overlay
 
 
 class OverlayStatusTest(TestCase):
+    def test_error_actions_remain_visible_and_open_settings_on_click(self):
+        overlay = SimpleNamespace(
+            _show=Mock(), _set_text=Mock(), _waveform=Mock(),
+            _error_actions=Mock(), _error_open=None, _hide=Mock(),
+        )
+        open_settings = Mock()
+
+        Overlay._show_error(overlay, "Service rejected", "Check access", open_settings)
+
+        overlay._show.assert_called_once_with("Service rejected")
+        overlay._set_text.assert_called_once_with("Check access")
+        overlay._error_actions.set_visible.assert_called_once_with(True)
+        overlay._hide.assert_not_called()
+        Overlay._open_error_settings(overlay, None)
+        overlay._hide.assert_called_once_with()
+        open_settings.assert_called_once_with()
+
     def test_transcribing_hint_is_visible_with_or_without_partial_text(self):
         self.addCleanup(set_language, "en")
         for language, esc, portal in (
