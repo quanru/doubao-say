@@ -137,3 +137,13 @@ build may require one final permission grant. Successive Developer ID previews
 and releases with compatible signing requirements should retain existing grants.
 Real permission retention across two distributed previews still needs acceptance
 on a Mac; synthetic signing tests do not establish that result.
+
+## Recover a release workflow after a runner change
+
+The Linux Python 3.12 installation smoke test runs on Ubuntu 24.04 so its system
+Python and GTK bindings match the downloaded archive. If a workflow fix is needed
+after tagging, merge the fix and dispatch `release.yml` on main with
+`source_tag=v<version>`. All jobs use the existing tag's resolved commit; the
+manual run verifies and builds artifacts but never publishes automatically.
+After its gates pass, publish those artifacts under the unchanged tag and retain
+the Mac DMGs built from that same source commit. Never move the tag.
