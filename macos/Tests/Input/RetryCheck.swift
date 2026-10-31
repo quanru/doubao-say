@@ -58,7 +58,11 @@ final class HotkeyManager {
     func prepareFinal(text: String) {}
     func useOriginal() {}
     func cancel() {}
-    func finish(text: String, completion: @escaping (String, Bool) -> Void) { completion(text, false) }
+    static var holdFinal = false
+    static var pending: ((String, Bool) -> Void)?
+    func finish(text: String, completion: @escaping (String, Bool) -> Void) {
+        if Self.holdFinal { Self.pending = completion } else { completion(text, false) }
+    }
 }
 protocol ASRTransport: AnyObject {
     var onOpen: (() -> Void)? { get set }; var onResult: ((String) -> Void)? { get set }
@@ -68,11 +72,12 @@ protocol ASRTransport: AnyObject {
 }
 class DoubaoASRClient: ASRTransport {
     static var latest: DoubaoASRClient?
+    static var openImmediately = true
     init() { Self.latest = self }
     var onOpen: (() -> Void)?; var onResult: ((String) -> Void)?; var onFinish: (() -> Void)?
     var onAudioDrained: (() -> Void)?; var onError: (() -> Void)?; var onAuthError: (() -> Void)?
     func sendAudio(_ data: Data) {}; func finishSending() {}; func disconnect() {}
-    func connect(params: Int) { onOpen?() }
+    func connect(params: Int) { if Self.openImmediately { onOpen?() } }
 }
 final class APIASRClient: DoubaoASRClient {
     init(provider: RecognitionProvider) {}
@@ -208,5 +213,34 @@ final class PersonalDataStore {
         precondition(recoveredState.inputDiagnostic.contains("capture=recovered"))
         recoveredManager.cancel()
         print("PASS: actual transcription controller preserves focus recovery across prime/start and reports its capture diagnostic; no real input")
+        func pump() { RunLoop.current.run(until: Date().addingTimeInterval(0.08)) }
+        for phase in ["starting", "recording", "stopping", "polishing", "delivery"] {
+            DoubaoASRClient.openImmediately = phase != "starting"
+            PolishCoordinator.holdFinal = phase == "polishing"
+            PolishCoordinator.pending = nil
+            let state = AppState(), overlay = OverlayPanel(), hotkey = HotkeyManager()
+            let controller = TranscriptionManager(appState: state, overlayPanel: overlay, hotkeyManager: hotkey)
+            controller.start(); hotkey.onHotkeyEvent?(.start); pump()
+            let oldClient = DoubaoASRClient.latest!
+            if phase != "starting" { oldClient.onResult?("cancelled utterance"); pump() }
+            if ["stopping", "polishing", "delivery"].contains(phase) { hotkey.onHotkeyEvent?(.stop); pump() }
+            if ["polishing", "delivery"].contains(phase) { oldClient.onFinish?(); pump() }
+            precondition(phase == "delivery" ? state.inputPending : state.recordingState != .idle)
+            let lateResult = oldClient.onResult, lateFinish = oldClient.onFinish
+            let latePolish = PolishCoordinator.pending, lateDelivery = PasteHelper.pending
+            let attempts = PasteHelper.events.count
+            hotkey.onHotkeyEvent?(.cancel); pump()
+            precondition(state.recordingState == .idle && !state.inputPending && !overlay.isVisible && state.transcriptionText.isEmpty,
+                         "Escape cancellation must reset every active phase and dismiss the overlay: \(phase)")
+            DoubaoASRClient.openImmediately = true
+            hotkey.onHotkeyEvent?(.start); pump()
+            precondition(state.isRecording, "A fresh recording must start immediately after cancellation")
+            lateResult?("stale text"); lateFinish?(); latePolish?("stale polish", true); lateDelivery?(false); pump()
+            precondition(state.isRecording && state.transcriptionText.isEmpty && PasteHelper.events.count == attempts,
+                         "Cancelled callbacks must not deliver text or disturb the new recording: \(phase)")
+            controller.cancel()
+        }
+        print("PASS: cancel during starting, recording, stopping, polishing and delivery; immediate restart and stale callback isolation")
+
     }
 }

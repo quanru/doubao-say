@@ -64,6 +64,22 @@ struct InputTarget {
         guard subrole as? String != kAXSecureTextFieldSubrole else { return nil }
         return InputTarget(pid: app.processIdentifier, element: element, cursorOnly: true, cursorScope: scope())
     }
+    // Web editors can advertise writable AXSelectedText yet ignore the write or
+    // fail to update their application state. Use a real paste event for them.
+    var supportsAutomaticDirectInput: Bool {
+        var current = element
+        for _ in 0..<64 {
+            var role: CFTypeRef?
+            guard AXUIElementCopyAttributeValue(current, kAXRoleAttribute as CFString, &role) == .success else { return false }
+            if role as? String == "AXWebArea" { return false }
+            if role as? String == kAXApplicationRole { return true }
+            var parent: CFTypeRef?
+            guard AXUIElementCopyAttributeValue(current, kAXParentAttribute as CFString, &parent) == .success,
+                  let parent, CFGetTypeID(parent) == AXUIElementGetTypeID() else { return false }
+            current = unsafeBitCast(parent, to: AXUIElement.self)
+        }
+        return false
+    }
     func isCurrent() -> Bool {
         if cursorOnly {
             guard let current = Self.captureCursor() else { return false }
@@ -99,9 +115,9 @@ final class PasteHelper {
     init(modifierFlags: @escaping () -> CGEventFlags = { CGEventSource.flagsState(.combinedSessionState) }) {
         self.modifierFlags = modifierFlags
     }
-    static func useAccessibilityInput(method: String, selectedTextWritable: Bool) -> Bool {
+    static func useAccessibilityInput(method: String, selectedTextWritable: Bool, nativeField: Bool = true) -> Bool {
         if method == "direct" { return true }
-        return method == "auto" && selectedTextWritable
+        return method == "auto" && selectedTextWritable && nativeField
     }
     func cancel() { generation = UUID() }
     func deliver(_ text: String, target _: InputTarget?, method: String = "auto", sendEnter: Bool = false, completion: @escaping (Bool) -> Void) {
@@ -133,7 +149,8 @@ final class PasteHelper {
             var writable = DarwinBoolean(false)
             let writableStatus = AXUIElementIsAttributeSettable(target.element, kAXSelectedTextAttribute as CFString, &writable)
             if !target.cursorOnly && Self.useAccessibilityInput(method: method,
-                                          selectedTextWritable: writableStatus == .success && writable.boolValue) {
+                                          selectedTextWritable: writableStatus == .success && writable.boolValue,
+                                          nativeField: method == "auto" ? target.supportsAutomaticDirectInput : true) {
                 let status = AXUIElementSetAttributeValue(target.element, kAXSelectedTextAttribute as CFString, text as CFString)
                 self.diagnostic = "method=\(method); route=accessibility; AXStatus=\(status.rawValue)"
                 guard status == .success else { fail(.directUnavailable); return }

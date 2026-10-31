@@ -1,5 +1,13 @@
 # Changelog
 
+## 1.8.2
+
+- Follow the system language by default on macOS while preserving explicit choices.
+- Use clipboard paste for web editors in automatic mode, avoiding successful accessibility calls that do not insert text.
+- Cancel recording, transcription, polishing and pending input with Escape; allow immediate restart and ignore stale callbacks.
+- Deliver at the current cursor after shortcut release and retain actionable recognition-service errors in the overlay.
+- Improve contextual polishing corrections and Qwen response latency.
+
 - macOS: turn Setup into a four-step guided flow with completion gates, Back navigation and automatic saving.
 
 - macOS: place recognition at the bottom of the active screen, recover one startup audio reconfiguration, and keep microphone/recognition failure messages visible.

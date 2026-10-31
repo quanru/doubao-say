@@ -19,6 +19,10 @@ Seed ASR 2.0 API or Deepgram Nova-3 for English dictation. English by default. S
 uses Simplified Chinese for Chinese locales, and falls back to English otherwise.
 Optional Omarchy integration manages the **same application**, not another engine.
 
+## Mac input behavior
+
+The interface follows the system language by default, preserving existing explicit choices. Automatic input uses clipboard paste for web editors (including Electron), and direct accessibility input for supported native fields. Escape cancels recording, transcription, polishing or pending input and dismisses the overlay; you can record again immediately. Text already entered is not undone.
+
 ## Get started
 
 Use the application or Omarchy plugin archive in `dist/`. Archives include an

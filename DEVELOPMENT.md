@@ -30,7 +30,7 @@ read this file, [CONTRIBUTING.md](CONTRIBUTING.md), and
 - Overlays must not steal focus. Input-delivery changes must account for target
   windows, shortcut release timing, focus changes, and original-text recovery,
   avoiding duplicate delivery or input into the wrong window.
-- English is the default UI language. Provide Chinese translations alongside new
+- The macOS UI follows system language preferences by default; Linux defaults to English. Provide Chinese translations alongside new
   English strings. Check both languages, long text, truncation, state transitions,
   and reduced-motion behavior when changing animations.
 - Do not expose real transcripts, cookies, tokens, API keys, or device/account

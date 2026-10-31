@@ -5,6 +5,8 @@ struct AutoSaveCheck {
     @MainActor static func main() {
         precondition(PasteHelper.useAccessibilityInput(method: "auto", selectedTextWritable: true))
         precondition(!PasteHelper.useAccessibilityInput(method: "auto", selectedTextWritable: false))
+        precondition(!PasteHelper.useAccessibilityInput(method: "auto", selectedTextWritable: true, nativeField: false))
+        precondition(PasteHelper.useAccessibilityInput(method: "direct", selectedTextWritable: true, nativeField: false))
         precondition(!PasteHelper.useAccessibilityInput(method: "clipboard", selectedTextWritable: true),
                      "Explicit clipboard selection must be respected even for writable fields")
         precondition(PasteHelper.useAccessibilityInput(method: "direct", selectedTextWritable: false))

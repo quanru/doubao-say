@@ -50,7 +50,7 @@ class ReleaseTest(unittest.TestCase):
         notes = (ROOT / "RELEASE_NOTES.md").read_text()
         self.assertIn("--notes-file RELEASE_NOTES.md", workflow)
         self.assertNotIn("--generate-notes", workflow)
-        for expected in ("Doubao Say 1.8.1", "ChatGPT", "accessibility", "clipboard", "microphone"):
+        for expected in ("Doubao Say 1.8.2", "Escape", "accessibility", "clipboard", "microphone"):
             self.assertIn(expected, " ".join(notes.split()))
 
     def test_both_archives_exclude_ignored_source_files(self):

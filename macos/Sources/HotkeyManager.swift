@@ -145,21 +145,21 @@ final class HotkeyManager {
         }
         let physicalCode = UInt16(event.getIntegerValueField(.keyboardEventKeycode))
         let modifierPressed = type == .flagsChanged && Self.modifierPressed(physicalCode, flags: event.flags)
+        // Escape always cancels before the generic finish-on-key path, even
+        // while another swallowed key is waiting for release.
+        if code == 53 && type == .keyDown && (active || interceptingInput || shortcutDown || gesture.isPending || blockedKeys.contains(physicalCode)) {
+            if blockedKeys.insert(physicalCode).inserted {
+                resetGesture()
+                onHotkeyEvent?(.cancel)
+            }
+            return nil
+        }
         if type == .flagsChanged && !modifierPressed, withheldTriggerModifiers.remove(physicalCode) != nil {
             if shortcutDown { shortcutDown = false; emit(gesture.up(at: ProcessInfo.processInfo.systemUptime)) }
             return nil
         }
         if type == .keyUp, blockedKeys.remove(physicalCode) != nil { return nil }
         if type == .flagsChanged && !modifierPressed, blockedModifiers.remove(physicalCode) != nil { return nil }
-        // Cancellation takes priority over the generic finish-on-any-key rule,
-        // including while ASR or polishing is still pending. Retain the key until
-        // release so neither repeats nor key-up escape into the target app.
-        if code == 53 && type == .keyDown && (active || shortcutDown || gesture.isPending) {
-            if blockedKeys.insert(physicalCode).inserted {
-                resetGesture(); onHotkeyEvent?(.cancel)
-            }
-            return nil
-        }
         let draining = !blockedKeys.isEmpty || !blockedModifiers.isEmpty
         if type.rawValue == 14, let media = NSEvent(cgEvent: event), media.subtype.rawValue == 8 {
             let mediaCode = UInt16(0x8000 | ((media.data1 >> 16) & 0x7fff))
