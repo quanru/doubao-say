@@ -1,4 +1,4 @@
-# Complete Python dependency set for the 1.8.1 release.
+# Complete Python dependency set for the 1.8.2 release.
 PyJWT[crypto]==2.15.1
 cryptography==50.0.2
 websockets==17.1

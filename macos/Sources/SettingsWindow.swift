@@ -7,7 +7,7 @@ struct SettingsView: View {
     @ObservedObject var state: AppState
     @State private var showingAppearance = false
     @FocusState private var sidebarFocus: String?
-    @AppStorage("language") private var language = "en"
+    @AppStorage("language") private var language = "system"
     private var pages: [(String, String, String)] { [
         ("setup", L("Setup", "使用准备"), "checkmark.circle"),
         ("recognition", L("Recognition", "识别服务"), "waveform"),
@@ -197,7 +197,7 @@ struct SettingsView: View {
                 HStack { Text(model.draft.shortcut.label); Button(L("Choose shortcut", "选择快捷键")) { model.chooseShortcut() } }.disabled(model.setupBusy)
                 Label(model.shortcutAvailable ? L("Shortcut ready", "快捷键已就绪") : L("Shortcut permission required", "请启用快捷键权限"), systemImage: model.shortcutAvailable ? "checkmark.circle.fill" : "circle")
                     .foregroundColor(model.shortcutAvailable ? .green : .secondary)
-                Text(L("Tap to start; hold to talk. During voice input, any key stops and inputs text.", "短按开始，长按说话；语音输入期间，任意按键都结束并上屏。"))
+                Text(L("Tap to start; hold to talk. Escape cancels without input; other keys finish and input text.", "短按开始，长按说话；Esc 取消且不上屏，其他按键结束并上屏。"))
             }.formStyle(.grouped).padding(8)
         default:
             Form {
@@ -254,7 +254,7 @@ struct SettingsView: View {
         ScrollView {
             VStack(alignment: .leading, spacing: 14) {
                 HStack { Text(L("Dictation: ", "听写：") + model.draft.shortcut.label); Button(L("Choose shortcut", "选择快捷键")) { model.chooseShortcut() } }
-                Text(L("Tap to start; hold to talk. Any key finishes voice input without its original action. Double-tap sends Enter while idle.", "短按开始录音，长按说话。语音输入期间任意按键都结束上屏，不执行原按键动作；空闲时双击发送回车。"))
+                Text(L("Tap to start; hold to talk. Escape cancels and closes the overlay; other keys finish voice input. Double-tap sends Enter while idle.", "短按开始录音，长按说话。Esc 取消并关闭浮窗，其他按键结束上屏；空闲时双击发送回车。"))
                 Toggle(L("Double-tap sends Enter when idle", "空闲时双击发送回车"), isOn: $model.draft.doubleEnter)
                 Stepper(L("Hold threshold: ", "长按阈值：") + "\(model.draft.holdMilliseconds) ms", value: $model.draft.holdMilliseconds, in: 200...1500, step: 50)
                 Stepper(L("Double-tap interval: ", "双击间隔：") + "\(model.draft.doubleMilliseconds) ms", value: $model.draft.doubleMilliseconds, in: 150...600, step: 50)

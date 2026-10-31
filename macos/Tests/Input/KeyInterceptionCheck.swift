@@ -97,6 +97,34 @@ import AppKit
         manager.setEscapeHandlingEnabled(false)
         precondition(manager.handle(mediaUp.type, mediaUp) == nil)
         precondition(manager.handle(mediaDown.type, mediaDown) != nil, "Media keys must resume when idle")
+        for recording in [true, false] {
+            let escape = HotkeyManager()
+            var cancels = 0, finishes = 0, primes = 0
+            escape.onHotkeyEvent = {
+                switch $0 {
+                case .cancel: cancels += 1; escape.setEscapeHandlingEnabled(false)
+                case .stop, .enter: finishes += 1
+                case .prime: primes += 1
+                default: break
+                }
+            }
+            escape.setEscapeHandlingEnabled(true, recording: recording, interceptKeys: true)
+            precondition(escape.handle(.keyDown, key(53, true)) == nil)
+            precondition(cancels == 1 && finishes == 0, "Escape must cancel recording or finishing, never submit text")
+            precondition(escape.handle(.keyDown, key(53, true)) == nil && cancels == 1, "Held Escape must not repeat cancellation")
+            precondition(escape.handle(.keyUp, key(53, false)) == nil)
+            precondition(escape.handle(.keyDown, key(49, true, flags: [.maskControl, .maskAlternate])) == nil && primes == 1,
+                         "The next recording shortcut must work immediately after Escape is released")
+            precondition(escape.handle(.keyDown, key(53, true)) == nil && cancels == 2,
+                         "Escape must also cancel a pending trigger gesture")
+        }
+        let draining = HotkeyManager()
+        var cancelsDuringDrain = 0
+        draining.onHotkeyEvent = { if case .cancel = $0 { cancelsDuringDrain += 1 } }
+        draining.setEscapeHandlingEnabled(true, recording: true)
+        _ = draining.handle(.keyDown, key(0, true))
+        _ = draining.handle(.keyDown, key(53, true))
+        precondition(cancelsDuringDrain == 1, "Escape must cancel even while a finishing key is still held")
         print("PASS: recording keys, Escape/Enter, modifiers, shortcut chords, media keys, repeats, post-delivery releases and synthetic-output bypass; no event tap or real key posting")
     }
 }

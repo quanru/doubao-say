@@ -47,6 +47,14 @@ final class CoreTests: XCTestCase {
 }
 
 final class LanguageTests: XCTestCase {
+    func testMissingLanguageFollowsSystemPreferences() {
+        XCTAssertEqual(UILanguage.resolve(nil, preferred: ["zh-Hans-CN", "en-US"]), .zh)
+        XCTAssertEqual(UILanguage.resolve(nil, preferred: ["fr-FR", "zh-Hant-TW"]), .zh)
+        XCTAssertEqual(UILanguage.resolve(nil, preferred: ["en-US", "zh-CN"]), .en)
+        XCTAssertEqual(UILanguage.resolve(nil, preferred: ["fr-FR"]), .en)
+        XCTAssertEqual(UILanguage.resolve(nil, preferred: []), .en)
+    }
+
     func testSystemLanguageUsesFirstSupportedPreference() {
         XCTAssertEqual(UILanguage.resolve("system", preferred: ["fr-FR", "zh-Hans-CN", "en-US"]), .zh)
         XCTAssertEqual(UILanguage.resolve("system", preferred: ["en-GB", "zh-CN"]), .en)

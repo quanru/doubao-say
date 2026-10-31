@@ -132,7 +132,7 @@ final class AppDelegate: NSObject, NSApplicationDelegate, NSMenuDelegate {
             let value = language.rawValue
             let item = NSMenuItem(title: language.name, action: #selector(setLanguage(_:)), keyEquivalent: "")
             item.target = self; item.representedObject = value
-            item.state = (UserDefaults.standard.string(forKey: "language") ?? "en") == value ? .on : .off
+            item.state = (UserDefaults.standard.string(forKey: "language") ?? "system") == value ? .on : .off
             submenu.addItem(item)
         }
         language.submenu = submenu
@@ -326,8 +326,8 @@ final class AppDelegate: NSObject, NSApplicationDelegate, NSMenuDelegate {
         Configure your recognition service, then enable the microphone and global shortcut.
         Focus an input field before recording.
         Your configured shortcut: tap to start, hold to talk; double-tap sends Enter while idle.
-        During voice input, any key stops and inputs text; the key itself is blocked, including Escape and Enter.
-        Outside voice input, Escape dismisses kept text or cancels retry. Maximum recording: 60 seconds.
+        Escape cancels recording, transcription, polishing or pending input and closes the overlay without submitting text.
+        Other keys finish voice input; the key itself is blocked. Escape also dismisses kept text or cancels retry. Maximum recording: 60 seconds.
         If the input target changes, use Copy last result from this menu.
         Dictation audio is sent to your selected service without saving local audio files.
         Speech evaluation recordings are saved locally until you delete them; running a comparison uploads them.
@@ -337,8 +337,8 @@ final class AppDelegate: NSObject, NSApplicationDelegate, NSMenuDelegate {
         配置识别服务，并启用麦克风和全局快捷键权限。
         录音前将光标放到输入框。
         使用你配置的快捷键：短按开始录音，长按说话；空闲时双击发送回车。
-        语音输入期间，任意按键都结束并上屏，按键本身被拦截，包括 Esc 和回车。
-        非语音输入状态下，Esc 可关闭保留文字或取消重试。单次最多录音 60 秒。
+        Esc 取消录音、转写、润色或待输入任务，关闭浮窗，不提交文字。
+        其他按键结束并上屏，按键本身被拦截。Esc 也可关闭保留文字或取消重试。单次最多录音 60 秒。
         输入目标变化时，请从菜单复制最近结果。
         普通听写音频发送至所选识别服务，不保存本地录音文件。
         语音评测录音会保存在本机，直到手动删除；开始对比时才上传。

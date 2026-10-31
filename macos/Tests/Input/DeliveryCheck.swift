@@ -4,6 +4,7 @@ import ApplicationServices
 // Test the production delivery implementation with inert platform boundaries.
 enum Fixture {
     static var trusted = true, current = true, writable = true, cursorAvailable = true, fieldAvailable = true
+    static var nativeField = true
     static var writeStatus = AXError.success
     static var writes: [String] = []
 }
@@ -21,6 +22,7 @@ struct InputTarget {
     var cursorOnly = false
     static func capture() -> InputTarget? { Fixture.fieldAvailable ? InputTarget() : nil }
     static func captureCursor() -> InputTarget? { Fixture.cursorAvailable ? InputTarget(cursorOnly: true) : nil }
+    var supportsAutomaticDirectInput: Bool { Fixture.nativeField }
     func isCurrent() -> Bool { Fixture.current }
 }
 final class NSPasteboard {
@@ -125,6 +127,17 @@ enum HotkeyManager {
         Fixture.current = true
         send(nil); helper.cancel(); wait(0.4)
         precondition(result == nil && CGEvent.posted == posted + 4)
+        Fixture.fieldAvailable = true
+        Fixture.nativeField = false; Fixture.writes = []; result = nil
+        let postedBeforeWeb = CGEvent.posted
+        helper.deliver("web editor text", target: target, method: "auto") { result = $0 }
+        wait(0.3)
+        precondition(result == true && Fixture.writes.isEmpty && CGEvent.posted == postedBeforeWeb + 2,
+                     "Web editors must receive paste even when AXSelectedText claims to be writable")
+        precondition(NSPasteboard.general.pastedTexts.last == "web editor text")
+        result = nil
+        helper.deliver("explicit direct", target: target, method: "direct") { result = $0 }
+        precondition(result == true && Fixture.writes == ["explicit direct"], "Explicit direct choice must be preserved")
         print("PASS: capability-based delivery, explicit clipboard choice, permission/focus failures, Fn release, held-key timeout and cancellation; all platform effects are inert")
     }
 }
