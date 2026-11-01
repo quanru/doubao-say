@@ -1,6 +1,6 @@
 # Doubao Say
 
-> **macOS development preview:** A native Swift menu-bar client supports Doubao web sign-in, official Volcengine and Deepgram recognition, optional polishing, configurable shortcuts, microphone selection and input recovery. See the [Mac build and usage guide](macos/README.zh-CN.md) (Chinese). No Developer ID signed or notarized Mac release is available yet.
+> **macOS and Linux:** A native Swift menu-bar client supports macOS 13+ on Apple Silicon and Intel, alongside the Linux GTK4 client. Developer ID signed, Apple notarized Mac installers are available. See the [Mac usage guide](macos/README.zh-CN.md) (Chinese).
 
 On macOS, dictation is delivered to the current cursor after the shortcut keys are released. Clipboard paste does not require the recording-time input field to remain focused. Auto mode uses the current accessible field when available, otherwise clipboard paste; Direct mode requires a current accessible input.
 
@@ -12,7 +12,7 @@ window restores both entries; minimized windows keep their Dock entry.
 
 ![Doubao Say voice input running on Omarchy Linux](images/readme-en.jpeg)
 
-A standalone GTK4 voice-input application for Linux (Hyprland/Wayland and native X11). It uses Doubao
+The Linux client is a standalone GTK4 voice-input application for Hyprland/Wayland and native X11. It uses Doubao
 web-account recognition by default and can optionally use the official Volcengine
 Seed ASR 2.0 API or Deepgram Nova-3 for English dictation. English by default. Settings offers **System / English /
 简体中文** and saves each choice automatically. System follows the session's language preferences,
@@ -22,6 +22,16 @@ Optional Omarchy integration manages the **same application**, not another engin
 ## Mac input behavior
 
 The interface follows the system language by default, preserving existing explicit choices. Automatic input uses clipboard paste for web editors (including Electron), and direct accessibility input for supported native fields. Escape cancels recording, transcription, polishing or pending input and dismisses the overlay; you can record again immediately. Text already entered is not undone.
+
+## Install on Mac
+
+![Doubao Say native Mac setup](images/macos-setup-en.png)
+
+Requires macOS 13 or later. Download the DMG for your processor: [Apple Silicon (Feishu)](https://www.feishu.cn/file/SsxxbrRnzok2nwxu4BwcdarpnHh) or [Intel (Feishu)](https://www.feishu.cn/file/TG7nbOAJToQ16Mx62cqcFLl0nZd). Backup packages are on [GitHub Releases](https://github.com/quanru/doubao-say/releases); do not choose a Linux archive for Mac.
+
+Drag Doubao Say to Applications and open it. Allow microphone and Accessibility access, choose Doubao sign-in or your own Volcengine / Deepgram API key, and complete the local microphone and speech checks. The default shortcut is `Control+Option+Space`; it can be changed in Settings.
+
+Settings save automatically. Closing Settings keeps the app in the menu bar. Use Updates to check, download, verify, and install a compatible signed and notarized update. The [Mac guide](macos/README.zh-CN.md) covers input methods, optional AI polishing, permissions, and recovery.
 
 ## Get started
 
@@ -424,6 +434,8 @@ See [INSTALL.md](packaging/INSTALL.md) for plugin lifecycle and recovery behavio
 
 ## Installation guide for AI agents
 
+On macOS, follow [Install on Mac](#install-on-mac) and the [Mac guide](macos/README.zh-CN.md); the Linux package, evdev, and PipeWire steps below do not apply.
+
 Use this section when a user asks you to install Doubao Say. The app and Omarchy
 plugin run the same Doubao cloud engine. Choose **one** installation route; do not
 install a local recognition engine or change another voice application's shortcuts.
@@ -557,7 +569,7 @@ validate package metadata and scan for secrets. The current whole-package branch
 coverage floor is 55%; desktop UI, WebKit and real-device paths remain included
 in the denominator.
 
-The current release version is **1.7.0**. A `v1.7.0` tag must match every embedded
+The current release version is **1.8.2**. A `v1.8.2` tag must match every embedded
 version before CI can publish. Tag releases rebuild both offline app and Omarchy
 plugin archives for Python 3.11–3.14 and attach SHA-256 checksums. A manually started
 release workflow builds artifacts for inspection but does not publish them. Real

@@ -2,6 +2,22 @@
 
 [Website](https://doubao-say.lifeos.md/) · [简体中文安装指南](https://doubao-say.lifeos.md/zh/guide/install)
 
+## Choose your platform
+
+Doubao Say supports macOS and Linux. On macOS 13+, use the native Swift menu-bar app; Python, GTK, and PipeWire are not required. The Linux app and Omarchy plugin use the GTK4 client and the dependencies documented below.
+
+## macOS
+
+Download the DMG for your processor: [Apple Silicon (Feishu)](https://www.feishu.cn/file/SsxxbrRnzok2nwxu4BwcdarpnHh) or [Intel (Feishu)](https://www.feishu.cn/file/TG7nbOAJToQ16Mx62cqcFLl0nZd). [GitHub Releases](https://github.com/quanru/doubao-say/releases) provides backup installers and checksums. The Mac DMGs are Developer ID signed and Apple notarized.
+
+Open the DMG, drag Doubao Say to Applications, and open it there. Grant microphone and Accessibility access through normal system prompts. Choose a recognition service, complete the microphone and speech checks, then use `Control+Option+Space` in a text field. Change the shortcut in Settings if needed.
+
+Settings save automatically; closing Settings leaves the menu-bar app running. Optional polishing uses an OpenAI-compatible endpoint or a ChatGPT plan connection. Recognition and polishing contact their configured providers.
+
+Use Updates to check for a compatible release and explicitly download and install it. The app verifies the hash, signature, notarization, and app identity before replacing and restarting itself. It never uses a Linux bundle as a Mac update. See the [Mac usage and permissions guide](../macos/README.zh-CN.md) (Chinese) for input recovery, uninstall data, and source builds.
+
+## Linux
+
 English interface by default. Select System, English or 简体中文 in Settings;
 the choice saves and applies automatically. System follows the session locale (Chinese → Simplified Chinese;
 unsupported languages → English). Manual choices override the system locale.

@@ -1,6 +1,6 @@
 # 豆包说（Doubao Say）
 
-> **macOS 开发预览版**：已提供原生 Swift 菜单栏客户端，支持豆包网页登录、火山和 Deepgram 识别、可选润色、自定义快捷键、麦克风选择和文字恢复。构建、权限及功能范围见 [macOS 使用说明](macos/README.zh-CN.md)。尚未发布签名公证的 Mac 安装包。
+> **macOS 与 Linux**：除 Linux GTK4 客户端外，已提供支持 macOS 13+ 的原生 Swift 菜单栏客户端，分别提供 Apple Silicon 和 Intel 的 Developer ID 签名、Apple 公证安装包。权限及功能范围见 [Mac 使用说明](macos/README.zh-CN.md)。
 
 macOS 在快捷键释放后向当前光标输入文字。剪贴板粘贴不要求保持录音开始时的输入框；自动模式优先使用当前可识别的输入框，否则粘贴。直接输入模式需要当前存在可识别的输入框。
 
@@ -8,7 +8,7 @@ macOS 在快捷键释放后向当前光标输入文字。剪贴板粘贴不要�
 
 ![豆包说在 Omarchy Linux 上运行的界面](images/readme-cn.jpeg)
 
-独立的 Linux GTK4 语音输入应用，支持 Hyprland / Wayland 和原生 X11。默认使用豆包网页账号识别，也可选择
+Linux 客户端采用 GTK4，支持 Hyprland / Wayland 和原生 X11。默认使用豆包网页账号识别，也可选择
 火山引擎官方 Seed ASR 2.0 API，也可使用 Deepgram Nova-3 做英语听写。
 默认英文，设置提供 **System（跟随系统）/ English / 简体中文**，选择后自动保存并立即生效。
 System 读取桌面会话的语言偏好，中文区域使用简体中文，其他不支持的语言回退为英文。
@@ -18,7 +18,17 @@ System 读取桌面会话的语言偏好，中文区域使用简体中文，其�
 
 界面默认跟随系统语言，保留已有的手动选择。自动输入对网页编辑器（含 Electron）使用剪贴板粘贴，对支持的原生输入框使用辅助功能直接写入。Esc 取消录音、转写、润色或待输入任务并关闭浮窗，随后可立即重新录制；已输入的文字不会撤回。
 
-## 安装和首次使用
+## Mac 安装和首次使用
+
+![豆包说 Mac 原生客户端的使用准备页面](images/macos-setup-zh.png)
+
+要求 macOS 13 或更新版本。下载适合芯片的 DMG：[Apple Silicon（飞书）](https://www.feishu.cn/file/SsxxbrRnzok2nwxu4BwcdarpnHh)／[Intel（飞书）](https://www.feishu.cn/file/TG7nbOAJToQ16Mx62cqcFLl0nZd)；备用安装包见 [GitHub Releases](https://github.com/quanru/doubao-say/releases)，不要选择 Linux 压缩包。
+
+把应用拖到「应用程序」后打开，允许麦克风及辅助功能权限，选择豆包登录或自己的火山引擎／Deepgram API Key，完成本机麦克风检查和语音测试。默认快捷键为 `Control+Option+空格`，可在设置中更改。
+
+设置自动保存，关闭设置窗后保留菜单栏运行。在「软件更新」检查、下载并安装适配当前架构的更新；安装前验证哈希、开发者签名、公证与应用身份。输入方式、可选 AI 润色、权限和恢复流程见 [Mac 使用说明](macos/README.zh-CN.md)。
+
+## Linux 安装和首次使用
 
 使用 `dist/` 中的应用或 Omarchy 插件安装包，内含离线安装器及 Python 依赖 wheel，
 适用平台以文件名为准。GTK、WebKit、PipeWire 和剪贴板等系统库不会打进安装包。
@@ -280,6 +290,8 @@ Vibekey 支持默认关闭，可在设置中启用；三个发射器按键分别
 
 ## 给 AI Agent 的安装指南
 
+macOS 请按上方 Mac 安装步骤和 [Mac 使用说明](macos/README.zh-CN.md) 操作；下方 Linux 安装、evdev 与 PipeWire 步骤不适用于 Mac。
+
 用户要求安装豆包说时，请按本节执行。独立应用和 Omarchy 插件使用同一套豆包云端引擎，
 **只选择一种安装路径**，不要安装本地识别引擎或修改其他语音软件的快捷键。
 
@@ -394,7 +406,7 @@ timeout --kill-after=5s 50s env PYTHONPATH=src python3 tests/manual/x11.py --run
 GTK 测试、代码检查、编译、包元数据校验和密钥扫描。覆盖率按整个源码包的分支覆盖率
 计算，当前真实门槛为 55%；GTK 界面、WebKit 和实体设备路径没有从分母中排除。
 
-当前发布版本为 **1.7.0**。只有 `v1.7.0` 标签与所有内置版本完全一致时，CI 才能发布。
+当前发布版本为 **1.8.2**。只有 `v1.8.2` 标签与所有内置版本完全一致时，CI 才能发布。
 标签发布会为 Python 3.11–3.14 分别构建独立应用与 Omarchy 插件离线包，并附带 SHA-256
 校验文件。手动启动发布工作流只构建供检查的产物，不会公开发布。真实登录、麦克风、
 全局按键及桌面行为仍需按人工验收清单检查。
