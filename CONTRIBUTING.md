@@ -1,9 +1,11 @@
 # Contributing
 
-This is a Linux voice-input client with a Doubao web-account backend and an
-optional official Volcengine Seed ASR backend. Do not add further recognition
+This project provides a native Swift macOS menu-bar client and a Linux GTK4
+voice-input client, with Doubao web-account, official Volcengine Seed ASR, and
+Deepgram Nova-3 recognition. Do not add further recognition
 engines, embed credentials or depend on personal Hyprland configuration.
-There is no published repository/release for this revision yet.
+Published installers are available on [GitHub Releases](https://github.com/quanru/doubao-say/releases).
+For Mac development and signing, see [macos/README.zh-CN.md](macos/README.zh-CN.md).
 
 ## Agent workflow and bug evidence
 
@@ -84,9 +86,9 @@ For marketplace preparation, use `make marketplace-check` with Gitleaks on PATH
 and follow [the publishing checklist](packaging/MARKETPLACE.md). Reports and local
 review drafts belong in ignored `artifacts/` and `docs/`, not in release payloads.
 
-The current public version is `1.7.0`. Keep `pyproject.toml`, `manifest.json` and
+The current public version is `1.8.2`. Keep `pyproject.toml`, `manifest.json` and
 `src/doubao_input/product.py` aligned; `python packaging/version_check.py` verifies
-them. A pushed tag such as `v1.7.0` runs all checks and secret scanning, builds app
+them. A pushed tag such as `v1.8.2` runs all checks and secret scanning, builds app
 and plugin archives for every supported Python version, creates `SHA256SUMS`, and
 publishes the GitHub Release. `workflow_dispatch` performs a non-publishing build.
 # Bounded desktop tests

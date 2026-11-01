@@ -22,9 +22,10 @@ read this file, [CONTRIBUTING.md](CONTRIBUTING.md), and
 
 ## Project boundaries
 
-- This Linux voice-input application uses Python 3.11+, GTK4/PyGObject, and Cairo.
-  Recognition uses a Doubao web account or the optional official Volcengine Seed
-  ASR backend. Do not add recognition engines without an explicit requirement.
+- The Linux client uses Python 3.11+, GTK4/PyGObject, and Cairo; the native macOS
+  menu-bar client uses Swift and requires macOS 13+. Both support Doubao web-account,
+  official Volcengine Seed ASR, and Deepgram Nova-3 recognition. Do not add
+  recognition engines without an explicit requirement.
 - Update GTK only on the main thread; dispatch background results through GLib.
   Use existing audio callbacks and keep gesture timing independently testable.
 - Overlays must not steal focus. Input-delivery changes must account for target

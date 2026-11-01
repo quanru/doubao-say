@@ -2,6 +2,12 @@
 
 独立的 Swift 菜单栏应用，要求 macOS 13 及以上。界面默认跟随系统语言，也可手动选择简体中文或英文；已有的语言选择保持不变。Mac 版提供与 Linux 版对应的识别服务、润色、录音手势、设置与文字恢复功能；权限、设备和输入接口使用 macOS 原生实现。逐项范围与验收边界见 [功能对照](PARITY.zh-CN.md)。已提供 Developer ID 签名、Apple 公证的发行安装包。
 
+## 下载安装
+
+按 Mac 芯片选择已签名、公证的安装包：[Apple Silicon（飞书）](https://www.feishu.cn/file/SsxxbrRnzok2nwxu4BwcdarpnHh)／[Intel（飞书）](https://www.feishu.cn/file/TG7nbOAJToQ16Mx62cqcFLl0nZd)。[GitHub Releases](https://github.com/quanru/doubao-say/releases) 提供备用 DMG、其他版本与 SHA-256 校验文件。Mac 不需要安装 Python、GTK 或 PipeWire。
+
+打开 DMG，将 Doubao Say 拖到「应用程序」后打开，按下方首次使用说明完成权限和语音检查。无需关闭 Gatekeeper 或移除隔离属性。开发者从源码构建时再使用下一节的命令。
+
 ## 构建与运行
 
 安装 Xcode Command Line Tools 或完整 Xcode 后，在仓库根目录执行：
