@@ -24,7 +24,7 @@ System 读取桌面会话的语言偏好，中文区域使用简体中文，其�
 
 要求 macOS 13 或更新版本。下载适合芯片的 DMG：[Apple Silicon（飞书）](https://www.feishu.cn/file/SsxxbrRnzok2nwxu4BwcdarpnHh)／[Intel（飞书）](https://www.feishu.cn/file/TG7nbOAJToQ16Mx62cqcFLl0nZd)；备用安装包见 [GitHub Releases](https://github.com/quanru/doubao-say/releases)，不要选择 Linux 压缩包。
 
-把应用拖到「应用程序」后打开，允许麦克风及辅助功能权限，选择豆包登录或自己的火山引擎／Deepgram API Key，完成本机麦克风检查和语音测试。默认快捷键为 `Control+Option+空格`，可在设置中更改。
+把应用拖到「应用程序」后打开，允许麦克风、辅助功能及输入监控权限，选择豆包登录或自己的火山引擎／Deepgram API Key，完成本机麦克风检查和语音测试。默认快捷键为 `Control+Option+空格`，可在设置中更改。
 
 设置自动保存，关闭设置窗后保留菜单栏运行。在「软件更新」检查、下载并安装适配当前架构的更新；安装前验证哈希、开发者签名、公证与应用身份。输入方式、可选 AI 润色、权限和恢复流程见 [Mac 使用说明](macos/README.zh-CN.md)。
 

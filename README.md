@@ -29,7 +29,7 @@ The interface follows the system language by default, preserving existing explic
 
 Requires macOS 13 or later. Download the DMG for your processor: [Apple Silicon (Feishu)](https://www.feishu.cn/file/SsxxbrRnzok2nwxu4BwcdarpnHh) or [Intel (Feishu)](https://www.feishu.cn/file/TG7nbOAJToQ16Mx62cqcFLl0nZd). Backup packages are on [GitHub Releases](https://github.com/quanru/doubao-say/releases); do not choose a Linux archive for Mac.
 
-Drag Doubao Say to Applications and open it. Allow microphone and Accessibility access, choose Doubao sign-in or your own Volcengine / Deepgram API key, and complete the local microphone and speech checks. The default shortcut is `Control+Option+Space`; it can be changed in Settings.
+Drag Doubao Say to Applications and open it. Allow microphone, Accessibility and Input Monitoring access, choose Doubao sign-in or your own Volcengine / Deepgram API key, and complete the local microphone and speech checks. The default shortcut is `Control+Option+Space`; it can be changed in Settings.
 
 Settings save automatically. Closing Settings keeps the app in the menu bar. Use Updates to check, download, verify, and install a compatible signed and notarized update. The [Mac guide](macos/README.zh-CN.md) covers input methods, optional AI polishing, permissions, and recovery.
 

@@ -192,7 +192,7 @@ struct SettingsView: View {
             }.formStyle(.grouped).padding(8)
         case 2:
             Form {
-                Text(L("Allow Accessibility access to use the shortcut in other applications.", "允许辅助功能权限后，即可在其他应用中使用快捷键。"))
+                Text(L("Allow Accessibility and Input Monitoring in System Settings → Privacy & Security to use global shortcuts. Restart the app if macOS asks.", "请在系统设置 → 隐私与安全中允许辅助功能和输入监控。系统提示时，退出并重新打开豆包说。"))
                 Button(L("Enable global shortcut", "启用全局快捷键")) { model.enableShortcut?() }
                 HStack { Text(model.draft.shortcut.label); Button(L("Choose shortcut", "选择快捷键")) { model.chooseShortcut() } }.disabled(model.setupBusy)
                 Label(model.shortcutAvailable ? L("Shortcut ready", "快捷键已就绪") : L("Shortcut permission required", "请启用快捷键权限"), systemImage: model.shortcutAvailable ? "checkmark.circle.fill" : "circle")

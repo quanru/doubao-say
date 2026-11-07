@@ -1,21 +1,15 @@
-# Doubao Say 1.8.2
+# Doubao Say 1.8.3
 
-## macOS dictation
+## macOS dictation fixes
 
-- Follow the system language by default. Existing explicit language choices remain in effect.
-- Paste into web editors, including Electron applications such as Vibelet, in automatic input mode. This fixes text disappearing when an accessibility write reports success without changing the field. Supported native fields can still use direct input.
-- Press Escape to cancel recording, transcription, polishing or pending input and close the overlay. Start a new recording immediately; late results from the cancelled session cannot enter text. Text already entered is not undone.
-- Resolve the input destination at the current cursor after shortcut release, with clipboard fallback for custom editors.
-- Keep recognition-service errors visible with actionable feedback, including capacity and rate-limit errors.
+- Start sending Doubao audio as soon as the WebSocket opens, avoiding recognition timeouts while waiting for a heartbeat reply.
+- Request both Accessibility and Input Monitoring for global shortcuts. Missing permissions no longer appear as a ready shortcut. If upgrading with an unresponsive shortcut, enable Doubao Say in System Settings → Privacy & Security → Input Monitoring and restart the app.
+- Receive Fn/Globe at the HID event layer so keyboard remappers such as Pawgic can trigger dictation. Standalone Fn also works while the remapper’s physical trigger modifier is still held. Existing shortcut mappings are preserved.
 
-## Polishing
+## Verification and downloads
 
-Improve contextual action-word corrections and reduce unnecessary Qwen thinking latency.
+Regression checks cover WebSocket audio delivery without heartbeat replies, handshake error classification, remapped Fn with a held Control key, and keyboard cancellation/interception. Live Doubao recognition and the Ctrl+semicolon → Pawgic → Fn trigger were verified on an Apple Silicon Mac after granting Input Monitoring. Intel hardware behavior was not separately tested.
 
-## Downloads and verification
+Developer ID signed, Apple-notarized DMGs are provided for Apple Silicon and Intel. Linux application and plugin archives support Python 3.11–3.14; this release changes no Linux recognition behavior. SHA256SUMS and update.json cover the release packages.
 
-Developer ID signed, Apple-notarized DMGs are provided for Apple Silicon and Intel. Linux application and plugin archives support Python 3.11–3.14. SHA256SUMS and update.json cover the release packages.
-
-Regression coverage includes language defaults, native/web input routing, Escape key repeats and releases, cancellation in five active phases, immediate restart, and stale-callback isolation. The web-editor fix was reproduced and checked in Vibelet on Apple Silicon. Automated checks do not establish microphone/ASR quality, compatibility with every editor, or Intel hardware acceptance.
-
-[Full changes](https://github.com/quanru/doubao-say/compare/v1.8.1...v1.8.2)
+[Full changes](https://github.com/quanru/doubao-say/compare/v1.8.2...v1.8.3)

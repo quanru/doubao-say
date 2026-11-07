@@ -59,7 +59,9 @@ def serve():
                     data = bytes(x ^ mask[i % 4] for i, x in enumerate(data))
                 opcode = first & 15
                 if opcode == 9:
-                    send(10, data)
+                    # Opening a socket must not depend on a heartbeat reply.
+                    # Delay/ignore pong to catch clients that withhold all audio.
+                    continue
                 elif opcode == 2:
                     audio.append(data)
             assert audio == [bytes([1, 2, 3, 4]), bytes(6400)], [len(x) for x in audio]

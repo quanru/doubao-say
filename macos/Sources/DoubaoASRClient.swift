@@ -32,10 +32,14 @@ struct DoubaoASRParams: Codable {
 }
 
 /// All transport state and frame ordering belong to one serial queue.
-final class DoubaoASRClient {
+final class DoubaoASRClient: NSObject, URLSessionWebSocketDelegate, @unchecked Sendable {
     private let endpoint: String
-    init(endpoint: String = "wss://ws-samantha.doubao.com/samantha/audio/asr") { self.endpoint = endpoint }
+    init(endpoint: String = "wss://ws-samantha.doubao.com/samantha/audio/asr") {
+        self.endpoint = endpoint
+        super.init()
+    }
     private let queue = DispatchQueue(label: "md.lifeos.doubao-say.asr")
+    private var session: URLSession?
     private var socket: URLSessionWebSocketTask?
     private var connected = false
     private var closed = false
@@ -79,19 +83,29 @@ final class DoubaoASRClient {
         request.timeoutInterval = 8
         queue.async {
             guard !self.closed, self.socket == nil else { return }
-            let task = URLSession.shared.webSocketTask(with: request)
+            let config = URLSessionConfiguration.ephemeral
+            config.urlCache = nil; config.httpCookieStorage = nil
+            let session = URLSession(configuration: config, delegate: self, delegateQueue: nil)
+            self.session = session
+            let task = session.webSocketTask(with: request)
             self.socket = task
             task.resume()
             self.receive(task)
-            task.sendPing { error in
-                self.queue.async {
-                    guard !self.closed else { return }
-                    guard error == nil else { self.fail(); return }
-                    self.connected = true
-                    self.pump()
-                    self.onOpen?()
-                }
-            }
+        }
+    }
+    func urlSession(_ session: URLSession, webSocketTask: URLSessionWebSocketTask,
+                    didOpenWithProtocol protocol: String?) {
+        queue.async {
+            guard !self.closed, self.socket === webSocketTask, !self.connected else { return }
+            self.connected = true
+            self.pump()
+            self.onOpen?()
+        }
+    }
+    func urlSession(_ session: URLSession, task: URLSessionTask, didCompleteWithError error: Error?) {
+        queue.async {
+            guard !self.closed, self.socket === task else { return }
+            self.fail()
         }
     }
     func sendAudio(_ data: Data) {
@@ -119,6 +133,7 @@ final class DoubaoASRClient {
         closed = true; connected = false
         pending.removeAll(); bufferedBytes = 0
         socket?.cancel(with: .normalClosure, reason: nil); socket = nil
+        session?.invalidateAndCancel(); session = nil
     }
     private func fail() {
         guard !closed else { return }
