@@ -1,5 +1,11 @@
 # Changelog
 
+## 1.8.3
+
+- macOS: start Doubao audio streaming when the WebSocket opens instead of waiting for a heartbeat reply.
+- macOS: require and request both Accessibility and Input Monitoring before reporting global shortcuts ready.
+- macOS: receive remapped Fn at the HID event layer and accept standalone Fn while a remapper’s trigger modifier is held.
+
 ## 1.8.2
 
 - Follow the system language by default on macOS while preserving explicit choices.

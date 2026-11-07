@@ -36,6 +36,20 @@ import AppKit
         precondition(trigger.handle(.flagsChanged, key(63, false)) == nil && triggerStops == 1,
                      "Releasing the original trigger after finishing must not perform its system action or restart recording")
         precondition(trigger.handle(.keyUp, key(0, false)) == nil)
+        let remappedFn = HotkeyManager()
+        remappedFn.configure(triggerSettings)
+        var remappedPrimes = 0, remappedStarts = 0
+        remappedFn.onHotkeyEvent = {
+            if case .prime = $0 { remappedPrimes += 1 }
+            if case .start = $0 { remappedStarts += 1 }
+        }
+        precondition(remappedFn.handle(.flagsChanged, key(63, true, flags: [.maskControl, .maskSecondaryFn])) == nil,
+                     "Fn emitted by Ctrl+semicolon mapping must start even while physical Ctrl is held")
+        precondition(remappedFn.handle(.flagsChanged, key(63, false, flags: .maskControl)) == nil)
+        precondition(remappedPrimes == 1 && remappedStarts == 1,
+                     "Remapped Fn tap must produce exactly one recording start")
+        precondition(remappedFn.handle(.flagsChanged, key(59, false)) != nil && remappedStarts == 1,
+                     "Releasing the mapping's Ctrl must not trigger another recording")
         let manager = HotkeyManager()
         var stops = 0
         manager.onHotkeyEvent = { if case .stop = $0 { stops += 1 } else { preconditionFailure("Unexpected gesture") } }

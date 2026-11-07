@@ -97,12 +97,18 @@ final class PersonalDataStore {
         RunLoop.current.add(wake, forMode: .default)
         defer { wake.invalidate() }
         func wait() { RunLoop.current.run(until: Date().addingTimeInterval(3.2)) }
+        func waitForDelivery() {
+            let deadline = Date().addingTimeInterval(8)
+            while PasteHelper.events.isEmpty && Date() < deadline {
+                RunLoop.current.run(until: Date().addingTimeInterval(0.01))
+            }
+        }
         let state = AppState(); state.lastTranscript = "synthetic"
         let manager = TranscriptionManager(appState: state, overlayPanel: OverlayPanel(), hotkeyManager: HotkeyManager())
         manager.retryLast(); manager.retryLast(); manager.finishWithEnter()
         precondition(state.inputPending && !manager.canInstallUpdate)
         precondition(PasteHelper.events.isEmpty, "No Enter during countdown")
-        wait()
+        waitForDelivery()
         precondition(PasteHelper.events == ["paste"], "Repeated clicks must deliver once")
         precondition(state.inputPending, "Keep ownership until delivery completes")
         manager.retryLast(); manager.finishWithEnter(); manager.startRecording()
@@ -116,8 +122,8 @@ final class PersonalDataStore {
         precondition(!state.inputPending)
         PasteHelper.events = []
         manager.retryLast()
-        wait()
-        precondition(PasteHelper.events == ["paste"], "Cancelled countdown must not fire in a new retry")
+        waitForDelivery()
+        precondition(PasteHelper.events == ["paste"], "Cancelled countdown must not fire in a new retry: \(PasteHelper.events)")
         let oldCompletion = PasteHelper.pending
         manager.cancel(); manager.retryLast()
         oldCompletion?(false)

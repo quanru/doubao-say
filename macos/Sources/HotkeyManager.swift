@@ -21,7 +21,7 @@ final class HotkeyManager {
     private var capture: ((Shortcut?) -> Void)?
     private var modifierCandidate: Shortcut?
     private var captureExpiry: DispatchWorkItem?
-    var available: Bool { eventTap != nil }
+    var available: Bool { eventTap != nil && AXIsProcessTrusted() && CGPreflightListenEventAccess() }
     var label: String { shortcut.label }
     static func flags(_ value: Int) -> CGEventFlags {
         var flags = CGEventFlags()
@@ -53,10 +53,12 @@ final class HotkeyManager {
         gesture.doubleEnter = settings.doubleEnter
     }
     func start() {
-        guard eventTap == nil else { return }
+        guard eventTap == nil, AXIsProcessTrusted(), CGPreflightListenEventAccess() else { return }
         // Type 14 carries AppKit system-defined media-key events.
         let mask = (1 << CGEventType.keyDown.rawValue) | (1 << CGEventType.keyUp.rawValue) | (1 << CGEventType.flagsChanged.rawValue) | (1 << 14)
-        guard let tap = CGEvent.tapCreate(tap: .cgSessionEventTap, place: .headInsertEventTap,
+        // Fn/Globe from virtual keyboards can be consumed by macOS before the
+        // session stream. Observe it at HID entry, where remappers emit it.
+        guard let tap = CGEvent.tapCreate(tap: .cghidEventTap, place: .headInsertEventTap,
             options: .defaultTap, eventsOfInterest: CGEventMask(mask), callback: { _, type, event, info in
                 guard let info = info else { return Unmanaged.passUnretained(event) }
                 return Unmanaged<HotkeyManager>.fromOpaque(info).takeUnretainedValue().handle(type, event)
@@ -71,6 +73,7 @@ final class HotkeyManager {
     }
     func requestPermission() {
         _ = AXIsProcessTrustedWithOptions([kAXTrustedCheckOptionPrompt.takeUnretainedValue() as String: true] as CFDictionary)
+        _ = CGRequestListenEventAccess()
         start(); permissionTimer?.invalidate()
         permissionTimer = Timer.scheduledTimer(withTimeInterval: 2, repeats: true) { [weak self] timer in
             self?.start(); if self?.available == true { timer.invalidate() }
@@ -183,7 +186,10 @@ final class HotkeyManager {
         let now = ProcessInfo.processInfo.systemUptime
         let modifierShortcut = Self.modifierBit(shortcut.keyCode)
         let down = modifierShortcut != 0 ? (type == .flagsChanged && code == shortcut.keyCode && mods & modifierShortcut != 0) : type == .keyDown
-        if down && code == shortcut.keyCode && (mods & ~modifierShortcut) == shortcut.modifiers {
+        // A remapper can emit Fn while its physical trigger modifier (e.g. Ctrl)
+        // is still held. A standalone Fn shortcut must accept that transition.
+        let standaloneFn = shortcut.keyCode == 63 && shortcut.modifiers == 0
+        if down && code == shortcut.keyCode && (standaloneFn || (mods & ~modifierShortcut) == shortcut.modifiers) {
             if modifierShortcut != 0 { withheldTriggerModifiers.insert(physicalCode) }
             shortcutDown = true; emit(gesture.down(at: now)); return nil
         }
