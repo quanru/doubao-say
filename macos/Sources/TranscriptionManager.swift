@@ -17,6 +17,21 @@ final class TranscriptionManager {
     private var speaking = false
     private var sendEnter = false
     private var testMode = false
+    private var radioSession = false
+    private var radioDisplayOnly = false
+    private let radioResultDuration: TimeInterval
+    var canReceiveRadio: Bool {
+        state.recordingState == .idle && !state.inputPending && !state.evaluationBusy && !primed && (canRecord?() ?? true)
+    }
+    func startRadio(_ preRoll: Data, displayOnly: Bool) {
+        guard canReceiveRadio else { return }
+        startRecording(externalAudio: preRoll, displayOnly: displayOnly)
+    }
+    func receiveRadio(_ data: Data) {
+        if radioSession && state.isRecording { client?.sendAudio(data) }
+    }
+    func finishRadio() { if radioSession { stopRecording() } }
+    func cancelRadio() { if radioSession { cancel() } }
     private var primed = false
     private var primedAudio = Data()
     private var settings = MacSettings()
@@ -30,9 +45,12 @@ final class TranscriptionManager {
     private var retryTimeout: DispatchWorkItem?
     var canRecord: (() -> Bool)?
     var onLoginNeeded: (() -> Void)?
+    var onRecognitionLimited: (() -> Void)?
 
-    init(appState: AppState, overlayPanel: OverlayPanel, hotkeyManager: HotkeyManager) {
+    init(appState: AppState, overlayPanel: OverlayPanel, hotkeyManager: HotkeyManager,
+         radioResultDuration: TimeInterval = 3) {
         state = appState; overlay = overlayPanel; hotkey = hotkeyManager
+        self.radioResultDuration = radioResultDuration
     }
     func start() {
         hotkey.onHotkeyEvent = { [weak self] event in
@@ -59,14 +77,18 @@ final class TranscriptionManager {
         polisher.onProgress = { [weak self] text in self?.state.transcriptionText = text }
         hotkey.start()
     }
-    func startRecording() {
+    func startRecording(externalAudio: Data? = nil, displayOnly: Bool = false) {
         defer { hotkey.setEscapeHandlingEnabled(state.recordingState != .idle || state.inputPending || overlay.isVisible, recording: state.isRecording,
-                                               interceptKeys: state.recordingState != .idle || state.inputPending) }
+                                               interceptKeys: !radioSession && (state.recordingState != .idle || state.inputPending)) }
         if state.recordingState == .polishing { polisher.useOriginal(); return }
         guard state.recordingState == .idle, !state.inputPending, !state.evaluationBusy, canRecord?() ?? true else { return }
         settings = SettingsStore.shared.value
+        radioSession = externalAudio != nil
+        radioDisplayOnly = radioSession && displayOnly
         delivery.cancel()
-        if !primed { captureTarget() }
+        if !primed {
+            if radioDisplayOnly { clearTarget() } else { captureTarget() }
+        }
         let params = settings.provider == .doubao ? ASRParamsStore.load() : nil
         let apiKey = settings.provider == .doubao ? nil : SecretStore.load(settings.provider.rawValue + "-api-key")
         guard params != nil || !(apiKey ?? "").isEmpty else { discardPrime(); clearTarget(); onLoginNeeded?(); return }
@@ -122,11 +144,18 @@ final class TranscriptionManager {
                 self.complete()
             }
         }
-        transport.onError = { [weak self] in
+        transport.onError = { [weak self, weak transport] in
             Task { @MainActor in
                 guard let self = self, self.session == token, self.client != nil else { return }
                 let partial = self.rawText
-                self.showFailure(L("Recognition failed. Check your connection and retry.", "识别失败，请检查连接后重试。"), status: L("Recognition failed · not entered", "识别失败 · 未输入"), keptText: partial)
+                let detail = (transport as? DoubaoASRClient)?.failureDiagnostic ?? (transport as? APIASRClient)?.failureDiagnostic ?? ""
+                let limited = (transport as? DoubaoASRClient)?.isServiceLimited ?? false
+                self.state.inputDiagnostic = detail.isEmpty ? "Recognition transport failed" : detail
+                let message = limited
+                    ? L("Doubao recognition is rate limited. Listening is paused; retry manually later or select another configured recognition service.", "豆包识别服务限流，已暂停监听。请稍后手动重试，或选择已配置的其他识别服务。")
+                    : L("Recognition failed. Check your connection and retry.", "识别失败，请检查连接后重试。")
+                self.showFailure(message + (detail.isEmpty ? "" : "\n" + detail), status: limited ? L("Recognition limited · not entered", "识别服务限流 · 未输入") : L("Recognition failed · not entered", "识别失败 · 未输入"), keptText: partial)
+                if limited { self.onRecognitionLimited?() }
                 if !partial.isEmpty { self.state.lastTranscript = partial; self.state.feedback = L("Incomplete recognition — not pasted", "识别未完成，未粘贴") }
             }
         }
@@ -141,7 +170,8 @@ final class TranscriptionManager {
         // Capture references the session's transport, never a subsequently created one.
         audio.onAudioData = { [weak transport] data in transport?.sendAudio(data) }
         do {
-            if !primed { try startAudio() }
+            if !primed && externalAudio == nil { try startAudio() }
+            if let externalAudio { transport.sendAudio(externalAudio) }
             if !primedAudio.isEmpty { transport.sendAudio(primedAudio) }
             configureAudioCallbacks()
             primed = false; primedAudio.removeAll()
@@ -213,6 +243,7 @@ final class TranscriptionManager {
         let captureDiagnostic = targetCapture.diagnostic
         let enter = sendEnter
         let original = rawText
+        let displayOnly = radioDisplayOnly
         var historyID: String?
         var historyFailed = false
         do { historyID = try PersonalDataStore.shared.record(original: original, output: text, polished: polished) }
@@ -224,8 +255,13 @@ final class TranscriptionManager {
             state.feedback = polishAvailable ? L("Polishing unavailable or skipped; original text used.", "润色未完成或已跳过，本次使用原文。") : L("Polishing is enabled but no API key is saved; original text used.", "润色已开启但未保存 API Key，本次使用原文。")
         } else { state.feedback = L("Original text", "原文") }
         if historyFailed { state.feedback += L(" Local history could not be saved.", " 本地历史保存失败。") }
-        guard UserDefaults.standard.object(forKey: "autoPaste") as? Bool ?? true else {
-            retainVisibleText(text, status: L("Automatic paste off · text kept", "自动粘贴已关闭 · 文字已保留"))
+        guard !displayOnly && (UserDefaults.standard.object(forKey: "autoPaste") as? Bool ?? true) else {
+            retainVisibleText(text, status: displayOnly
+                ? L("Radio transcript · copy when ready", "对讲机转写 · 可手动复制")
+                : L("Automatic paste off · text kept", "自动粘贴已关闭 · 文字已保留"))
+            if displayOnly {
+                scheduleTimeout(seconds: radioResultDuration, token: session) { [weak self] in self?.cancel() }
+            }
             try? PersonalDataStore.shared.saveTimings(historyID, values: timing.values); return
         }
         let token = session
@@ -364,6 +400,7 @@ final class TranscriptionManager {
         } else { scheduleTimeout(seconds: 6, token: session) { [weak self] in self?.cancel() } }
     }
     func cancel() {
+        radioSession = false; radioDisplayOnly = false
         clearTarget()
         session = UUID(); timeout?.cancel(); timeout = nil; quietTimer?.cancel(); quietTimer = nil; finalGate = FinalResultGate()
         retryTimeout?.cancel(); retryTimeout = nil; state.inputPending = false
@@ -376,6 +413,6 @@ final class TranscriptionManager {
         if value == .polishing { state.polishStartedAt = Date() }
         else { state.polishStartedAt = nil }
         state.recordingState = value
-        hotkey.setEscapeHandlingEnabled(value != .idle, recording: value == .starting || value == .recording, interceptKeys: value != .idle)
+        hotkey.setEscapeHandlingEnabled(value != .idle, recording: value == .starting || value == .recording, interceptKeys: !radioSession && value != .idle)
     }
 }

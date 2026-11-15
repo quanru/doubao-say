@@ -47,6 +47,10 @@ struct MacSettings: Codable, Equatable {
     var polishPromptZH = PolishDefaults.chinese
     var polishPromptEN = PolishDefaults.english
     var vibekeyEnabled = false
+    var aiocDeviceID = ""
+    var aiocEnabled = false
+    var aiocAutoInput = true
+    var aiocThreshold = 0.012
     var vibekeyRecord: Shortcut? = nil
     var vibekeyEnter: Shortcut? = nil
     var vibekeyCancel: Shortcut? = nil
@@ -55,6 +59,8 @@ struct MacSettings: Codable, Equatable {
     var dialPress = Shortcut(keyCode: 51, modifiers: 4)
 
     func validate() throws {
+        guard aiocDeviceID.count <= 256, !aiocDeviceID.contains(where: { $0.isNewline || $0 == "\0" }),
+              aiocThreshold.isFinite, (0.001...0.2).contains(aiocThreshold) else { throw SettingsError.invalid }
         guard version == 1, ["api", "chatgpt"].contains(polishProvider), polishChatGPTModel.count <= 256,
               !polishChatGPTModel.contains(where: { $0.isNewline || $0 == "\0" }),
               (200...1500).contains(holdMilliseconds), (150...600).contains(doubleMilliseconds),

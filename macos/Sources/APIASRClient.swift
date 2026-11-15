@@ -31,6 +31,11 @@ final class APIASRClient: ASRTransport {
     private var sequence: Int32 = 2
     private var finalSegments: [String] = []
     private var handshakeTimeout: DispatchWorkItem?
+    private let diagnosticLock = NSLock()
+    private var failureDetail = ""
+    var failureDiagnostic: String {
+        diagnosticLock.lock(); defer { diagnosticLock.unlock() }; return failureDetail
+    }
     var onOpen: (() -> Void)?
     var onResult: ((String) -> Void)?
     var onFinish: (() -> Void)?
@@ -87,9 +92,12 @@ final class APIASRClient: ASRTransport {
         socket?.cancel(with: .normalClosure, reason: nil); socket = nil
         session?.invalidateAndCancel(); session = nil
     }
-    private func fail(auth: Bool = false) {
+    private func fail(auth: Bool = false, reason: String = "connection_closed") {
         guard !closed else { return }
         let status = (socket?.response as? HTTPURLResponse)?.statusCode
+        diagnosticLock.lock()
+        failureDetail = (status.map { "HTTP=\($0) " } ?? "") + reason
+        diagnosticLock.unlock()
         close()
         if auth || status == 401 || status == 403 { onAuthError?() } else { onError?() }
     }
@@ -124,7 +132,7 @@ final class APIASRClient: ASRTransport {
                 if self.provider == .volcengine {
                     guard case .data(let data) = message else { throw SeedProtocol.Failure.invalid }
                     let response = try SeedProtocol.parse(data)
-                    guard response.code == 0 else { self.fail(auth: [401, 403, 45000000, 45000001, 45000002].contains(response.code)); return }
+                    guard response.code == 0 else { self.fail(auth: [401, 403, 45000000, 45000001, 45000002].contains(response.code), reason: "service_code=\(response.code)"); return }
                     if acknowledgement { self.handshakeTimeout?.cancel(); self.connected = true; self.onOpen?(); self.pump() }
                     if !response.text.isEmpty { self.onResult?(response.text) }
                     if response.last { self.onFinish?(); return }
@@ -149,7 +157,7 @@ final class APIASRClient: ASRTransport {
                     }
                 }
                 self.receive()
-            } catch { self.fail() }
+            } catch { self.fail(reason: "transport_code=\((error as NSError).code)") }
         } }
     }
 }

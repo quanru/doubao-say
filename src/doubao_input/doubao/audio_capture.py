@@ -37,6 +37,7 @@ class AudioCapture:
         self._default_on_rms = on_rms
         self._process = None
         self.device = ""
+        self.strict_device = False
         self._reader = None
         self._stop_event = threading.Event()
         self._shutdown_requested = threading.Event()
@@ -68,6 +69,9 @@ class AudioCapture:
         if (os.environ.get("WAYLAND_DISPLAY") or is_x11()) and has_tool("pw-record"):
             self._start_pipewire()
             return
+
+        if self.strict_device:
+            raise RuntimeError("AIOC capture requires native PipeWire; no microphone fallback is allowed")
 
         sd = _load_sounddevice()
         # sounddevice with PortAudio uses PulseAudio compat on PipeWire
@@ -131,7 +135,9 @@ class AudioCapture:
         self._shutdown_requested = threading.Event()
         self._reader_failed = threading.Event()
         process = subprocess.Popen(
-            ["pw-record", *(["--target", self.device] if self.device else []), "--raw", "--rate", str(AUDIO_SAMPLE_RATE), "--channels",
+            ["pw-record", *(["--target", self.device] if self.device else []),
+             *(["--properties", "{ node.dont-fallback=true node.dont-reconnect=true node.dont-move=true }"] if self.strict_device else []),
+             "--raw", "--rate", str(AUDIO_SAMPLE_RATE), "--channels",
              str(AUDIO_CHANNELS), "--format", "s16", "-"],
             stdout=subprocess.PIPE, stderr=subprocess.DEVNULL,
         )

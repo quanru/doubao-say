@@ -105,6 +105,7 @@ class DesktopTest(TestCase):
         owner = overlay.Overlay()
         with patch.dict(os.environ, {"DISPLAY": ":99", "WAYLAND_DISPLAY": "wayland-0"}, clear=True), \
              patch.object(overlay.Gtk, "Window") as window, \
+             patch.object(overlay.Gtk, "WindowGroup"), \
              patch.object(overlay.Gtk, "Box", side_effect=StopBeforeWidgets), \
              patch.object(overlay, "Gtk4LayerShell") as layer, \
              patch.object(GdkX11.X11Surface, "set_user_time") as user_time:
@@ -129,6 +130,7 @@ class DesktopTest(TestCase):
         for supported in (True, False):
             with self.subTest(supported=supported), \
                  patch.object(overlay.Gtk, "Window") as window, \
+                 patch.object(overlay.Gtk, "WindowGroup"), \
                  patch.object(overlay.Gtk, "Box", side_effect=StopBeforeWidgets), \
                  patch.object(overlay, "Gtk4LayerShell") as layer:
                 win = window.return_value

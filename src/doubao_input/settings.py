@@ -232,6 +232,10 @@ class Settings:
     double_ms: int = 300
     double_enter: bool = True
     vibekey_enabled: bool = False
+    aioc_device: str = ""
+    aioc_enabled: bool = False
+    aioc_auto_input: bool = True
+    aioc_threshold: float = 0.012
     vibekey_record_key: int | None = None
     vibekey_record_modifiers: tuple[int, ...] = ()
     vibekey_enter_key: int | None = None
@@ -260,6 +264,12 @@ class Settings:
     onboarding_complete: bool = False
 
     def validate(self):
+        if (not isinstance(self.aioc_device, str) or len(self.aioc_device) > 256
+                or any(c in self.aioc_device for c in '\n\r\x00')
+                or type(self.aioc_auto_input) is not bool or type(self.aioc_enabled) is not bool
+                or type(self.aioc_threshold) not in (int, float)
+                or not 0.001 <= self.aioc_threshold <= 0.2):
+            raise ValueError(tr("Invalid AIOC settings", "无效的 AIOC 设置"))
         if self.input_method not in INPUT_METHODS:
             raise ValueError(tr("Unsupported input method", "不支持的输入方式"))
         if self.waveform_style not in WAVEFORM_STYLES:

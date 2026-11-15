@@ -16,6 +16,11 @@ final class AppDelegate: NSObject, NSApplicationDelegate, NSMenuDelegate {
     private var overlay: OverlayPanel!
     private var settingsWindow: SettingsWindow!
     private let receiver = VibekeyReceiver()
+    private let radio = RadioReceiver()
+    private var radioAccepting = false
+    private var radioInput: RadioInputLifecycle!
+    private var radioTimer: Timer?
+    private var recognitionProbe: ASRTransport?
     private var personalCleanup: Timer?
     private let updates = UpdateChecker()
     private let updateInstaller = UpdateInstaller()
@@ -27,6 +32,16 @@ final class AppDelegate: NSObject, NSApplicationDelegate, NSMenuDelegate {
     private let state = AppState.shared
 
     func applicationDidFinishLaunching(_ notification: Notification) {
+        if CommandLine.arguments.contains("--configure-volcengine-from-stdin") {
+            NSApp.setActivationPolicy(.prohibited)
+            configureOfficialRecognition()
+            return
+        }
+        if let index = CommandLine.arguments.firstIndex(of: "--asr-probe"), CommandLine.arguments.count > index + 1 {
+            NSApp.setActivationPolicy(.prohibited)
+            recognitionConnectionProbe(path: CommandLine.arguments[index + 1])
+            return
+        }
         NSApp.setActivationPolicy(.regular)
         overlay = OverlayPanel(appState: state)
         if CommandLine.arguments.contains("--smoke-test") { smokeTest(); return }
@@ -92,6 +107,8 @@ final class AppDelegate: NSObject, NSApplicationDelegate, NSMenuDelegate {
     }
     func applicationShouldTerminateAfterLastWindowClosed(_ sender: NSApplication) -> Bool { false }
     func applicationWillTerminate(_ notification: Notification) {
+        radioTimer?.invalidate(); radioInput?.disable()
+        radio.stop()
         personalCleanup?.invalidate()
         transcription?.cancel(); hotkey?.stop(); web?.destroyWebView(); settingsWindow?.close(); updates.cancel(); updateInstaller.cancel(); receiver.stop()
     }
@@ -220,9 +237,53 @@ final class AppDelegate: NSObject, NSApplicationDelegate, NSMenuDelegate {
         let provider = SettingsStore.shared.value.provider
         let ready = provider == .doubao ? ASRParamsStore.hasSavedParams : SecretStore.load(provider.rawValue + "-api-key") != nil
         state.loginStatus = ready ? .loggedIn : .notLoggedIn
+        radioInput?.reconcile()
     }
     private func wireSettings() {
         let model = settingsWindow.model
+        radioInput = RadioInputLifecycle(
+            listening: { [weak self] in self?.radio.listening ?? false },
+            ready: { [weak self] in self?.state.loginStatus == .loggedIn },
+            busy: { [weak self] in !(self?.transcription.canReceiveRadio ?? false) },
+            start: { [weak self] device, threshold in try self?.radio.start(deviceID: device, threshold: threshold) },
+            stop: { [weak self] in self?.radio.stop() },
+            status: { [weak model] message in model?.aiocStatus = message })
+        model.stopRadio = { [weak self] in self?.radioInput.disable() }
+        transcription.onRecognitionLimited = { [weak self] in
+            self?.radioInput.pause(L("Doubao recognition is rate limited · radio paused. Retry manually later.", "豆包识别服务限流 · 对讲机已暂停，请稍后手动重试。"))
+        }
+        radio.onStatus = { [weak model] active, message in
+            model?.aiocListening = active; model?.aiocStatus = message
+        }
+        radio.onCancel = { [weak self] in self?.transcription.cancelRadio() }
+        radio.onEvent = { [weak self] event in
+            guard let self else { return }
+            switch event {
+            case .start(let data):
+                self.radioAccepting = false
+                guard self.transcription.canReceiveRadio, self.state.loginStatus == .loggedIn else {
+                    self.settingsWindow.model.aiocStatus = L("Call skipped · finish the current operation or connect recognition first.", "本次呼叫已跳过 · 请先结束当前操作或连接识别服务。")
+                    return
+                }
+                self.transcription.startRadio(data, displayOnly: !SettingsStore.shared.value.aiocAutoInput)
+                self.radioAccepting = self.state.isRecording
+                if self.radioAccepting { self.settingsWindow.model.aiocStatus = L("Listening · speech detected.", "正在监听 · 已检测到语音。") }
+            case .chunk(let data): if self.radioAccepting { self.transcription.receiveRadio(data) }
+            case .end:
+                if self.radioAccepting { self.transcription.finishRadio() }
+                self.radioAccepting = false
+            case .limit:
+                guard self.radioAccepting else { return }
+                self.transcription.cancelRadio()
+                self.radioAccepting = false
+                self.settingsWindow.model.aiocStatus = L("Call exceeded 60 seconds · discarded. Wait for quiet before retrying.", "呼叫超过 60 秒 · 已丢弃，请等信道安静后重试。")
+            }
+        }
+        model.toggleRadio = { [weak self] in self?.radioInput.retry() }
+        radioInput.configure(SettingsStore.shared.value)
+        radioTimer = Timer.scheduledTimer(withTimeInterval: 2, repeats: true) { [weak self] _ in
+            MainActor.assumeIsolated { self?.radioInput.reconcile() }
+        }
         model.checkUpdates = { [weak self] in self?.checkUpdates() }
         model.cancelUpdate = { [weak self] in self?.updateInstaller.cancel() }
         model.installUpdate = { [weak self] in self?.installUpdate() }
@@ -262,6 +323,7 @@ final class AppDelegate: NSObject, NSApplicationDelegate, NSMenuDelegate {
             if previous.microphoneID != settings.microphoneID { self.state.microphoneChecked = false; self.state.voiceChecked = false }
             if previous.provider != settings.provider { self.state.voiceChecked = false }
             self.hotkey.configure(settings); self.refreshLoginStatus(); self.configureReceiver()
+            self.radioInput.configure(settings)
         }
         model.signIn = { [weak self, weak model] in if model?.saveIfNeeded() == true { self?.showLogin() } }
         model.enableShortcut = { [weak self] in self?.hotkey.requestPermission() }
@@ -351,6 +413,54 @@ final class AppDelegate: NSObject, NSApplicationDelegate, NSMenuDelegate {
     @objc private func quit() { NSApp.terminate(nil) }
 
     private var smokeHoldSeconds: Double { min(max(Double(ProcessInfo.processInfo.environment["DOUBAO_SMOKE_HOLD_SECONDS"] ?? "2") ?? 2, 2), 120) }
+    /// Explicit local configuration; secrets are accepted only through a bounded pipe.
+    private func configureOfficialRecognition() {
+        let data = FileHandle.standardInput.readData(ofLength: 4097)
+        guard data.count <= 4096, let key = String(data: data, encoding: .utf8) else { exit(2) }
+        do {
+            var settings = SettingsStore.shared.value
+            settings.provider = .volcengine
+            try settings.validate()
+            try SecretStore.save(key, account: "volcengine-api-key")
+            try SettingsStore.shared.save(settings)
+            UserDefaults.standard.synchronize()
+            print("API_CONFIGURED: volcengine; credential stored in application Keychain")
+            exit(0)
+        } catch { print("API_CONFIG_FAILED: settings or Keychain rejected the update"); exit(3) }
+    }
+    /// Opt-in diagnostic: synthetic PCM only; never opens audio or changes preferences.
+    private func recognitionConnectionProbe(path: String) {
+        guard let pcm = try? Data(contentsOf: URL(fileURLWithPath: path)),
+              !pcm.isEmpty, pcm.count <= 320_000 else { print("PROBE unavailable: missing login or bounded PCM"); exit(2) }
+        let provider = SettingsStore.shared.value.provider
+        let params = provider == .doubao ? ASRParamsStore.load() : nil
+        let key = provider == .doubao ? nil : SecretStore.load(provider.rawValue + "-api-key")
+        guard params != nil || !(key ?? "").isEmpty else { print("PROBE unavailable: configure recognition first"); exit(2) }
+        let client: ASRTransport = provider == .doubao ? DoubaoASRClient() : APIASRClient(provider: provider, hotwords: [])
+        recognitionProbe = client
+        var receivedText = false
+        client.onResult = { text in receivedText = !text.isEmpty }
+        client.onFinish = {
+            print("PROBE finished; recognized=\(receivedText)")
+            exit(receivedText ? 0 : 3)
+        }
+        let diagnostic = { (client as? DoubaoASRClient)?.failureDiagnostic ?? (client as? APIASRClient)?.failureDiagnostic ?? "" }
+        client.onError = { print("PROBE failed: " + diagnostic()); exit(4) }
+        client.onAuthError = { print("PROBE authentication rejected: " + diagnostic()); exit(5) }
+        client.onOpen = {
+            print("PROBE WebSocket accepted")
+            DispatchQueue.global().async {
+                for offset in stride(from: 0, to: pcm.count, by: 3200) {
+                    client.sendAudio(pcm.subdata(in: offset..<min(pcm.count, offset + 3200)))
+                    Thread.sleep(forTimeInterval: 0.1)
+                }
+                client.finishSending()
+            }
+        }
+        if let params { (client as? DoubaoASRClient)?.connect(params: params) }
+        if let key { (client as? APIASRClient)?.connect(apiKey: key) }
+        DispatchQueue.main.asyncAfter(deadline: .now() + 15) { print("PROBE timeout"); exit(6) }
+    }
     private func settingsSmokeTest() {
         if let appearance = ProcessInfo.processInfo.environment["DOUBAO_SMOKE_APPEARANCE"] {
             NSApp.appearance = NSAppearance(named: appearance == "dark" ? .darkAqua : .aqua)
@@ -375,6 +485,16 @@ final class AppDelegate: NSObject, NSApplicationDelegate, NSMenuDelegate {
         }
         state.updateVersion = ProcessInfo.processInfo.environment["DOUBAO_SMOKE_UPDATE_VERSION"] ?? ""
         settingsWindow.model.selectedTab = ProcessInfo.processInfo.environment["DOUBAO_SMOKE_TAB"] ?? "setup"
+        if ProcessInfo.processInfo.environment["DOUBAO_SMOKE_AIOC_ENABLED"] == "1" {
+            settingsWindow.model.draft.aiocEnabled = true
+        }
+        if ProcessInfo.processInfo.environment["DOUBAO_SMOKE_AIOC_READY"] == "1" {
+            settingsWindow.model.aiocListening = true
+            settingsWindow.model.aiocStatus = L("Radio ready · hold your handheld PTT to speak.", "对讲机已就绪 · 按住手台 PTT 说话。")
+        }
+        if ProcessInfo.processInfo.environment["DOUBAO_SMOKE_ASR_LIMITED"] == "1" {
+            settingsWindow.model.aiocStatus = L("Doubao recognition is rate limited · listening paused. Retry manually later.", "豆包识别服务限流 · 已暂停监听，请稍后手动重试。")
+        }
         settingsWindow.model.draft.polishEnabled = true
         if ProcessInfo.processInfo.environment["DOUBAO_SMOKE_ONBOARDING_SAVED"] == "1" {
             settingsWindow.model.draft.onboardingComplete = true

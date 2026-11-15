@@ -40,15 +40,17 @@ struct InputTarget {
     static func sendShortcut(_ shortcut: Shortcut) { events.append("enter") }
 }
 final class AudioCaptureManager {
+    static var starts = 0
     var onAudioData: ((Data) -> Void)?; var onRMS: ((Double) -> Void)?; var onError: (() -> Void)?
-    func startCapture(deviceID: String) throws {}
+    func startCapture(deviceID: String) throws { Self.starts += 1 }
     func stopCapture() {}
 }
 @MainActor final class OverlayPanel { var isVisible = false; func showOverlay() { isVisible = true }; func hideOverlay() { isVisible = false } }
 final class HotkeyManager {
+    var interceptsInput = false
     enum HotkeyEvent { case start, stop, cancel, enter, prime, discard }
     var onHotkeyEvent: ((HotkeyEvent) -> Void)?
-    func setEscapeHandlingEnabled(_ enabled: Bool, recording: Bool = false, interceptKeys: Bool? = nil) {}
+    func setEscapeHandlingEnabled(_ enabled: Bool, recording: Bool = false, interceptKeys: Bool? = nil) { interceptsInput = interceptKeys ?? recording }
     func start() {}
 }
 @MainActor final class PolishCoordinator {
@@ -71,12 +73,15 @@ protocol ASRTransport: AnyObject {
     func sendAudio(_ data: Data); func finishSending(); func disconnect()
 }
 class DoubaoASRClient: ASRTransport {
+    var failureDiagnostic = "Synthetic transport diagnostic"
+    var isServiceLimited = false
+    var audio = Data()
     static var latest: DoubaoASRClient?
     static var openImmediately = true
     init() { Self.latest = self }
     var onOpen: (() -> Void)?; var onResult: ((String) -> Void)?; var onFinish: (() -> Void)?
     var onAudioDrained: (() -> Void)?; var onError: (() -> Void)?; var onAuthError: (() -> Void)?
-    func sendAudio(_ data: Data) {}; func finishSending() {}; func disconnect() {}
+    func sendAudio(_ data: Data) { audio.append(data) }; func finishSending() {}; func disconnect() {}
     func connect(params: Int) { if Self.openImmediately { onOpen?() } }
 }
 final class APIASRClient: DoubaoASRClient {
@@ -133,6 +138,74 @@ final class PersonalDataStore {
         precondition(PasteHelper.events == ["paste"])
         print("PASS: retry single delivery, pending Enter suppression, cancellation and stale completion isolation; no real input")
         ASRParamsStore.available = true; InputTarget.available = false; PasteHelper.failImmediately = true
+        let radioState = AppState()
+        let radioHotkey = HotkeyManager()
+        let radioOverlay = OverlayPanel()
+        let radioManager = TranscriptionManager(appState: radioState, overlayPanel: radioOverlay,
+            hotkeyManager: radioHotkey, radioResultDuration: 0.2)
+        let microphoneStarts = AudioCaptureManager.starts
+        InputTarget.available = true; PasteHelper.failImmediately = false
+        let ordinaryBaseline = PasteHelper.events.count
+        radioManager.startRadio(Data([1, 2]), displayOnly: false)
+        precondition(!radioHotkey.interceptsInput, "Radio standby must not consume normal typing")
+        DoubaoASRClient.latest?.onResult?("synthetic radio dictation")
+        RunLoop.current.run(until: Date().addingTimeInterval(0.05))
+        radioManager.finishRadio(); DoubaoASRClient.latest?.onFinish?()
+        RunLoop.current.run(until: Date().addingTimeInterval(0.1))
+        precondition(PasteHelper.events.count == ordinaryBaseline + 1 && PasteHelper.events.last == "paste")
+        precondition(PasteHelper.targetAvailable && radioState.inputPending)
+        precondition(AudioCaptureManager.starts == microphoneStarts, "Radio input must not open a microphone")
+        PasteHelper.pending?(true)
+        precondition(!radioState.inputPending && !radioOverlay.isVisible)
+        InputTarget.available = false; PasteHelper.failImmediately = true
+        print("PASS: radio dictation delivers once through ordinary target input, without Enter or microphone capture")
+        let pasteBeforeRadio = PasteHelper.events.count
+        radioManager.startRadio(Data([1, 2]), displayOnly: true)
+        precondition(!radioHotkey.interceptsInput, "Background radio calls must not intercept ordinary typing")
+        radioManager.receiveRadio(Data([3, 4]))
+        let radioTransport = DoubaoASRClient.latest!
+        precondition(radioTransport.audio == Data([1, 2, 3, 4]), "Radio audio must reach the selected ASR in order")
+        precondition(AudioCaptureManager.starts == microphoneStarts, "Radio ASR must never open the ordinary microphone")
+        radioTransport.onResult?("synthetic radio text")
+        RunLoop.current.run(until: Date().addingTimeInterval(0.05))
+        radioManager.finishRadio()
+        radioTransport.onFinish?()
+        RunLoop.current.run(until: Date().addingTimeInterval(0.1))
+        precondition(radioState.lastTranscript == "synthetic radio text" && PasteHelper.events.count == pasteBeforeRadio,
+                     "Explicit display-only radio mode must retain text without sending paste or Enter")
+        precondition(radioOverlay.isVisible)
+        RunLoop.current.run(until: Date().addingTimeInterval(0.25))
+        precondition(!radioOverlay.isVisible && radioState.lastTranscript == "synthetic radio text",
+                     "Successful radio result must auto-hide without deleting Recent text")
+        radioManager.startRadio(Data([1, 2]), displayOnly: true)
+        DoubaoASRClient.latest?.onResult?("second synthetic radio text")
+        RunLoop.current.run(until: Date().addingTimeInterval(0.02))
+        radioManager.finishRadio(); DoubaoASRClient.latest?.onFinish?()
+        RunLoop.current.run(until: Date().addingTimeInterval(0.02))
+        radioManager.startRadio(Data([3, 4]), displayOnly: true)
+        RunLoop.current.run(until: Date().addingTimeInterval(0.25))
+        precondition(radioState.isRecording && radioOverlay.isVisible,
+                     "An old result's dismiss timer must not cancel the next call")
+        radioManager.cancel()
+        radioManager.voiceTest()
+        DoubaoASRClient.latest?.onResult?("synthetic voice test")
+        RunLoop.current.run(until: Date().addingTimeInterval(0.02))
+        DoubaoASRClient.latest?.onFinish?()
+        RunLoop.current.run(until: Date().addingTimeInterval(0.02))
+        precondition(!radioOverlay.isVisible && radioState.previewText == "synthetic voice test",
+                     "The explicit voice test must hide its overlay on completion")
+        print("PASS: radio result auto-dismiss, retained Recent text, next-call isolation and voice-test overlay cleanup")
+        print("PASS: radio pre-roll and chunks use existing ASR without opening a microphone or pasting text")
+        var limitPauses = 0
+        radioManager.onRecognitionLimited = { limitPauses += 1 }
+        radioManager.startRadio(Data([1, 2]), displayOnly: true)
+        let limitedTransport = DoubaoASRClient.latest!
+        limitedTransport.isServiceLimited = true
+        limitedTransport.onError?()
+        RunLoop.current.run(until: Date().addingTimeInterval(0.1))
+        precondition(limitPauses == 1 && radioState.recordingState == .idle && !radioState.inputPending)
+        precondition(radioState.errorMessage?.contains("rate limited") == true)
+        print("PASS: service limit pauses the radio session without paste, retry or clearing login")
         let failureState = AppState(), failureOverlay = OverlayPanel(), failureHotkey = HotkeyManager()
         let failureManager = TranscriptionManager(appState: failureState, overlayPanel: failureOverlay, hotkeyManager: failureHotkey)
         failureManager.start(); failureHotkey.onHotkeyEvent?(.start)

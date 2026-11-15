@@ -19,6 +19,44 @@ Seed ASR 2.0 API or Deepgram Nova-3 for English dictation. English by default. S
 uses Simplified Chinese for Chinese locales, and falls back to English otherwise.
 Optional Omarchy integration manages the **same application**, not another engine.
 
+## Input devices: Vibekey (AU05) and walkie-talkie (AIOC)
+
+Vibekey (AU05) controls ordinary microphone dictation. Walkie-talkie (AIOC) is a
+separate, receive-only input on macOS and Linux: connect a compatible radio to
+the computer through AIOC, configure recognition, enable the default-off **Walkie-talkie (AIOC)** checkbox. It automatically enters standby; hold the handheld PTT and speak to dictate into the current app. Unchecking immediately stops receiving and hides its settings.
+On Mac, both devices are under **Input devices**; on Linux, use the **Input
+devices** section in Settings. Select an AIOC source if more than one is connected.
+The saved enable choice also restores standby when the app reopens. Unavailable or busy AIOC devices are retried without taking over another application’s device.
+
+Keep the radio channel quiet for 1.2 seconds before the first call. Detected
+speech streams to the selected recognition service with about 300 ms of local
+pre-roll; 1.2 seconds of quiet ends a call. Adjust the speech threshold for the
+receiver's volume and noise. This estimates speech boundaries and cannot read
+the remote PTT button; a pause can split a transmission. Calls over 60 seconds
+are discarded and require a quiet period before another call can start.
+On Linux, initial quiet and call-ending quiet are both 2 seconds; a lower
+hold threshold preserves quiet syllables after speech starts. The overlay opens
+on detected speech, not a bare PTT press. Official Volcengine input waits for
+the server’s terminal response rather than committing an unchanged partial.
+
+Transcripts use the existing polishing and ordinary input-delivery settings. **Enter
+text into the current window** defaults on for new configurations; turn it off to
+keep text for copying. Existing explicit choices are preserved. In copy-only mode
+on Mac, the result overlay closes after three seconds, while Recent text and the
+existing history policy retain the result. Calls received during another dictation,
+test, recognition, polishing or pending input are skipped on Mac. On Linux, a
+consecutive radio call can buffer behind the previous call for up to 15 seconds
+(one call, memory only); cancellation, disconnect or disabling clears it. Calls
+during unrelated operations are skipped. AIOC reconnects automatically
+after disconnection without falling back to a microphone. Recognition rate limits
+pause reception until you explicitly retry. AIOC is exclusive with the radio desktop
+application's device lock. This mode does not transmit replies.
+
+Microphone permission is required. Only detected calls are uploaded; idle audio
+is held briefly in memory. There is no radio recording file or automatic resend.
+Physical radio audio quality, thresholds and end-to-end recognition still need
+hardware acceptance; synthetic checks do not establish those results.
+
 ## Mac input behavior
 
 The interface follows the system language by default, preserving existing explicit choices. Automatic input uses clipboard paste for web editors (including Electron), and direct accessibility input for supported native fields. Escape cancels recording, transcription, polishing or pending input and dismisses the overlay; you can record again immediately. Text already entered is not undone.
@@ -569,7 +607,7 @@ validate package metadata and scan for secrets. The current whole-package branch
 coverage floor is 55%; desktop UI, WebKit and real-device paths remain included
 in the denominator.
 
-The current release version is **1.8.2**. A `v1.8.2` tag must match every embedded
+The current release version is **1.9.0**. A `v1.9.0` tag must match every embedded
 version before CI can publish. Tag releases rebuild both offline app and Omarchy
 plugin archives for Python 3.11–3.14 and attach SHA-256 checksums. A manually started
 release workflow builds artifacts for inspection but does not publish them. Real

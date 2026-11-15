@@ -13,6 +13,7 @@ struct SettingsView: View {
         ("recognition", L("Recognition", "识别服务"), "waveform"),
         ("polishing", L("Polishing", "语音润色"), "sparkles"),
         ("shortcuts", L("Shortcuts", "快捷键"), "keyboard"),
+        ("devices", L("Input devices", "输入设备"), "antenna.radiowaves.left.and.right"),
         ("general", L("General", "通用"), "gearshape"),
         ("result", L("Recent text", "最近文字"), "text.alignleft"),
         ("vocabulary", L("Personal vocabulary", "个人词汇"), "character.book.closed"),
@@ -90,6 +91,7 @@ struct SettingsView: View {
         case "recognition": recognition
         case "polishing": polishing
         case "shortcuts": shortcuts
+        case "devices": inputDevices
         case "general": general
         case "result": result
         case "vocabulary": PersonalVocabularyView(settingsModel: model)
@@ -258,8 +260,13 @@ struct SettingsView: View {
                 Toggle(L("Double-tap sends Enter when idle", "空闲时双击发送回车"), isOn: $model.draft.doubleEnter)
                 Stepper(L("Hold threshold: ", "长按阈值：") + "\(model.draft.holdMilliseconds) ms", value: $model.draft.holdMilliseconds, in: 200...1500, step: 50)
                 Stepper(L("Double-tap interval: ", "双击间隔：") + "\(model.draft.doubleMilliseconds) ms", value: $model.draft.doubleMilliseconds, in: 150...600, step: 50)
-                Divider()
-                Toggle(L("Vibekey AU05 receiver", "Vibekey AU05 接收器"), isOn: $model.draft.vibekeyEnabled)
+            }.padding(16)
+        }.disabled(model.capturing)
+    }
+    private var inputDevices: some View {
+        ScrollView {
+            VStack(alignment: .leading, spacing: 16) {
+                Toggle(L("Vibekey (AU05)", "Vibekey（AU05）"), isOn: $model.draft.vibekeyEnabled)
                 if model.draft.vibekeyEnabled {
                     Text(L("Receiver buttons default to dictation, Enter and cancel. Customize mappings below.", "接收器按键默认控制听写、回车和取消，可在下方修改映射。"))
                     hardwareRow(L("Record", "录音"), "vibekeyRecord", model.draft.vibekeyRecord?.label ?? L("Dictation", "听写"))
@@ -273,8 +280,10 @@ struct SettingsView: View {
                         model.draft.dialClockwise = Shortcut(keyCode: 125, modifiers: 0); model.draft.dialCounterclockwise = Shortcut(keyCode: 126, modifiers: 0); model.draft.dialPress = Shortcut(keyCode: 51, modifiers: 4)
                     }
                 }
+                Divider()
+                RadioSettingsView(model: model)
             }.padding(16)
-        }.disabled(model.capturing)
+        }
     }
     private func hardwareRow(_ title: String, _ destination: String, _ value: String) -> some View {
         HStack { Text(title + ": " + value); Spacer(); Button(L("Choose", "选择")) { model.chooseShortcut(destination) } }

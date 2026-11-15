@@ -34,7 +34,9 @@ for language in ['en', 'zh']:
     if '--input-failure' in sys.argv[3:]:
         cases = [('input-failure', '--smoke-test', '')]
     if '--settings' in sys.argv[3:]:
-        cases += [(f'settings-{tab}', '--settings-smoke-test', tab) for tab in ['setup', 'recognition', 'polishing', 'shortcuts', 'general', 'result']]
+        cases += [(f'settings-{tab}', '--settings-smoke-test', tab) for tab in ['setup', 'recognition', 'polishing', 'shortcuts', 'devices', 'general', 'result']]
+    if '--devices' in sys.argv[3:]:
+        cases = [('settings-devices', '--settings-smoke-test', 'devices')]
     for label, argument, tab in cases:
         env = dict(os.environ, DOUBAO_SMOKE_IMAGE=str(output / f'{label}-{language}.png'), DOUBAO_SMOKE_TAB=tab)
         if label == 'saved-setup':
@@ -51,7 +53,7 @@ for language in ['en', 'zh']:
             env['DOUBAO_SMOKE_SIGNED_IN'] = '1' if label == 'doubao-signed-in' else '0'
         if label.startswith('launch-'):
             env.update(DOUBAO_SMOKE_LAUNCH_CHECK='1',
-                       DOUBAO_SMOKE_UPDATE_VERSION='1.8.2' if label.endswith('available') else '')
+                       DOUBAO_SMOKE_UPDATE_VERSION='1.10.0' if label.endswith('available') else '')
         command = [str(bundle / 'Contents/MacOS/DoubaoSay'), argument, '-language', language]
         if label.startswith('setup-') and '--setup-completion' in sys.argv[3:]:
             env.update(DOUBAO_SMOKE_SETUP_STEP='1',
