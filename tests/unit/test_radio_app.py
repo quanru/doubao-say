@@ -124,6 +124,41 @@ class RadioAppTest(TestCase):
         self.assertEqual(app.app_state.recording_state, RecordingState.IDLE)
         app._tm.asr_client.finish_sending.assert_not_called()
 
+    def test_disconnect_cancels_final_polishing_after_asr_is_idle(self):
+        app = self.app()
+        app._radio_owned = True
+        app._polish_mode = "final"
+        app._polish_context = ("synthetic original", "target", False)
+        app._polisher = Mock()
+        app._overlay = Mock()
+        app._cancel_polish = lambda: VoiceMixin._cancel_polish(app)
+        app._submit_transcript = Mock()
+        app._radio_event("cancel", b"")
+        app._polisher.cancel.assert_called_once()
+        VoiceMixin._polish_finished(app, "late polished result", None)
+        app._submit_transcript.assert_not_called()
+        self.assertFalse(app._radio_owned)
+
+    def test_disable_cancels_pending_radio_delivery_after_asr_is_idle(self):
+        app = self.app()
+        app._radio_owned = True
+        app._paste_pending = True
+        app._delivery = Mock()
+        app._radio_event("cancel", b"")
+        app._delivery.cancel.assert_called_once()
+        self.assertFalse(app._radio_owned)
+
+    def test_disconnect_does_not_cancel_unrelated_polishing_or_delivery(self):
+        app = self.app()
+        app._radio_owned = False
+        app._polish_mode = "final"
+        app._paste_pending = True
+        app._cancel_polish = Mock()
+        app._delivery = Mock()
+        app._radio_event("cancel", b"")
+        app._cancel_polish.assert_not_called()
+        app._delivery.cancel.assert_not_called()
+
     def test_enable_and_startup_automatically_start_standby_then_retry_device_reconnect(self):
         app = self.app()
         app._radio = Mock(listening=False)

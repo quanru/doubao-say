@@ -139,9 +139,15 @@ class RadioMixin:
             return
         if kind == "cancel":
             self._discard_pending_radio()
-            if (getattr(self, "_radio_owned", False)
-                    and self.app_state.recording_state != RecordingState.IDLE):
-                self._tm.handle_cancel()
+            if getattr(self, "_radio_owned", False):
+                # ASR is already idle while its result is polishing or waiting
+                # for delivery. Stopping reception must cancel those stages too.
+                if getattr(self, "_polish_mode", None) == "final":
+                    self._cancel_polish()
+                if getattr(self, "_paste_pending", False):
+                    self._delivery.cancel()
+                if self.app_state.recording_state != RecordingState.IDLE:
+                    self._tm.handle_cancel()
             self._radio_owned = False
             self._radio_generation = None
             return
