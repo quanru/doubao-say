@@ -35,8 +35,7 @@ final class RadioTests: XCTestCase {
         XCTAssertEqual(kinds(receiver.feed(repeated(quiet, 60))).last, "end")
     }
     func testLimitDiscardsInsteadOfFinishingAndRequiresQuietBeforeRearming() {
-        var receiver = RadioSegmenter()
-        receiver.maxFrames = 30
+        var receiver = RadioSegmenter(threshold: 0.012, maxFrames: 30)
         _ = receiver.feed(repeated(quiet, 60))
         let events = kinds(receiver.feed(repeated(voice, 100)))
         XCTAssertEqual(events.filter { $0 == "start" }.count, 1)
