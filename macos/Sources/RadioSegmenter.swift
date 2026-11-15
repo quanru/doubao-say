@@ -14,6 +14,12 @@ struct RadioSegmenter {
     private var voiced = 0
     private var frames = 0
 
+    init(threshold: Double = 0.012, silenceFrames: Int = 60, maxFrames: Int = 3000) {
+        self.threshold = threshold
+        self.silenceFrames = silenceFrames
+        self.maxFrames = maxFrames
+    }
+
     mutating func feed(_ data: Data) -> [Event] {
         pending.append(data)
         var events: [Event] = []
