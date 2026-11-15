@@ -159,15 +159,15 @@ class TranscriptionSessionTest(TestCase):
     def test_auth_cleanup_failure_still_stops_capture_and_reports_error(self):
         manager = self.manager()
         manager.on_auth_expired = Mock()
-        with patch("doubao_input.doubao.transcription.ParamsStore.clear", side_effect=PermissionError):
-            manager._handle_auth_failure()
+        manager.credential_store.clear.side_effect = PermissionError
+        manager._handle_auth_failure()
         manager.asr_client.disconnect.assert_called()
         manager.on_auth_expired.assert_called_once()
         self.assertTrue(manager.app_state.error_message)
 
     def manager(self):
-        manager = TranscriptionManager(AppState())
-        manager.asr_client = Mock()
+        manager = TranscriptionManager(AppState(), asr_client=Mock(),
+                                       credential_store=Mock())
         manager.audio_capture = Mock()
         manager._wire_asr_callbacks()
         return manager
