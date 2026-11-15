@@ -1,5 +1,13 @@
 # Changelog
 
+## 1.9.0
+
+- Add opt-in AIOC walkie-talkie input on macOS and Linux with automatic standby, reconnection and live transcription.
+- Keep AIOC capture bound to the selected radio, respect exclusive device ownership, and preserve ordinary dictation input preferences.
+- Linux: buffer one consecutive radio call while the previous call finishes, with bounded memory and cancellation cleanup.
+- Linux: wait for the official ASR terminal response, preserve quieter syllables, and allow more time for final results.
+- Linux: make the recognition overlay dismissible while Settings is open and remove the duplicate transcript tooltip.
+
 ## 1.8.3
 
 - macOS: start Doubao audio streaming when the WebSocket opens instead of waiting for a heartbeat reply.

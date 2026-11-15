@@ -67,6 +67,22 @@ class FakeSocket:
 class VolcengineASRClientTest(unittest.TestCase):
     credentials = VolcengineCredentials("fake-api-key")
 
+    def test_official_stream_requires_terminal_result(self):
+        self.assertTrue(VolcengineASRClient.requires_final_result)
+
+    def test_clean_socket_close_does_not_promote_partial_to_final(self):
+        from doubao_input.doubao.volcengine_asr_client import _Session
+
+        async def closed_stream():
+            if False:
+                yield b""
+
+        client = VolcengineASRClient()
+        client.on_finish = Mock()
+        with self.assertRaises(ConnectionError):
+            asyncio.run(client._receive(_Session(accepting=False), closed_stream()))
+        client.on_finish.assert_not_called()
+
     def client(self, socket):
         client = VolcengineASRClient(lambda *args, **kwargs: socket, hotwords=lambda: [])
         self.addCleanup(client.disconnect)

@@ -8,6 +8,32 @@ from doubao_input.doubao.audio_capture import AudioCapture
 
 
 class AudioCallbacksTest(unittest.TestCase):
+    def test_strict_radio_capture_refuses_non_pipewire_fallback(self):
+        capture = AudioCapture()
+        capture.strict_device = True
+        with patch.dict(os.environ, {"WAYLAND_DISPLAY": "test"}), \
+             patch("doubao_input.doubao.audio_capture.has_tool", return_value=None), \
+             patch("doubao_input.doubao.audio_capture._load_sounddevice") as fallback:
+            with self.assertRaises(RuntimeError):
+                capture.start(Mock())
+            fallback.assert_not_called()
+
+    def test_strict_radio_capture_disables_pipewire_fallback_and_reconnection(self):
+        capture = AudioCapture()
+        capture.device = "alsa_input.AIOC"
+        capture.strict_device = True
+        with patch.dict(os.environ, {"WAYLAND_DISPLAY": "test"}), \
+             patch("doubao_input.doubao.audio_capture.has_tool", return_value="pw-record"), \
+             patch("doubao_input.doubao.audio_capture.subprocess.Popen") as spawn, \
+             patch("doubao_input.doubao.audio_capture.threading.Thread"):
+            capture.start(Mock())
+            args = spawn.call_args.args[0]
+            self.assertEqual(args[args.index("--target") + 1], capture.device)
+            properties = args[args.index("--properties") + 1]
+            self.assertIn("node.dont-fallback=true", properties)
+            self.assertIn("node.dont-reconnect=true", properties)
+            capture.stop()
+
     def test_x11_uses_pipewire_picker_node_and_keeps_portaudio_fallback(self):
         for available in (True, False):
             with self.subTest(pw_record=available):

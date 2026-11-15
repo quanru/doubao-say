@@ -65,9 +65,10 @@ class AppLifecycleEdgesTest(TestCase):
 
     def test_activate_builds_holds_background_and_later_shows_control(self):
         app = SimpleNamespace(_setup_done=False, _background=True, _control=None,
-                              _build=Mock(), hold=Mock())
+                              _build=Mock(), hold=Mock(), _configure_radio=Mock())
         DoubaoInputApp._on_activate(app, None)
         app._build.assert_called_once()
+        app._configure_radio.assert_called_once()
         app.hold.assert_called_once()
         app._control = Mock()
         DoubaoInputApp._on_activate(app, None)
@@ -77,7 +78,7 @@ class AppLifecycleEdgesTest(TestCase):
         tm = SimpleNamespace(audio_capture=Mock(), asr_client=Mock())
         delivery, injector = Mock(), Mock()
         app = SimpleNamespace(
-            _escape_timer=1, _escape_guard=Mock(), _tray=Mock(), _tm=tm,
+            _escape_timer=1, _escape_guard=Mock(), _tray=Mock(), _tm=tm, _stop_radio_watch=Mock(),
             _setup_session=Mock(), _triggers=Mock(), _delivery=delivery,
             _injector=injector, _polisher=Mock(), _update_checker=Mock(), _update_timer=2,
         )
@@ -164,7 +165,7 @@ class AppDeliveryEdgesTest(TestCase):
     def test_cancel_input_clears_every_pending_owner(self):
         app = SimpleNamespace(_enter_after_paste=True, _triggers=Mock(), _setup_session=Mock(),
                               _recovery_timer=9, _delivery=Mock(), _polisher=Mock(),
-                              _cancel_polish=Mock(), _tm=Mock())
+                              _cancel_polish=Mock(), _tm=Mock(), _discard_pending_radio=Mock())
         with patch("doubao_input.app.GLib.source_remove") as remove:
             DoubaoInputApp._cancel_input(app)
         remove.assert_called_once_with(9)
@@ -174,6 +175,8 @@ class AppDeliveryEdgesTest(TestCase):
         app._delivery.cancel.assert_called_once()
         app._cancel_polish.assert_called_once()
         app._tm.handle_cancel.assert_called_once()
+        app._discard_pending_radio.assert_called_once()
+        self.assertFalse(app._radio_owned)
 
 
 class AppSetupEdgesTest(TestCase):
@@ -257,7 +260,7 @@ class AppSetupEdgesTest(TestCase):
                                       _triggers=SimpleNamespace(busy=False),
                                       _control=Mock(), _settings_window=Mock(),
                                       _configure_recognition_backend=Mock(),
-                                      _sync_recognition_status=Mock(), _setup_session=Mock())
+                                      _sync_recognition_status=Mock(), _setup_session=Mock(), _configure_radio=Mock())
                 owners = []
                 def flush():
                     owners.append(app.settings.asr_provider)

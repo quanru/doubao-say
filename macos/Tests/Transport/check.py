@@ -10,11 +10,6 @@ import threading
 from http.server import BaseHTTPRequestHandler, ThreadingHTTPServer
 
 errors = []
-listener = socket.socket()
-listener.bind(('127.0.0.1', 0))
-listener.listen(1)
-listener.settimeout(10)
-port = listener.getsockname()[1]
 
 
 def serve():
@@ -65,22 +60,34 @@ def serve():
                 elif opcode == 2:
                     audio.append(data)
             assert audio == [bytes([1, 2, 3, 4]), bytes(6400)], [len(x) for x in audio]
-            send(1, json.dumps({'event': 'result', 'result': {'Text': 'synthetic result'}}).encode())
-            send(1, b'{"event":"finish"}')
+            if scenario == 'limited':
+                send(1, json.dumps({'code': 710022013, 'message': 'request limit exceeded token=never-log-this'}).encode())
+            else:
+                send(1, json.dumps({'event': 'result', 'result': {'Text': 'synthetic result'}}).encode())
+                send(1, b'{"event":"finish"}')
     except Exception as error:
         errors.append(str(error))
     finally:
         listener.close()
 
 
-thread = threading.Thread(target=serve, daemon=True)
-thread.start()
-result = subprocess.run([sys.argv[1], f'ws://127.0.0.1:{port}/asr'], timeout=12)
-thread.join(timeout=10)
-if errors or thread.is_alive():
-    raise SystemExit(f'FAIL: {errors or "fixture did not exit"}')
-if result.returncode:
-    raise SystemExit(result.returncode)
+for scenario in ('success', 'limited'):
+    listener = socket.socket()
+    listener.bind(('127.0.0.1', 0))
+    listener.listen(1)
+    listener.settimeout(10)
+    port = listener.getsockname()[1]
+    thread = threading.Thread(target=serve, daemon=True)
+    thread.start()
+    args = [sys.argv[1], f'ws://127.0.0.1:{port}/asr']
+    if scenario == 'limited':
+        args.append('limited')
+    result = subprocess.run(args, timeout=12)
+    thread.join(timeout=10)
+    if errors or thread.is_alive():
+        raise SystemExit(f'FAIL: {errors or "fixture did not exit"}')
+    if result.returncode:
+        raise SystemExit(result.returncode)
 
 for status in (401, 403, 500):
     class Rejection(BaseHTTPRequestHandler):

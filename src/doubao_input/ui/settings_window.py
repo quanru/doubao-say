@@ -22,7 +22,7 @@ class SettingsWindow:
                  apply_key=None, asr_has_key=lambda: False,
                  save_asr=lambda key: None, clear_asr=lambda: None,
                  test_asr=lambda key, completed: None,
-                 diagnostic_report=None):
+                 diagnostic_report=None, toggle_radio=lambda: None, radio_listening=lambda: False):
         self.window = Gtk.Window(title=tr("Doubao Say Settings", "豆包说设置"), transient_for=parent, modal=True)
         self.window.set_default_size(540, 580)
         apply_window_style(self.window)
@@ -166,8 +166,12 @@ class SettingsWindow:
         self.enter = row(tr("Press the active trigger twice: send Enter",
                             "连续按两次当前触发键：发送回车"),
                          Gtk.Switch(active=settings.double_enter))
-        self.vibekey = row(tr("Enable Vibekey receiver buttons",
-                              "启用 Vibekey 接收器按键"),
+        section(tr("Input devices", "输入设备"))
+        from doubao_input.ui.radio_settings import RadioSettings
+        self.radio_panel = RadioSettings(lambda: self._settings,
+            self._save_radio, toggle_radio, radio_listening)
+        box.append(self.radio_panel)
+        self.vibekey = row(tr("Vibekey (AU05)", "Vibekey（AU05）"),
                            Gtk.Switch(active=settings.vibekey_enabled))
         self.vibekey_details = Gtk.Box(
             orientation=Gtk.Orientation.VERTICAL, spacing=10)
@@ -307,6 +311,13 @@ class SettingsWindow:
         self.motion.connect("notify::active", self._changed)
         self.window.connect("unmap", self._flush_asr_key)
         self._sync_provider_details()
+
+    def _save_radio(self, changes):
+        if not self._save_current():
+            raise ValueError(tr("Correct unsaved settings first.", "请先修正未保存的设置。"))
+        value = replace(self._settings, **changes)
+        self._apply(value)
+        self._settings = value
 
     def _value(self):
         return replace(self._settings,

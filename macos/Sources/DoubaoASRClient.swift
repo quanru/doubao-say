@@ -1,4 +1,5 @@
 import Foundation
+import os
 
 /// Parameters needed to establish a WSS ASR connection.
 /// Codable so they can be persisted to a local config file.
@@ -48,6 +49,17 @@ final class DoubaoASRClient: NSObject, URLSessionWebSocketDelegate, @unchecked S
     private var drainReported = false
     private var pending: [Data] = []
     private var bufferedBytes = 0
+    private let diagnosticLock = NSLock()
+    private var failureDetail = ""
+    private var serviceLimit = false
+    var isServiceLimited: Bool {
+        diagnosticLock.lock(); defer { diagnosticLock.unlock() }; return serviceLimit
+    }
+    private var sentBytes = 0
+    private var sentPackets = 0
+    var failureDiagnostic: String {
+        diagnosticLock.lock(); defer { diagnosticLock.unlock() }; return failureDetail
+    }
     var onOpen: (() -> Void)?
     var onResult: ((String) -> Void)?
     var onFinish: (() -> Void)?
@@ -105,13 +117,13 @@ final class DoubaoASRClient: NSObject, URLSessionWebSocketDelegate, @unchecked S
     func urlSession(_ session: URLSession, task: URLSessionTask, didCompleteWithError error: Error?) {
         queue.async {
             guard !self.closed, self.socket === task else { return }
-            self.fail()
+            self.fail(reason: Self.errorCode(error))
         }
     }
     func sendAudio(_ data: Data) {
         queue.async {
             guard !self.closed, !self.finishing else { return }
-            guard self.bufferedBytes + data.count <= 320_000 else { self.fail(); return }
+            guard self.bufferedBytes + data.count <= 320_000 else { self.fail(reason: "audio_buffer_full"); return }
             self.pending.append(data); self.bufferedBytes += data.count
             self.pump()
         }
@@ -135,9 +147,17 @@ final class DoubaoASRClient: NSObject, URLSessionWebSocketDelegate, @unchecked S
         socket?.cancel(with: .normalClosure, reason: nil); socket = nil
         session?.invalidateAndCancel(); session = nil
     }
-    private func fail() {
+    private static func errorCode(_ error: Error?) -> String {
+        guard let error = error as NSError? else { return "connection_closed" }
+        // Never include localized descriptions, URLs, response bodies or credentials.
+        return "network_code=\(error.code)"
+    }
+    private func fail(reason: String = "connection_closed", limited: Bool = false) {
         guard !closed else { return }
         let status = (socket?.response as? HTTPURLResponse)?.statusCode
+        let detail = (status.map { "HTTP=\($0) " } ?? "") + reason + " sent_bytes=\(sentBytes) packets=\(sentPackets)"
+        diagnosticLock.lock(); failureDetail = detail; serviceLimit = limited; diagnosticLock.unlock()
+        Logger(subsystem: "md.lifeos.doubao-say", category: "recognition").error("ASR failure: \(detail, privacy: .public)")
         close()
         if status == 401 || status == 403 { onAuthError?() }
         else { onError?() }
@@ -150,11 +170,12 @@ final class DoubaoASRClient: NSObject, URLSessionWebSocketDelegate, @unchecked S
         }
         sending = true
         let data = pending.removeFirst(); bufferedBytes -= data.count
+        sentBytes += data.count; sentPackets += 1
         socket.send(.data(data)) { error in
             self.queue.async {
                 guard !self.closed else { return }
                 self.sending = false
-                if error != nil { self.fail() } else { self.pump() }
+                if error != nil { self.fail(reason: Self.errorCode(error)) } else { self.pump() }
             }
         }
     }
@@ -163,8 +184,8 @@ final class DoubaoASRClient: NSObject, URLSessionWebSocketDelegate, @unchecked S
             self.queue.async {
                 guard !self.closed else { return }
                 switch result {
-                case .failure:
-                    self.fail()
+                case .failure(let error):
+                    self.fail(reason: Self.errorCode(error))
                 case .success(let message):
                     let data: Data?
                     switch message {
@@ -183,7 +204,13 @@ final class DoubaoASRClient: NSObject, URLSessionWebSocketDelegate, @unchecked S
         case .text(let text): onResult?(text)
         case .finish: onFinish?()
         case .authError: close(); onAuthError?()
-        case .error: fail()
+        case .error:
+            let json = (try? JSONSerialization.jsonObject(with: data)) as? [String: Any]
+            let message = (json?["message"] as? String ?? "").lowercased()
+            // Classify with fixed vocabulary only; never log the raw server message.
+            let vocabulary = ["audio", "format", "codec", "sample", "rate", "limit", "quota", "concurrent", "auth", "permission", "login", "session", "expired", "invalid", "missing", "parameter", "request", "resource", "token", "cookie", "device", "user", "empty", "denied", "failed", "unsupported", "decode"]
+            let tags = vocabulary.filter { message.contains($0) }.joined(separator: ",")
+            fail(reason: "service_code=\(json?["code"] as? Int ?? -1) tags=\(tags)", limited: message.contains("limit") || message.contains("限流"))
         case .ignored: break
         }
     }

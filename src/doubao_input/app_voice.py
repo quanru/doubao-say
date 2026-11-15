@@ -69,6 +69,9 @@ class VoiceMixin:
         if self._mic_test_running or self._triggers.capturing or self._recovery_timer:
             return
         if self.app_state.recording_state == RecordingState.IDLE and not self._paste_pending:
+            self._discard_pending_radio()
+            self._radio_owned = False
+            self._radio_display_only = False
             self._retry_saved_recognition()
             if not self._preview_testing:
                 self._setup_session.dismiss()
@@ -107,6 +110,9 @@ class VoiceMixin:
             if self._mic_test_running or self._triggers.capturing or self._recovery_timer:
                 return
             if not self._paste_pending:
+                self._discard_pending_radio()
+                self._radio_owned = False
+                self._radio_display_only = False
                 self._retry_saved_recognition()
                 if not self._preview_testing:
                     self._setup_session.dismiss()
@@ -168,7 +174,7 @@ class VoiceMixin:
         # Transcription resets to IDLE immediately after handing us the final
         # text. Keep the same single overlay visible while the network polish
         # is still running instead of making that phase look like a hang.
-        if self._polish_mode != "final":
+        if self._polish_mode != "final" and not getattr(self, "_radio_pending", None):
             self._overlay.hide()
 
 
@@ -221,6 +227,12 @@ class VoiceMixin:
             latency.mark("polish")
         self._remember_input(original if original is not None else text, text, original is not None)
         self.recent.keep(text)
+        if getattr(self, "_radio_display_only", False):
+            self._radio_display_only = False
+            self._control.set_result(text, tr("Radio transcript · copy when ready", "对讲机转写 · 可手动复制"))
+            if not getattr(self, "_radio_pending", None):
+                self._overlay.hide()
+            return
         self._control.set_result(self.recent.text, tr("Ready to input", "准备输入"))
         self._overlay.set_status(
             tr("Polished · Sending text…", "润色完成 · 正在输入…") if original
@@ -276,7 +288,8 @@ class VoiceMixin:
         self._polisher.cancel()
         self._polish_mode = None
         self._reset_prepolish(cancel_request=False)
-        self._overlay.hide()
+        if not getattr(self, "_radio_pending", None):
+            self._overlay.hide()
         if use_original and context:
             original, target, pending_enter = context
             self._submit_transcript(original, target, send_enter or pending_enter)
@@ -310,7 +323,7 @@ class VoiceMixin:
         }
         self._control.set_result(self.recent.text, messages.get(status, status))
         self._control.set_feedback(messages.get(status, status))
-        if status != "pending":
+        if status != "pending" and not getattr(self, "_radio_pending", None):
             self._overlay.hide()
         if status in ("target_changed", "failed", "enter_skipped"):
             self._notify_recovery()
@@ -362,6 +375,8 @@ class VoiceMixin:
 
 
     def _cancel_input(self):
+        self._discard_pending_radio()
+        self._radio_owned = False
         if getattr(self, "_personal_window", None) and self._personal_window.evaluation:
             self._personal_window.evaluation.cancel()
         self._enter_after_paste = False

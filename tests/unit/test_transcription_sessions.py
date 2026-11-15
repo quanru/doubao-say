@@ -5,6 +5,35 @@ from doubao_input.doubao.transcription import TranscriptionManager
 
 
 class TranscriptionSessionTest(TestCase):
+    def test_official_stream_waits_for_final_instead_of_committing_partial(self):
+        manager = self.manager()
+        manager.asr_client.requires_final_result = True
+        manager.app_state.recording_state = RecordingState.RECORDING
+        manager.app_state.transcription_text = "让我们测试一下语音输入"
+        manager._later = Mock(return_value=11)
+        manager._complete_transcription = Mock()
+        manager._stop_recording()
+        manager._later.assert_called_once_with(5000, manager._safety_timeout)
+        manager._on_asr_result("让我们测试一下语音输入")
+        manager._finish_after_quiet_period()
+        manager._complete_transcription.assert_not_called()
+        self.assertTrue(manager.awaiting_final_result)
+        manager._on_asr_result("让我们测试一下语音输入的效果")
+        manager._on_asr_finish()
+        manager._complete_transcription.assert_called_once()
+        self.assertEqual(manager.app_state.transcription_text, "让我们测试一下语音输入的效果")
+
+    def test_radio_audio_uses_existing_asr_without_opening_microphone(self):
+        manager = self.manager()
+        manager.app_state.login_status = LoginStatus.LOGGED_IN
+        manager.start_external_audio(b"radio pre-roll")
+        manager.audio_capture.start.assert_not_called()
+        manager.asr_client.send_audio.assert_called_once_with(b"radio pre-roll")
+        self.assertEqual(manager.app_state.recording_state, RecordingState.STARTING)
+        manager.handle_toggle()
+        manager.asr_client.finish_sending.assert_called_once()
+        self.assertEqual(manager.app_state.recording_state, RecordingState.STOPPING)
+
     def test_cancel_during_finalization_releases_session_and_ignores_late_results(self):
         manager = self.manager()
         manager.app_state.login_status = LoginStatus.LOGGED_IN
@@ -130,15 +159,15 @@ class TranscriptionSessionTest(TestCase):
     def test_auth_cleanup_failure_still_stops_capture_and_reports_error(self):
         manager = self.manager()
         manager.on_auth_expired = Mock()
-        with patch("doubao_input.doubao.transcription.ParamsStore.clear", side_effect=PermissionError):
-            manager._handle_auth_failure()
+        manager.credential_store.clear.side_effect = PermissionError
+        manager._handle_auth_failure()
         manager.asr_client.disconnect.assert_called()
         manager.on_auth_expired.assert_called_once()
         self.assertTrue(manager.app_state.error_message)
 
     def manager(self):
-        manager = TranscriptionManager(AppState())
-        manager.asr_client = Mock()
+        manager = TranscriptionManager(AppState(), asr_client=Mock(),
+                                       credential_store=Mock())
         manager.audio_capture = Mock()
         manager._wire_asr_callbacks()
         return manager
@@ -237,14 +266,14 @@ class TranscriptionSessionTest(TestCase):
         manager.app_state.transcription_text = "already recognized"
         manager._later = Mock(side_effect=[11, 12])
         manager._stop_recording()
-        self.assertEqual([c.args[0] for c in manager._later.call_args_list], [1000, 500])
+        self.assertEqual([c.args[0] for c in manager._later.call_args_list], [5000, 500])
         self.assertTrue(manager.awaiting_final_result)
 
     def test_empty_release_keeps_safety_wait(self):
         manager = self.manager()
         manager._later = Mock(return_value=11)
         manager._stop_recording()
-        manager._later.assert_called_once_with(1000, manager._safety_timeout)
+        manager._later.assert_called_once_with(5000, manager._safety_timeout)
 
     def test_quiet_timer_does_not_finish_with_unsent_audio(self):
         manager = self.manager()
@@ -272,3 +301,12 @@ class TranscriptionSessionTest(TestCase):
         manager._on_asr_result("corrected text")
         manager._schedule_final_completion.assert_called_once()
         self.assertEqual(manager.app_state.transcription_text, "corrected text")
+
+    def test_repeated_live_snapshot_does_not_postpone_completion(self):
+        manager = self.manager()
+        manager.awaiting_final_result = True
+        manager.app_state.transcription_text = "stable text"
+        manager._schedule_final_completion = Mock()
+        for _ in range(10):
+            manager._on_asr_result("stable text")
+        manager._schedule_final_completion.assert_not_called()

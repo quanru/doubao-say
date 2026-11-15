@@ -8,6 +8,13 @@ from doubao_input.ui.overlay import Overlay
 
 
 class OverlayStatusTest(TestCase):
+    def test_live_text_does_not_create_duplicate_tooltip(self):
+        overlay = SimpleNamespace(_label=Mock(), _status_label=Mock(),
+                                  _status_text="Listening", _text="synthetic <words>")
+        Overlay._refresh_label(overlay)
+        overlay._label.set_markup.assert_called_once_with("synthetic &lt;words&gt;")
+        overlay._label.set_tooltip_text.assert_called_once_with(None)
+
     def test_error_actions_remain_visible_and_open_settings_on_click(self):
         overlay = SimpleNamespace(
             _show=Mock(), _set_text=Mock(), _waveform=Mock(),

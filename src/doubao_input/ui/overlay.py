@@ -310,6 +310,10 @@ class Overlay:
             return
 
         win = Gtk.Window()
+        # Settings are modal in the default group. The background overlay must
+        # keep receiving its own pointer actions without taking keyboard focus.
+        self._window_group = Gtk.WindowGroup()
+        self._window_group.add_window(win)
         win.set_title("Doubao Say overlay")
         win.set_decorated(False)
         win.set_resizable(False)
@@ -507,7 +511,8 @@ class Overlay:
         self._status_label.set_text(self._status_text)
         display = self._text[-600:]
         self._label.set_markup(escape(display))
-        self._label.set_tooltip_text(display or None)
+        # Live text is already visible here; a tooltip creates a second bubble.
+        self._label.set_tooltip_text(None)
 
     def _arm_ticker(self) -> None:
         if self._ticker_src is None and self._visible:

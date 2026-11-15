@@ -54,9 +54,10 @@ logger = logging.getLogger(__name__)
 
 from doubao_input.app_voice import VoiceMixin
 from doubao_input.app_runtime import RuntimeMixin
+from doubao_input.app_radio import RadioMixin
 
 
-class DoubaoInputApp(VoiceMixin, RuntimeMixin, Gtk.Application):
+class DoubaoInputApp(VoiceMixin, RuntimeMixin, RadioMixin, Gtk.Application):
     def __init__(self, background: bool = False, trigger_debug: bool = False) -> None:
         super().__init__(
             application_id="md.lifeos.DoubaoSay",
@@ -156,6 +157,7 @@ class DoubaoInputApp(VoiceMixin, RuntimeMixin, Gtk.Application):
         if first_activation:
             self._setup_done = True
             self._build()
+            self._configure_radio()
             if self._background:
                 # No visible ApplicationWindow exists in daemon mode, so keep
                 # GApplication alive for evdev/ASR callbacks explicitly.
@@ -270,6 +272,8 @@ class DoubaoInputApp(VoiceMixin, RuntimeMixin, Gtk.Application):
             current.show()
             return
         self._settings_window = SettingsWindow(self._control.window, self.settings, self.apply_settings,
+            toggle_radio=self._toggle_radio,
+            radio_listening=lambda: bool(getattr(self, "_radio", None) and self._radio.listening),
             capture_key=self._begin_key_capture, cancel_capture=self._end_key_capture,
             sign_out=self._sign_out, restart=self._restart, login=self._show_login,
             preview=self._preview_overlay, apply_key=self._apply_trigger_key,

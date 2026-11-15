@@ -111,6 +111,18 @@ class TranscriptionManager:
 
     # --- Toggle ---
 
+    def start_external_audio(self, pre_roll: bytes) -> None:
+        """Start a radio stream without opening the ordinary microphone."""
+        if (self.app_state.recording_state != RecordingState.IDLE
+                or self.app_state.login_status != LoginStatus.LOGGED_IN or self._priming):
+            return
+        with self._prime_lock:
+            self._audio_generation += 1
+            self._priming = True
+            self._primed_audio = [pre_roll]
+            self._primed_bytes = len(pre_roll)
+        self._start_recording()
+
     def prime_recording(self) -> bool:
         """Capture locally before a tap/hold gesture is confirmed."""
         if (self.app_state.login_status != LoginStatus.LOGGED_IN
@@ -300,7 +312,7 @@ class TranscriptionManager:
         )
         # A result may already be complete before the key is released. Without
         # this timer, silence after release needlessly takes the full safety timeout.
-        if self.app_state.transcription_text.strip():
+        if self.app_state.transcription_text.strip() and not self._requires_final_result():
             self._schedule_final_completion()
 
     def _safety_timeout(self) -> bool:
@@ -328,6 +340,7 @@ class TranscriptionManager:
         return GLib.SOURCE_REMOVE
 
     def _on_asr_result(self, text: str) -> bool:
+        changed = text != self.app_state.transcription_text
         if not self.app_state.transcription_text:
             self._trace("first_result")
         self.app_state.transcription_text = text
@@ -335,7 +348,7 @@ class TranscriptionManager:
             self.on_overlay_update(text)
         if self.app_state.recording_state == RecordingState.STARTING:
             self._set_state(RecordingState.RECORDING)
-        if self.awaiting_final_result:
+        if self.awaiting_final_result and changed and not self._requires_final_result():
             self._schedule_final_completion()
         return GLib.SOURCE_REMOVE
 
@@ -359,9 +372,16 @@ class TranscriptionManager:
             self._finish_after_quiet_period,
         )
 
+    def _requires_final_result(self) -> bool:
+        # Official streaming results may stay unchanged while the server is
+        # decoding trailing audio. Only its terminal response confirms completion.
+        return getattr(self.asr_client, "requires_final_result", False) is True
+
     def _finish_after_quiet_period(self) -> bool:
         self.final_result_timer_id = None
         if self.awaiting_final_result:
+            if self._requires_final_result():
+                return GLib.SOURCE_REMOVE
             if self.asr_client.has_pending_audio or not self.asr_client.is_connected:
                 self._schedule_final_completion()
                 return GLib.SOURCE_REMOVE

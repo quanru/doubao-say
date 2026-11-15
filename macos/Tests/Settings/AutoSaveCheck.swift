@@ -3,6 +3,19 @@ import AppKit
 @main
 struct AutoSaveCheck {
     @MainActor static func main() {
+        precondition(!MacSettings().aiocEnabled, "Radio integration must be off by default")
+        let radioState = AppState()
+        let radioModel = SettingsModel(state: radioState)
+        radioModel.draft = MacSettings()
+        radioModel.apply = { _, _, _ in }
+        var radioStops = 0
+        radioModel.stopRadio = { radioStops += 1; radioState.recordingState = .idle }
+        radioModel.draft.aiocEnabled = true
+        radioState.recordingState = .recording
+        radioModel.draft.aiocEnabled = false
+        precondition(radioStops == 1 && radioState.recordingState == .idle,
+                     "Unchecking radio must stop immediately even while recording, before autosave")
+        print("PASS: AIOC defaults off; unchecking stops the active receiver immediately")
         precondition(PasteHelper.useAccessibilityInput(method: "auto", selectedTextWritable: true))
         precondition(!PasteHelper.useAccessibilityInput(method: "auto", selectedTextWritable: false))
         precondition(!PasteHelper.useAccessibilityInput(method: "auto", selectedTextWritable: true, nativeField: false))

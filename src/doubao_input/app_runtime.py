@@ -50,6 +50,7 @@ def _application_class():
 
 class RuntimeMixin:
     def _on_shutdown(self, _app) -> None:
+        self._stop_radio_watch()
         from doubao_input.chatgpt import close_chatgpt
         close_chatgpt()
         logger.info("shutting down")
@@ -368,6 +369,8 @@ class RuntimeMixin:
             self._setup_session.voice_ok = False
         if previous.microphone != settings.microphone:
             self._setup_session.microphone_ok = self._setup_session.voice_ok = False
+        self._configure_radio(changed=any(getattr(previous, key) != getattr(settings, key)
+            for key in ("aioc_enabled", "aioc_device", "aioc_threshold", "asr_provider")))
         self._control.refresh()
 
 

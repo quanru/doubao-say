@@ -40,6 +40,8 @@ class _Session:
 class VolcengineASRClient:
     """Thread-safe client with the same lifecycle contract as the web client."""
 
+    requires_final_result = True
+
     def __init__(self, connect_factory=None, hotwords=None) -> None:
         self._lock = threading.RLock()
         self._session: _Session | None = None
@@ -212,12 +214,9 @@ class VolcengineASRClient:
             if response.is_last:
                 self._emit(session, "on_finish")
                 return
-        with self._lock:
-            finished = not session.accepting
-        if finished:
-            self._emit(session, "on_finish")
-        else:
-            raise ConnectionError("Official ASR closed before recording ended")
+        # A normal socket close is not a terminal recognition result. Promoting
+        # the last partial here would silently drop undecoded trailing audio.
+        raise ConnectionError("Official ASR closed without a final result")
 
     def _emit_rejection(self, session, code: int) -> None:
         if code in {401, 403, 45000000, 45000001, 45000002}:

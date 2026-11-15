@@ -83,6 +83,31 @@ microphone capture, live ASR, system clipboard paste, or delivery into an
 unrelated application; those require separate acceptance. The synthetic runtime
 target does exercise the real Delivery state machine against its own GTK field.
 
+## AIOC receive-only checks
+
+`tests/unit/test_radio.py` covers segmentation, quiet-period arming, pre-roll,
+duration limits, lock exclusion, disconnect cleanup and stale audio callbacks.
+`test_radio_app.py` and the radio case in `test_transcription_sessions.py` cover
+the existing ASR controller and display-only delivery. Native equivalents are
+`swift test --package-path macos --filter RadioTests` and the radio case in
+`macos/Tests/Input/RetryCheck.swift`.
+
+On a prepared Hyprland desktop, run the bounded native GTK wiring check in an
+isolated D-Bus session:
+
+```sh
+DOUBAO_AIOC_ISOLATED_TEST=1 PYTHONPATH=src:. timeout --signal=TERM --kill-after=3s 30s \
+  dbus-run-session -- .venv/bin/python tests/manual/radio_settings.py artifacts/verification/aioc/local
+```
+
+It renders the production settings, toggles a synthetic AIOC session, streams
+synthetic PCM through the real transcription controller, and verifies retained
+text without input delivery. Hardware capture, credentials and networking are
+mocked. Optional `--capture` crops this process's window using `hyprctl` and `grim`.
+Use it only on an unlocked desktop and inspect every image; a lock-screen
+capture is invalid evidence. The check does not prove physical AIOC or radio acceptance. Mac's isolated native settings
+capture supports `python3 macos/runtime-check.py '<app>' '<output>' --devices`.
+
 ## GlobalShortcuts protocol acceptance
 
 On a Linux host with PyGObject, run the bounded, isolated protocol test:
@@ -194,3 +219,15 @@ synthetic PCM and results without microphone access or paid services.
 It activates the real sheet's Return/Escape shortcuts and checks persisted state.
 Live microphone/ASR quality is separate; use the opt-in
 [personal speech evaluation tool](../packaging/SPEECH_EVAL.md) with real recordings.
+
+## Short AIOC input trace
+
+For an explicitly requested Linux radio diagnosis, touch
+`${XDG_STATE_HOME:-$HOME/.local/state}/doubao-say/radio-trace` while the app runs.
+For five minutes the existing receive loop logs one metadata summary per second:
+callback count, maximum RMS, blocks above the configured threshold, armed/active
+state, quiet duration and maximum GTK dispatch delay. It saves no PCM or transcript
+and does not open another microphone or send extra recognition requests. Remove the
+marker to stop early; an expired marker does not restart tracing after app relaunch.
+Use the timestamps to distinguish missing audio, a missed onset and busy routing.
+No trace or synthetic test establishes physical PTT state.

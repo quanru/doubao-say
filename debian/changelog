@@ -1,3 +1,10 @@
+doubao-say (1.9.0-1) noble; urgency=medium
+
+  * Add opt-in AIOC walkie-talkie dictation and automatic standby.
+  * Improve consecutive Linux calls, ASR completion and overlay dismissal.
+
+ -- quanru <quanruzhuoxiu@gmail.com>  Sun, 15 Nov 2026 16:00:00 +0800
+
 doubao-say (1.8.3-1) noble; urgency=medium
 
   * Fix macOS Doubao streaming startup and remapped Fn shortcuts.

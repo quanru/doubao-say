@@ -7,6 +7,7 @@ final class SettingsModel: ObservableObject {
     @Published var draft = SettingsStore.shared.value {
         didSet {
             guard !suppressAutosave, draft != oldValue else { return }
+            if oldValue.aiocEnabled && !draft.aiocEnabled { stopRadio?() }
             if draft.microphoneID != oldValue.microphoneID { state.microphoneChecked = false; state.voiceChecked = false }
             if draft.provider != oldValue.provider {
                 state.voiceChecked = false
@@ -21,6 +22,10 @@ final class SettingsModel: ObservableObject {
     @Published var recognitionKey = "" { didSet { if recognitionKey != oldValue { scheduleAutosave() } } }
     @Published var polishKey = "" { didSet { if polishKey != oldValue { scheduleAutosave() } } }
     @Published var feedback = ""
+    @Published var aiocListening = false
+    @Published var aiocStatus = ""
+    var toggleRadio: (() -> Void)?
+    var stopRadio: (() -> Void)?
     @Published var selectedTab = "setup"
     @Published var setupStep = 0
     @Published private(set) var repeatingSetup = false
