@@ -27,12 +27,19 @@ class TrayMenu:
         self.registration = bus.register_object(PATH, Gio.DBusNodeInfo.new_for_xml(XML).interfaces[0],
                                                 self.method, self.property, None)
 
+    @staticmethod
+    def _enabled(entry):
+        value = entry[2] if len(entry) > 2 else True
+        return bool(value() if callable(value) else value)
+
     def props(self, item, names=()):
         if item == 0:
             props = {"children-display": GLib.Variant("s", "submenu")}
         elif 1 <= item <= len(self.entries):
-            props = {"label": GLib.Variant("s", self.entries[item - 1][0]()),
-                     "enabled": GLib.Variant("b", True), "visible": GLib.Variant("b", True)}
+            entry = self.entries[item - 1]
+            props = {"label": GLib.Variant("s", entry[0]()),
+                     "enabled": GLib.Variant("b", self._enabled(entry)),
+                     "visible": GLib.Variant("b", True)}
         else:
             raise ValueError("Unknown menu item")
         return {k: v for k, v in props.items() if not names or k in names}
@@ -45,8 +52,12 @@ class TrayMenu:
     def event(self, item, event, *_):
         if not 1 <= item <= len(self.entries):
             return False
+        entry = self.entries[item - 1]
+        if not self._enabled(entry):
+            return False
         if event == "clicked":
-            self.entries[item - 1][1]()
+            entry[1]()
+            self.refresh()
         return True
 
     def method(self, _bus, _sender, _path, _iface, method, parameters, call):

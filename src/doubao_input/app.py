@@ -80,6 +80,7 @@ class DoubaoInputApp(VoiceMixin, RuntimeMixin, RadioMixin, Gtk.Application):
         self._escape_timer = None
         self._background = background
         self._trigger_debug_requested = trigger_debug
+        self.voice_input_enabled = True
         self._debug_session = None
         self.app_state = AppState()
         self._overlay: Overlay | None = None

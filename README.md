@@ -307,9 +307,14 @@ Classic bars remains the default. Reduced updates also stop travelling and
 bouncing motion in the new styles while retaining volume feedback.
 Final text is pasted after recording ends; target fields are not revised live.
 No green volume/progress bar is shown.
-The system tray waveform opens the existing app when clicked: blue when ready,
-red while recording, yellow while transcribing. Some desktops fold tray icons
-into an expandable drawer.
+On Omarchy, clicking the system-tray waveform opens a compact menu anchored to
+the icon. It shows status and the trigger shortcut, and offers a session-only
+voice-input toggle, microphone check, full settings, Copy recent result and
+Cancel input. Disabling ordinary voice input cancels an active dictation and
+resets when the app restarts; AIOC standby remains controlled separately in
+Settings. Other Linux desktops keep the existing click-to-open window behavior.
+The waveform is blue when ready, red while recording and yellow while
+transcribing. Some desktops fold tray icons into an expandable drawer.
 
 The application checks the repository's latest stable GitHub Release at startup
 and while running, with network checks limited to once every 24 hours. A newer
@@ -334,9 +339,10 @@ actual behavior. Remove API keys, cookies and personal transcripts from attachme
 ## Control center and recovery
 
 The control center contains the four setup pages, without a separate Home or
-completion page. Reopen it from the tray whenever you want to test or change a
-setting. The tray's **Copy recent result** action recovers the last in-memory
-result. Escape cancels recording or pending input.
+completion page. On Omarchy, open full settings from the tray's quick menu;
+other desktops reopen the control center by clicking the tray icon. The tray's
+**Copy recent result** action recovers the last in-memory result. Escape cancels
+recording or pending input.
 On Hyprland's Lua configuration, Escape is temporarily consumed during dictation,
 polishing and pending paste, so it does not also exit the foreground TUI. Idle
 Escape is unchanged. Existing global Escape bindings are not replaced; a warning

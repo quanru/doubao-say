@@ -59,6 +59,8 @@ class VoiceMixin:
             self.app_state.login_status = LoginStatus.LOGGED_IN
 
     def _voice_start(self):
+        if not getattr(self, "voice_input_enabled", True):
+            return
         if self._overlay.error_visible:
             return
         if getattr(self, "_polish_mode", None) == "final" and self._polisher.busy:
@@ -82,7 +84,8 @@ class VoiceMixin:
 
 
     def _voice_prime(self):
-        if (not self._overlay.error_visible and not self._mic_test_running and not self._triggers.capturing
+        if (getattr(self, "voice_input_enabled", True)
+                and not self._overlay.error_visible and not self._mic_test_running and not self._triggers.capturing
                 and not self._recovery_timer and not self._paste_pending
                 and getattr(self, "_polish_mode", None) != "final"
                 and not (getattr(self, "_personal_window", None) and self._personal_window.evaluation and self._personal_window.evaluation.active)):
@@ -91,6 +94,8 @@ class VoiceMixin:
 
 
     def _voice_stop(self):
+        if not getattr(self, "voice_input_enabled", True):
+            return
         if getattr(self, "_polish_mode", None) == "final" and self._polisher.busy:
             self._cancel_polish(use_original=True)
             return
@@ -99,6 +104,8 @@ class VoiceMixin:
 
 
     def _voice_toggle(self):
+        if not getattr(self, "voice_input_enabled", True):
+            return
         if self._overlay.error_visible:
             return
         if getattr(self, "_personal_window", None) and self._personal_window.evaluation and self._personal_window.evaluation.active:
@@ -374,9 +381,14 @@ class VoiceMixin:
         self._recovery_timer = GLib.timeout_add(3000, retry)
 
 
-    def _cancel_input(self):
-        self._discard_pending_radio()
-        self._radio_owned = False
+    def _cancel_input(self, *, cancel_radio=True):
+        if cancel_radio:
+            self._discard_pending_radio()
+            self._radio_owned = False
+        elif getattr(self, "_radio_owned", False):
+            # The ordinary voice-input toggle must not cancel an AIOC call
+            # that currently owns the shared transcription pipeline.
+            return
         if getattr(self, "_personal_window", None) and self._personal_window.evaluation:
             self._personal_window.evaluation.cancel()
         self._enter_after_paste = False

@@ -1,5 +1,6 @@
 """StatusNotifierItem hosted by the existing GTK main loop (no extra process)."""
 import logging
+import os
 from gi.repository import Gio, GLib
 from doubao_input.i18n import tr
 from doubao_input.ui.tray_menu import TrayMenu, PATH as MENU_PATH
@@ -32,6 +33,11 @@ XML = """<node><interface name="org.kde.StatusNotifierItem">
 </interface></node>"""
 
 
+def is_omarchy_session():
+    """Whether this process belongs to an Omarchy session."""
+    return bool(os.environ.get("OMARCHY_PATH"))
+
+
 def waveform_pixels(state):
     """22px waveform, network-order ARGB as required by StatusNotifierItem."""
     color = {"starting": (247, 118, 142), "recording": (247, 118, 142),
@@ -49,6 +55,7 @@ class Tray:
     def __init__(self, app_state, on_activate, *, menu_entries=None):
         self._state = app_state
         self._activate = on_activate
+        self.only_menu = is_omarchy_session()
         self._bus = Gio.bus_get_sync(Gio.BusType.SESSION, None)
         self.menu = TrayMenu(self._bus, menu_entries or [(lambda: tr("Open", "打开"), on_activate)])
         info = Gio.DBusNodeInfo.new_for_xml(XML).interfaces[0]
@@ -85,12 +92,15 @@ class Tray:
             "IconName": ("s", ""), "IconPixmap": ("a(iiay)", [(22, 22, waveform_pixels(state))]),
             "OverlayIconName": ("s", ""), "OverlayIconPixmap": ("a(iiay)", []),
             "AttentionIconName": ("s", ""), "AttentionIconPixmap": ("a(iiay)", []),
-            "AttentionMovieName": ("s", ""), "ItemIsMenu": ("b", False), "Menu": ("o", MENU_PATH),
-            "ToolTip": ("(sa(iiay)ss)", ("", [], title, status + tr(" · Click to open", " · 点击打开"))),
+            "AttentionMovieName": ("s", ""), "ItemIsMenu": ("b", self.only_menu), "Menu": ("o", MENU_PATH),
+            "ToolTip": ("(sa(iiay)ss)", ("", [], title, status + (
+                tr(" · Click for quick settings", " · 点击打开快捷设置") if self.only_menu
+                else tr(" · Click to open", " · 点击打开")))),
         }
         return GLib.Variant(*values[name])
 
     def _changed(self, *_):
+        self.menu.refresh()
         for signal in ("NewIcon", "NewToolTip"):
             self._bus.emit_signal(None, PATH, INTERFACE, signal, None)
 

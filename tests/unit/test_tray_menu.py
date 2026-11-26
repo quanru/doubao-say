@@ -20,6 +20,27 @@ class TrayMenuTest(TestCase):
         self.action.assert_called_once()
         self.assertFalse(self.menu.event(0, "clicked", None, 0))
 
+    def test_disabled_dynamic_status_row_cannot_be_activated(self):
+        action = Mock()
+        enabled = False
+        menu = TrayMenu(Mock(), [(lambda: "Ready", action, lambda: enabled)])
+        self.assertEqual(menu.props(1)["label"].unpack(), "Ready")
+        self.assertFalse(menu.props(1)["enabled"].unpack())
+        self.assertFalse(menu.event(1, "clicked", None, 0))
+        action.assert_not_called()
+
+    def test_clicked_action_refreshes_dynamic_menu(self):
+        bus = Mock()
+        state = {"enabled": True}
+        action = Mock(side_effect=lambda: state.update(enabled=False))
+        menu = TrayMenu(bus, [
+            (lambda: "Disable" if state["enabled"] else "Enable", action),
+        ])
+        self.assertEqual(menu.props(1)["label"].unpack(), "Disable")
+        self.assertTrue(menu.event(1, "clicked", None, 0))
+        self.assertEqual(menu.props(1)["label"].unpack(), "Enable")
+        bus.emit_signal.assert_called_once()
+
     def test_filtered_layout_and_zero_depth(self):
         self.assertFalse(self.menu.layout(depth=0)[2])
         self.assertEqual(set(self.menu.props(1, ["label"])), {"label"})

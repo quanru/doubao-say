@@ -38,6 +38,7 @@ from doubao_input.polish_preview import PolishPreview
 from doubao_input.trigger.escape_guard import EscapeGuard
 from doubao_input.diagnostics import DiagnosticTrace, report as diagnostic_report
 from doubao_input.recognition_providers import recognition_provider
+from doubao_input.ui.tray import is_omarchy_session
 
 logger = logging.getLogger(__name__)
 
@@ -178,14 +179,27 @@ class RuntimeMixin:
 
         # ---- PTT trigger ----
         from doubao_input.ui.tray import Tray
-        try:
-            self._tray = Tray(self.app_state, self._control.show, menu_entries=[
+        if is_omarchy_session():
+            menu_entries = [
+                (self._quick_menu_status, lambda: None, False),
+                (self._quick_menu_shortcut, lambda: None, False),
+                (self._quick_menu_voice_action, self._toggle_voice_input),
+                (lambda: tr("Check microphone", "检查麦克风"), self._check_mic),
+                (lambda: tr("Open full settings", "打开完整设置"),
+                 lambda: (self._control.show(), self._show_settings())),
+                (lambda: tr("Copy recent result", "复制最近结果"), self._copy_recent),
+                (lambda: tr("Cancel input", "取消输入"), self._cancel_input),
+            ]
+        else:
+            menu_entries = [
                 (lambda: tr("Open control center", "打开控制中心"), self._control.show),
                 (lambda: tr("Settings", "设置"), lambda: (self._control.show(), self._show_settings())),
                 (lambda: tr("Check microphone", "检查麦克风"), self._check_mic),
                 (lambda: tr("Copy recent result", "复制最近结果"), self._copy_recent),
                 (lambda: tr("Cancel recording / input", "取消录音或输入"), self._cancel_input),
-            ])
+            ]
+        try:
+            self._tray = Tray(self.app_state, self._control.show, menu_entries=menu_entries)
         except GLib.Error:
             logger.exception("System tray unavailable; desktop launcher remains usable")
         self._triggers.configure(self.settings)
@@ -193,6 +207,39 @@ class RuntimeMixin:
             from doubao_input.ui.trigger_debug import TriggerDebug
             self._debug_session = TriggerDebug(self, self._exit_trigger_debug)
         logger.info("build complete")
+
+
+    def _quick_menu_status(self):
+        state = self.app_state.recording_state.value
+        status = {
+            "idle": tr("Ready", "就绪"),
+            "starting": tr("Starting", "正在启动"),
+            "recording": tr("Listening", "正在聆听"),
+            "stopping": tr("Transcribing", "正在转写"),
+        }.get(state, state)
+        if not self.voice_input_enabled and state == "idle":
+            status = tr("Voice input off", "语音输入已关闭")
+        return tr("Status: {status}", "状态：{status}").format(status=status)
+
+
+    def _quick_menu_shortcut(self):
+        shortcut = trigger_shortcut_display(
+            self.settings.doubao_key, self.settings.doubao_modifiers).replace("  +  ", " + ")
+        return tr("Shortcut: {shortcut}", "快捷键：{shortcut}").format(shortcut=shortcut)
+
+
+    def _quick_menu_voice_action(self):
+        return tr("Disable voice input", "关闭语音输入") if self.voice_input_enabled else tr(
+            "Enable voice input", "开启语音输入")
+
+
+    def _toggle_voice_input(self):
+        self.voice_input_enabled = not self.voice_input_enabled
+        if not self.voice_input_enabled:
+            self._cancel_input(cancel_radio=False)
+        tray = getattr(self, "_tray", None)
+        if tray:
+            tray.menu.refresh()
 
 
     def _exit_trigger_debug(self):
@@ -372,6 +419,9 @@ class RuntimeMixin:
         self._configure_radio(changed=any(getattr(previous, key) != getattr(settings, key)
             for key in ("aioc_enabled", "aioc_device", "aioc_threshold", "asr_provider")))
         self._control.refresh()
+        tray = getattr(self, "_tray", None)
+        if tray:
+            tray.menu.refresh()
 
 
     def _trace_input(self, stage):
